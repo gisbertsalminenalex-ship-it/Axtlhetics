@@ -28,11 +28,13 @@ The visual system must follow the approved Axtlhetics design system.
 
 Primary design values:
 
-- Primary: #4F7CFF
-- Background: #FFFFFF
-- Cards: #F7F7F7
+- Primary: #0A61F8
+- Background: pending — use the approved design-system background token; do not hard-code a contradictory value here
+- Surface / Cards: #F7F7F7
 - Text: #111111
 - Font: Inter
+
+The definitive visual language is editorial, premium, technological, clean and informative. The interface should use the design system as the source of truth rather than inventing independent visual tokens.
 
 ---
 
@@ -153,34 +155,3 @@ The PWA should prioritize:
 - Good mobile experience
 
 PWA functionality should not introduce unnecessary complexity into the Core.
-
----
-
-## Future Technologies
-
-The following technologies are intentionally NOT part of Core v0.1:
-
-- Supabase
-- OpenAI API
-- User accounts
-- Cloud synchronization
-- Community/social systems
-- Wearable integrations
-
-They may be considered in future versions only when a concrete product requirement justifies them.
-
----
-
-## Technical Principle
-
-Use the simplest technology that satisfies the current requirement.
-
-Do not add infrastructure because it might be useful someday.
-
-Axtlhetics Core should remain:
-
-- Local-first
-- Simple
-- Fast
-- Maintainable
-- Scalable enough for future evolution
