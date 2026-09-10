@@ -39,6 +39,8 @@ export type ChangeRequestKind =
   | 'easier'
   | 'harder'
   | 'rest'
+  /** Quiere entrenar cuando AXIS había recomendado no hacerlo, o hacer más. */
+  | 'train_anyway'
   | 'unclear'
 
 /**
@@ -59,6 +61,14 @@ export type ChangeRequest = {
   kind: ChangeRequestKind
   focus: SessionFocus | null
   reportedLoad: ReportedLoad | null
+  /**
+   * Actividades del calendario que hoy no van a pasar.
+   *
+   * El calendario dice lo que suele ocurrir, no lo que ocurre. Si el partido se
+   * ha cancelado, la razón por la que AXIS frenaba desaparece, y seguir frenando
+   * no sería firmeza: sería no escuchar.
+   */
+  cancelledActivities: string[]
 }
 
 const AVOID_TERMS = [
@@ -80,6 +90,34 @@ const HARDER_TERMS = [
 ]
 const REST_TERMS = ['descansar', 'no entrenar', 'dia libre', 'día libre', 'parar hoy', 'saltarme el dia', 'saltarme el día']
 
+/** Querer entrenar, cuando AXIS había recomendado no hacerlo o hacer poco. */
+const TRAIN_ANYWAY_TERMS = [
+  'me apetece entrenar', 'quiero entrenar', 'si quiero entrenar', 'sí quiero entrenar',
+  'me apetece', 'quiero moverme', 'quiero hacer algo', 'puedo entrenar', 'deberia entrenar',
+  'debería entrenar', 'hoy si', 'hoy sí', 'me encuentro bien', 'estoy bien', 'con ganas',
+  'igualmente quiero', 'aun asi quiero', 'aun así quiero',
+]
+
+/** Que algo del calendario hoy no va a ocurrir. */
+const CANCELLED_TERMS = [
+  'no tengo', 'no tenia', 'no tenía', 'no hay', 'no hubo', 'se ha cancelado', 'se cancelo',
+  'se canceló', 'cancelado', 'cancelada', 'no voy a ir', 'no he ido', 'no fui', 'al final no',
+  'me lo han quitado', 'se ha suspendido', 'suspendido', 'no toca',
+]
+
+/**
+ * Cómo nombra el usuario lo que tiene en el calendario.
+ *
+ * Nadie escribe el nombre exacto que puso en el onboarding: si registró
+ * «Baloncesto», dirá «básquet». Junto a los genéricos («entreno», «partido») van
+ * los deportes habituales con sus variantes.
+ */
+const ACTIVITY_WORDS = [
+  'entreno', 'entrenamiento', 'partido', 'clase', 'sesion', 'sesión', 'competicion', 'competición',
+  'baloncesto', 'basquet', 'básquet', 'basket', 'futbol', 'fútbol', 'natacion', 'natación',
+  'piscina', 'tenis', 'padel', 'pádel', 'balonmano', 'voley', 'vóley', 'atletismo', 'gimnasia',
+]
+
 /** Actividades que el usuario puede contar, y lo que cargan. */
 const REPORTED_ACTIVITIES: readonly { terms: readonly string[]; muscleGroups: string[] }[] = [
   { terms: ['bici', 'bicicleta', 'ciclismo', 'spinning'], muscleGroups: ['piernas', 'gluteos'] },
@@ -100,6 +138,31 @@ function includesAny(text: string, terms: readonly string[]): boolean {
   return terms.some((term) => text.includes(normalizeQuestion(term)))
 }
 
+/**
+ * Como `includesAny`, pero descartando las apariciones negadas.
+ *
+ * «No quiero entrenar» contiene literalmente «quiero entrenar». Buscar la
+ * subcadena a secas hacía que AXIS entendiera exactamente lo contrario de lo que
+ * le decían. Se considera negada si hay un «no» pegado justo antes, dentro de
+ * unas pocas palabras.
+ */
+function includesAnyNotNegated(text: string, terms: readonly string[]): boolean {
+  return terms.some((term) => {
+    const needle = normalizeQuestion(term)
+    let from = 0
+
+    for (;;) {
+      const at = text.indexOf(needle, from)
+      if (at === -1) return false
+
+      const before = text.slice(Math.max(0, at - 24), at)
+      if (!/\bno\b[\w\s]{0,15}$/.test(before)) return true
+
+      from = at + needle.length
+    }
+  })
+}
+
 /** Lee lo que el usuario cuenta haber hecho y que no está registrado. */
 export function detectReportedLoad(message: string): ReportedLoad | null {
   const text = normalizeQuestion(message)
@@ -115,21 +178,46 @@ export function detectReportedLoad(message: string): ReportedLoad | null {
   return { quote: message.trim(), muscleGroups, demanding }
 }
 
-export function parseChangeRequest(message: string): ChangeRequest {
+/**
+ * Qué actividades de hoy dice el usuario que no van a ocurrir.
+ *
+ * Se le pasan los nombres que hay en el calendario para poder reconocerlos —
+ * «básquet», «natación»— además de las palabras genéricas con las que se nombra
+ * una actividad.
+ */
+export function detectCancelledActivities(
+  message: string,
+  todayActivityNames: readonly string[] = [],
+): string[] {
+  const text = normalizeQuestion(message)
+  if (!includesAny(text, CANCELLED_TERMS)) return []
+
+  const named = todayActivityNames.filter((name) => text.includes(normalizeQuestion(name)))
+  if (named.length > 0) return named
+
+  // «hoy no tengo entreno»: no nombra el deporte, pero se refiere al del día.
+  if (includesAny(text, ACTIVITY_WORDS)) return [...todayActivityNames]
+
+  return []
+}
+
+export function parseChangeRequest(
+  message: string,
+  todayActivityNames: readonly string[] = [],
+): ChangeRequest {
   const text = normalizeQuestion(message)
   const focus = detectFocus(message)
   const reportedLoad = detectReportedLoad(message)
+  const cancelledActivities = detectCancelledActivities(message, todayActivityNames)
+
+  const base = { focus, reportedLoad, cancelledActivities }
 
   /*
-   * Querer parar del todo, antes que nada. Sin zona de por medio, cualquier «no»
-   * junto a «entrenar» es eso: «no quiero entrenar», «hoy no entreno», «paso de
-   * entrenar». Con zona («no quiero hacer piernas») no es parar, es evitar, y por
-   * eso se exige que no haya foco.
+   * Primero lo que se pide de forma explícita. Que un partido se haya cancelado
+   * es contexto, no la petición: si además dice «hoy piernas no», lo que pide es
+   * evitar piernas, y la cancelación solo sirve para juzgarlo.
    */
-  const wantsToStop =
-    includesAny(text, REST_TERMS) ||
-    (focus === null && /\bno\b/.test(text) && text.includes('entren'))
-  if (wantsToStop) return { kind: 'rest', focus, reportedLoad }
+  if (includesAny(text, REST_TERMS)) return { kind: 'rest', ...base }
 
   /*
    * Evitar una zona se dice de muchas formas, y la mayoría no son una frase
@@ -139,17 +227,42 @@ export function parseChangeRequest(message: string): ChangeRequest {
   const hasBareNo = /\bno\b/.test(text)
   const wantsIt = includesAny(text, WANT_TERMS)
   if (focus !== null && (includesAny(text, AVOID_TERMS) || (hasBareNo && !wantsIt))) {
-    return { kind: 'avoid_focus', focus, reportedLoad }
+    return { kind: 'avoid_focus', ...base }
   }
-  if (includesAny(text, SHORTER_TERMS)) return { kind: 'shorter', focus, reportedLoad }
-  if (includesAny(text, HARDER_TERMS)) return { kind: 'harder', focus, reportedLoad }
-  if (includesAny(text, EASIER_TERMS)) return { kind: 'easier', focus, reportedLoad }
-  if (focus !== null && includesAny(text, WANT_TERMS)) {
-    return { kind: 'want_focus', focus, reportedLoad }
-  }
-  if (focus !== null) return { kind: 'want_focus', focus, reportedLoad }
+  if (includesAny(text, SHORTER_TERMS)) return { kind: 'shorter', ...base }
+  if (includesAny(text, HARDER_TERMS)) return { kind: 'harder', ...base }
+  if (includesAny(text, EASIER_TERMS)) return { kind: 'easier', ...base }
+  if (focus !== null) return { kind: 'want_focus', ...base }
 
-  return { kind: 'unclear', focus, reportedLoad }
+  /*
+   * Querer entrenar, y va antes que la regla heurística de descanso de abajo.
+   *
+   * «Hoy no tenía entreno de básquet y me apetece entrenar» tiene un «no» y la
+   * palabra «entreno», que es exactamente el patrón de «no quiero entrenar».
+   * Leído así, AXIS entendía lo contrario de lo que le decían y se negaba a
+   * dejar entrenar a alguien que quería entrenar.
+   */
+  if (includesAnyNotNegated(text, TRAIN_ANYWAY_TERMS) || cancelledActivities.length > 0) {
+    return { kind: 'train_anyway', ...base }
+  }
+
+  /*
+   * Querer parar sin decirlo con todas las letras: un «no» junto a «entrenar»,
+   * sin zona de por medio. Con zona («no quiero hacer piernas») no es parar, es
+   * evitar, y eso ya se ha resuelto arriba.
+   */
+  if (focus === null && /\bno\b/.test(text) && text.includes('entren')) {
+    return { kind: 'rest', ...base }
+  }
+
+  /*
+   * Contar un esfuerzo grande sin pedir nada concreto es pedir que la sesión se
+   * adapte. «He corrido muchísimo y hoy me toca entrenar» no es una pregunta:
+   * es información para que hoy sea más llevadero.
+   */
+  if (reportedLoad?.demanding) return { kind: 'easier', ...base }
+
+  return { kind: 'unclear', ...base }
 }
 
 // ---------------------------------------------------------------------------
@@ -227,8 +340,36 @@ function shortestAlternative(
   return timed.reduce((best, a) => (a.estimatedMinutes! < best.estimatedMinutes! ? a : best))
 }
 
-function lighterAlternative(alternatives: readonly BriefingAlternative[]): BriefingAlternative | null {
-  return alternatives.find((a) => a.type === 'LIGHT_TRAINING' || a.type === 'MODIFIED_TRAINING') ?? null
+/**
+ * Una sesión más suave, sin tocar lo que el usuario acaba de castigar.
+ *
+ * `avoidGroups` importa más de lo que parece: tras contar 20 km corriendo, la
+ * alternativa «más suave» que el motor tenía preparada podía ser justamente de
+ * piernas. Ofrecerla contradice el motivo por el que se está bajando el listón,
+ * así que antes que eso se prefiere no cambiar la sesión y decirle cómo rebajarla.
+ */
+function lighterAlternative(
+  alternatives: readonly BriefingAlternative[],
+  avoidGroups: readonly string[] = [],
+): BriefingAlternative | null {
+  const isLighter = (a: BriefingAlternative) =>
+    a.type === 'LIGHT_TRAINING' || a.type === 'MODIFIED_TRAINING'
+
+  const clashes = (a: BriefingAlternative) =>
+    a.focus !== null && FOCUS_MUSCLE_GROUPS[a.focus].some((group) => avoidGroups.includes(group))
+
+  return alternatives.find((a) => isLighter(a) && !clashes(a)) ?? null
+}
+
+/**
+ * Cómo se nombra una alternativa dentro de una frase.
+ *
+ * La principal se llama «Recomendada», que leído en «cambio a "Recomendada"»
+ * suena a nombre de archivo. En una frase se dice de otra manera.
+ */
+function nameOf(alternative: BriefingAlternative): string {
+  if (alternative.label.toLowerCase() === 'recomendada') return 'la sesión que te recomendaba'
+  return `«${alternative.label}»`
 }
 
 function restAlternative(alternatives: readonly BriefingAlternative[]): BriefingAlternative | null {
@@ -276,11 +417,13 @@ export function evaluateChange(request: ChangeRequest, briefing: AxisBriefing): 
     case 'shorter':
       return evaluateShorter(alternatives, currentMinutes)
     case 'easier':
-      return evaluateEasier(briefing, alternatives)
+      return evaluateEasier(request, briefing, alternatives)
     case 'harder':
       return evaluateHarder(briefing, alternatives)
     case 'rest':
       return evaluateRest(briefing, alternatives)
+    case 'train_anyway':
+      return evaluateTrainAnyway(request, briefing, alternatives)
     default:
       return {
         outcome: 'need_info',
@@ -332,8 +475,12 @@ function evaluateAvoid(
     evidence.push(`ya llevas ${listNames(recent.map(groupLabel).map((g) => g.toLowerCase()))} trabajado estos días`)
   }
 
-  // 3. Deporte de hoy o de mañana que carga esa zona.
-  const sportToday = briefing.activitiesToday.length > 0
+  // 3. Deporte de hoy o de mañana que carga esa zona. El que el usuario acaba de
+  //    decir que se ha cancelado ya no cuenta: el calendario no manda sobre él.
+  const cancelled = request.cancelledActivities.map((name) => name.toLowerCase())
+  const sportToday = briefing.activitiesToday.some(
+    (activity) => !cancelled.includes(activity.name.toLowerCase()),
+  )
   const sportTomorrow = briefing.activitiesTomorrow.length > 0
   if (focus === 'tren_inferior' && (sportToday || sportTomorrow)) {
     evidence.push(sportToday ? 'tienes deporte hoy' : 'mañana tienes deporte')
@@ -354,7 +501,7 @@ function evaluateAvoid(
     if (swap) {
       return {
         outcome: 'accept',
-        text: `${head} Cambio a «${swap.label}», que deja esa zona tranquila.`,
+        text: `${head} Cambio a ${nameOf(swap)}, que deja esa zona tranquila.`,
         applyProposalId: swap.id,
       }
     }
@@ -377,7 +524,7 @@ function evaluateAvoid(
 
   const lighter = lighterAlternative(alternatives)
   const offer = lighter
-    ? ` Si lo que te frena son las ganas y no el cuerpo, cambio a «${lighter.label}»: hacemos algo, más suave, y no perdemos el día.`
+    ? ` Si lo que te frena son las ganas y no el cuerpo, cambio a ${nameOf(lighter)}: hacemos algo, más suave, y no perdemos el día.`
     : ' Si me cuentas algo que no tenga registrado —una carga de ayer, una molestia— lo reviso.'
 
   // Dos puntos y no un punto: lo que sigue empieza en minúscula a propósito,
@@ -422,7 +569,7 @@ function evaluateWant(
   if (match) {
     return {
       outcome: 'accept',
-      text: `Se puede: esa zona no la has tocado estos días. Cambio a «${match.label}».`,
+      text: `Se puede: esa zona no la has tocado estos días. Cambio a ${nameOf(match)}.`,
       applyProposalId: match.id,
     }
   }
@@ -443,7 +590,7 @@ function evaluateShorter(
   if (shorter) {
     return {
       outcome: 'accept',
-      text: `El tiempo es un límite real, no una excusa. Cambio a «${shorter.label}»${shorter.estimatedMinutes !== null ? `, unos ${shorter.estimatedMinutes} min` : ''}. Prefiero una sesión corta hecha que una larga a medias.`,
+      text: `El tiempo es un límite real, no una excusa. Cambio a ${nameOf(shorter)}${shorter.estimatedMinutes !== null ? `, unos ${shorter.estimatedMinutes} min` : ''}. Prefiero una sesión corta hecha que una larga a medias.`,
       applyProposalId: shorter.id,
     }
   }
@@ -456,26 +603,33 @@ function evaluateShorter(
 
 /** Algo más suave. Se concede si hay con qué, sin fingir que da igual. */
 function evaluateEasier(
+  request: ChangeRequest,
   briefing: AxisBriefing,
   alternatives: readonly BriefingAlternative[],
 ): ChangeVerdict {
-  const lighter = lighterAlternative(alternatives)
+  const lighter = lighterAlternative(alternatives, request.reportedLoad?.muscleGroups ?? [])
   const recoveryGood = briefing.recovery.known && briefing.recovery.band === 'good'
 
+  // Si viene de contar un esfuerzo, la razón se nombra: no es que se le conceda
+  // un capricho, es que hay un motivo y AXIS lo reconoce.
+  const head = request.reportedLoad?.demanding
+    ? `${REPORTED_CLAUSE}. Con eso detrás, hoy toca bajar el listón. `
+    : ''
+
   if (lighter) {
-    const caveat = recoveryGood
+    const caveat = recoveryGood && !request.reportedLoad
       ? ' Aunque hoy tu recuperación da para más, así que si a mitad te encuentras bien, sube el ritmo.'
       : ''
     return {
       outcome: 'accept',
-      text: `Cambio a «${lighter.label}».${caveat}`,
+      text: `${head}Cambio a ${nameOf(lighter)}.${caveat}`,
       applyProposalId: lighter.id,
     }
   }
 
   return {
     outcome: 'compromise',
-    text: 'No tengo una versión más suave preparada. Baja el peso y quédate a dos repeticiones del fallo: misma sesión, bastante menos desgaste.',
+    text: `${head}No tengo una versión más suave preparada. Baja el peso y quédate a dos repeticiones del fallo: misma sesión, bastante menos desgaste.`,
     applyProposalId: null,
   }
 }
@@ -512,7 +666,7 @@ function evaluateHarder(
   const harder = alternatives.find((a) => a.type === 'TRAINING')
   return {
     outcome: 'accept',
-    text: `Hoy sí: tu recuperación está en ${briefing.recovery.value} y la carga acumulada lo permite.${harder ? ` Cambio a «${harder.label}».` : ' Sube el peso hasta quedarte a una o dos repeticiones del fallo en las últimas series.'}`,
+    text: `Hoy sí: tu recuperación está en ${briefing.recovery.value} y la carga acumulada lo permite.${harder ? ` Cambio a ${nameOf(harder)}.` : ' Sube el peso hasta quedarte a una o dos repeticiones del fallo en las últimas series.'}`,
     applyProposalId: harder?.id ?? null,
   }
 }
@@ -553,7 +707,7 @@ function evaluateRest(
   if (lighter) {
     return {
       outcome: 'compromise',
-      text: `Antes de dar el día por perdido: cambio a «${lighter.label}». Si a los diez minutos sigues sin poder, lo dejas y no ha pasado nada. Pero tus datos de hoy no piden descanso.`,
+      text: `Antes de dar el día por perdido: cambio a ${nameOf(lighter)}. Si a los diez minutos sigues sin poder, lo dejas y no ha pasado nada. Pero tus datos de hoy no piden descanso.`,
       applyProposalId: lighter.id,
     }
   }
@@ -561,6 +715,129 @@ function evaluateRest(
   return {
     outcome: 'decline',
     text: 'Tus datos de hoy no piden descanso. Si hay algo que no tengo registrado —dormiste mal, estás con molestias, vienes de un esfuerzo largo— cuéntamelo y lo reviso.',
+    applyProposalId: null,
+  }
+}
+
+/**
+ * Lo que AXIS dice cuando algo del calendario se cae.
+ *
+ * No promete una sesión concreta, y no es por prudencia: es que todavía no la
+ * sabe. La aplicación descarta la actividad y el motor replantea el día entero,
+ * y eso ocurre después de componer esta frase. Prometer aquí «la sesión
+ * completa» sería arriesgarse a que la tarjeta diga otra cosa.
+ */
+function cancelledText(names: readonly string[]): string {
+  const listed = listNames(names.map((name) => name.toLowerCase()))
+  return `Bien saberlo: había contado con ${listed} para decidir el día, y eso cambia las cuentas. Replanteo la sesión sin ese compromiso.`
+}
+
+/**
+ * El usuario quiere entrenar cuando AXIS había frenado.
+ *
+ * Aquí es donde la firmeza se puede confundir con rigidez, y no es lo mismo.
+ * AXIS frena por un motivo concreto, y cada motivo se sostiene solo mientras sea
+ * cierto:
+ *
+ * - Si frenaba por un partido y el partido se ha cancelado, el motivo ya no
+ *   existe. Seguir frenando no es criterio, es no escuchar.
+ * - Si frenaba porque hoy no era un día marcado como disponible, eso es una
+ *   preferencia del propio usuario, no un límite del cuerpo. Manda él.
+ * - Si frenaba por recuperación baja o porque ya ha entrenado hoy, el motivo
+ *   sigue en pie y AXIS mantiene el no.
+ *
+ * Y si viene de un esfuerzo grande pero quiere moverse, la respuesta no es «no»:
+ * es una sesión más suave.
+ */
+function evaluateTrainAnyway(
+  request: ChangeRequest,
+  briefing: AxisBriefing,
+  alternatives: readonly BriefingAlternative[],
+): ChangeVerdict {
+  const proposal = briefing.proposal!
+  const alreadyTraining = proposal.session !== null
+
+  // Motivos que no desaparecen porque el usuario tenga ganas.
+  if (briefing.trainedToday) {
+    return {
+      outcome: 'decline',
+      text: 'Hoy ya has entrenado. Las ganas están bien, pero el músculo crece entre sesiones, no dentro de ellas. Mañana lo aprovecharás más.',
+      applyProposalId: null,
+    }
+  }
+
+  if (briefing.recovery.known && briefing.recovery.band === 'low') {
+    const weakest =
+      briefing.recovery.weakest.length > 0 ? ` Lo que peor está es ${listNames(briefing.recovery.weakest)}.` : ''
+    const lighter = lighterAlternative(alternatives)
+    return {
+      outcome: lighter ? 'compromise' : 'decline',
+      text: lighter
+        ? `Tu recuperación está en ${briefing.recovery.value}.${weakest} Entrenar fuerte hoy te costaría los próximos días, así que no lo haría. Si necesitas moverte, cambio a ${nameOf(lighter)} y lo dejamos ahí.`
+        : `Tu recuperación está en ${briefing.recovery.value}.${weakest} Hoy no. No es falta de ganas, es que el cuerpo no está en condiciones de aprovecharlo.`,
+      applyProposalId: lighter?.id ?? null,
+    }
+  }
+
+  // Venía de un esfuerzo grande: se entrena, pero más suave.
+  if (request.reportedLoad?.demanding) {
+    const lighter = lighterAlternative(alternatives, request.reportedLoad?.muscleGroups ?? [])
+    if (lighter) {
+      return {
+        outcome: 'accept',
+        text: `${REPORTED_CLAUSE}. Con ese esfuerzo encima entrenar tiene sentido, pero no al mismo nivel: cambio a ${nameOf(lighter)}. Mueves el cuerpo sin cavar más hondo.`,
+        applyProposalId: lighter.id,
+      }
+    }
+    return {
+      outcome: 'accept',
+      text: `${REPORTED_CLAUSE}. Entrena, pero bájale un punto: menos peso y para dos repeticiones antes del fallo. Hoy la sesión es para mantener, no para exprimir.`,
+      applyProposalId: null,
+    }
+  }
+
+  // El motivo por el que AXIS frenaba ya no se sostiene.
+  if (!alreadyTraining) {
+    const training = alternatives.find((a) => a.type === 'TRAINING' || a.type === 'LIGHT_TRAINING')
+
+    if (request.cancelledActivities.length > 0) {
+      return {
+        outcome: 'accept',
+        text: cancelledText(request.cancelledActivities),
+        // Nada que aplicar: la aplicación descarta la actividad y el motor vuelve
+        // a decidir el día entero. Fijar aquí una alternativa de la decisión vieja
+        // sería aplicar algo calculado con el partido todavía dentro.
+        applyProposalId: null,
+      }
+    }
+
+    if (briefing.profile && !briefing.profile.availableToday) {
+      return {
+        outcome: 'accept',
+        text: training
+          ? `Hoy no lo tenías marcado como día de entrenar, pero eso lo decides tú, no tu cuerpo: nada en tus datos lo desaconseja. Cambio a ${nameOf(training)}.`
+          : 'Hoy no lo tenías marcado como día de entrenar, pero eso lo decides tú, no tu cuerpo. Nada en tus datos lo desaconseja.',
+        applyProposalId: training?.id ?? null,
+      }
+    }
+
+    return {
+      outcome: 'accept',
+      text: training
+        ? `Adelante. Nada en tus datos de hoy lo desaconseja. Cambio a ${nameOf(training)}.`
+        : 'Adelante: nada en tus datos de hoy lo desaconseja.',
+      applyProposalId: training?.id ?? null,
+    }
+  }
+
+  // Ya estaba propuesto entrenar, pero contando con el deporte que ahora se cae.
+  if (request.cancelledActivities.length > 0) {
+    return { outcome: 'accept', text: cancelledText(request.cancelledActivities), applyProposalId: null }
+  }
+
+  return {
+    outcome: 'accept',
+    text: `Es lo que te propongo: ${proposal.headline.toLowerCase()} Adelante.`,
     applyProposalId: null,
   }
 }

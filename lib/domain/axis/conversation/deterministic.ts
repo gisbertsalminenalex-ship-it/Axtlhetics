@@ -66,7 +66,11 @@ export function answerFromBriefing(
      * contexto que la negociación necesita. Se mira lo que el mensaje pide.
      */
     const isMedicalOrForeign = match.intent === 'medical' || match.intent === 'out_of_scope'
-    const request = parseChangeRequest(question)
+    // Los deportes de hoy, para reconocer cuando el usuario dice que uno se cae.
+    const request = parseChangeRequest(
+      question,
+      briefing.activitiesToday.map((activity) => activity.name),
+    )
     const asksForChange =
       request.kind !== 'unclear' ||
       request.reportedLoad !== null ||
@@ -90,6 +94,7 @@ export function answerFromBriefing(
           kind: previous.kind as ChangeRequest['kind'],
           focus: previous.focus as ChangeRequest['focus'],
           reportedLoad: request.reportedLoad,
+          cancelledActivities: request.cancelledActivities,
         }
         return negotiate(pending, briefing, request.reportedLoad === null)
       }
@@ -389,6 +394,7 @@ function negotiate(
       unknown: false,
       applyProposalId: null,
       changeRequest: { kind: request.kind, focus: request.focus },
+      cancelledActivities: request.cancelledActivities,
     }
   }
 
@@ -398,6 +404,7 @@ function negotiate(
     unknown: verdict.outcome === 'need_info',
     applyProposalId: verdict.applyProposalId,
     changeRequest: { kind: request.kind, focus: request.focus },
+    cancelledActivities: request.cancelledActivities,
   }
 }
 

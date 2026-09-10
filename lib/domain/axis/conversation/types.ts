@@ -57,6 +57,13 @@ export type AxisAnswer = {
   applyProposalId?: string | null
   /** La petición que se acaba de juzgar, para reconocer que insiste con la misma. */
   changeRequest?: { kind: string; focus: string | null } | null
+  /**
+   * Actividades del calendario que el usuario acaba de decir que hoy no ocurren.
+   *
+   * La aplicación las descarta y AXIS vuelve a decidir sin ellas. Reservar
+   * piernas para un partido que se ha cancelado es decidir con datos falsos.
+   */
+  cancelledActivities?: string[]
 }
 
 /**

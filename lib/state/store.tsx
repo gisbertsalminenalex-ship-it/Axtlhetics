@@ -163,6 +163,17 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   /** La conversación está acotada a cambiar el entrenamiento de hoy. */
   const [axisChangeMode, setAxisChangeMode] = useState(false)
 
+  /**
+   * Actividades del calendario que hoy no ocurren, según acaba de contar el
+   * usuario.
+   *
+   * El calendario dice lo que suele pasar, no lo que pasa. Si el partido se cae,
+   * AXIS tiene que decidir otra vez sin él: seguir reservando piernas para algo
+   * que no va a ocurrir sería decidir con datos falsos. Vive en memoria y se
+   * pierde al recargar, igual que la propia conversación.
+   */
+  const [cancelledToday, setCancelledToday] = useState<string[]>([])
+
   /** Día con el que se cargaron los datos. Permite detectar que ha cambiado la fecha. */
   const loadedDayRef = useRef<DayKey>('1970-01-01')
 
@@ -199,6 +210,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setActivities(storedActivities)
         setRecoveryInputs(storedRecovery ?? emptyRecoveryInputs(dayKey, nowIso()))
         setSessions(storedSessions)
+        setCancelledToday([])
         setStatus(storedProfile ? 'ready' : 'onboarding')
       } catch (cause) {
         if (cancelled) return
@@ -243,6 +255,18 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [recoveryInputs, profile?.age],
   )
 
+  /**
+   * Las actividades que hoy siguen en pie.
+   *
+   * Todo lo que decide AXIS parte de aquí, así que descartar una actividad caída
+   * en un solo sitio basta para que la decisión, las alternativas y la
+   * conversación cambien a la vez. No hay un segundo camino de decisión.
+   */
+  const activeActivities = useMemo(
+    () => activities.filter((activity) => !cancelledToday.includes(activity.name)),
+    [activities, cancelledToday],
+  )
+
   const decision = useMemo(() => {
     if (status !== 'ready') return null
     const context = buildAxisContext({
@@ -250,10 +274,10 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       recoveryInputs,
       recoveryScore,
       recentSessions: sessions,
-      activities,
+      activities: activeActivities,
     })
     return engine.decide(context)
-  }, [status, profile, recoveryInputs, recoveryScore, sessions, activities])
+  }, [status, profile, recoveryInputs, recoveryScore, sessions, activeActivities])
 
   const proposal = useMemo(() => {
     if (!decision) return null
@@ -279,10 +303,10 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       recoveryInputs,
       recoveryScore,
       recentSessions: sessions,
-      activities,
+      activities: activeActivities,
     })
     return buildBriefing(context, decision, sessions, proposal)
-  }, [status, decision, proposal, profile, recoveryInputs, recoveryScore, sessions, activities])
+  }, [status, decision, proposal, profile, recoveryInputs, recoveryScore, sessions, activeActivities])
 
   const axisSuggestions = useMemo(
     () => (briefing ? suggestionsFor(briefing) : []),
@@ -548,6 +572,15 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         })
         lastIntentRef.current = result.intent
         if (result.changeRequest) lastChangeRequestRef.current = result.changeRequest
+
+        // El usuario dice que hoy algo del calendario no ocurre. Se descarta y el
+        // motor vuelve a decidir sin ello, así que la sesión, las alternativas y
+        // la propia conversación se recalculan a la vez.
+        if (result.cancelledActivities && result.cancelledActivities.length > 0) {
+          setCancelledToday((current) => [
+            ...new Set([...current, ...result.cancelledActivities!]),
+          ])
+        }
         setAxisMessages((current) => [
           ...current,
           {
@@ -613,6 +646,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setSessions([])
     setRecoveryInputs(emptyRecoveryInputs(dayKey, nowIso()))
     setSelectedProposalId(null)
+    setCancelledToday([])
     setActiveWorkout(null)
     setLastCompleted(null)
     clearAxisConversation()

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { UserProfile } from '../../profile/types'
+import type { ScheduledActivity, UserProfile } from '../../profile/types'
 import type { RecoveryInputs } from '../../recovery/types'
+import { minutesFromMidnight } from '../../shared/dates'
 import type { WorkoutSession } from '../../workouts/types'
 import { buildBriefing, type AxisBriefing } from '../briefing'
 import { buildAxisContext } from '../context'
@@ -67,6 +68,22 @@ function session(partial: Partial<WorkoutSession> = {}): WorkoutSession {
     proposal: null,
     modifications: [],
     notes: null,
+    ...partial,
+  }
+}
+
+/** Baloncesto el lunes por la tarde: carga piernas y condiciona el día. */
+function basketball(partial: Partial<ScheduledActivity> = {}): ScheduledActivity {
+  return {
+    id: 'activity-1',
+    name: 'Baloncesto',
+    weekday: 0,
+    startMinute: minutesFromMidnight(20, 0),
+    endMinute: minutesFromMidnight(22, 0),
+    intensity: 'alta',
+    loadsMuscleGroups: ['piernas', 'gluteos'],
+    createdAt: '2026-09-01T10:00:00.000Z',
+    updatedAt: '2026-09-01T10:00:00.000Z',
     ...partial,
   }
 }
@@ -166,6 +183,133 @@ test('el tiempo es un límite real y se acomoda sin discutir', () => {
 
   assert.ok(verdict.outcome === 'accept' || verdict.outcome === 'compromise')
   assert.doesNotMatch(verdict.text, /^no\b/i)
+})
+
+// ---------------------------------------------------------------------------
+// Firme no es rígido: si el motivo desaparece, AXIS deja entrenar
+// ---------------------------------------------------------------------------
+
+test('querer entrenar no se confunde con querer descansar', () => {
+  // «no ... entreno ... entrenar» tiene todas las señales de una negativa y es
+  // justo lo contrario: la persona quiere entrenar.
+  const request = parseChangeRequest(
+    'hoy no tenía entreno de básquet y me apetece entrenar',
+    ['Básquet'],
+  )
+
+  assert.equal(request.kind, 'train_anyway')
+  assert.deepEqual(request.cancelledActivities, ['Básquet'])
+})
+
+test('una negación no se lee como su contrario', () => {
+  assert.equal(parseChangeRequest('hoy no quiero entrenar').kind, 'rest')
+  assert.equal(parseChangeRequest('hoy quiero entrenar').kind, 'train_anyway')
+})
+
+test('si el deporte del día se cae, la razón para frenar desaparece', () => {
+  const conBasquet = briefingWith({ activities: [basketball()] })
+  assert.ok(
+    conBasquet.proposal,
+    'con baloncesto hoy, AXIS propone algo condicionado por el partido',
+  )
+
+  const verdict = evaluateChange(
+    parseChangeRequest('hoy no tengo básquet al final, y me apetece entrenar', ['Baloncesto']),
+    conBasquet,
+  )
+
+  assert.notEqual(verdict.outcome, 'decline', 'sin partido no hay nada que reservar')
+})
+
+test('la cancelación se reconoce aunque el deporte se llame de otra forma', () => {
+  // En el onboarding registró «Baloncesto»; al escribir dice «básquet».
+  const request = parseChangeRequest('el básquet de hoy se ha cancelado', ['Baloncesto'])
+  assert.deepEqual(request.cancelledActivities, ['Baloncesto'])
+
+  // Y sin nombrarlo siquiera.
+  const generico = parseChangeRequest('hoy no tengo entreno', ['Baloncesto'])
+  assert.deepEqual(generico.cancelledActivities, ['Baloncesto'])
+})
+
+test('una frase con «no tengo» que no habla de deporte no cancela nada', () => {
+  assert.deepEqual(parseChangeRequest('no tengo tiempo hoy', ['Baloncesto']).cancelledActivities, [])
+})
+
+test('con el deporte cancelado, AXIS replantea el día en vez de negarse', () => {
+  const conBasquet = briefingWith({ activities: [basketball()] })
+  const verdict = evaluateChange(
+    parseChangeRequest('el básquet se ha cancelado, quiero entrenar', ['Baloncesto']),
+    conBasquet,
+  )
+
+  assert.equal(verdict.outcome, 'accept')
+  assert.match(verdict.text, /baloncesto/i, 'nombra el motivo que ha desaparecido')
+  assert.match(verdict.text, /replanteo/i)
+
+  /*
+   * Y no fija ninguna alternativa: las que hay se calcularon con el partido
+   * dentro. Aplicar una sería quedarse con una decisión que ya no vale; el motor
+   * vuelve a decidir el día entero sin esa actividad.
+   */
+  assert.equal(verdict.applyProposalId, null)
+})
+
+test('venir de un esfuerzo grande y querer entrenar da una sesión más suave, no un no', () => {
+  const briefing = briefingWith({}, [session()])
+  const verdict = evaluateChange(
+    parseChangeRequest('ayer corrí 20 km pero hoy me apetece entrenar'),
+    briefing,
+  )
+
+  assert.equal(verdict.outcome, 'accept')
+  assert.doesNotMatch(verdict.text, /^no\b/i, 'no se le niega entrenar')
+  assert.match(verdict.text, /me f[ií]o de lo que me cuentas/i)
+})
+
+test('la sesión más suave no puede ser de lo que acaba de castigar', () => {
+  const briefing = briefingWith({}, [session()])
+  const verdict = evaluateChange(
+    parseChangeRequest('ayer corrí 20 km por montaña pero hoy me apetece entrenar'),
+    briefing,
+  )
+
+  // Correr castiga las piernas. Ofrecer una sesión «más suave» de tren inferior
+  // contradice el motivo por el que se está bajando el listón.
+  const propuesta = briefing.proposal!.alternatives.find((a) => a.id === verdict.applyProposalId)
+  if (propuesta) {
+    assert.notEqual(propuesta.focus, 'tren_inferior', `ofreció piernas: ${verdict.text}`)
+  }
+  assert.doesNotMatch(verdict.text, /tren inferior/i, verdict.text)
+})
+
+test('contar un esfuerzo grande sin pedir nada adapta la sesión', () => {
+  const briefing = briefingWith({}, [session()])
+  const request = parseChangeRequest('es que ayer corrí 18 km y hoy me toca entrenar')
+
+  assert.equal(request.kind, 'easier', 'contar un esfuerzo es pedir que se adapte')
+
+  const verdict = evaluateChange(request, briefing)
+  assert.ok(verdict.outcome === 'accept' || verdict.outcome === 'compromise')
+  assert.doesNotMatch(verdict.text, /dime qué quieres cambiar/i)
+})
+
+test('con la recuperación baja, querer entrenar sigue encontrando un límite', () => {
+  const briefing = briefingWith({
+    recoveryInputs: recovery({ sleepHours: 4, energy: 1, muscleFatigue: 5, stress: 5 }),
+  })
+  const verdict = evaluateChange(parseChangeRequest('me apetece entrenar'), briefing)
+
+  // Aquí sí toca frenar: el motivo no ha desaparecido, sigue siendo cierto.
+  assert.notEqual(verdict.outcome, 'accept')
+  assert.match(verdict.text, /recuperaci[oó]n/i)
+})
+
+test('si ya has entrenado hoy, las ganas no cambian el criterio', () => {
+  const briefing = briefingWith({}, [session({ dayKey: MONDAY_KEY })])
+  const verdict = evaluateChange(parseChangeRequest('me apetece entrenar otra vez'), briefing)
+
+  assert.equal(verdict.outcome, 'decline')
+  assert.match(verdict.text, /ya has entrenado/i)
 })
 
 // ---------------------------------------------------------------------------
