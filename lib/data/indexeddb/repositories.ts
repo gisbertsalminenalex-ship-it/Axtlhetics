@@ -5,6 +5,7 @@
  * negocio vive aquí: esta capa solo guarda y recupera.
  */
 
+import type { DayPlanOverride } from '../../domain/axis/actions'
 import type { ScheduledActivity, UserProfile } from '../../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../../domain/profile/types'
 import type { RecoveryInputs } from '../../domain/recovery/types'
@@ -12,6 +13,7 @@ import type { DayKey } from '../../domain/shared/dates'
 import type { WorkoutSession } from '../../domain/workouts/types'
 import type {
   ActivityRepository,
+  DayPlanRepository,
   Repositories,
   RecoveryRepository,
   UserProfileRepository,
@@ -114,11 +116,31 @@ const workoutRepository: WorkoutRepository = {
   },
 }
 
+const dayPlanRepository: DayPlanRepository = {
+  async getByDay(dayKey: DayKey) {
+    const stored = await read<DayPlanOverride | undefined>(STORES.dayPlan, (store) =>
+      store.get(dayKey),
+    )
+    return stored ?? null
+  },
+  async save(override) {
+    await write(STORES.dayPlan, (store) => {
+      store.put(override)
+    })
+  },
+  async clear(dayKey) {
+    await write(STORES.dayPlan, (store) => {
+      store.delete(dayKey)
+    })
+  },
+}
+
 export function createIndexedDbRepositories(): Repositories {
   return {
     profile: profileRepository,
     activities: activityRepository,
     recovery: recoveryRepository,
     workouts: workoutRepository,
+    dayPlan: dayPlanRepository,
   }
 }

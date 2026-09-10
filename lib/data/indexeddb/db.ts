@@ -15,13 +15,14 @@ export const DB_NAME = 'axtlhetics'
  * anteriores intactos: `onupgradeneeded` los ejecuta en orden para quien venga de
  * una versión antigua.
  */
-export const DB_VERSION = 3
+export const DB_VERSION = 4
 
 export const STORES = {
   profile: 'profile',
   activities: 'activities',
   recovery: 'recovery',
   sessions: 'sessions',
+  dayPlan: 'dayPlan',
 } as const
 
 export type StoreName = (typeof STORES)[keyof typeof STORES]
@@ -63,6 +64,18 @@ function migrate(
       }
       cursor.continue()
     }
+  }
+
+  /*
+   * v4: la elección del día.
+   *
+   * Cuando el usuario acepta un cambio propuesto por AXIS, esa elección tiene
+   * que sobrevivir a una recarga. Antes vivía solo en memoria y se perdía. No
+   * guarda la sesión, sino qué opción se eligió: al recargar, el motor vuelve a
+   * decidir y se selecciona la equivalente.
+   */
+  if (oldVersion < 4) {
+    db.createObjectStore(STORES.dayPlan, { keyPath: 'dayKey' })
   }
 }
 

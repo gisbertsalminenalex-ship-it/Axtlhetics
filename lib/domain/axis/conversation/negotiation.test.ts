@@ -251,7 +251,7 @@ test('con el deporte cancelado, AXIS replantea el día en vez de negarse', () =>
    * dentro. Aplicar una sería quedarse con una decisión que ya no vale; el motor
    * vuelve a decidir el día entero sin esa actividad.
    */
-  assert.equal(verdict.applyProposalId, null)
+  assert.equal(verdict.proposedTarget, null)
 })
 
 test('venir de un esfuerzo grande y querer entrenar da una sesión más suave, no un no', () => {
@@ -275,9 +275,8 @@ test('la sesión más suave no puede ser de lo que acaba de castigar', () => {
 
   // Correr castiga las piernas. Ofrecer una sesión «más suave» de tren inferior
   // contradice el motivo por el que se está bajando el listón.
-  const propuesta = briefing.proposal!.alternatives.find((a) => a.id === verdict.applyProposalId)
-  if (propuesta) {
-    assert.notEqual(propuesta.focus, 'tren_inferior', `ofreció piernas: ${verdict.text}`)
+  if (verdict.proposedTarget) {
+    assert.notEqual(verdict.proposedTarget.focus, 'tren_inferior', `ofreció piernas: ${verdict.text}`)
   }
   assert.doesNotMatch(verdict.text, /tren inferior/i, verdict.text)
 })
@@ -321,7 +320,7 @@ test('evitar una zona sin ningún motivo se rechaza, con el porqué', () => {
   const verdict = evaluateChange(parseChangeRequest('hoy no quiero hacer piernas'), briefing)
 
   assert.equal(verdict.outcome, 'decline')
-  assert.equal(verdict.applyProposalId, null, 'una negativa no cambia la sesión')
+  assert.equal(verdict.proposedTarget, null, 'una negativa no propone nada')
   assert.match(verdict.text, /no lo quitar[ií]a/i)
   assert.doesNotMatch(verdict.text, SYCOPHANCY)
 })
@@ -334,7 +333,7 @@ test('con la recuperación baja, pedir más caña se rechaza', () => {
 
   assert.equal(verdict.outcome, 'decline')
   assert.match(verdict.text, /^no\b/i, 'la primera palabra es el veredicto')
-  assert.equal(verdict.applyProposalId, null)
+  assert.equal(verdict.proposedTarget, null)
 })
 
 test('sin recuperación registrada no sube la carga a ciegas', () => {
@@ -361,7 +360,7 @@ test('insistir sin aportar nada nuevo no cambia el veredicto', () => {
 
   assert.equal(primero.outcome, 'decline')
   assert.equal(segundo.outcome, 'decline')
-  assert.equal(segundo.applyProposalId, null)
+  assert.equal(segundo.proposedTarget, null)
 })
 
 test('insistir sin argumentos mantiene el criterio y no repite el párrafo entero', () => {
@@ -381,7 +380,7 @@ test('insistir sin argumentos mantiene el criterio y no repite el párrafo enter
   })
 
   assert.match(insistiendo.text, /sigo pensando lo mismo/i)
-  assert.equal(insistiendo.applyProposalId, null, 'insistir no cambia la sesión')
+  assert.equal(insistiendo.proposedTarget, null, 'insistir no propone nada')
   assert.notEqual(insistiendo.text, primera.text, 'no repite la misma parrafada')
   assert.ok(
     insistiendo.text.length < primera.text.length,
@@ -408,7 +407,7 @@ test('aportar el dato que faltaba reabre la petición y cambia el veredicto', ()
     'no puede volver a preguntar lo que ya sabe',
   )
   assert.match(conEvidencia.text, /me f[ií]o de lo que me cuentas/i)
-  assert.ok(conEvidencia.applyProposalId, 'con la evidencia, la sesión cambia de verdad')
+  assert.ok(conEvidencia.proposedTarget, 'con la evidencia, AXIS propone el cambio')
 })
 
 test('una negativa se lee como una frase, sin minúsculas tras punto', () => {
@@ -449,10 +448,12 @@ test('cuando acepta, señala una alternativa que el motor ya había preparado', 
     briefing,
   )
 
-  if (verdict.applyProposalId !== null) {
-    const ids = briefing.proposal!.alternatives.map((a) => a.id)
+  if (verdict.proposedTarget !== null) {
+    const disponibles = briefing.proposal!.alternatives.map(
+      (a) => `${a.type}:${a.focus}`,
+    )
     assert.ok(
-      ids.includes(verdict.applyProposalId),
+      disponibles.includes(`${verdict.proposedTarget.type}:${verdict.proposedTarget.focus}`),
       'no puede inventarse una sesión: elige entre las que ya existen',
     )
   }
@@ -464,7 +465,7 @@ test('pedir la zona que ya está prevista no cambia nada', () => {
   const nombre = focus === 'tren_inferior' ? 'piernas' : 'tren superior'
 
   const verdict = evaluateChange(parseChangeRequest(`quiero hacer ${nombre}`), briefing)
-  assert.equal(verdict.applyProposalId, null)
+  assert.equal(verdict.proposedTarget, null)
 })
 
 // ---------------------------------------------------------------------------

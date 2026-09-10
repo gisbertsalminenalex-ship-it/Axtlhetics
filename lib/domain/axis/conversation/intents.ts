@@ -35,6 +35,11 @@ const RULES: readonly IntentRule[] = [
     any: ['lesion', 'lesión', 'me duele', 'dolor', 'molestia', 'medico', 'médico', 'fisio', 'estoy enfermo', 'rodilla', 'hombro me'],
   },
 
+  // Antes que 'change': preguntar qué se cambió no es pedir otro cambio.
+  {
+    intent: 'changed',
+    any: ['que hemos cambiado', 'qué hemos cambiado', 'que cambiamos', 'qué cambiamos', 'que has cambiado', 'qué has cambiado', 'por que lo cambiamos', 'por qué lo cambiamos', 'que cambiaste', 'qué cambiaste', 'lo hemos cambiado'],
+  },
   { intent: 'change', any: ['cambiar', 'cambia', 'otra sesion', 'otra sesión', 'otro entrenamiento', 'algo distinto', 'algo diferente'] },
   { intent: 'shorten', any: ['20 minutos', '15 minutos', '10 minutos', 'media hora', 'mas corto', 'más corto', 'menos tiempo', 'poco tiempo', 'solo hago', 'solo tengo'] },
 

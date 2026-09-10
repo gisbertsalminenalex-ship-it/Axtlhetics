@@ -84,6 +84,13 @@ export type BriefingProposal = {
    * cambiar la sesión.
    */
   alternatives: BriefingAlternative[]
+  /**
+   * De qué se cambió, si el usuario aceptó una propuesta de AXIS hoy.
+   *
+   * `null` cuando la sesión es la que AXIS recomendaba. Permite responder a
+   * «¿qué hemos cambiado?» sin que AXIS lo mencione en cada respuesta.
+   */
+  changedFrom: { headline: string; reason: string } | null
 }
 
 export type BriefingAlternative = {
@@ -145,6 +152,8 @@ export function buildBriefing(
    * sesión distinta de la que muestra Inicio en cuanto se acepta un cambio.
    */
   selected?: AxisProposal | null,
+  /** La elección confirmada de hoy, si la hay. */
+  override?: { originHeadline: string; reason: string } | null,
 ): AxisBriefing {
   const facts = deriveFacts(context)
   const load = computeTrainingLoad(sessions, context.dayKey)
@@ -184,7 +193,7 @@ export function buildBriefing(
             windowDays: load.windowDays,
           }
         : { known: false },
-    proposal: decision ? briefingProposal(decision, selected ?? null) : null,
+    proposal: decision ? briefingProposal(decision, selected ?? null, override ?? null) : null,
     lastSession: lastCompleted ? briefingSession(lastCompleted) : null,
     week: {
       sessionCount: week.sessionCount,
@@ -228,6 +237,7 @@ function briefingRecovery(context: AxisContext): BriefingRecovery {
 function briefingProposal(
   decision: AxisDecision,
   selected: AxisProposal | null,
+  override: { originHeadline: string; reason: string } | null,
 ): BriefingProposal {
   const all = [decision.primary, ...decision.alternatives]
   // La activa es la seleccionada, o la principal si el usuario no ha cambiado nada.
@@ -263,6 +273,9 @@ function briefingProposal(
         focus: alternative.session?.focus ?? null,
         estimatedMinutes: alternative.session?.estimatedMinutes ?? null,
       })),
+    changedFrom: override
+      ? { headline: override.originHeadline, reason: override.reason }
+      : null,
   }
 }
 

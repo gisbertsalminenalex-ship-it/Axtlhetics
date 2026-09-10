@@ -7,6 +7,7 @@
  */
 
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
+import type { DayPlanOverride } from '../domain/axis/actions'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
 import type { WorkoutSession } from '../domain/workouts/types'
@@ -17,6 +18,7 @@ export function createMemoryRepositories(): Repositories {
   const activities = new Map<string, ScheduledActivity>()
   const recovery = new Map<DayKey, RecoveryInputs>()
   const sessions = new Map<string, WorkoutSession>()
+  const dayPlan = new Map<DayKey, DayPlanOverride>()
 
   return {
     profile: {
@@ -71,6 +73,17 @@ export function createMemoryRepositories(): Repositories {
       },
       async save(session) {
         sessions.set(session.id, session)
+      },
+    },
+    dayPlan: {
+      async getByDay(dayKey) {
+        return dayPlan.get(dayKey) ?? null
+      },
+      async save(override) {
+        dayPlan.set(override.dayKey, override)
+      },
+      async clear(dayKey) {
+        dayPlan.delete(dayKey)
       },
     },
   }

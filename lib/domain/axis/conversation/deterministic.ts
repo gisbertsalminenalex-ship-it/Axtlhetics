@@ -132,6 +132,8 @@ export function answerFromBriefing(
       return answerTired(briefing)
     case 'change':
       return answerChange(briefing)
+    case 'changed':
+      return answerChanged(briefing)
     case 'shorten':
       return answerShorten(briefing)
     case 'medical':
@@ -392,7 +394,7 @@ function negotiate(
       text: 'Sigo pensando lo mismo, y no por llevarte la contraria: nada de lo que me has dicho cambia tus datos, y son los datos los que deciden. Si hay algo que no tengo registrado —un esfuerzo de ayer, una molestia, que duermes mal esta semana—, dímelo concreto y lo reviso.',
       intent: 'change',
       unknown: false,
-      applyProposalId: null,
+      proposedTarget: null,
       changeRequest: { kind: request.kind, focus: request.focus },
       cancelledActivities: request.cancelledActivities,
     }
@@ -402,10 +404,37 @@ function negotiate(
     text: verdict.text,
     intent: 'change',
     unknown: verdict.outcome === 'need_info',
-    applyProposalId: verdict.applyProposalId,
+    // Se propone, no se aplica: hace falta que el usuario pulse el botón.
+    proposedTarget: verdict.proposedTarget,
+    proposedReason: verdict.text,
     changeRequest: { kind: request.kind, focus: request.focus },
     cancelledActivities: request.cancelledActivities,
   }
+}
+
+/**
+ * «¿Qué hemos cambiado?»
+ *
+ * Solo aquí se menciona el cambio. En el resto de respuestas AXIS habla de la
+ * sesión que hay hoy, sin arrastrar de dónde viene: al usuario le interesa qué
+ * hacer, no el historial de la conversación.
+ */
+function answerChanged(briefing: AxisBriefing): AxisAnswer {
+  const { proposal } = briefing
+  if (!proposal) {
+    return unknown('changed', 'Todavía no tengo una sesión para hoy.')
+  }
+  if (!proposal.changedFrom) {
+    return say('changed', [
+      'Nada: la sesión de hoy es la que te recomendé.',
+      proposal.headline,
+    ])
+  }
+
+  return say('changed', [
+    `Cambiamos «${proposal.changedFrom.headline}» por «${proposal.headline}».`,
+    proposal.changedFrom.reason,
+  ])
 }
 
 /** Fuera del modo cambio, «¿puedo cambiarlo?» abre la negociación explicando cómo. */

@@ -6,6 +6,7 @@
  * segundo sistema de decisión.
  */
 
+import type { AxisActionProposal, AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
 
 /** Lo que el usuario puede preguntar hoy. Cada intención se responde con datos reales. */
@@ -24,6 +25,7 @@ export type AxisIntent =
   | 'can_train'
   | 'tired'
   | 'change'
+  | 'changed'
   | 'shorten'
   | 'medical'
   | 'out_of_scope'
@@ -40,6 +42,13 @@ export type AxisMessage = {
   intent?: AxisIntent
   /** `true` cuando AXIS ha dicho explícitamente que no dispone del dato. */
   unknown?: boolean
+  /**
+   * Acción pendiente de confirmar, si este mensaje propone una.
+   *
+   * Viaja con el mensaje para que el botón aparezca dentro de la conversación, y
+   * no en una pantalla aparte. Su presencia no cambia nada por sí sola.
+   */
+  action?: AxisActionProposal | null
 }
 
 export type AxisAnswer = {
@@ -48,13 +57,17 @@ export type AxisAnswer = {
   /** `true` si la respuesta es «no tengo ese dato». */
   unknown: boolean
   /**
-   * Alternativa que la aplicación debe seleccionar como sesión del día.
+   * La opción que AXIS propone para hoy, si ha llegado a una.
    *
-   * Es lo que convierte la conversación en una decisión de verdad: cuando AXIS
-   * acepta un cambio, la sesión cambia. `null` cuando no hay nada que aplicar,
-   * incluido cuando AXIS se ha negado.
+   * **No se aplica sola.** La aplicación la convierte en una propuesta de acción
+   * con su botón, y solo al pulsarlo cambia la sesión. Que el usuario escriba
+   * «sí» en la conversación no basta: decirlo no es confirmarlo.
+   *
+   * `null` cuando no hay nada que proponer, incluido cuando AXIS se ha negado.
    */
-  applyProposalId?: string | null
+  proposedTarget?: AxisActionTarget | null
+  /** El motivo con el que AXIS defiende esa propuesta. Queda registrado. */
+  proposedReason?: string
   /** La petición que se acaba de juzgar, para reconocer que insiste con la misma. */
   changeRequest?: { kind: string; focus: string | null } | null
   /**

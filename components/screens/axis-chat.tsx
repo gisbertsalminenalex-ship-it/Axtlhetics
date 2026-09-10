@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
-import { ArrowLeft, ArrowUp } from 'lucide-react'
+import { ArrowLeft, ArrowUp, Check } from 'lucide-react'
 import { AxisMark } from '@/components/axis-mark'
+import type { AxisActionProposal } from '@/lib/domain/axis/actions'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -117,15 +118,19 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
               key={message.id}
               className={cn('ax-enter flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
             >
-              <div
-                className={cn(
-                  'max-w-[85%] rounded-2xl px-4 py-3 text-[14.5px] leading-relaxed text-pretty',
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-surface text-foreground',
-                )}
-              >
-                {message.text}
+              <div className="max-w-[85%]">
+                <div
+                  className={cn(
+                    'rounded-2xl px-4 py-3 text-[14.5px] leading-relaxed text-pretty',
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-surface text-foreground',
+                  )}
+                >
+                  {message.text}
+                </div>
+
+                {message.action && <ActionCard action={message.action} />}
               </div>
             </div>
           ))}
@@ -170,6 +175,73 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
           <ArrowUp className="h-5 w-5" strokeWidth={2.25} />
         </button>
       </form>
+    </div>
+  )
+}
+
+/**
+ * La acción propuesta, dentro del propio mensaje.
+ *
+ * Es el único punto desde el que la conversación puede cambiar el estado real de
+ * la aplicación, y hace falta pulsarlo: hasta entonces no se ha tocado nada, por
+ * mucho que la conversación haya llegado a un acuerdo.
+ *
+ * Una vez aplicada queda deshabilitada, para que la misma acción no pueda
+ * ejecutarse dos veces.
+ */
+function ActionCard({ action }: { action: AxisActionProposal }) {
+  const { axisActionStatuses, confirmAxisAction, cancelAxisAction } = useAxtlhetics()
+  const [working, setWorking] = useState(false)
+
+  const status = axisActionStatuses[action.id] ?? { state: 'pending' as const }
+
+  if (status.state === 'applied') {
+    return (
+      <p className="ax-enter mt-2 flex min-h-11 items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 text-[14px] font-semibold text-success">
+        <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+        Cambio aplicado
+      </p>
+    )
+  }
+
+  if (status.state === 'cancelled') {
+    return (
+      <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+        No se ha cambiado nada.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-2">
+      <p className="px-1 text-[13px] text-muted-foreground">{action.summary}</p>
+
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          disabled={working}
+          onClick={async () => {
+            setWorking(true)
+            await confirmAxisAction(action)
+            setWorking(false)
+          }}
+          className="ax-press flex h-12 flex-1 items-center justify-center rounded-2xl bg-primary text-[14.5px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {working ? 'Aplicando…' : action.label}
+        </button>
+        <button
+          type="button"
+          onClick={() => cancelAxisAction(action)}
+          disabled={working}
+          className="ax-press h-12 rounded-2xl border border-border bg-background px-4 text-[14px] font-medium text-muted-foreground disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+      </div>
+
+      {status.state === 'error' && (
+        <p className="ax-enter mt-2 px-1 text-[13px] text-error">{status.message}</p>
+      )}
     </div>
   )
 }

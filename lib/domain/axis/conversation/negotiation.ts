@@ -25,6 +25,7 @@
 
 import type { SessionFocus } from '../../workouts/types'
 import { MUSCLE_GROUP_LABELS } from '../../workouts/types'
+import type { AxisActionTarget } from '../actions'
 import type { AxisBriefing, BriefingAlternative } from '../briefing'
 import { detectFocus, normalizeQuestion } from './intents'
 
@@ -282,8 +283,14 @@ export type ChangeOutcome =
 export type ChangeVerdict = {
   outcome: ChangeOutcome
   text: string
-  /** Alternativa que la aplicación debe seleccionar, si la hay. */
-  applyProposalId: string | null
+  /**
+   * La opción que AXIS propone, si la hay.
+   *
+   * No es un id: los ids se regeneran en cada decisión. Es la elección en
+   * términos estables, y solo se convierte en un cambio real cuando el usuario
+   * pulsa el botón de confirmar.
+   */
+  proposedTarget: AxisActionTarget | null
 }
 
 const FOCUS_LABELS: Record<SessionFocus, string> = {
@@ -362,6 +369,18 @@ function lighterAlternative(
 }
 
 /**
+ * La elección, en términos que sobreviven a un recálculo.
+ *
+ * El id de una alternativa solo vale dentro de la decisión que la generó. Lo que
+ * se propone es el tipo y el foco, que se pueden volver a buscar en la decisión
+ * vigente en el momento de confirmar.
+ */
+function asTarget(alternative: BriefingAlternative | null | undefined): AxisActionTarget | null {
+  if (!alternative) return null
+  return { type: alternative.type, focus: alternative.focus }
+}
+
+/**
  * Cómo se nombra una alternativa dentro de una frase.
  *
  * La principal se llama «Recomendada», que leído en «cambio a "Recomendada"»
@@ -401,7 +420,7 @@ export function evaluateChange(request: ChangeRequest, briefing: AxisBriefing): 
     return {
       outcome: 'need_info',
       text: 'Todavía no tengo una sesión propuesta para hoy, así que no hay nada que cambiar.',
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -428,7 +447,7 @@ export function evaluateChange(request: ChangeRequest, briefing: AxisBriefing): 
       return {
         outcome: 'need_info',
         text: 'Dime qué quieres cambiar y por qué: menos tiempo, otra zona, algo más suave o más exigente. Con el motivo puedo decidir mejor.',
-        applyProposalId: null,
+        proposedTarget: null,
       }
   }
 }
@@ -454,7 +473,7 @@ function evaluateAvoid(
     return {
       outcome: 'accept',
       text: `Hoy no tocaba ${label}: la sesión es de ${FOCUS_LABELS[currentFocus ?? 'cuerpo_completo']}. No hay nada que quitar.`,
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -502,13 +521,13 @@ function evaluateAvoid(
       return {
         outcome: 'accept',
         text: `${head} Cambio a ${nameOf(swap)}, que deja esa zona tranquila.`,
-        applyProposalId: swap.id,
+        proposedTarget: asTarget(swap),
       }
     }
     return {
       outcome: 'accept',
       text: `${head} No tengo preparada otra sesión que evite esa zona, así que hoy lo razonable es recuperar en lugar de forzar.`,
-      applyProposalId: restAlternative(alternatives)?.id ?? null,
+      proposedTarget: asTarget(restAlternative(alternatives)),
     }
   }
 
@@ -532,7 +551,7 @@ function evaluateAvoid(
   return {
     outcome: 'decline',
     text: `Hoy no lo quitaría: ${recoveryClause}${goalClause}, y no encuentro en tus datos nada que justifique saltar ${label}.${offer}`,
-    applyProposalId: null,
+    proposedTarget: null,
   }
 }
 
@@ -550,7 +569,7 @@ function evaluateWant(
     return {
       outcome: 'accept',
       text: `Es justo lo que hay previsto: la sesión de hoy ya es de ${label}.`,
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -561,7 +580,7 @@ function evaluateWant(
     return {
       outcome: 'decline',
       text: `No hoy. Ya llevas ${listNames(recent.map(groupLabel).map((g) => g.toLowerCase()))} trabajado estos días, y repetir esa zona sin recuperarla no la hace crecer, la desgasta. Lo dejamos para dentro de un día o dos.`,
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -570,14 +589,14 @@ function evaluateWant(
     return {
       outcome: 'accept',
       text: `Se puede: esa zona no la has tocado estos días. Cambio a ${nameOf(match)}.`,
-      applyProposalId: match.id,
+      proposedTarget: asTarget(match),
     }
   }
 
   return {
     outcome: 'compromise',
     text: `Esa zona está libre, pero hoy no tengo preparada una sesión de ${label} entre las alternativas. La de hoy sigue teniendo sentido; mañana entra sola si la dejas descansada.`,
-    applyProposalId: null,
+    proposedTarget: null,
   }
 }
 
@@ -591,13 +610,13 @@ function evaluateShorter(
     return {
       outcome: 'accept',
       text: `El tiempo es un límite real, no una excusa. Cambio a ${nameOf(shorter)}${shorter.estimatedMinutes !== null ? `, unos ${shorter.estimatedMinutes} min` : ''}. Prefiero una sesión corta hecha que una larga a medias.`,
-      applyProposalId: shorter.id,
+      proposedTarget: asTarget(shorter),
     }
   }
   return {
     outcome: 'compromise',
     text: `No tengo una versión más corta preparada, pero haz los primeros ejercicios y deja el resto: el orden ya está puesto de más a menos importante. Media sesión cuenta; saltarla entera, no.`,
-    applyProposalId: null,
+    proposedTarget: null,
   }
 }
 
@@ -623,14 +642,14 @@ function evaluateEasier(
     return {
       outcome: 'accept',
       text: `${head}Cambio a ${nameOf(lighter)}.${caveat}`,
-      applyProposalId: lighter.id,
+      proposedTarget: asTarget(lighter),
     }
   }
 
   return {
     outcome: 'compromise',
     text: `${head}No tengo una versión más suave preparada. Baja el peso y quédate a dos repeticiones del fallo: misma sesión, bastante menos desgaste.`,
-    applyProposalId: null,
+    proposedTarget: null,
   }
 }
 
@@ -643,7 +662,7 @@ function evaluateHarder(
     return {
       outcome: 'decline',
       text: `No. Tu recuperación está en ${briefing.recovery.value}${briefing.recovery.weakest.length > 0 ? ` y lo que peor está es ${listNames(briefing.recovery.weakest)}` : ''}. Subir la carga ahí no entrena más, solo acumula fatiga que pagarás en las próximas sesiones. Hoy la sesión se queda como está.`,
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -651,7 +670,7 @@ function evaluateHarder(
     return {
       outcome: 'decline',
       text: `Hoy no. Llevas ${briefing.load.sessionCount} sesiones en ${briefing.load.windowDays} días y tu carga acumulada ya está alta. Meter más ahora es como pisar el acelerador cuesta abajo: la mejora se construye entre sesión y sesión, no dentro de una.`,
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -659,7 +678,7 @@ function evaluateHarder(
     return {
       outcome: 'need_info',
       text: 'Antes de subir la carga necesito saber cómo estás: registra tu recuperación de hoy y lo decido con datos. A ciegas no te voy a mandar una sesión más dura.',
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -667,7 +686,7 @@ function evaluateHarder(
   return {
     outcome: 'accept',
     text: `Hoy sí: tu recuperación está en ${briefing.recovery.value} y la carga acumulada lo permite.${harder ? ` Cambio a ${nameOf(harder)}.` : ' Sube el peso hasta quedarte a una o dos repeticiones del fallo en las últimas series.'}`,
-    applyProposalId: harder?.id ?? null,
+    proposedTarget: asTarget(harder),
   }
 }
 
@@ -682,7 +701,7 @@ function evaluateRest(
     return {
       outcome: 'accept',
       text: `Sí, y hoy es lo correcto: tu recuperación está en ${briefing.recovery.value}. Descansar hoy es parte del entrenamiento, no una interrupción.`,
-      applyProposalId: rest?.id ?? null,
+      proposedTarget: asTarget(rest),
     }
   }
 
@@ -690,7 +709,7 @@ function evaluateRest(
     return {
       outcome: 'accept',
       text: 'Hoy ya has entrenado. No hay nada que negociar: toca recuperar.',
-      applyProposalId: rest?.id ?? null,
+      proposedTarget: asTarget(rest),
     }
   }
 
@@ -699,7 +718,7 @@ function evaluateRest(
     return {
       outcome: 'decline',
       text: `Llevas ${days} días sin entrenar y tus datos no dan ningún motivo para parar hoy. Lo que se pierde ahí no es una sesión, es la continuidad, que es lo que de verdad mueve tus objetivos. Si el problema es el tiempo o las ganas, dímelo y recorto la sesión.`,
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -708,14 +727,14 @@ function evaluateRest(
     return {
       outcome: 'compromise',
       text: `Antes de dar el día por perdido: cambio a ${nameOf(lighter)}. Si a los diez minutos sigues sin poder, lo dejas y no ha pasado nada. Pero tus datos de hoy no piden descanso.`,
-      applyProposalId: lighter.id,
+      proposedTarget: asTarget(lighter),
     }
   }
 
   return {
     outcome: 'decline',
     text: 'Tus datos de hoy no piden descanso. Si hay algo que no tengo registrado —dormiste mal, estás con molestias, vienes de un esfuerzo largo— cuéntamelo y lo reviso.',
-    applyProposalId: null,
+    proposedTarget: null,
   }
 }
 
@@ -762,7 +781,7 @@ function evaluateTrainAnyway(
     return {
       outcome: 'decline',
       text: 'Hoy ya has entrenado. Las ganas están bien, pero el músculo crece entre sesiones, no dentro de ellas. Mañana lo aprovecharás más.',
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -775,7 +794,7 @@ function evaluateTrainAnyway(
       text: lighter
         ? `Tu recuperación está en ${briefing.recovery.value}.${weakest} Entrenar fuerte hoy te costaría los próximos días, así que no lo haría. Si necesitas moverte, cambio a ${nameOf(lighter)} y lo dejamos ahí.`
         : `Tu recuperación está en ${briefing.recovery.value}.${weakest} Hoy no. No es falta de ganas, es que el cuerpo no está en condiciones de aprovecharlo.`,
-      applyProposalId: lighter?.id ?? null,
+      proposedTarget: asTarget(lighter),
     }
   }
 
@@ -786,13 +805,13 @@ function evaluateTrainAnyway(
       return {
         outcome: 'accept',
         text: `${REPORTED_CLAUSE}. Con ese esfuerzo encima entrenar tiene sentido, pero no al mismo nivel: cambio a ${nameOf(lighter)}. Mueves el cuerpo sin cavar más hondo.`,
-        applyProposalId: lighter.id,
+        proposedTarget: asTarget(lighter),
       }
     }
     return {
       outcome: 'accept',
       text: `${REPORTED_CLAUSE}. Entrena, pero bájale un punto: menos peso y para dos repeticiones antes del fallo. Hoy la sesión es para mantener, no para exprimir.`,
-      applyProposalId: null,
+      proposedTarget: null,
     }
   }
 
@@ -807,7 +826,7 @@ function evaluateTrainAnyway(
         // Nada que aplicar: la aplicación descarta la actividad y el motor vuelve
         // a decidir el día entero. Fijar aquí una alternativa de la decisión vieja
         // sería aplicar algo calculado con el partido todavía dentro.
-        applyProposalId: null,
+        proposedTarget: null,
       }
     }
 
@@ -817,7 +836,7 @@ function evaluateTrainAnyway(
         text: training
           ? `Hoy no lo tenías marcado como día de entrenar, pero eso lo decides tú, no tu cuerpo: nada en tus datos lo desaconseja. Cambio a ${nameOf(training)}.`
           : 'Hoy no lo tenías marcado como día de entrenar, pero eso lo decides tú, no tu cuerpo. Nada en tus datos lo desaconseja.',
-        applyProposalId: training?.id ?? null,
+        proposedTarget: asTarget(training),
       }
     }
 
@@ -826,19 +845,19 @@ function evaluateTrainAnyway(
       text: training
         ? `Adelante. Nada en tus datos de hoy lo desaconseja. Cambio a ${nameOf(training)}.`
         : 'Adelante: nada en tus datos de hoy lo desaconseja.',
-      applyProposalId: training?.id ?? null,
+      proposedTarget: asTarget(training),
     }
   }
 
   // Ya estaba propuesto entrenar, pero contando con el deporte que ahora se cae.
   if (request.cancelledActivities.length > 0) {
-    return { outcome: 'accept', text: cancelledText(request.cancelledActivities), applyProposalId: null }
+    return { outcome: 'accept', text: cancelledText(request.cancelledActivities), proposedTarget: null }
   }
 
   return {
     outcome: 'accept',
     text: `Es lo que te propongo: ${proposal.headline.toLowerCase()} Adelante.`,
-    applyProposalId: null,
+    proposedTarget: null,
   }
 }
 

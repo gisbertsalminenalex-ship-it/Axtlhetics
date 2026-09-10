@@ -6,6 +6,7 @@
  * sin reescribir la aplicación.
  */
 
+import type { DayPlanOverride } from '../domain/axis/actions'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
@@ -37,9 +38,22 @@ export type WorkoutRepository = {
   save(session: WorkoutSession): Promise<void>
 }
 
+/**
+ * La elección de entrenamiento del día.
+ *
+ * Una fila por día como mucho: o el usuario aceptó un cambio, o manda la
+ * recomendación de AXIS. Nunca hay dos.
+ */
+export type DayPlanRepository = {
+  getByDay(dayKey: DayKey): Promise<DayPlanOverride | null>
+  save(override: DayPlanOverride): Promise<void>
+  clear(dayKey: DayKey): Promise<void>
+}
+
 export type Repositories = {
   profile: UserProfileRepository
   activities: ActivityRepository
   recovery: RecoveryRepository
   workouts: WorkoutRepository
+  dayPlan: DayPlanRepository
 }

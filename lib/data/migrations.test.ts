@@ -31,8 +31,8 @@ function legacyProfile(goal: string | null = 'fuerza'): StoredProfile {
   return goal === null ? base : { ...base, goal }
 }
 
-test('la versión del esquema es la que incorpora deportes como actividades', () => {
-  assert.equal(DB_VERSION, 3)
+test('la versión del esquema es la que guarda la elección del día', () => {
+  assert.equal(DB_VERSION, 4)
 })
 
 // ---------------------------------------------------------------------------

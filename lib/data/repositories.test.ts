@@ -303,6 +303,7 @@ test('abrir la base sin IndexedDB falla de forma explícita', async () => {
 test('los almacenes esperados están declarados', () => {
   assert.deepEqual(Object.values(STORES).sort(), [
     'activities',
+    'dayPlan',
     'profile',
     'recovery',
     'sessions',

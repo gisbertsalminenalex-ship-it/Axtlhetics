@@ -25,6 +25,16 @@ import {
 
 import { getRepositories } from '../data'
 import { deleteDatabase } from '../data/indexeddb/db'
+import {
+  buildChangeTrainingAction,
+  overrideFrom,
+  resolveOverride,
+  validateAction,
+  type AxisActionProposal,
+  type AxisActionStatus,
+  type AxisActionTarget,
+  type DayPlanOverride,
+} from '../domain/axis/actions'
 import { buildAxisContext } from '../domain/axis/context'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
@@ -125,6 +135,15 @@ type AxtlheticsStore = {
   askAxis(question: string): Promise<void>
   clearAxisConversation(): void
 
+  /** Estado de cada propuesta de acción: pendiente, aplicada, cancelada o error. */
+  axisActionStatuses: Record<string, AxisActionStatus>
+  /**
+   * Aplica una propuesta de acción. Es el ÚNICO camino por el que la
+   * conversación cambia el estado real, y solo se llama desde su botón.
+   */
+  confirmAxisAction(action: AxisActionProposal): Promise<void>
+  cancelAxisAction(action: AxisActionProposal): void
+
   beginWorkout(): void
   adjustWeight(delta: number): void
   adjustReps(delta: number): void
@@ -151,7 +170,19 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   )
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
 
-  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null)
+  /**
+   * La elección de hoy, ya confirmada por el usuario y persistida.
+   *
+   * Antes esto era el id de una propuesta, que se regenera en cada decisión y no
+   * sobrevivía a una recarga. Ahora se guarda **qué opción** eligió, que sí es
+   * estable: al recargar, el motor vuelve a decidir y se selecciona la
+   * equivalente. Si esa opción ya no existe con los datos de ahora, no se aplica
+   * nada y manda la recomendación fresca.
+   */
+  const [dayOverride, setDayOverride] = useState<DayPlanOverride | null>(null)
+
+  /** Estado de cada propuesta de acción de la conversación. */
+  const [actionStatuses, setActionStatuses] = useState<Record<string, AxisActionStatus>>({})
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null)
   const [lastCompleted, setLastCompleted] = useState<WorkoutSession | null>(null)
 
@@ -195,12 +226,13 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       loadedDayRef.current = dayKey
       try {
         const repositories = getRepositories()
-        const [storedProfile, storedActivities, storedRecovery, storedSessions] =
+        const [storedProfile, storedActivities, storedRecovery, storedSessions, storedPlan] =
           await Promise.all([
             repositories.profile.get(),
             repositories.activities.list(),
             repositories.recovery.getByDay(dayKey),
             repositories.workouts.list(SESSION_HISTORY_LIMIT),
+            repositories.dayPlan.getByDay(dayKey),
           ])
 
         if (cancelled) return
@@ -210,6 +242,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setActivities(storedActivities)
         setRecoveryInputs(storedRecovery ?? emptyRecoveryInputs(dayKey, nowIso()))
         setSessions(storedSessions)
+        // La elección de hoy, si el usuario confirmó un cambio antes de recargar.
+        setDayOverride(storedPlan)
+        setActionStatuses({})
         setCancelledToday([])
         setStatus(storedProfile ? 'ready' : 'onboarding')
       } catch (cause) {
@@ -267,23 +302,33 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [activities, cancelledToday],
   )
 
-  const decision = useMemo(() => {
+  /**
+   * El contexto de AXIS, construido una sola vez.
+   *
+   * La decisión, el briefing y la validación de las acciones parten de aquí. Si
+   * se construyera por separado en cada sitio, dos de ellos podrían acabar
+   * mirando estados distintos del mismo día.
+   */
+  const axisContext = useMemo(() => {
     if (status !== 'ready') return null
-    const context = buildAxisContext({
+    return buildAxisContext({
       profile,
       recoveryInputs,
       recoveryScore,
       recentSessions: sessions,
       activities: activeActivities,
     })
-    return engine.decide(context)
   }, [status, profile, recoveryInputs, recoveryScore, sessions, activeActivities])
 
-  const proposal = useMemo(() => {
-    if (!decision) return null
-    const all = [decision.primary, ...decision.alternatives]
-    return all.find((item) => item.id === selectedProposalId) ?? decision.primary
-  }, [decision, selectedProposalId])
+  const decision = useMemo(
+    () => (axisContext ? engine.decide(axisContext) : null),
+    [axisContext],
+  )
+
+  const proposal = useMemo(
+    () => resolveOverride(dayOverride, decision, today) ?? decision?.primary ?? null,
+    [dayOverride, decision, today],
+  )
 
   const trainingLoad = useMemo(
     () => computeTrainingLoad(sessions, today),
@@ -297,16 +342,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
    * que AXIS conversacional no puede contradecir a AXIS de la pantalla principal.
    */
   const briefing = useMemo(() => {
-    if (status !== 'ready' || !decision) return null
-    const context = buildAxisContext({
-      profile,
-      recoveryInputs,
-      recoveryScore,
-      recentSessions: sessions,
-      activities: activeActivities,
-    })
-    return buildBriefing(context, decision, sessions, proposal)
-  }, [status, decision, proposal, profile, recoveryInputs, recoveryScore, sessions, activeActivities])
+    if (!axisContext || !decision) return null
+    return buildBriefing(axisContext, decision, sessions, proposal, dayOverride)
+  }, [axisContext, decision, proposal, sessions, dayOverride])
 
   const axisSuggestions = useMemo(
     () => (briefing ? suggestionsFor(briefing) : []),
@@ -514,7 +552,10 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       const session = toWorkoutSession(activeWorkout, { status: 'completed', perceivedEffort })
       setLastCompleted(session)
       setActiveWorkout(null)
-      setSelectedProposalId(null)
+      // El día ya está entrenado: la elección deja de tener efecto y se retira
+      // también del almacenamiento, no solo de la memoria.
+      setDayOverride(null)
+      void getRepositories().dayPlan.clear(session.dayKey).catch(() => {})
       await saveSession(session)
     },
     [activeWorkout, saveSession],
@@ -547,6 +588,35 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   // -------------------------------------------------------------------------
   // Conversación con AXIS
   // -------------------------------------------------------------------------
+
+  /**
+   * Convierte lo que AXIS ha propuesto en una acción pendiente de confirmar.
+   *
+   * Devuelve `null` cuando AXIS no ha llegado a una propuesta concreta, cuando se
+   * ha negado, o cuando la opción que propone no existe en la decisión vigente:
+   * un botón que no lleva a ninguna parte es peor que no tener botón.
+   */
+  const buildPendingAction = useCallback(
+    (result: { proposedTarget?: AxisActionTarget | null; proposedReason?: string }) => {
+      if (!result.proposedTarget || !decision || !proposal || !axisContext) return null
+
+      const all = [decision.primary, ...decision.alternatives]
+      const target = all.find(
+        (item) =>
+          item.type === result.proposedTarget!.type &&
+          (item.session?.focus ?? null) === result.proposedTarget!.focus,
+      )
+      if (!target || target.id === proposal.id) return null
+
+      return buildChangeTrainingAction({
+        context: axisContext,
+        origin: proposal,
+        target,
+        reason: result.proposedReason ?? '',
+      })
+    },
+    [decision, proposal, axisContext],
+  )
 
   const askAxis = useCallback(
     async (question: string) => {
@@ -590,14 +660,15 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             createdAt: nowIso(),
             intent: result.intent,
             unknown: result.unknown,
+            /*
+             * La propuesta viaja con el mensaje, pendiente de confirmar. Aquí no
+             * se cambia nada: el estado real solo se toca en `confirmAxisAction`,
+             * cuando el usuario pulsa el botón. Que haya escrito «sí» en la
+             * conversación no es una confirmación.
+             */
+            action: buildPendingAction(result),
           },
         ])
-
-        // Cuando AXIS acepta un cambio, la sesión del día cambia de verdad. Si se
-        // ha negado, `applyProposalId` viene vacío y no se toca nada.
-        if (result.applyProposalId) {
-          setSelectedProposalId(result.applyProposalId)
-        }
 
         setAxisUsedFallback(result.usedFallback)
         setAxisStatus('idle')
@@ -612,6 +683,74 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     },
     [briefing, axisChangeMode],
   )
+
+  /**
+   * Aplica una propuesta de acción, y solo cuando el usuario pulsa el botón.
+   *
+   * Este es el único camino por el que la conversación puede cambiar el estado
+   * real. Antes de llegar aquí no se ha tocado nada, por muchos «sí» que haya
+   * habido en el chat.
+   *
+   * El orden importa: primero se valida contra la decisión **vigente**, no
+   * contra la que había cuando AXIS lo propuso. Si el usuario ha registrado un
+   * deporte o su recuperación mientras el botón estaba en pantalla, la opción se
+   * vuelve a buscar con los datos de ahora; si ya no existe, se rechaza en lugar
+   * de aplicar una sesión calculada con información vieja.
+   */
+  const confirmAxisAction = useCallback(
+    async (action: AxisActionProposal) => {
+      // Una acción ya aplicada no se aplica dos veces.
+      if (actionStatuses[action.id]?.state === 'applied') return
+
+      if (!decision || !axisContext) {
+        setActionStatuses((current) => ({
+          ...current,
+          [action.id]: { state: 'error', message: 'Todavía no tengo tu día calculado.' },
+        }))
+        return
+      }
+
+      const validation = validateAction(action, decision, axisContext)
+      if (!validation.ok) {
+        setActionStatuses((current) => ({
+          ...current,
+          [action.id]: { state: 'error', message: validation.message },
+        }))
+        return
+      }
+
+      const override = overrideFrom(action, validation.target)
+
+      try {
+        await getRepositories().dayPlan.save(override)
+      } catch (cause) {
+        // Si no se ha podido guardar, no se finge que sí: el estado real no
+        // cambia y el botón queda en error, listo para reintentar.
+        setActionStatuses((current) => ({
+          ...current,
+          [action.id]: {
+            state: 'error',
+            message:
+              cause instanceof Error ? cause.message : 'No he podido guardar el cambio.',
+          },
+        }))
+        return
+      }
+
+      setDayOverride(override)
+      setActionStatuses((current) => ({ ...current, [action.id]: { state: 'applied' } }))
+    },
+    [actionStatuses, decision, axisContext],
+  )
+
+  /** El usuario descarta la propuesta. No se toca nada. */
+  const cancelAxisAction = useCallback((action: AxisActionProposal) => {
+    setActionStatuses((current) =>
+      current[action.id]?.state === 'applied'
+        ? current
+        : { ...current, [action.id]: { state: 'cancelled' } },
+    )
+  }, [])
 
   const clearAxisConversation = useCallback(() => {
     lastIntentRef.current = null
@@ -645,7 +784,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setActivities([])
     setSessions([])
     setRecoveryInputs(emptyRecoveryInputs(dayKey, nowIso()))
-    setSelectedProposalId(null)
+    setDayOverride(null)
+    setActionStatuses({})
     setCancelledToday([])
     setActiveWorkout(null)
     setLastCompleted(null)
@@ -687,6 +827,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       axisSuggestions,
       askAxis,
       clearAxisConversation,
+      axisActionStatuses: actionStatuses,
+      confirmAxisAction,
+      cancelAxisAction,
       beginWorkout,
       adjustWeight,
       adjustReps,
@@ -728,6 +871,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       axisSuggestions,
       askAxis,
       clearAxisConversation,
+      actionStatuses,
+      confirmAxisAction,
+      cancelAxisAction,
       beginWorkout,
       adjustWeight,
       adjustReps,
