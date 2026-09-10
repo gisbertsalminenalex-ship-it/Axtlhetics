@@ -1,0 +1,55 @@
+# Netlify — AXTHLETICS
+#
+# La app es un export estático (`output: 'export'` en next.config.mjs): no hay
+# funciones serverless, ni SSR, ni base de datos remota. Netlify solo sirve los
+# archivos de `out/`.
+
+[build]
+  command = "npm run build"
+  publish = "out"
+
+[build.environment]
+  # La misma versión con la que se compila y se pasan los tests en local.
+  NODE_VERSION = "24"
+
+# ---------------------------------------------------------------------------
+# Caché
+# ---------------------------------------------------------------------------
+
+# Los assets de Next llevan hash en el nombre: si cambian, cambia la URL. Se
+# pueden cachear para siempre sin miedo a servir una versión vieja.
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# El HTML no se cachea: es lo que decide qué assets se cargan. Si se cacheara,
+# un usuario con la app abierta seguiría en la versión anterior tras un deploy.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# ---------------------------------------------------------------------------
+# Cabeceras de seguridad
+# ---------------------------------------------------------------------------
+#
+# Los datos de entrenamiento y recuperación viven en IndexedDB, atados al origen.
+# Estas cabeceras protegen ese origen.
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Nadie puede meter la app en un iframe: evita que un tercero superponga
+    # controles sobre la interfaz real.
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    # No filtrar la URL completa al navegar fuera.
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # La app no usa cámara, micrófono, ubicación ni pagos. Se deniegan.
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
