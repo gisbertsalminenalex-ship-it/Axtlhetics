@@ -74,7 +74,7 @@ export function HistorialScreen() {
         </>
       )}
 
-      <LineChart points={stats.points} />
+      <VolumeChart points={stats.points} periodLabel={stats.periodLabel} />
 
       {/* Resumen del periodo */}
       <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">
@@ -161,83 +161,106 @@ function SummaryRow({
 }
 
 /**
- * Gráfico de línea del periodo.
+ * Qué etiquetas del eje se escriben.
  *
- * Tolera todos los casos límite: sin datos, un único punto y todos los valores
- * iguales. Cuando no hay variación, dibuja una línea plana a media altura en lugar
- * de dividir entre cero.
+ * Con siete días o doce meses caben todas. Con un mes de 31 días no: se escriben
+ * el 1, los múltiplos de 5 y el último, y se descarta el múltiplo de 5 si quedaría
+ * pegado al último (el 30 y el 31 no caben juntos).
  */
-function LineChart({ points }: { points: ChartPoint[] }) {
-  const width = 320
-  const height = 130
-  const padding = 10
+function axisLabelIndices(count: number): Set<number> {
+  if (count <= 12) return new Set(Array.from({ length: count }, (_, i) => i))
 
+  const picks = [0]
+  for (let day = 5; day < count; day += 5) picks.push(day - 1)
+
+  const last = count - 1
+  if (last - picks[picks.length - 1] < 2) picks.pop()
+  picks.push(last)
+
+  return new Set(picks)
+}
+
+/**
+ * Volumen del periodo, una barra por unidad natural.
+ *
+ * Barras y no línea: el volumen diario es una cantidad discreta y llena de ceros
+ * (los días de descanso). Una línea uniría los días de entreno pasando por el
+ * suelo, dando a entender una caída continua donde solo hay un día libre.
+ *
+ * Lo que no ha pasado no se dibuja. Un día futuro ocupa su sitio en el eje pero
+ * no tiene barra, ni siquiera de altura cero: no es que no entrenaras, es que aún
+ * no ha llegado.
+ */
+function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabel: string }) {
   if (points.length === 0) return null
 
-  const values = points.map((point) => point.value)
-  const max = Math.max(...values)
-  const min = Math.min(...values)
-  const span = max - min
-
-  const stepX = safeDivide(width - padding * 2, Math.max(points.length - 1, 1), 0)
-  const usableHeight = height - padding * 2
-
-  const coords = points.map((point, index) => {
-    // Sin variación no hay escala que aplicar: la línea va plana a media altura.
-    const ratio = span === 0 ? 0.5 : safeDivide(point.value - min, span, 0)
-    return {
-      x: padding + index * stepX,
-      y: padding + (1 - ratio) * usableHeight,
-    }
-  })
-
-  const path = coords
-    .map((coord, index) => `${index === 0 ? 'M' : 'L'} ${coord.x} ${coord.y}`)
-    .join(' ')
-
+  const max = Math.max(...points.map((point) => point.value))
   const hasData = max > 0
 
+  const labelled = axisLabelIndices(points.length)
+  // El último punto ya ocurrido: hoy en semana y mes, el mes en curso en el año.
+  const currentIndex = points.reduce((last, point, index) => (point.future ? last : index), -1)
+
   return (
-    <div className="mt-5">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full"
-        role="img"
-        aria-label={hasData ? 'Volumen de entrenamiento del periodo' : 'Sin datos todavía'}
-      >
-        <path
-          key={path}
-          className="ax-draw"
-          pathLength={1}
-          d={path}
-          fill="none"
-          stroke={hasData ? 'var(--primary)' : 'var(--border)'}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {hasData &&
-          coords.map((coord, index) => (
-            <circle
-              key={index}
-              className="ax-stagger-fade"
-              style={{ '--ax-index': index } as CSSProperties}
-              cx={coord.x}
-              cy={coord.y}
-              r={index === coords.length - 1 ? 4.5 : 3}
-              fill="var(--background)"
-              stroke="var(--primary)"
-              strokeWidth="2.5"
-            />
-          ))}
-      </svg>
-      <div className="mt-2 flex justify-between px-1">
-        {points.map((point, index) => (
-          <span key={index} className="text-[12px] text-muted-foreground">
-            {point.label}
+    <figure className="mt-5">
+      <figcaption className="flex items-baseline justify-between">
+        <span className="text-[13px] font-medium">{periodLabel}</span>
+        {hasData && (
+          <span className="text-[12px] tabular-nums text-muted-foreground">
+            máx. {formatVolume(max)}
           </span>
+        )}
+      </figcaption>
+
+      <div
+        className="mt-2.5 flex h-32 items-end gap-px border-b border-border"
+        role="img"
+        aria-label={
+          hasData
+            ? `Volumen por ${points.length > 12 ? 'día' : 'periodo'} en ${periodLabel}`
+            : `Sin volumen registrado en ${periodLabel}`
+        }
+      >
+        {points.map((point, index) => (
+          <div key={index} className="flex h-full flex-1 items-end">
+            {point.value > 0 && (
+              <div
+                className="ax-bar mx-auto w-full max-w-[16px] rounded-t-[3px] bg-primary"
+                style={
+                  {
+                    // Mínimo visible: un volumen pequeño no debe desaparecer.
+                    height: `${Math.max(4, safeDivide(point.value, max, 0) * 100)}%`,
+                    '--ax-index': index,
+                  } as CSSProperties
+                }
+              />
+            )}
+          </div>
         ))}
       </div>
-    </div>
+
+      <div className="relative mt-2 h-4">
+        {points.map((point, index) =>
+          labelled.has(index) ? (
+            <span
+              key={index}
+              className={cn(
+                'absolute -translate-x-1/2 text-[11.5px] tabular-nums',
+                index === currentIndex ? 'font-semibold text-foreground' : 'text-muted-foreground',
+              )}
+              style={{ left: `${((index + 0.5) / points.length) * 100}%` }}
+            >
+              {point.label}
+            </span>
+          ) : null,
+        )}
+      </div>
+
+      {!hasData && (
+        <p className="mt-1 text-[12.5px] text-muted-foreground">
+          Todavía no hay volumen registrado en este periodo.
+        </p>
+      )}
+    </figure>
   )
 }

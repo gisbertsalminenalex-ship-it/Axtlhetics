@@ -6,7 +6,25 @@
  * todos los valores iguales, nunca devuelven `NaN`, `Infinity` ni una división por cero.
  */
 
-import { addDays, daysBetween, fromDayKey, toDayKey, WEEKDAY_INITIALS, weekDayKeys, type DayKey } from '../shared/dates'
+import {
+  addDays,
+  addMonths,
+  addYears,
+  daysBetween,
+  endOfMonth,
+  endOfYear,
+  formatMonthName,
+  formatYearName,
+  fromDayKey,
+  monthDayKeys,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+  WEEKDAY_INITIALS,
+  weekDayKeys,
+  yearMonthKeys,
+  type DayKey,
+} from '../shared/dates'
 import { safeDivide } from '../shared/ids'
 import type { WorkoutSession } from '../workouts/types'
 
@@ -19,8 +37,16 @@ export const HISTORY_RANGE_LABELS: Record<HistoryRange, string> = {
 }
 
 export type ChartPoint = {
+  /** Lo que se escribe en el eje: `L`, `1`, `E`… */
   label: string
   value: number
+  /**
+   * `true` cuando ese día o mes todavía no ha llegado.
+   *
+   * Un día futuro no vale cero: es que no ha pasado. El gráfico corta ahí en vez
+   * de dibujar una caída a cero que parecería que no has entrenado.
+   */
+  future: boolean
 }
 
 export type PerformanceDelta = {
@@ -33,6 +59,8 @@ export type PerformanceDelta = {
 
 export type HistoryStats = {
   range: HistoryRange
+  /** El periodo que se está mirando: `Septiembre de 2026`, `2026`… */
+  periodLabel: string
   sessionCount: number
   totalSeconds: number
   totalVolumeKg: number
@@ -52,16 +80,38 @@ function isCompleted(session: WorkoutSession): boolean {
   return session.status === 'completed'
 }
 
-/** Longitud en días del periodo, usada para localizar el periodo anterior. */
-function periodLengthDays(range: HistoryRange): number {
-  if (range === 'semana') return 7
-  if (range === 'mes') return 28
-  return 364
+/**
+ * Primer día del periodo natural que contiene `reference`.
+ *
+ * Natural, no móvil: el lunes de esta semana, el día 1 de este mes, el 1 de enero
+ * de este año. Coincide con lo que el usuario ve en su calendario.
+ */
+export function periodStart(range: HistoryRange, reference: DayKey): DayKey {
+  if (range === 'semana') return startOfWeek(reference)
+  if (range === 'mes') return startOfMonth(reference)
+  return startOfYear(reference)
 }
 
-/** Primer día del periodo actual. */
-export function periodStart(range: HistoryRange, reference: DayKey): DayKey {
-  return addDays(reference, -(periodLengthDays(range) - 1))
+/** Último día del periodo natural, aunque todavía no haya llegado. */
+export function periodEnd(range: HistoryRange, reference: DayKey): DayKey {
+  if (range === 'semana') return addDays(startOfWeek(reference), 6)
+  if (range === 'mes') return endOfMonth(reference)
+  return endOfYear(reference)
+}
+
+/** El mismo punto del periodo anterior: hace una semana, un mes o un año. */
+function sameDayPreviousPeriod(range: HistoryRange, reference: DayKey): DayKey {
+  if (range === 'semana') return addDays(reference, -7)
+  if (range === 'mes') return addMonths(reference, -1)
+  return addYears(reference, -1)
+}
+
+export function periodLabel(range: HistoryRange, reference: DayKey): string {
+  if (range === 'mes') return formatMonthName(reference)
+  if (range === 'anio') return formatYearName(reference)
+  const start = periodStart('semana', reference)
+  const end = periodEnd('semana', reference)
+  return `${fromDayKey(start).getDate()}–${fromDayKey(end).getDate()} de ${formatMonthName(end).toLowerCase()}`
 }
 
 function sessionsInRange(
@@ -81,9 +131,20 @@ function totalVolume(sessions: readonly WorkoutSession[]): number {
   return sessions.reduce((total, session) => total + session.totalVolumeKg, 0)
 }
 
+/** Volumen acumulado en un único día. */
+function volumeOnDay(sessions: readonly WorkoutSession[], dayKey: DayKey): number {
+  return totalVolume(sessions.filter((s) => isCompleted(s) && s.dayKey === dayKey))
+}
+
 /**
- * Puntos del gráfico. Siempre devuelve al menos dos puntos para que la línea tenga
- * algo que dibujar aunque el usuario no tenga historial.
+ * Puntos del gráfico, uno por cada unidad natural del periodo.
+ *
+ * - Semana: los siete días, de lunes a domingo.
+ * - Mes: todos los días del mes, del 1 al 28, 29, 30 o 31 según toque.
+ * - Año: los doce meses, de enero a diciembre.
+ *
+ * Los que aún no han llegado se marcan como `future` para que el gráfico se corte
+ * en el día de hoy en vez de fingir ceros.
  */
 function buildPoints(
   sessions: readonly WorkoutSession[],
@@ -93,32 +154,26 @@ function buildPoints(
   if (range === 'semana') {
     return weekDayKeys(reference).map((dayKey, index) => ({
       label: WEEKDAY_INITIALS[index],
-      value: totalVolume(sessions.filter((session) => session.dayKey === dayKey)),
+      value: volumeOnDay(sessions, dayKey),
+      future: daysBetween(reference, dayKey) > 0,
     }))
   }
 
   if (range === 'mes') {
-    const start = periodStart('mes', reference)
-    return Array.from({ length: 4 }, (_, week) => {
-      const from = addDays(start, week * 7)
-      const to = addDays(from, 6)
-      return {
-        label: `S${week + 1}`,
-        value: totalVolume(sessionsInRange(sessions, from, to)),
-      }
-    })
+    return monthDayKeys(reference).map((dayKey) => ({
+      // El número del día tal cual: 1, 2, 3… hasta el último del mes.
+      label: String(fromDayKey(dayKey).getDate()),
+      value: volumeOnDay(sessions, dayKey),
+      future: daysBetween(reference, dayKey) > 0,
+    }))
   }
 
-  const referenceDate = fromDayKey(reference)
-  return Array.from({ length: 12 }, (_, index) => {
-    const month = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - (11 - index), 1)
-    const from = toDayKey(month)
-    const to = toDayKey(new Date(month.getFullYear(), month.getMonth() + 1, 0))
-    return {
-      label: MONTH_INITIALS[month.getMonth()],
-      value: totalVolume(sessionsInRange(sessions, from, to)),
-    }
-  })
+  return yearMonthKeys(reference).map((monthStart) => ({
+    label: MONTH_INITIALS[fromDayKey(monthStart).getMonth()],
+    value: totalVolume(sessionsInRange(sessions, monthStart, endOfMonth(monthStart))),
+    // Un mes solo es futuro si empieza después de hoy: el mes en curso cuenta.
+    future: daysBetween(reference, monthStart) > 0,
+  }))
 }
 
 /**
@@ -132,13 +187,17 @@ export function computePerformanceDelta(
   range: HistoryRange,
   reference: DayKey,
 ): PerformanceDelta {
-  const length = periodLengthDays(range)
-  const currentFrom = periodStart(range, reference)
-  const previousTo = addDays(currentFrom, -1)
-  const previousFrom = addDays(previousTo, -(length - 1))
+  // Se compara lo transcurrido contra lo transcurrido: el día 3 del mes se mide
+  // contra los tres primeros días del mes pasado, no contra el mes entero. Si no,
+  // cualquier mes empezado saldría siempre en negativo.
+  const previousReference = sameDayPreviousPeriod(range, reference)
 
-  const current = totalVolume(sessionsInRange(sessions, currentFrom, reference))
-  const previous = totalVolume(sessionsInRange(sessions, previousFrom, previousTo))
+  const current = totalVolume(
+    sessionsInRange(sessions, periodStart(range, reference), reference),
+  )
+  const previous = totalVolume(
+    sessionsInRange(sessions, periodStart(range, previousReference), previousReference),
+  )
 
   if (previous <= 0) {
     return { available: false, percent: null, comparisonLabel: COMPARISON_LABELS[range] }
@@ -157,11 +216,17 @@ export function computeHistoryStats(
   range: HistoryRange,
   reference: DayKey,
 ): HistoryStats {
-  const from = periodStart(range, reference)
-  const inRange = sessionsInRange(sessions, from, reference)
+  // El resumen cubre el periodo natural completo, igual que el gráfico, para que
+  // los dos no puedan contar cosas distintas.
+  const inRange = sessionsInRange(
+    sessions,
+    periodStart(range, reference),
+    periodEnd(range, reference),
+  )
 
   return {
     range,
+    periodLabel: periodLabel(range, reference),
     sessionCount: inRange.length,
     totalSeconds: inRange.reduce((total, session) => total + session.durationSeconds, 0),
     totalVolumeKg: totalVolume(inRange),

@@ -73,6 +73,88 @@ export function weekDayKeys(key: DayKey): DayKey[] {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
 }
 
+// ---------------------------------------------------------------------------
+// Meses y años naturales
+// ---------------------------------------------------------------------------
+//
+// Historial razona en periodos naturales, no en ventanas móviles: «el mes» es el
+// mes del calendario en el que estás, del día 1 al último, y «el año» va de enero
+// a diciembre. Así el eje del gráfico coincide con lo que el usuario ve en su
+// propio calendario.
+
+/** Primer día del mes al que pertenece `key`. */
+export function startOfMonth(key: DayKey): DayKey {
+  const date = fromDayKey(key)
+  return toDayKey(new Date(date.getFullYear(), date.getMonth(), 1))
+}
+
+/** Último día del mes al que pertenece `key`. */
+export function endOfMonth(key: DayKey): DayKey {
+  const date = fromDayKey(key)
+  // Día 0 del mes siguiente es el último del actual, y ya contempla los bisiestos.
+  return toDayKey(new Date(date.getFullYear(), date.getMonth() + 1, 0))
+}
+
+/** Cuántos días tiene el mes al que pertenece `key`: 28, 29, 30 o 31. */
+export function daysInMonth(key: DayKey): number {
+  const date = fromDayKey(key)
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+}
+
+/** Todas las claves de día del mes al que pertenece `key`, del 1 al último. */
+export function monthDayKeys(key: DayKey): DayKey[] {
+  const first = startOfMonth(key)
+  return Array.from({ length: daysInMonth(key) }, (_, i) => addDays(first, i))
+}
+
+export function startOfYear(key: DayKey): DayKey {
+  return `${fromDayKey(key).getFullYear()}-01-01`
+}
+
+export function endOfYear(key: DayKey): DayKey {
+  return `${fromDayKey(key).getFullYear()}-12-31`
+}
+
+/** El día 1 de cada uno de los doce meses del año al que pertenece `key`. */
+export function yearMonthKeys(key: DayKey): DayKey[] {
+  const year = fromDayKey(key).getFullYear()
+  return Array.from({ length: 12 }, (_, month) => `${year}-${pad(month + 1)}-01`)
+}
+
+/**
+ * Desplaza meses conservando el día, y lo recorta si el mes destino es más corto.
+ *
+ * Sin recorte, el 31 de marzo menos un mes daría el 3 de marzo en lugar del 28 de
+ * febrero, porque `Date` desborda hacia el mes siguiente.
+ */
+export function addMonths(key: DayKey, months: number): DayKey {
+  const date = fromDayKey(key)
+  const target = new Date(date.getFullYear(), date.getMonth() + months, 1)
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(Math.min(date.getDate(), lastDay))
+  return toDayKey(target)
+}
+
+/** Mismo día del año anterior o posterior, recortando el 29 de febrero. */
+export function addYears(key: DayKey, years: number): DayKey {
+  return addMonths(key, years * 12)
+}
+
+/** `Marzo de 2026` — cabecera del periodo en Historial. */
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+export function formatMonthName(key: DayKey): string {
+  const date = fromDayKey(key)
+  return `${MONTH_NAMES[date.getMonth()]} de ${date.getFullYear()}`
+}
+
+export function formatYearName(key: DayKey): string {
+  return String(fromDayKey(key).getFullYear())
+}
+
 /** Minutos desde medianoche. `20:00` → `1200`. */
 export function minutesFromMidnight(hours: number, minutes: number): number {
   return hours * 60 + minutes

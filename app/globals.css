@@ -80,6 +80,7 @@
   --ax-enter: 300ms;   /* entradas de elementos */
   --ax-metric: 700ms;  /* recorrido de una métrica hasta su valor */
   --ax-stagger: 45ms;  /* separación entre elementos de una lista */
+  --ax-stagger-tight: 12ms; /* separación entre barras de un gráfico */
 
   /* Desplazamiento de entrada. Corto a propósito: la pantalla no viaja. */
   --ax-rise: 10px;
@@ -102,6 +103,7 @@
     --ax-enter: 1ms;
     --ax-metric: 1ms;
     --ax-stagger: 0ms;
+    --ax-stagger-tight: 0ms;
     --ax-rise: 0px;
     --ax-press-scale: 1;
   }
@@ -166,6 +168,16 @@
   }
 }
 
+/** Crecimiento de una barra desde su base. */
+@keyframes ax-grow-up {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
 @layer utilities {
   /** Entrada de una pantalla o de un bloque: fade con un ascenso corto. */
   .ax-enter {
@@ -210,5 +222,19 @@
   .ax-draw {
     stroke-dasharray: 1;
     animation: ax-draw-line var(--ax-metric) var(--ax-ease) both;
+  }
+
+  /**
+   * Barra de un gráfico, creciendo desde la base.
+   *
+   * Anima `scaleY`, no `height`: el compositor lo resuelve sin recalcular layout
+   * aunque el mes tenga treinta y una barras. El escalonado usa su propio token,
+   * mucho más corto que el de una lista, porque aquí hay decenas de elementos y
+   * el gráfico entero debe terminar de dibujarse enseguida.
+   */
+  .ax-bar {
+    transform-origin: bottom;
+    animation: ax-grow-up var(--ax-metric) var(--ax-ease) both;
+    animation-delay: calc(min(var(--ax-index, 0), 12) * var(--ax-stagger-tight));
   }
 }
