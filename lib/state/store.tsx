@@ -24,6 +24,7 @@ import {
 } from 'react'
 
 import { getRepositories } from '../data'
+import { deleteDatabase } from '../data/indexeddb/db'
 import { buildAxisContext } from '../domain/axis/context'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
@@ -47,6 +48,7 @@ import {
 } from '../domain/workouts/active-workout'
 import { buildBriefing, type AxisBriefing } from '../domain/axis/briefing'
 import { createAxisConversation, suggestionsFor } from '../domain/axis/conversation'
+import { changeOpeningMessage } from '../domain/axis/conversation/negotiation'
 import type { AxisIntent, AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import type { WorkoutSession } from '../domain/workouts/types'
@@ -103,7 +105,14 @@ type AxtlheticsStore = {
   updateRecovery(patch: Partial<Omit<RecoveryInputs, 'dayKey' | 'updatedAt'>>): Promise<void>
   toggleHydrationGlass(index: number): Promise<void>
 
-  cycleProposal(): void
+  /**
+   * Abre la conversación con AXIS acotada a cambiar el entrenamiento de hoy.
+   *
+   * No rota alternativas: AXIS pide el motivo y decide con los datos.
+   */
+  openChangeConversation(): void
+  /** Borra todos los datos del dispositivo y vuelve al primer arranque. */
+  clearAllData(): Promise<void>
 
   /** Briefing tipado que alimenta la conversación. Es null hasta que hay decisión. */
   briefing: AxisBriefing | null
@@ -151,12 +160,17 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const [axisStatus, setAxisStatus] = useState<AxisChatStatus>('idle')
   const [axisError, setAxisError] = useState<string | null>(null)
   const [axisUsedFallback, setAxisUsedFallback] = useState(false)
+  /** La conversación está acotada a cambiar el entrenamiento de hoy. */
+  const [axisChangeMode, setAxisChangeMode] = useState(false)
 
   /** Día con el que se cargaron los datos. Permite detectar que ha cambiado la fecha. */
   const loadedDayRef = useRef<DayKey>('1970-01-01')
 
   /** Última intención respondida, para entender preguntas de seguimiento. */
   const lastIntentRef = useRef<AxisIntent | null>(null)
+
+  /** Última petición de cambio juzgada, para no ceder ante la insistencia. */
+  const lastChangeRequestRef = useRef<{ kind: string; focus: string | null } | null>(null)
 
   // -------------------------------------------------------------------------
   // Carga inicial
@@ -267,8 +281,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       recentSessions: sessions,
       activities,
     })
-    return buildBriefing(context, decision, sessions)
-  }, [status, decision, profile, recoveryInputs, recoveryScore, sessions, activities])
+    return buildBriefing(context, decision, sessions, proposal)
+  }, [status, decision, proposal, profile, recoveryInputs, recoveryScore, sessions, activities])
 
   const axisSuggestions = useMemo(
     () => (briefing ? suggestionsFor(briefing) : []),
@@ -401,15 +415,31 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   // -------------------------------------------------------------------------
 
   /** «Cambiar entrenamiento»: rota entre las propuestas que ha generado AXIS. */
-  const cycleProposal = useCallback(() => {
-    if (!decision) return
-    const all = [decision.primary, ...decision.alternatives]
-    // Sin selección previa se está viendo la principal, que ocupa la posición 0.
-    const found = all.findIndex((item) => item.id === selectedProposalId)
-    const currentIndex = found === -1 ? 0 : found
-    const nextIndex = (currentIndex + 1) % all.length
-    setSelectedProposalId(all[nextIndex].id)
-  }, [decision, selectedProposalId])
+  /**
+   * Abre la negociación del entrenamiento de hoy.
+   *
+   * Antes esto rotaba entre las alternativas, lo que convertía a AXIS en un
+   * selector: el usuario iba pasando opciones hasta encontrar una que le gustara,
+   * sin que nadie juzgara si tenía sentido. Ahora abre una conversación acotada a
+   * ese cambio, donde AXIS pide el motivo y decide con los datos.
+   */
+  const openChangeConversation = useCallback(() => {
+    if (!briefing) return
+    setAxisChangeMode(true)
+    lastIntentRef.current = 'change'
+    lastChangeRequestRef.current = null
+    setAxisError(null)
+    setAxisStatus('idle')
+    setAxisMessages([
+      {
+        id: createId(),
+        role: 'axis',
+        text: changeOpeningMessage(briefing),
+        createdAt: nowIso(),
+        intent: 'change',
+      },
+    ])
+  }, [briefing])
 
 
   // -------------------------------------------------------------------------
@@ -513,8 +543,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       try {
         const result = await conversation.ask(text, briefing, {
           lastIntent: lastIntentRef.current,
+          changeMode: axisChangeMode,
+          lastChangeRequest: lastChangeRequestRef.current,
         })
         lastIntentRef.current = result.intent
+        if (result.changeRequest) lastChangeRequestRef.current = result.changeRequest
         setAxisMessages((current) => [
           ...current,
           {
@@ -526,6 +559,13 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             unknown: result.unknown,
           },
         ])
+
+        // Cuando AXIS acepta un cambio, la sesión del día cambia de verdad. Si se
+        // ha negado, `applyProposalId` viene vacío y no se toca nada.
+        if (result.applyProposalId) {
+          setSelectedProposalId(result.applyProposalId)
+        }
+
         setAxisUsedFallback(result.usedFallback)
         setAxisStatus('idle')
       } catch (cause) {
@@ -537,7 +577,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setAxisStatus('error')
       }
     },
-    [briefing],
+    [briefing, axisChangeMode],
   )
 
   const clearAxisConversation = useCallback(() => {
@@ -546,7 +586,39 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setAxisStatus('idle')
     setAxisError(null)
     setAxisUsedFallback(false)
+    setAxisChangeMode(false)
   }, [])
+
+  /**
+   * Borra todo y devuelve la app al primer arranque.
+   *
+   * No hay cuenta que cerrar: los datos viven solo en este dispositivo, así que
+   * «cerrar sesión» aquí significa exactamente eso, borrarlos. Es irreversible y
+   * no hay copia en ningún sitio, por lo que la interfaz pide confirmación antes
+   * de llamar aquí.
+   */
+  const clearAllData = useCallback(async () => {
+    try {
+      await deleteDatabase()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudieron borrar los datos.')
+      return
+    }
+
+    // Se vacía todo el estado en memoria, no solo la base: si no, la pantalla
+    // seguiría mostrando los datos de quien acaba de borrarlos.
+    const dayKey = todayKey()
+    setProfile(null)
+    setActivities([])
+    setSessions([])
+    setRecoveryInputs(emptyRecoveryInputs(dayKey, nowIso()))
+    setSelectedProposalId(null)
+    setActiveWorkout(null)
+    setLastCompleted(null)
+    clearAxisConversation()
+    setError(null)
+    setStatus('onboarding')
+  }, [clearAxisConversation])
 
   const value = useMemo<AxtlheticsStore>(
     () => ({
@@ -571,7 +643,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       removeActivity,
       updateRecovery,
       toggleHydrationGlass,
-      cycleProposal,
+      openChangeConversation,
+      clearAllData,
       briefing,
       axisMessages,
       axisStatus,
@@ -611,7 +684,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       removeActivity,
       updateRecovery,
       toggleHydrationGlass,
-      cycleProposal,
+      openChangeConversation,
+      clearAllData,
       briefing,
       axisMessages,
       axisStatus,

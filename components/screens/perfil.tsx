@@ -280,6 +280,79 @@ export function PerfilScreen({
           </p>
         )}
       </div>
+
+      {!isOnboarding && <DangerZone />}
+    </div>
+  )
+}
+
+/**
+ * Borrar todos los datos.
+ *
+ * No hay cuenta que cerrar: los datos viven solo en este dispositivo. «Cerrar
+ * sesión» aquí significa borrarlos, y no hay copia en ningún sitio desde la que
+ * recuperarlos, así que se pide confirmación explícita.
+ *
+ * La confirmación es un segundo botón dentro de la pantalla, no un `confirm()`
+ * del navegador: un diálogo del sistema rompe la interfaz y bloquea la página.
+ */
+function DangerZone() {
+  const { clearAllData, sessions } = useAxtlhetics()
+  const [confirming, setConfirming] = useState(false)
+  const [clearing, setClearing] = useState(false)
+
+  return (
+    <div className="mt-10 border-t border-border px-6 pt-6 pb-10">
+      <SectionTitle>Tus datos</SectionTitle>
+
+      {!confirming ? (
+        <>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+            Todo lo que registras vive solo en este dispositivo. Puedes borrarlo cuando
+            quieras y empezar de cero.
+          </p>
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="ax-press mt-4 min-h-11 w-full rounded-2xl border border-border bg-background text-[14px] font-semibold text-error"
+          >
+            Cerrar sesión y borrar mis datos
+          </button>
+        </>
+      ) : (
+        <div className="ax-enter mt-2">
+          <p className="text-[13.5px] leading-relaxed">
+            Se borrarán tu perfil, tus deportes, tu recuperación y{' '}
+            {sessions.length === 1
+              ? 'el entrenamiento que tienes guardado'
+              : `los ${sessions.length} entrenamientos que tienes guardados`}
+            . <span className="font-semibold">No se puede deshacer</span> y no hay copia
+            en ningún otro sitio.
+          </p>
+
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              disabled={clearing}
+              className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-[14px] font-semibold disabled:opacity-40"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setClearing(true)
+                void clearAllData()
+              }}
+              disabled={clearing}
+              className="ax-press h-12 flex-1 rounded-2xl bg-error text-[14px] font-semibold text-white disabled:opacity-40"
+            >
+              {clearing ? 'Borrando…' : 'Borrar todo'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

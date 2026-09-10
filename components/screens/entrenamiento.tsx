@@ -13,12 +13,14 @@ export function EntrenamientoScreen({
   onStart,
   onGoRecuperacion,
   onGoHistorial,
+  onOpenAxis,
 }: {
   onStart: () => void
   onGoRecuperacion: () => void
   onGoHistorial: () => void
+  onOpenAxis: () => void
 }) {
-  const { proposal, hasAlternatives, cycleProposal, sessions, weeklyActivity, today } =
+  const { proposal, openChangeConversation, sessions, weeklyActivity, today } =
     useAxtlhetics()
 
   const trains = proposal ? isTrainingRecommendation(proposal.type) : false
@@ -84,10 +86,13 @@ export function EntrenamientoScreen({
           {trains ? 'Empezar entrenamiento' : 'Ver recuperación'}
         </button>
 
-        {hasAlternatives && (
+        {proposal && (
           <button
             type="button"
-            onClick={cycleProposal}
+            onClick={() => {
+              openChangeConversation()
+              onOpenAxis()
+            }}
             className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-primary"
           >
             Cambiar entrenamiento

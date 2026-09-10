@@ -47,6 +47,16 @@ export type AxisAnswer = {
   intent: AxisIntent
   /** `true` si la respuesta es «no tengo ese dato». */
   unknown: boolean
+  /**
+   * Alternativa que la aplicación debe seleccionar como sesión del día.
+   *
+   * Es lo que convierte la conversación en una decisión de verdad: cuando AXIS
+   * acepta un cambio, la sesión cambia. `null` cuando no hay nada que aplicar,
+   * incluido cuando AXIS se ha negado.
+   */
+  applyProposalId?: string | null
+  /** La petición que se acaba de juzgar, para reconocer que insiste con la misma. */
+  changeRequest?: { kind: string; focus: string | null } | null
 }
 
 /**
@@ -57,6 +67,22 @@ export type AxisAnswer = {
  */
 export type AxisConversationMemory = {
   lastIntent: AxisIntent | null
+  /**
+   * La conversación está acotada a cambiar el entrenamiento de hoy.
+   *
+   * Se activa al pulsar «Cambiar entrenamiento». Mientras dura, un mensaje suelto
+   * («ayer hice 20 km de bici, hoy piernas no») se lee como una petición de
+   * cambio y no como una pregunta cualquiera.
+   */
+  changeMode?: boolean
+  /**
+   * Lo último que el usuario pidió cambiar.
+   *
+   * Sirve para no ceder por insistencia: si vuelve con «venga, porfa» sin aportar
+   * nada nuevo, AXIS reconoce que es la misma petición y mantiene su veredicto en
+   * lugar de preguntar otra vez qué quiere.
+   */
+  lastChangeRequest?: { kind: string; focus: string | null } | null
 }
 
 /**

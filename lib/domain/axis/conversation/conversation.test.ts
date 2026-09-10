@@ -524,15 +524,14 @@ test('decir que estás cansado usa los datos si existen y lo admite si no', () =
   assert.match(sinDatos.text, /no tengo tu recuperaci/i)
 })
 
-test('cambiar el entrenamiento remite a las alternativas del motor, sin inventar otra', () => {
-  const { briefing, context } = briefingWith({}, [session()])
+test('pedir un cambio sin motivo no despliega un menú de opciones: AXIS pregunta por qué', () => {
+  const { briefing } = briefingWith({}, [session()])
   const answer = answerFromBriefing('Quiero cambiar el entrenamiento de hoy', briefing)
-  const decision = decide(context)
 
   assert.equal(answer.intent, 'change')
-  for (const alternative of decision.alternatives) {
-    assert.match(answer.text, new RegExp(alternative.label, 'i'))
-  }
+  // Antes esto listaba las alternativas y el usuario elegía la que le apetecía.
+  // Ahora AXIS pide el motivo, que es lo que le permite decidir.
+  assert.match(answer.text, /qué quieres cambiar y por qué/i)
 })
 
 test('acortar la sesión parte de la duración real propuesta', () => {

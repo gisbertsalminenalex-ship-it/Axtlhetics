@@ -26,7 +26,7 @@ import { formatMinutesOfDay, type DayKey } from '../shared/dates'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
 import type { SessionFocus, WorkoutSession } from '../workouts/types'
 import { deriveFacts } from './facts'
-import type { AxisContext, AxisDecision, AxisRecommendationType } from './types'
+import type { AxisContext, AxisDecision, AxisProposal, AxisRecommendationType } from './types'
 
 export type BriefingRecovery =
   | { known: false; missing: string[]; reason: string }
@@ -78,7 +78,21 @@ export type BriefingProposal = {
     estimatedMinutes: number
     exercises: { name: string; sets: number; reps: number; isTimed: boolean; weightKg: number | null }[]
   } | null
-  alternatives: string[]
+  /**
+   * Las alternativas que AXIS ya ha preparado, con lo necesario para poder
+   * aplicarlas: sin el `id` la conversación solo podría hablar de ellas, no
+   * cambiar la sesión.
+   */
+  alternatives: BriefingAlternative[]
+}
+
+export type BriefingAlternative = {
+  id: string
+  label: string
+  type: AxisRecommendationType
+  /** `null` cuando la alternativa es no entrenar. */
+  focus: SessionFocus | null
+  estimatedMinutes: number | null
 }
 
 export type BriefingWeek = {
@@ -124,6 +138,13 @@ export function buildBriefing(
   context: AxisContext,
   decision: AxisDecision | null,
   sessions: readonly WorkoutSession[],
+  /**
+   * La propuesta que el usuario tiene realmente seleccionada.
+   *
+   * Sin esto, el briefing describiría siempre la principal y AXIS hablaría de una
+   * sesión distinta de la que muestra Inicio en cuanto se acepta un cambio.
+   */
+  selected?: AxisProposal | null,
 ): AxisBriefing {
   const facts = deriveFacts(context)
   const load = computeTrainingLoad(sessions, context.dayKey)
@@ -163,7 +184,7 @@ export function buildBriefing(
             windowDays: load.windowDays,
           }
         : { known: false },
-    proposal: decision ? briefingProposal(decision) : null,
+    proposal: decision ? briefingProposal(decision, selected ?? null) : null,
     lastSession: lastCompleted ? briefingSession(lastCompleted) : null,
     week: {
       sessionCount: week.sessionCount,
@@ -204,8 +225,13 @@ function briefingRecovery(context: AxisContext): BriefingRecovery {
   }
 }
 
-function briefingProposal(decision: AxisDecision): BriefingProposal {
-  const { primary } = decision
+function briefingProposal(
+  decision: AxisDecision,
+  selected: AxisProposal | null,
+): BriefingProposal {
+  const all = [decision.primary, ...decision.alternatives]
+  // La activa es la seleccionada, o la principal si el usuario no ha cambiado nada.
+  const primary = all.find((item) => item.id === selected?.id) ?? decision.primary
 
   return {
     type: primary.type,
@@ -226,7 +252,17 @@ function briefingProposal(decision: AxisDecision): BriefingProposal {
           })),
         }
       : null,
-    alternatives: decision.alternatives.map((alternative) => alternative.label),
+    // Todo lo que no es la sesión activa. Si el usuario ya cambió a una de las
+    // alternativas, la principal vuelve a estar disponible como opción.
+    alternatives: all
+      .filter((item) => item.id !== primary.id)
+      .map((alternative) => ({
+        id: alternative.id,
+        label: alternative.label,
+        type: alternative.type,
+        focus: alternative.session?.focus ?? null,
+        estimatedMinutes: alternative.session?.estimatedMinutes ?? null,
+      })),
   }
 }
 

@@ -92,6 +92,7 @@ export default function Page() {
                       onStart={startTraining}
                       onGoRecuperacion={goToRecuperacion}
                       onGoHistorial={() => setTab('historial')}
+                      onOpenAxis={() => setAxisOpen(true)}
                     />
                   )}
                   {tab === 'recuperacion' && <RecuperacionScreen />}

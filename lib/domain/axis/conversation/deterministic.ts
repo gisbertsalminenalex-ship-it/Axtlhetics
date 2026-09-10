@@ -22,6 +22,7 @@ import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { SESSION_FOCUS_LABELS, type SessionFocus } from '../../workouts/types'
 import type { AxisBriefing, BriefingActivity } from '../briefing'
 import { matchIntent } from './intents'
+import { evaluateChange, parseChangeRequest, type ChangeRequest } from './negotiation'
 import type {
   AxisAnswer,
   AxisConversationEngine,
@@ -53,6 +54,49 @@ export function answerFromBriefing(
   memory?: AxisConversationMemory,
 ): AxisAnswer {
   const match = matchIntent(question, memory?.lastIntent ?? null)
+
+  if (memory?.changeMode) {
+    /*
+     * En modo cambio la conversación está acotada a la sesión de hoy, pero no
+     * todo lo que se escriba ahí es una petición de cambio: una molestia física
+     * o algo ajeno a AXTHLETICS siguen su camino.
+     *
+     * El corte no puede hacerse por intención. «Ayer hice 20 km de bici, hoy
+     * piernas no» parece una pregunta por la última sesión y es exactamente el
+     * contexto que la negociación necesita. Se mira lo que el mensaje pide.
+     */
+    const isMedicalOrForeign = match.intent === 'medical' || match.intent === 'out_of_scope'
+    const request = parseChangeRequest(question)
+    const asksForChange =
+      request.kind !== 'unclear' ||
+      request.reportedLoad !== null ||
+      match.intent === 'change' ||
+      match.intent === 'unknown'
+
+    if (!isMedicalOrForeign && asksForChange) {
+      /*
+       * Un mensaje que no pide nada concreto, viniendo de una petición anterior,
+       * es una de dos cosas, y la diferencia lo es todo:
+       *
+       * - «venga, porfa» no aporta nada. Se vuelve a juzgar lo mismo y sale lo
+       *   mismo: AXIS no cede por insistencia.
+       * - «ayer estuve corriendo 12 km» sí aporta. Es la evidencia que faltaba,
+       *   así que se juzga otra vez la petición pendiente, ahora con ese dato.
+       *   AXIS sí cede por evidencia.
+       */
+      const previous = memory.lastChangeRequest
+      if (request.kind === 'unclear' && previous != null) {
+        const pending: ChangeRequest = {
+          kind: previous.kind as ChangeRequest['kind'],
+          focus: previous.focus as ChangeRequest['focus'],
+          reportedLoad: request.reportedLoad,
+        }
+        return negotiate(pending, briefing, request.reportedLoad === null)
+      }
+
+      return negotiate(request, briefing)
+    }
+  }
 
   switch (match.intent) {
     case 'today':
@@ -298,11 +342,14 @@ function answerTired(briefing: AxisBriefing): AxisAnswer {
   }
 
   const softer = briefing.proposal?.alternatives.find(
-    (label) => label === 'Más ligera' || label === 'Recuperación' || label === 'Sesión corta',
+    (alternative) =>
+      alternative.type === 'LIGHT_TRAINING' ||
+      alternative.type === 'RECOVERY' ||
+      alternative.type === 'REST',
   )
 
   if (softer) {
-    parts.push(`Puedes cambiar a la opción «${softer}» desde la tarjeta de Inicio.`)
+    parts.push(`Puedes cambiar a la opción «${softer.label}» desde la tarjeta de Inicio.`)
   } else if (briefing.proposal) {
     parts.push(briefing.proposal.headline)
   }
@@ -315,19 +362,55 @@ function answerTired(briefing: AxisBriefing): AxisAnswer {
 // ---------------------------------------------------------------------------
 
 /**
- * AXIS explica qué se puede cambiar y **remite a las mismas alternativas** que ya
- * generó el motor. No inventa una sesión nueva desde el chat: eso crearía una
- * segunda fuente de verdad.
+ * Negocia un cambio de la sesión de hoy.
+ *
+ * No baraja alternativas al azar: juzga la petición contra los datos y responde
+ * con un veredicto, que puede ser que no. La sesión solo cambia si AXIS lo
+ * acepta, y siempre eligiendo entre las alternativas que el motor ya preparó:
+ * nada se inventa desde el chat.
  */
+function negotiate(
+  request: ChangeRequest,
+  briefing: AxisBriefing,
+  insisting = false,
+): AxisAnswer {
+  const verdict = evaluateChange(request, briefing)
+
+  /*
+   * Al insistir sin argumentos nuevos, AXIS mantiene el criterio y lo dice en
+   * corto. Repetir el párrafo entero sería peor que ceder: suena a bucle, y el
+   * usuario deja de leerlo. Lo que se le pide es información concreta, que es lo
+   * único que puede cambiar la respuesta.
+   */
+  if (insisting && verdict.outcome === 'decline') {
+    return {
+      text: 'Sigo pensando lo mismo, y no por llevarte la contraria: nada de lo que me has dicho cambia tus datos, y son los datos los que deciden. Si hay algo que no tengo registrado —un esfuerzo de ayer, una molestia, que duermes mal esta semana—, dímelo concreto y lo reviso.',
+      intent: 'change',
+      unknown: false,
+      applyProposalId: null,
+      changeRequest: { kind: request.kind, focus: request.focus },
+    }
+  }
+
+  return {
+    text: verdict.text,
+    intent: 'change',
+    unknown: verdict.outcome === 'need_info',
+    applyProposalId: verdict.applyProposalId,
+    changeRequest: { kind: request.kind, focus: request.focus },
+  }
+}
+
+/** Fuera del modo cambio, «¿puedo cambiarlo?» abre la negociación explicando cómo. */
 function answerChange(briefing: AxisBriefing): AxisAnswer {
   const { proposal } = briefing
-  if (!proposal || proposal.alternatives.length === 0) {
-    return unknown('change', 'Ahora mismo no tengo alternativas preparadas para hoy.')
+  if (!proposal) {
+    return unknown('change', 'Todavía no tengo una sesión propuesta para hoy.')
   }
 
   return say('change', [
-    `Puedo cambiarla. Tengo preparadas: ${listNames(proposal.alternatives.map((label) => `«${label}»`))}.`,
-    'Elígela con «Cambiar entrenamiento» en la tarjeta de Inicio y la sesión se regenera con las mismas reglas.',
+    'Puedo cambiarla, pero no a ciegas: dime qué quieres cambiar y por qué.',
+    'Si me cuentas algo que no tenga registrado —un esfuerzo de ayer, una molestia, que vas justo de tiempo— lo tengo en cuenta. Si no hay motivo, te lo diré.',
   ])
 }
 
@@ -337,14 +420,15 @@ function answerShorten(briefing: AxisBriefing): AxisAnswer {
     return unknown('shorten', 'Hoy no te he propuesto una sesión que acortar.')
   }
 
+  const minutes = proposal.session.estimatedMinutes
   const shorter = proposal.alternatives.find(
-    (label) => label === 'Más ligera' || label === 'Sesión corta',
+    (alternative) => alternative.estimatedMinutes !== null && alternative.estimatedMinutes < minutes,
   )
 
   return say('shorten', [
-    `Sí. La sesión de hoy son ${proposal.session.estimatedMinutes} minutos.`,
+    `Sí. La sesión de hoy son ${minutes} minutos.`,
     shorter
-      ? `Si quieres menos, cambia a «${shorter}» desde Inicio: menos series y menos duración, mismo criterio.`
+      ? `Si quieres menos, cambia a «${shorter.label}»: unos ${shorter.estimatedMinutes} min, mismo criterio.`
       : 'Puedes hacer los primeros ejercicios y dejar el resto: se guardará lo que hayas hecho de verdad.',
   ])
 }

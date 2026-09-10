@@ -59,8 +59,7 @@ export function InicioScreen({
   const {
     profile,
     proposal,
-    hasAlternatives,
-    cycleProposal,
+    openChangeConversation,
     recoveryScore,
     recoveryInputs,
     trainingLoad,
@@ -139,10 +138,13 @@ export function InicioScreen({
             <ArrowRight className="h-4 w-4" />
           </button>
 
-          {hasAlternatives && (
+          {proposal && (
             <button
               type="button"
-              onClick={cycleProposal}
+              onClick={() => {
+                openChangeConversation()
+                onOpenAxis()
+              }}
               className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-white/70"
             >
               Cambiar entrenamiento
