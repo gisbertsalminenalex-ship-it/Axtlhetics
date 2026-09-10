@@ -213,7 +213,7 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
       </figcaption>
 
       <div
-        className="mt-2.5 flex h-32 items-end gap-px border-b border-border"
+        className="relative mt-2.5 flex h-32 items-end border-b border-border"
         role="img"
         aria-label={
           hasData
@@ -221,11 +221,26 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
             : `Sin volumen registrado en ${periodLabel}`
         }
       >
+        {/*
+          Guías en los días rotulados. Son lo que deja leer la posición exacta de
+          una barra: el día 11 cae justo a la derecha de la guía del 10.
+        */}
+        {points.map((point, index) =>
+          labelled.has(index) ? (
+            <span
+              key={`guide-${index}`}
+              aria-hidden="true"
+              className="absolute top-0 bottom-0 w-px bg-border/40"
+              style={{ left: `${((index + 0.5) / points.length) * 100}%` }}
+            />
+          ) : null,
+        )}
+
         {points.map((point, index) => (
-          <div key={index} className="flex h-full flex-1 items-end">
+          <div key={index} className="relative flex h-full flex-1 items-end">
             {point.value > 0 && (
               <div
-                className="ax-bar mx-auto w-full max-w-[16px] rounded-t-[3px] bg-primary"
+                className="ax-bar w-full rounded-t-[2px] bg-primary"
                 style={
                   {
                     // Mínimo visible: un volumen pequeño no debe desaparecer.
