@@ -49,6 +49,16 @@ La navegación inferior tiene **exactamente cuatro tabs**:
 
 **No incluir Progreso ni Perfil como tabs ni como pantallas independientes de Core v0.1.** El progreso avanzado y el perfil completo pertenecen a fases futuras salvo aprobación explícita.
 
+### Cómo se decide el entrenamiento del día (D-001)
+
+Axtlhetics **no se basa principalmente en que el usuario elija manualmente una rutina**. AXIS es el sistema de decisión que determina qué entrenamiento tiene sentido hacer ese día.
+
+Esto no añade pantallas ni tabs: cambia quién decide el contenido de la sesión dentro de las pantallas ya aprobadas.
+
+No construir un editor de rutinas ni un gestor de rutinas: la gestión avanzada de rutinas sigue fuera de Core v0.1.
+
+El detalle completo de entradas, salidas y restricciones está en `D-001`. Varios puntos derivados siguen abiertos (`P-001` a `P-004`, `P-009`) y no deben resolverse sin aprobación.
+
 No implementar funciones futuras simplemente porque sean técnicamente posibles: cuentas, social/community, wearables, sincronización, nube, IA externa, gamificación, perfil completo, progreso independiente, nutrición avanzada u otras capacidades de roadmap.
 
 ---
@@ -57,17 +67,31 @@ No implementar funciones futuras simplemente porque sean técnicamente posibles:
 
 Use the following priority:
 
-1. Axtlhetics Master Document / Documento Maestro para requisitos de producto y alcance.
-2. Decisiones explícitamente aprobadas posteriormente por Alex para decisiones nuevas o refinamientos posteriores.
+1. `docs/product/AXTHLETICS_DECISIONS_V1.md` — decisiones de producto explícitamente aprobadas por Alex. Es la fuente de mayor prioridad y supera a cualquier otra si hay conflicto.
+2. Axtlhetics Master Document / Documento Maestro para requisitos de producto y alcance.
 3. Este `CLAUDE.md` para instrucciones operativas y reglas consolidadas del proyecto.
 4. `DESIGN_SYSTEM_AXTHLETICS.md` para reglas visuales.
 5. Documentación técnica y código existente para implementación.
+
+El registro de decisiones se lee **antes** de tomar cualquier decisión de producto, arquitectura o diseño. Una decisión solo está cerrada cuando está escrita ahí: un acuerdo en una conversación no cuenta hasta que se registra.
 
 La referencia visual definitiva es:
 
 `docs/design/AXTHLETICS_VISUAL_REFERENCE.png`
 
 La referencia visual controla **composición, jerarquía, densidad, proporciones y lenguaje visual**, pero no puede introducir por sí sola nuevas funcionalidades o pantallas fuera del alcance aprobado.
+
+### Jerarquía visual (D-004)
+
+Para decisiones visuales, el orden es:
+
+1. decisiones de producto aprobadas
+2. Design System
+3. código
+
+El Design System es la fuente de verdad visual. El código **no debe introducir valores visuales arbitrarios** que lo contradigan, y un valor no queda aprobado por el hecho de estar ya escrito en el código.
+
+Si el Design System y la referencia visual aprobada entran en conflicto, primero se actualiza el Design System para reflejar la referencia visual y después el código sigue al Design System. Nunca al revés.
 
 Si dos fuentes importantes entran en conflicto, detectar el conflicto, informarlo y proponer una solución. No inventar un compromiso silencioso.
 
@@ -189,18 +213,29 @@ Axtlhetics should feel like a **calm, confident personal coach**, not a generic 
 ### Core visual tokens
 
 - Primary blue: `#0A61F8`
+- Soft secondary blue: `#DCE8FF`
 - Primary text: `#111111`
 - Secondary text: `#6B6B6B`
 - Surface: `#F7F7F7`
+- Border: `#D6D6D6`
+- Progress track: `#EAEAEA`
+- Muted non-text: `#9A9A9A`
 - Font: Inter
 - Base spacing unit: 4 px
-- Primary radius: 8 px
+- Surface radius (large): 32 px — the protagonist surface of a screen
+- Surface radius: 24 px — surfaces and controls, including buttons and fields
 - Full radius: 999 px only for pills/chips/badges/circular controls
 - Primary button: 52 px
 - Minimum touch target: 44 × 44 px
 - Motion: generally 200–300 ms
 
 The primary blue `#0A61F8` replaces the former `#4F7CFF`. Do not reintroduce `#4F7CFF`.
+
+### Neutrals and radii (D-005)
+
+Neutrals must be **centralized as tokens** and must use the approved values above. Do not scatter arbitrary greys (`#71757e`, `#6f737c` and similar) across components.
+
+Radii are semantic and come from the design system, not from arbitrary numbers written into a component. The approved interface uses 32 px for the protagonist surface, 24 px for surfaces and controls, and 999 px for pills.
 
 The background should read as a **very light, slightly softened neutral canvas** rather than a stark visual white. The exact background token may be refined during visual QA without changing the approved primary blue, typography or hierarchy.
 
@@ -221,7 +256,7 @@ The background should read as a **very light, slightly softened neutral canvas**
 
 Green, orange and red are allowed **only as semantic state colors** (for example healthy/moderate/low, success/warning/error). They are not decorative brand colors.
 
-Their exact token values remain **PENDIENTE** and must not be invented as a product decision. During the visual prototype, use the approved semantic direction consistently and keep the values easy to replace.
+Approved by D-008: success `#1ba672`, warning `#f2a516`, error `#d93b3b`. Recovery Score bands are 0–49 red, 50–74 orange, 75–100 green. No component writes a state color directly: they all go through the tokens and `components/recovery-band.ts`.
 
 ---
 
@@ -239,11 +274,35 @@ AXIS may recommend not changing anything when there is no clear reason to act.
 
 AXIS must never invent data or present uncertain information as certain.
 
-In Core v0.1, AXIS may begin with local rules and deterministic logic.
+In Core v0.1, AXIS **is** local, deterministic and rule-based. No external generative AI is used to make these decisions (D-001).
 
 The AXIS architecture must remain provider-agnostic and separated from the UI so that an external AI model can be introduced later without rewriting the application.
 
 AXIS must not replace professional medical judgment.
+
+### AXIS as the training decision engine (D-001)
+
+AXIS decides what training makes sense today. The user does not primarily pick a routine by hand.
+
+Inputs AXIS must be able to consider, progressively: training history, recent sessions, Recovery Score, sleep, hydration, energy, muscular fatigue, stress/mood, user goals, muscle groups worked recently, time since the last session, session availability/duration, and exercise progression.
+
+Outputs AXIS must be able to produce: what to train, what type of session, a lighter or harder session, a modified session, or a recommendation to recover and not train at all.
+
+Every recommendation carries a **short explanation of the reason**. Reference for tone and length:
+
+> «Hoy evitaremos cargar más las piernas porque tu fatiga muscular es elevada y ayer hiciste una sesión intensa.»
+
+Several derived points are still open (`P-001` to `P-004`, `P-009`). Do not resolve them independently.
+
+### Recovery Score (D-002)
+
+The Recovery Score is an **internal orientation index from 0 to 100**. It must never be presented as a medical measurement or a diagnosis.
+
+Approved weights: sleep 35 %, energy 20 %, muscular fatigue 20 %, stress 15 %, hydration 10 %.
+
+These weights must live in a **single centralized place in the code** so they can be changed without rewriting the logic. The `82` shown in the prototype is mock, not a computed result. If there is not enough data, do not invent a score — use the "datos insuficientes" state. AXIS must be able to explain the result briefly.
+
+Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity
 
@@ -466,3 +525,13 @@ The visual language must communicate:
 When choosing between two valid implementations, prefer the simpler one that preserves a clean path for future evolution.
 
 If something is unclear, ask rather than guess.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

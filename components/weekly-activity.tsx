@@ -1,30 +1,29 @@
+import { WEEKDAY_INITIALS } from '@/lib/domain/shared/dates'
 import { cn } from '@/lib/utils'
 
-const DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-
 /**
- * Weekly activity indicator. `done` = number of completed days,
- * `today` = index (0-6) of the current day, shown as a ringed dot.
+ * Tira de actividad semanal, de lunes a domingo.
+ *
+ * `completedDays[i]` indica si ese día tiene una sesión completada; `today` es el
+ * índice del día actual, que se dibuja como punto con anillo.
  */
 export function WeeklyActivity({
-  done = 3,
-  today = 3,
+  completedDays,
+  today,
   className,
 }: {
-  done?: number
-  today?: number
+  completedDays: boolean[]
+  today: number
   className?: string
 }) {
   return (
     <div className={cn('flex items-center justify-between', className)}>
-      {DAYS.map((d, i) => {
-        const isDone = i < done
+      {WEEKDAY_INITIALS.map((initial, i) => {
+        const isDone = completedDays[i] ?? false
         const isToday = i === today
         return (
-          <div key={d} className="flex flex-col items-center gap-2">
-            <span className="text-[13px] font-medium text-muted-foreground">
-              {d}
-            </span>
+          <div key={i} className="flex flex-col items-center gap-2">
+            <span className="text-[13px] font-medium text-muted-foreground">{initial}</span>
             <span
               className={cn(
                 'flex h-3.5 w-3.5 items-center justify-center rounded-full',

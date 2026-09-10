@@ -1,6 +1,6 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { AxtlheticsProvider } from '@/lib/state/store'
 import './globals.css'
 
 const inter = Inter({
@@ -12,16 +12,14 @@ export const metadata: Metadata = {
   title: 'AXTHLETICS — The operating system for your body',
   description:
     'AXTHLETICS: entrenamiento, recuperación e historial guiados por AXIS.',
-  generator: 'v0.app',
 }
 
 export const viewport: Viewport = {
   colorScheme: 'light',
   themeColor: '#ffffff',
-  userScalable: false,
   initialScale: 1,
-  maximumScale: 1,
   width: 'device-width',
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -32,8 +30,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} bg-neutral-100`}>
       <body className="antialiased font-sans">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <AxtlheticsProvider>{children}</AxtlheticsProvider>
       </body>
     </html>
   )

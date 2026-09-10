@@ -14,7 +14,7 @@ This skill defines how Claude Code must design and implement the visual prototyp
 Before making frontend decisions, inspect:
 
 1. `CLAUDE.md`
-2. `TECH_STACK.md`
+2. `TECH_STACK_AXTHLETICS_UPDATED.md`
 3. `docs/product/DOCUMENTO_MAESTRO_AXTHLETICS.docx`
 4. `docs/product/AXTHLETICS_DECISIONS_V1.md`
 5. `docs/design/DESIGN_SYSTEM_AXTHLETICS.md`
@@ -26,42 +26,38 @@ Priority:
 2. Product requirements in the Master Document
 3. Visual rules in `DESIGN_SYSTEM_AXTHLETICS.md`
 4. Visual composition in `AXTHLETICS_VISUAL_REFERENCE.png`
-5. Technical constraints in `TECH_STACK.md`
+5. Technical constraints in `TECH_STACK_AXTHLETICS_UPDATED.md`
 6. General instructions in `CLAUDE.md`
 
 If two sources conflict, surface the conflict rather than inventing a compromise.
 
-## Current phase: VISUAL PROTOTYPE
+## Current phase: FUNCTIONAL CORE
 
-Build:
+The visual prototype phase is **over and approved**. Axtlhetics now has a real
+domain layer, real local persistence and a real AXIS decision engine. Mock data no
+longer exists in the application.
 
-- polished frontend
-- mobile-first layouts
-- reusable components
-- realistic mock data
-- prototype navigation
-- visual states
-- transitions and micro-interactions
-- responsive behavior
-- useful loading/empty/error states
-- realistic content density
+When touching the frontend:
 
-Do NOT build:
+- keep the approved visual language exactly as it is
+- read data from the application state (`lib/state/store.tsx`), never from mocks
+- keep domain logic out of components — computation lives in `lib/domain/`
+- keep mobile-first layouts, reusable components and 44 px touch targets
+- keep loading, empty and error states honest: if a value cannot be computed, show
+  «—» and say what is missing, never a placeholder number
 
-- real database
-- IndexedDB persistence
-- authentication
-- backend
-- API integration
-- external AI
-- real AXIS reasoning
-- real Recovery Score computation
-- real workout/history persistence
-- production analytics
-- production notifications
-- external services
+Still NOT part of Core v0.1:
 
-Buttons and navigation may work only for prototype navigation.
+- authentication, accounts, login
+- backend, Supabase, any remote API
+- external or generative AI (AXIS is deterministic and local)
+- production analytics, notifications, external services
+- social, gamification, wearables, advanced nutrition
+- a manual routine editor
+- new tabs of any kind
+
+Buttons and navigation must do something real. An inert control that looks
+interactive is a defect, not a placeholder.
 
 ## Primary objective
 
@@ -389,18 +385,16 @@ A user should be able to see previous workouts, select one, and inspect its deta
 
 Navigation may work visually only. Use mock routing/state for the prototype. Keep transitions quick and intentional; no dramatic page transitions.
 
-## Mock data
+## Data
 
-All displayed data may be mocked.
+There is no mock data left in the application, and none should be reintroduced.
 
-Mock values must be:
+Everything the interface shows comes from `lib/state/store.tsx`, which reads the
+repositories and the domain. If a screen needs a value that does not exist yet, the
+answer is to compute it in the domain or to show an honest empty state — never to
+hardcode a plausible number.
 
-- realistic
-- internally consistent
-- useful for demonstrating states
-- clearly replaceable later
-
-Prefer centralized mock data over scattered hardcoded values.
+Never write a number into a component that looks like real user data.
 
 ## Visual iteration workflow
 
@@ -450,13 +444,17 @@ When the reference image and written rules disagree:
 
 Do not copy contradictions blindly.
 
-## Prototype vs production
+## Where logic belongs
 
-This phase answers: “Do we love how AXTHLETICS looks and feels?”
+- `lib/domain/` — pure functions: Recovery Score, Training Load, AXIS rules, session
+  building, statistics. No React, no IndexedDB, no network.
+- `lib/data/` — repositories and IndexedDB. No business rules.
+- `lib/state/store.tsx` — the only layer that talks to both.
+- `components/` — presentation. Reads from the store, computes nothing that belongs
+  in the domain.
 
-It does not answer whether the backend works.
-
-If a real feature would complicate visual iteration, replace it with a mock.
+If you find yourself doing arithmetic on user data inside a component, it belongs in
+the domain with a test.
 
 ## Scope control
 
@@ -464,19 +462,16 @@ Do not silently expand scope. If a visually attractive feature would add product
 
 ## Completion condition
 
-The visual prototype phase is complete when:
+A frontend change is done when:
 
-- all six core prototype screens exist
-- navigation between them works
-- mock data is consistent
-- visual states exist
-- mobile layout is polished
-- the Design System is used consistently
-- the reference image's visual language is reflected
-- no real product logic is required
-- the whole prototype can be reviewed on a real mobile viewport
+- the approved visual language is untouched
+- the screen reads real data through the application state
+- loading, empty and error states are honest
+- touch targets are at least 44 px and nothing inert looks interactive
+- `npm run typecheck`, `npm test` and `npm run build` pass
+- the flow still works end to end in a real mobile viewport
 
-At that point, stop. Do not begin production architecture or real data implementation until the visual prototype is explicitly approved.
+Domain changes need a test. Visual changes do not.
 
 ## Locked visual decisions
 
@@ -488,3 +483,9 @@ At that point, stop. Do not begin production architecture or real data implement
 - AXIS uses the abstract X + AXIS identity and remains integrated/discreet.
 - Visual direction: editorial, premium, technological, clean and informative.
 - Do not treat the visual reference as permission to add future product scope.
+- Semantic colors (D-008): success `#1ba672`, warning `#f2a516`, error `#d93b3b`.
+  Recovery Score bands: 0–49 red, 50–74 orange, 75–100 green.
+- Radii (D-009): 32 px for the protagonist surface, 24 px for surfaces and controls,
+  999 px for pills. No arbitrary radius written into a component.
+- Equipment is bodyweight plus **one 5 kg weight** (D-008). Never propose an exercise
+  that needs material that does not exist.

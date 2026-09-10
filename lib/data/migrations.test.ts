@@ -1,0 +1,164 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+
+import { DB_VERSION } from './indexeddb/db'
+import type { StoredProfile } from './migrations'
+import {
+  dropLegacySports,
+  extractLegacySports,
+  FALLBACK_GOAL,
+  needsProfileUpgrade,
+  upgradeProfileRecord,
+} from './migrations'
+
+/**
+ * Un perfil tal y como lo guardaba la v1 del esquema: con `goal` en singular.
+ * Se usa `null` para decir «sin objetivo»; `undefined` activaría el valor por defecto.
+ */
+function legacyProfile(goal: string | null = 'fuerza'): StoredProfile {
+  const base = {
+    id: 'primary',
+    name: 'Alex',
+    age: 15,
+    heightCm: 175,
+    weightKg: 68,
+    experience: 'intermedio',
+    availableWeekdays: [0, 2, 4],
+    typicalSessionMinutes: 45,
+    createdAt: '2026-09-01T10:00:00.000Z',
+    updatedAt: '2026-09-01T10:00:00.000Z',
+  }
+  return goal === null ? base : { ...base, goal }
+}
+
+test('la versión del esquema es la que incorpora deportes como actividades', () => {
+  assert.equal(DB_VERSION, 3)
+})
+
+// ---------------------------------------------------------------------------
+// v1 → v2
+// ---------------------------------------------------------------------------
+
+test('un objetivo único se convierte en una lista de un elemento', () => {
+  const upgraded = upgradeProfileRecord(legacyProfile('fuerza'))
+  assert.deepEqual(upgraded.goals, ['fuerza'])
+})
+
+test('la clave antigua desaparece tras migrar', () => {
+  const upgraded = upgradeProfileRecord(legacyProfile('hipertrofia')) as Record<string, unknown>
+  assert.equal('goal' in upgraded, false, 'no debe quedar rastro de `goal`')
+})
+
+test('la migración no pierde ningún otro dato del perfil', () => {
+  const original = legacyProfile('resistencia')
+  const upgraded = upgradeProfileRecord(original) as Record<string, unknown>
+
+  for (const [key, value] of Object.entries(original)) {
+    if (key === 'goal') continue
+    assert.deepEqual(upgraded[key], value, `se perdió ${key}`)
+  }
+  assert.equal(upgraded.name, 'Alex')
+  assert.equal(upgraded.age, 15)
+  assert.deepEqual(upgraded.availableWeekdays, [0, 2, 4])
+})
+
+test('un perfil sin ningún objetivo recibe el de reserva', () => {
+  const upgraded = upgradeProfileRecord(legacyProfile(null))
+  assert.deepEqual(upgraded.goals, [FALLBACK_GOAL])
+})
+
+test('un objetivo con un valor inesperado no rompe la migración', () => {
+  const upgraded = upgradeProfileRecord({ ...legacyProfile(null), goal: 42 })
+  assert.deepEqual(upgraded.goals, [FALLBACK_GOAL])
+})
+
+// ---------------------------------------------------------------------------
+// Perfiles que ya están migrados
+// ---------------------------------------------------------------------------
+
+test('un perfil que ya tiene objetivos no se sobrescribe', () => {
+  const current = { ...legacyProfile(null), goals: ['fuerza', 'movilidad'] }
+  const result = upgradeProfileRecord(current)
+
+  assert.deepEqual(result.goals, ['fuerza', 'movilidad'])
+  assert.equal(result, current, 'debe devolverse el mismo objeto, sin copiar ni tocar')
+})
+
+test('varios objetivos sobreviven a migrar dos veces', () => {
+  const once = upgradeProfileRecord({ ...legacyProfile(null), goals: ['fuerza', 'tecnica'] })
+  const twice = upgradeProfileRecord(once)
+  assert.deepEqual(twice.goals, ['fuerza', 'tecnica'])
+})
+
+test('si conviven `goal` y `goals`, mandan los `goals` ya existentes', () => {
+  const mixed = { ...legacyProfile('resistencia'), goals: ['movilidad'] }
+  assert.deepEqual(upgradeProfileRecord(mixed).goals, ['movilidad'])
+})
+
+// ---------------------------------------------------------------------------
+// Detección
+// ---------------------------------------------------------------------------
+
+test('solo se marca para migrar lo que realmente lo necesita', () => {
+  assert.equal(needsProfileUpgrade(legacyProfile('fuerza')), true)
+  assert.equal(needsProfileUpgrade(legacyProfile(null)), true)
+  assert.equal(needsProfileUpgrade({ goals: [] }), true, 'una lista vacía no sirve')
+  assert.equal(needsProfileUpgrade({ goals: ['fuerza'] }), false)
+})
+
+test('un perfil nuevo, creado ya con goals, no pasa por la migración', () => {
+  const fresh = { ...legacyProfile(null), goals: ['rendimiento_deportivo'] }
+  assert.equal(needsProfileUpgrade(fresh), false)
+})
+
+// ---------------------------------------------------------------------------
+// v2 → v3: los deportes salen del perfil
+// ---------------------------------------------------------------------------
+
+test('un perfil con deportes en texto libre necesita migrarse', () => {
+  const v2 = { ...legacyProfile(null), goals: ['fuerza'], sports: ['Baloncesto', 'Natación'] }
+  assert.equal(needsProfileUpgrade(v2), true)
+})
+
+test('la clave `sports` desaparece del perfil migrado', () => {
+  const v2 = { ...legacyProfile(null), goals: ['fuerza'], sports: ['Baloncesto'] }
+  const upgraded = upgradeProfileRecord(v2) as Record<string, unknown>
+
+  assert.equal('sports' in upgraded, false)
+  assert.deepEqual(upgraded.goals, ['fuerza'], 'los objetivos no se tocan')
+  assert.equal(upgraded.name, 'Alex', 'el resto del perfil sigue intacto')
+})
+
+test('los deportes antiguos se pueden recuperar antes de descartarlos', () => {
+  const v2 = { ...legacyProfile(null), goals: ['fuerza'], sports: ['Baloncesto', 'Natación'] }
+  assert.deepEqual(extractLegacySports(v2), ['Baloncesto', 'Natación'])
+})
+
+test('los deportes antiguos no se convierten en actividades a ciegas', () => {
+  // Sin día ni intensidad, crear una actividad sería inventar. Solo se descartan
+  // del perfil; el usuario los vuelve a declarar con sus días.
+  const v2 = { ...legacyProfile(null), goals: ['fuerza'], sports: ['Baloncesto'] }
+  const upgraded = upgradeProfileRecord(v2) as Record<string, unknown>
+  assert.equal(upgraded.activities, undefined)
+})
+
+test('valores basura en `sports` no rompen la extracción', () => {
+  const roto = { ...legacyProfile(null), goals: ['fuerza'], sports: [null, 42, '', 'Judo'] }
+  assert.deepEqual(extractLegacySports(roto), ['Judo'])
+})
+
+test('un perfil sin `sports` se devuelve sin copiar', () => {
+  const limpio = { ...legacyProfile(null), goals: ['fuerza'] }
+  assert.equal(dropLegacySports(limpio), limpio)
+  assert.equal(needsProfileUpgrade(limpio), false)
+})
+
+test('migrar de v1 a v3 de una vez arregla objetivos y deportes', () => {
+  const v1 = { ...legacyProfile('resistencia'), sports: ['Baloncesto'] }
+  const upgraded = upgradeProfileRecord(v1) as Record<string, unknown>
+
+  assert.deepEqual(upgraded.goals, ['resistencia'])
+  assert.equal('goal' in upgraded, false)
+  assert.equal('sports' in upgraded, false)
+  assert.equal(upgraded.name, 'Alex')
+})

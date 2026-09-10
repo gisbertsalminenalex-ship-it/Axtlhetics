@@ -20,13 +20,18 @@
   --color-ink: var(--ink);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-error: var(--error);
   --color-surface: var(--surface);
 
+  /* Rampa de Tailwind. Los nombres semánticos de abajo son los que documenta el
+     Design System; estos son los alias que usan las clases `rounded-*`. */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* --radius-surface: superficies y controles */
   --radius-2xl: calc(var(--radius) + 10px);
+  /* --radius-surface-lg: superficie protagonista */
   --radius-3xl: calc(var(--radius) + 18px);
 }
 
@@ -47,10 +52,59 @@
   --axis: #0a61f8;
   --ink: #0d1b2a;
 
+  /* Colores semánticos (D-005 / P-007). 0-49 rojo, 50-74 naranja, 75-100 verde. */
   --success: #1ba672;
   --warning: #f2a516;
+  --error: #d93b3b;
 
+  /* Base de la rampa de radios. `rounded-2xl` = 24 px (--radius-surface) y
+     `rounded-3xl` = 32 px (--radius-surface-lg), los dos valores que documenta
+     el Design System §9. Cambiar esta base los mueve a los dos. */
   --radius: 0.875rem;
+
+  /* Alias semánticos del Design System, para poder citarlos desde CSS propio
+     sin depender de la rampa de Tailwind. */
+  --radius-surface: calc(var(--radius) + 10px);
+  --radius-surface-lg: calc(var(--radius) + 18px);
+  --radius-full: 999px;
+
+  /* ---------------------------------------------------------------------
+     Motion (Design System §13: 200–300 ms, rápido, suave y funcional)
+
+     Un único juego de tokens. Todo lo que se mueve en la aplicación sale de
+     aquí, para que el ritmo sea el mismo en todas las pantallas.
+     --------------------------------------------------------------------- */
+  --ax-press: 130ms;   /* feedback al pulsar */
+  --ax-fast: 180ms;    /* microinteracciones */
+  --ax-base: 220ms;    /* cambios de contenido */
+  --ax-enter: 300ms;   /* entradas de elementos */
+  --ax-metric: 700ms;  /* recorrido de una métrica hasta su valor */
+  --ax-stagger: 45ms;  /* separación entre elementos de una lista */
+
+  /* Desplazamiento de entrada. Corto a propósito: la pantalla no viaja. */
+  --ax-rise: 10px;
+  --ax-press-scale: 0.985;
+
+  /* Salida suave, sin rebote. */
+  --ax-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/**
+ * Reducción de movimiento.
+ *
+ * No se desactiva nada: se neutralizan los tokens. Los desplazamientos y las
+ * escalas desaparecen y las entradas pasan a ser instantáneas, pero el feedback
+ * esencial (el color de un vaso al llenarse, el estado activo de un control)
+ * se mantiene, solo que inmediato.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ax-enter: 1ms;
+    --ax-metric: 1ms;
+    --ax-stagger: 0ms;
+    --ax-rise: 0px;
+    --ax-press-scale: 1;
+  }
 }
 
 @layer base {
@@ -67,5 +121,94 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Utilidades de motion
+
+   Solo animan `opacity` y `transform`, que el compositor resuelve sin recalcular
+   layout. Nada anima `width`, `height` ni posición.
+   --------------------------------------------------------------------------- */
+
+@keyframes ax-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--ax-rise), 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ax-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/**
+ * Trazado de una línea de un extremo a otro.
+ *
+ * Funciona con `pathLength="1"`, que normaliza la longitud del trazo, así que no
+ * hace falta medir el path desde JavaScript.
+ */
+@keyframes ax-draw-line {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@layer utilities {
+  /** Entrada de una pantalla o de un bloque: fade con un ascenso corto. */
+  .ax-enter {
+    animation: ax-rise-in var(--ax-enter) var(--ax-ease) both;
+  }
+
+  /** Entrada sin desplazamiento, para lo que ya está en su sitio. */
+  .ax-fade {
+    animation: ax-fade-in var(--ax-base) var(--ax-ease) both;
+  }
+
+  /**
+   * Aparición escalonada. El retraso lo fija cada elemento con la variable
+   * `--ax-index`, así que una lista larga no obliga a escribir una clase por fila.
+   * Se limita a seis posiciones para que nadie espere de más.
+   */
+  .ax-stagger {
+    animation: ax-rise-in var(--ax-enter) var(--ax-ease) both;
+    animation-delay: calc(min(var(--ax-index, 0), 6) * var(--ax-stagger));
+  }
+
+  /** Feedback físico al pulsar. Se hunde levemente y vuelve, sin rebote. */
+  .ax-press {
+    transition: transform var(--ax-press) var(--ax-ease);
+  }
+  .ax-press:active {
+    transform: scale(var(--ax-press-scale));
+  }
+
+  /**
+   * Escalonado sin desplazamiento.
+   *
+   * Es el que se usa dentro de un SVG: ahí `transform` trabaja en unidades del
+   * viewBox, no en píxeles, y un ascenso de 10 px se convertiría en un salto enorme.
+   */
+  .ax-stagger-fade {
+    animation: ax-fade-in var(--ax-enter) var(--ax-ease) both;
+    animation-delay: calc(min(var(--ax-index, 0), 6) * var(--ax-stagger));
+  }
+
+  /** Traza una línea de SVG. Requiere `pathLength="1"` en el elemento. */
+  .ax-draw {
+    stroke-dasharray: 1;
+    animation: ax-draw-line var(--ax-metric) var(--ax-ease) both;
   }
 }

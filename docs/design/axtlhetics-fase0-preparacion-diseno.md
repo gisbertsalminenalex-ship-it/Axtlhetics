@@ -8,6 +8,14 @@ Mapa funcional de las 5 pantallas de Core v0.1, construido a partir del Document
 - **[PENDIENTE DE DISEÑO]** — no está resuelto todavía, se decidirá en Fase 1/2
 - **[FUERA DE CORE v0.1]** — existe en la visión del producto pero no se construye ahora
 
+> **Estado a 2026-09-07.** Este documento es la foto de la Fase 0 y se conserva como está. Varias de las preguntas que dejó abiertas ya están cerradas en `docs/product/AXTHLETICS_DECISIONS_V1.md`, que tiene prioridad sobre este archivo:
+>
+> - **§2.9, gap de rutinas** → cerrado por **D-001**: no hay selección manual de rutina como mecanismo principal; AXIS decide la sesión del día.
+> - **§4.9, fórmula del Recovery Score** → los **pesos** los cierra **D-002** (sueño 35, energía 20, fatiga 20, estrés 15, hidratación 10). La normalización de cada indicador sigue abierta (`P-005`).
+> - **§5.2, alcance de Historial** → **D-003** aprueba el gráfico «Rendimiento +12 %» como estadística simple.
+>
+> Donde este documento y el registro de decisiones discrepen, manda el registro de decisiones.
+
 ---
 
 ## 1. HOME
@@ -381,10 +389,10 @@ Paleta de colores, tipografía Inter, whitespace generoso, una acción principal
 
 ### Decisiones que debemos resolver antes de diseñar las pantallas
 1. Contenido exacto de la barra de navegación inferior — **CERRADO: Inicio · Entrenamiento · Recuperación · Historial**
-2. **Cómo funcionan las rutinas de entrenamiento** en Core v0.1 (predefinidas / creadas por el usuario / entrenamiento libre) — gap funcional, no solo visual
-3. **Especificación UX de Calendar/History**, que hoy no tiene sección dedicada en el Documento Maestro
-4. Fórmula y pesos del Recovery Score
-5. Comportamiento de AXIS cuando faltan datos suficientes (en cualquier pantalla)
+2. **Cómo funcionan las rutinas de entrenamiento** en Core v0.1 (predefinidas / creadas por el usuario / entrenamiento libre) — **CERRADO por D-001: ninguna de las tres. AXIS decide la sesión del día.** Quedan abiertos el control del usuario sobre esa propuesta (`P-001`) y qué se guarda como «rutina utilizada» (`P-002`)
+3. **Especificación UX de Calendar/History**, que hoy no tiene sección dedicada en el Documento Maestro — parcialmente cubierto por el prototipo aprobado y por **D-003**
+4. Fórmula y pesos del Recovery Score — **pesos CERRADOS por D-002.** Sigue abierta la normalización de cada indicador (`P-005`)
+5. Comportamiento de AXIS cuando faltan datos suficientes (en cualquier pantalla) — principio cerrado por D-002 (no inventar); el umbral concreto sigue abierto (`P-010`)
 6. Qué pasa si se cancela un entrenamiento a medias
 7. Si existe acción de compartir/exportar desde Workout Summary
 

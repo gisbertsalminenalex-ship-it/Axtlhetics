@@ -1,11 +1,14 @@
 import { cn } from '@/lib/utils'
 
-type Tone = 'success' | 'warning' | 'primary'
+/** Los tonos apuntan a tokens semánticos. Ningún color suelto vive en los componentes. */
+type Tone = 'success' | 'warning' | 'error' | 'primary' | 'neutral'
 
 const toneColor: Record<Tone, string> = {
   success: 'var(--success)',
   warning: 'var(--warning)',
+  error: 'var(--error)',
   primary: 'var(--primary)',
+  neutral: 'var(--muted-foreground)',
 }
 
 export function CircularMetric({
@@ -44,16 +47,19 @@ export function CircularMetric({
           stroke="var(--border)"
           strokeWidth={stroke}
         />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={toneColor[tone]}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={`${dash} ${c}`}
-        />
+        {/* Sin valor no se dibuja arco: el remate redondeado dejaría un punto suelto. */}
+        {dash > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={toneColor[tone]}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${c}`}
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         {children}

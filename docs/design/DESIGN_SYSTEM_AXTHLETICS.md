@@ -46,6 +46,20 @@ La bottom navigation tiene **4 tabs y solo 4**:
 
 Quedan fuera de Core v0.1: cuentas, login, autenticación, nutrición avanzada, logros, gamificación, perfil completo, pantalla independiente de progreso, gestión avanzada de rutinas, backend y funciones cloud.
 
+### El entrenamiento del día lo decide AXIS (D-001)
+
+Axtlhetics **no se basa principalmente en que el usuario elija manualmente una rutina**. AXIS decide qué entrenamiento tiene sentido hacer ese día y explica brevemente por qué.
+
+Esto **no añade pantallas ni tabs**: cambia quién decide el contenido de la sesión dentro de las pantallas ya aprobadas. No se diseña un editor ni un gestor de rutinas.
+
+AXIS puede recomendar también **recuperación o no entrenar**. El estado visual correspondiente en Inicio y Entrenamiento sigue sin diseñar y no debe inventarse (`P-009`).
+
+### Estadísticas simples en Historial (D-003)
+
+El bloque «Rendimiento +12 % vs. semana pasada» con su gráfico de líneas simple queda **aprobado** para Core v0.1 y se considera una **estadística simple**, no un gráfico avanzado.
+
+El gráfico debe seguir siendo sencillo y no convertirse en un dashboard analítico. La aprobación cubre ese gráfico y no autoriza añadir otros.
+
 ---
 
 ## 3. Referencia visual definitiva
@@ -161,7 +175,17 @@ Verde, naranja y rojo están permitidos **únicamente como estados semánticos**
 - naranja → estado moderado/atención
 - rojo → estado bajo/error/alerta
 
-Los valores hex exactos de estos colores siguen `PENDIENTE` y no deben inventarse como decisión de producto. Deben mantenerse centralizados en tokens para poder ajustarlos sin rehacer componentes.
+**Aprobados por D-008.** Los tres valores son definitivos y viven centralizados como tokens:
+
+| Estado | Rango en Recovery Score | Token | Valor |
+|---|---|---|---|
+| Verde | 75–100 | `--color-success` | `#1ba672` |
+| Naranja | 50–74 | `--color-warning` | `#f2a516` |
+| Rojo | 0–49 | `--color-error` | `#d93b3b` |
+
+Ningún componente escribe un color de estado suelto: todos pasan por los tokens y por el mapa de bandas de `components/recovery-band.ts`.
+
+La **Carga** usa una semántica distinta a propósito, porque en ella «más» no es «mejor»: baja en neutro, moderada en verde y alta en naranja.
 
 ---
 
@@ -194,19 +218,26 @@ No crear otra escala de espaciado.
 
 ## 9. Forma
 
-Radio principal: **8 px**.
+Actualizado por **D-005**. Los radios **no son uniformemente 8 px**: la referencia visual aprobada utiliza radios distintos según el tipo de superficie o componente, y el sistema los distingue por tipo.
 
-`--radius: 8px`
+### Radios por tipo de componente
 
-No crear automáticamente múltiples escalas de radios.
+| Token | Valor | Uso |
+|---|---|---|
+| `--radius-surface-lg` | `32px` | superficie protagonista: tarjeta de AXIS, tarjeta de sesión, tarjeta del Recovery Score |
+| `--radius-surface` | `24px` | superficies y controles: botones, accesos rápidos, filas de lista, campos |
+| `--radius-full` | `999px` | solo pills, chips, badges y elementos circulares |
 
-Radio completo:
+Cerrado por **D-009**, siguiendo la regla de D-004: estos son los valores que usa la referencia visual aprobada, y el Design System los recoge en lugar de imponer otros.
 
-`--radius-full: 999px`
+D-005 mencionaba 8 px para controles. **La interfaz aprobada no usa 8 px en ninguna parte**: sus botones y campos usan 24 px. El token de 8 px se retira porque describía algo que no existe. Si más adelante se quiere un radio pequeño, se añade primero aquí.
 
-Solo para pills, chips, badges y elementos circulares.
+### Reglas
 
-No hacer que toda la interfaz parezca una colección de pills.
+- Cada radio sale de un **token con nombre**. No se escriben radios arbitrarios directamente en los componentes.
+- No se generan escalas de radios derivadas automáticamente de un único valor base (`sm`/`md`/`lg`/`xl`...). Los radios son **semánticos**, no una rampa matemática.
+- Un radio nuevo solo se añade si existe un tipo de componente que lo justifique, y se añade aquí primero.
+- No hacer que toda la interfaz parezca una colección de pills.
 
 ---
 
@@ -258,11 +289,39 @@ Animaciones rápidas, suaves y funcionales.
 
 Rango general: **200–300 ms**.
 
-No animar por decoración.
-
-Hidratación: cambio de vaso vacío/lleno aproximadamente **200 ms**.
+No animar por decoración. Si un elemento no necesita animación, se deja quieto.
 
 Las transiciones de navegación deben ser discretas y rápidas. Evitar transiciones dramáticas.
+
+### Tokens de motion
+
+Viven en `app/globals.css` y son el único sitio donde se fijan estos números.
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--ax-press` | `130ms` | feedback al pulsar |
+| `--ax-fast` | `180ms` | microinteracciones, como el llenado de un vaso |
+| `--ax-base` | `220ms` | cambios de contenido |
+| `--ax-enter` | `300ms` | entrada de una pantalla o un bloque |
+| `--ax-metric` | `700ms` | recorrido de una métrica hasta su valor |
+| `--ax-stagger` | `45ms` | separación entre elementos de una lista |
+| `--ax-rise` | `10px` | desplazamiento de entrada; la pantalla no viaja |
+| `--ax-press-scale` | `0.985` | hundido al pulsar, sin rebote |
+| `--ax-ease` | `cubic-bezier(0.22, 0.61, 0.36, 1)` | salida suave, sin rebote |
+
+Utilidades disponibles: `.ax-enter`, `.ax-fade`, `.ax-stagger`, `.ax-stagger-fade` (para SVG, donde `transform` va en unidades del viewBox), `.ax-press` y `.ax-draw`.
+
+### Reglas
+
+- Solo se animan `opacity` y `transform`. Nada anima `width`, `height` ni posición.
+- El escalonado se limita a **seis posiciones**: nadie debe esperar por una lista larga.
+- La barra de navegación no se mueve al cambiar de pestaña.
+- Sin efecto de escritura carácter a carácter, sin rebotes, sin celebraciones.
+- Hidratación: el agua sube y baja en ~180 ms escalando un rectángulo recortado con la silueta del vaso.
+
+### Reducción de movimiento
+
+Con `prefers-reduced-motion: reduce` **no se desactiva nada**: se neutralizan los tokens. `--ax-rise` pasa a `0px`, `--ax-press-scale` a `1`, y las entradas y las métricas a `1ms`. El feedback esencial —el color de un vaso al llenarse, el estado activo de un control— se mantiene, solo que inmediato.
 
 ---
 
@@ -367,6 +426,32 @@ No crear componentes visualmente distintos para Recovery Score y Carga si compar
 
 ## 17. Recovery Score
 
+### Naturaleza y pesos (D-002)
+
+El Recovery Score es un **índice orientativo interno de 0 a 100**. No debe presentarse nunca como una medición médica ni como un diagnóstico, ni en la interfaz ni en el copy de AXIS.
+
+Pesos **aprobados y definitivos**:
+
+| Indicador | Peso |
+|---|---:|
+| Sueño | 35 % |
+| Energía | 20 % |
+| Fatiga muscular | 20 % |
+| Estrés | 15 % |
+| Hidratación | 10 % |
+| **Total** | **100 %** |
+
+Reglas asociadas:
+
+- Los pesos deben vivir **centralizados en un único lugar del código**, para poder ajustarlos sin rehacer la lógica.
+- El `82` que muestra el prototipo es **un valor visual de mock** y no es el resultado de esta fórmula.
+- Si faltan datos suficientes, **no se inventa un resultado**: se usa el estado «datos insuficientes» descrito más abajo.
+- AXIS debe poder **explicar el resultado** de forma breve y comprensible.
+
+Cerrados por **D-009**: la normalización de cada indicador vive en `lib/domain/recovery/scales.ts` y la política de datos suficientes (sueño obligatorio y al menos 3 factores) en `lib/domain/recovery/weights.ts`.
+
+### Componente visual
+
 El componente visual aprobado es un `Circular Metric` con:
 
 - track `#EAEAEA`;
@@ -398,7 +483,7 @@ Estos rangos son **una convención visual de prototipo**, no una especificación
 - guion o equivalente visual;
 - nunca inventar una puntuación.
 
-La fórmula, pesos y regla funcional definitiva del Recovery Score siguen `PENDIENTE`.
+Los **pesos** los fija D-002 y la normalización y el umbral de datos suficientes los fija D-009. Nada del Recovery Score sigue pendiente.
 
 ---
 
@@ -531,11 +616,14 @@ No crear variantes aisladas sin razón real.
 
 Antes de modificar UI, Claude Code debe leer:
 
-1. `CLAUDE.md`
-2. Documento Maestro
-3. este Design System
-4. `docs/design/AXTHLETICS_VISUAL_REFERENCE.png`
-5. `TECH_STACK.md`
+1. `docs/product/AXTHLETICS_DECISIONS_V1.md` — registro de decisiones aprobadas, prioridad máxima
+2. `CLAUDE.md`
+3. Documento Maestro
+4. este Design System
+5. `docs/design/AXTHLETICS_VISUAL_REFERENCE.png`
+6. `TECH_STACK_AXTHLETICS_UPDATED.md`
+
+Para decisiones visuales, la jerarquía es **decisiones aprobadas → Design System → código** (D-004). Un valor visual no queda aprobado por el hecho de estar escrito en el código.
 
 Debe respetar el stack aprobado, reutilizar componentes, mantener mobile-first y no inventar decisiones de producto.
 
@@ -559,15 +647,19 @@ Claude Code no debe introducir una nueva pantalla, tab, métrica o componente im
   --color-track: #EAEAEA;
   --color-muted-nontext: #9A9A9A;
 
-  /* Valores semánticos: PENDIENTES de aprobación */
-  --color-success: /* PENDIENTE */;
-  --color-warning: /* PENDIENTE */;
-  --color-error: /* PENDIENTE */;
+  /* Valores semánticos aprobados por D-008.
+     Recovery Score: 0-49 rojo, 50-74 naranja, 75-100 verde. */
+  --color-success: #1ba672;
+  --color-warning: #f2a516;
+  --color-error: #d93b3b;
 
   --font-family: "Inter", sans-serif;
 
   --space-unit: 4px;
-  --radius: 8px;
+
+  /* Radios semánticos por tipo de componente (D-005, D-009) */
+  --radius-surface-lg: 32px;
+  --radius-surface: 24px;
   --radius-full: 999px;
 
   --control-height-primary: 52px;
@@ -583,15 +675,19 @@ Claude Code no debe introducir una nueva pantalla, tab, métrica o componente im
 
 ## 26. No inventar
 
+La lista viva de pendientes está en `docs/product/AXTHLETICS_DECISIONS_V1.md`, con identificador `P-00X`. Lo que sigue es el resumen visual.
+
 Siguen pendientes y requieren aprobación:
 
-- fórmula y pesos del Recovery Score;
+- normalización de cada indicador del Recovery Score a 0–100 (`P-005`) y umbral de datos suficientes (`P-010`);
 - fórmula, pesos e interpretación definitiva de Carga;
-- valores exactos de colores semánticos;
-- token exacto del fondo general si se quiere pasar de blanco a un blanco ligeramente grisáceo;
-- catálogo o biblioteca de ejercicios;
-- creación de la primera rutina;
-- parámetros objetivo exactos de una rutina;
+- valores exactos de colores semánticos, incluido el token de error que falta (`P-007`);
+- valor de `--radius-surface` (`P-006`);
+- si el Design System admite las sombras sutiles que existen hoy en el prototipo (`P-008`);
+- token exacto del fondo general si se quiere pasar de blanco a un blanco ligeramente grisáceo (`P-011`);
+- catálogo o biblioteca de ejercicios (`P-004`);
+- grado de control del usuario sobre la sesión que propone AXIS (`P-001`);
+- estado visual del día en que AXIS recomienda no entrenar (`P-009`);
 - copy definitivo de AXIS cuando falte contexto;
 - cualquier funcionalidad fuera de Core v0.1.
 
@@ -603,7 +699,16 @@ Ya están **cerradas** y no deben volver a tratarse como pendientes:
 - ausencia de Progreso y Perfil como pantallas/tabs de Core v0.1;
 - hidratación con 8 vasos interactivos;
 - dirección visual editorial + premium + tecnológica + limpia + informativa;
-- identidad visual de AXIS basada en símbolo X + AXIS, integrada y discreta.
+- identidad visual de AXIS basada en símbolo X + AXIS, integrada y discreta;
+- **pesos del Recovery Score** (D-002): sueño 35, energía 20, fatiga 20, estrés 15, hidratación 10;
+- **AXIS decide el entrenamiento del día** (D-001), sin selección manual de rutina como mecanismo principal;
+- **gráfico de rendimiento del Historial aprobado** como estadística simple (D-003);
+- **radios semánticos por tipo de componente**, no un único radio de 8 px (D-005);
+- **neutros centralizados** en los tokens de §25, sin grises arbitrarios en los componentes (D-005);
+- jerarquía visual **decisiones → Design System → código** (D-004);
+- **normalización del Recovery Score y política de datos suficientes** (D-009);
+- **radios de superficie**: 32 px protagonista, 24 px superficies y controles, 999 px pills (D-009);
+- **colores semánticos**: verde `#1ba672`, naranja `#f2a516`, rojo `#d93b3b` (D-008).
 
 ---
 
