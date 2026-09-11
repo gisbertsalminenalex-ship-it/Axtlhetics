@@ -1,3 +1,11 @@
+# Scripts de instalación que NO se ejecutan.
+#
+# AXTHLETICS solo usa `generateContent` del SDK, que funciona sin ellos: se
+# comprobó llamando a la API de verdad. Menos código ejecutándose al instalar es
+# menos superficie, así que se quedan desactivados hasta que hagan falta.
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
 minimumReleaseAgeExclude:
   - '@next/*'
   - next

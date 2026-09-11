@@ -7,6 +7,9 @@
     "strict": true,
     "noUnusedLocals": true,
     "noEmit": true,
+    // Permite importar la función de Netlify (.mts) desde su test. Solo relaja
+    // una comprobación; requiere noEmit, que ya está activo.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

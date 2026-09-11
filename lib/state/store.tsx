@@ -69,12 +69,21 @@ const SESSION_HISTORY_LIMIT = 200
 const engine = createDeterministicAxisEngine()
 
 /**
+ * Endpoint propio que habla con el proveedor de IA.
+ *
+ * Es una función de Netlify del mismo origen. El navegador nunca llama al
+ * proveedor ni conoce la credencial: si la función no existe (servidor estático
+ * local) o falla, responde el motor determinista y no se nota más que en el aviso
+ * de la interfaz.
+ */
+const AXIS_AI_ENDPOINT = '/.netlify/functions/axis-ai'
+
+/**
  * Conversación de AXIS.
  *
- * Sin endpoint configurado responde el motor determinista, que es el estado actual
- * del proyecto: no hay proveedor de IA. El día que exista, se pasa aquí su URL.
+ * El determinista decide siempre; el modelo, cuando está disponible, redacta.
  */
-const conversation = createAxisConversation({ aiEndpoint: null })
+const conversation = createAxisConversation({ aiEndpoint: AXIS_AI_ENDPOINT })
 
 export type AxisChatStatus = 'idle' | 'thinking' | 'error'
 

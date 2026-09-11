@@ -1,12 +1,19 @@
 # Netlify — AXTHLETICS
 #
-# La app es un export estático (`output: 'export'` en next.config.mjs): no hay
-# funciones serverless, ni SSR, ni base de datos remota. Netlify solo sirve los
-# archivos de `out/`.
+# La app es un export estático (`output: 'export'` en next.config.mjs): Netlify
+# sirve los archivos de `out/`. La única pieza de servidor es la función que hace
+# de proxy hacia el proveedor de IA, porque la credencial no puede vivir en el
+# navegador. Ni SSR, ni base de datos remota.
 
 [build]
   command = "npm run build"
   publish = "out"
+
+# La única pieza de servidor: el proxy de IA. Necesita GEMINI_API_KEY en las
+# variables de entorno de Netlify (nunca en el repositorio, nunca NEXT_PUBLIC_*).
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [build.environment]
   # La misma versión con la que se compila y se pasan los tests en local.
@@ -41,6 +48,12 @@
   for = "/sw.js"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+
+# La respuesta del proxy de IA depende del día y de la pregunta: no se cachea.
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Cache-Control = "no-store"
 
 [[headers]]
   for = "/manifest.webmanifest"

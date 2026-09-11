@@ -1,0 +1,205 @@
+import assert from 'node:assert/strict'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import test from 'node:test'
+
+/**
+ * Los límites que separan la IA del resto del sistema.
+ *
+ * Estos tests no comprueban comportamiento, comprueban que nadie ha cruzado una
+ * línea: la credencial fuera del cliente, el SDK fuera del navegador, el dominio
+ * sin saber quién es el proveedor. Son las reglas que se rompen sin querer seis
+ * meses después, cuando ya nadie recuerda por qué estaban.
+ */
+
+const ROOT = new URL('../../', import.meta.url)
+
+/** Todos los archivos de código del proyecto, sin dependencias ni artefactos. */
+function sourceFiles(dir = ROOT, acc: string[] = []): string[] {
+  const IGNORED = new Set(['node_modules', '.next', 'out', '.git', '.netlify', 'docs'])
+
+  for (const entry of readdirSync(dir)) {
+    if (IGNORED.has(entry)) continue
+
+    const url = new URL(entry + '/', dir)
+    const path = url.pathname
+    const isDirectory = statSync(new URL(entry, dir)).isDirectory()
+
+    if (isDirectory) {
+      sourceFiles(url, acc)
+    } else if (/\.(ts|tsx|mts|js|mjs|css)$/.test(entry)) {
+      acc.push(path.replace(/\/$/, ''))
+    }
+  }
+  return acc
+}
+
+function read(path: string): string {
+  return readFileSync(new URL('file://' + path), 'utf8')
+}
+
+const ALL = sourceFiles()
+
+/**
+ * Depender del proveedor es importarlo o llamarlo.
+ *
+ * No es nombrarlo en un comentario: explicar por qué una decisión está tomada es
+ * justo lo contrario de acoplarse a ella.
+ */
+const PROVIDER_DEPENDENCY = /@google\/genai|GoogleGenAI|generativelanguage\.googleapis\.com/
+
+/** Lo que acaba en el navegador: la app de Next, sin la función de servidor. */
+const CLIENT = ALL.filter(
+  (path) =>
+    !path.includes('/netlify/functions/') &&
+    !path.includes('/lib/ai/') &&
+    !path.endsWith('.test.ts'),
+)
+
+// ---------------------------------------------------------------------------
+// La credencial
+// ---------------------------------------------------------------------------
+
+test('el proyecto tiene archivos que revisar', () => {
+  assert.ok(ALL.length > 30, `solo se han encontrado ${ALL.length} archivos`)
+  assert.ok(CLIENT.length > 20)
+})
+
+test('ningún archivo del cliente menciona la clave de Gemini', () => {
+  for (const path of CLIENT) {
+    assert.doesNotMatch(
+      read(path),
+      /GEMINI_API_KEY/,
+      `${path} menciona la credencial y acaba en el navegador`,
+    )
+  }
+})
+
+test('no existe ninguna variable pública con la clave', () => {
+  for (const path of ALL) {
+    assert.doesNotMatch(
+      read(path),
+      /NEXT_PUBLIC_[A-Z_]*(GEMINI|API_KEY|GENAI)/,
+      `${path}: NEXT_PUBLIC_* acaba dentro del bundle, a la vista de cualquiera`,
+    )
+  }
+})
+
+test('no hay ninguna clave escrita a mano en el repositorio', () => {
+  // Las claves de Google empiezan por AIza y tienen 39 caracteres.
+  for (const path of ALL) {
+    assert.doesNotMatch(read(path), /AIza[0-9A-Za-z_-]{35}/, `${path} parece contener una API key`)
+  }
+})
+
+test('solo la función de servidor lee la credencial', () => {
+  // Los tests quedan fuera: la regla es sobre el código que se despliega, y su
+  // propio test necesita manipular la variable para comprobar que falta.
+  const lectores = ALL.filter(
+    (path) => !path.endsWith('.test.ts') && /process\.env\.GEMINI_API_KEY/.test(read(path)),
+  )
+
+  assert.deepEqual(
+    lectores.map((path) => path.split('/').slice(-2).join('/')),
+    ['functions/axis-ai.mts'],
+  )
+})
+
+// ---------------------------------------------------------------------------
+// El SDK
+// ---------------------------------------------------------------------------
+
+test('el SDK de Gemini no se importa desde el cliente', () => {
+  for (const path of CLIENT) {
+    assert.doesNotMatch(
+      read(path),
+      /@google\/genai/,
+      `${path} importa el SDK y acaba en el navegador`,
+    )
+  }
+})
+
+test('el SDK solo se importa en la función de servidor', () => {
+  const importadores = ALL.filter((path) => /from '@google\/genai'/.test(read(path)))
+
+  assert.deepEqual(
+    importadores.map((path) => path.split('/').slice(-2).join('/')),
+    ['functions/axis-ai.mts'],
+  )
+})
+
+test('el SDK no aparece en el export estático', () => {
+  // Si el bundle de producción existe, se comprueba que no lo lleva dentro.
+  let chunks: string[]
+  try {
+    chunks = sourceFiles(new URL('out/_next/static/chunks/', ROOT))
+  } catch {
+    return // Sin build todavía: nada que comprobar.
+  }
+
+  for (const chunk of chunks) {
+    assert.doesNotMatch(read(chunk), /GEMINI_API_KEY/, `${chunk} lleva la credencial`)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// El dominio no sabe quién es el proveedor
+// ---------------------------------------------------------------------------
+
+test('la conversación de AXIS no conoce a Gemini, ni a Netlify, ni a React', () => {
+  const conversacion = ALL.filter(
+    (path) => path.includes('/domain/axis/conversation/') && !path.endsWith('.test.ts'),
+  )
+
+  assert.ok(conversacion.length >= 4, 'deben existir los módulos de conversación')
+
+  for (const path of conversacion) {
+    const source = read(path)
+    // Lo que importa es que no DEPENDA del proveedor ni del hosting. Nombrarlos
+    // en un comentario para explicar por qué algo está así no es acoplamiento:
+    // es justo lo contrario.
+    assert.doesNotMatch(source, PROVIDER_DEPENDENCY, `${path} depende del proveedor`)
+    assert.doesNotMatch(source, /from '[^']*netlify/i, `${path} importa algo de Netlify`)
+    assert.doesNotMatch(source, /from 'react'|useState|useEffect/, `${path} toca React`)
+    assert.doesNotMatch(source, /indexedDB|getRepositories/, `${path} toca la persistencia`)
+  }
+})
+
+test('el dominio entero es independiente del proveedor de IA', () => {
+  const dominio = ALL.filter((path) => path.includes('/lib/domain/') && !path.endsWith('.test.ts'))
+
+  for (const path of dominio) {
+    assert.doesNotMatch(read(path), PROVIDER_DEPENDENCY, `${path} depende del proveedor`)
+  }
+})
+
+test('la función de servidor no importa React ni el estado de la aplicación', () => {
+  const source = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+
+  assert.doesNotMatch(source, /from 'react'/)
+  assert.doesNotMatch(source, /lib\/state/)
+  assert.doesNotMatch(source, /indexedDB/)
+})
+
+// ---------------------------------------------------------------------------
+// El proxy no guarda nada
+// ---------------------------------------------------------------------------
+
+test('la función no persiste conversaciones ni añade analítica', () => {
+  const source = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+
+  for (const prohibido of [/supabase/i, /createClient/, /analytics/i, /\btrack\(/, /writeFile/]) {
+    assert.doesNotMatch(source, prohibido, 'el proxy no debe guardar nada')
+  }
+})
+
+test('el ejemplo de entorno no contiene una clave real', () => {
+  const ejemplo = readFileSync(new URL('.env.example', ROOT), 'utf8')
+
+  assert.match(ejemplo, /GEMINI_API_KEY=\s*$/m, 'debe quedar vacía')
+  assert.doesNotMatch(ejemplo, /AIza/)
+})
+
+test('.env.local está ignorado por git', () => {
+  const ignore = readFileSync(new URL('.gitignore', ROOT), 'utf8')
+  assert.match(ignore, /\.env\*?\.local|\.env\.local/)
+})

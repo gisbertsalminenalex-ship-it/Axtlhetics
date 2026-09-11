@@ -304,14 +304,60 @@ test('sin proveedor configurado responde el motor determinista', async () => {
   assert.equal(result.intent, 'today')
 })
 
-test('con proveedor configurado se usa su respuesta', async () => {
+test('con proveedor configurado, el modelo redacta las preguntas que lo merecen', async () => {
   const { briefing } = briefingWith({}, [session()])
   const conversation = createAxisConversation({ transport: transport() })
-  const result = await conversation.ask('¿Qué debería hacer hoy?', briefing)
+  // «Por qué» pide una explicación: ahí una redacción natural aporta.
+  const result = await conversation.ask('¿Por qué me propones esto hoy?', briefing)
 
   assert.equal(result.text, 'Respuesta del modelo.')
   assert.match(result.engineId, /ai/)
   assert.equal(result.usedFallback, false)
+})
+
+test('una consulta de datos no gasta una llamada al modelo', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  let llamadas = 0
+  const conversation = createAxisConversation({
+    transport: transport({
+      send: async () => {
+        llamadas += 1
+        return { text: 'Respuesta del modelo.' }
+      },
+    }),
+  })
+
+  for (const pregunta of [
+    '¿Cómo estoy recuperando?',
+    '¿Qué entrenamiento tengo hoy?',
+    '¿Cuánta carga llevo?',
+    '¿Qué entrené ayer?',
+    '¿Qué tal la semana?',
+  ]) {
+    const result = await conversation.ask(pregunta, briefing)
+    assert.match(result.engineId, /deterministic/, pregunta)
+    assert.equal(result.usedFallback, false, 'no es un fallback: el dominio ya lo sabe')
+  }
+
+  assert.equal(llamadas, 0, 'el dominio responde solo a lo que ya sabe')
+})
+
+test('lo médico y lo ajeno a AXTHLETICS nunca pasan por el modelo', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  let llamadas = 0
+  const conversation = createAxisConversation({
+    transport: transport({
+      send: async () => {
+        llamadas += 1
+        return { text: 'Respuesta del modelo.' }
+      },
+    }),
+  })
+
+  await conversation.ask('me duele la rodilla', briefing)
+  await conversation.ask('¿cuál es la capital de Francia?', briefing)
+
+  assert.equal(llamadas, 0, 'ahí la redacción no aporta y el riesgo sí')
 })
 
 test('si el proveedor falla, AXIS responde igualmente con el determinista', async () => {
@@ -324,7 +370,7 @@ test('si el proveedor falla, AXIS responde igualmente con el determinista', asyn
     }),
   })
 
-  const result = await conversation.ask('¿Qué debería hacer hoy?', briefing)
+  const result = await conversation.ask('¿Por qué me propones esto hoy?', briefing)
 
   assert.equal(result.usedFallback, true)
   assert.match(result.engineId, /deterministic/)
@@ -337,9 +383,9 @@ test('una respuesta vacía del proveedor también cae al determinista', async ()
     transport: transport({ send: async () => ({ text: '   ' }) }),
   })
 
-  const result = await conversation.ask('¿Cómo estoy recuperando?', briefing)
+  const result = await conversation.ask('¿Por qué me propones esto hoy?', briefing)
   assert.equal(result.usedFallback, true)
-  assert.equal(result.intent, 'recovery')
+  assert.equal(result.intent, 'why')
 })
 
 test('el transporte HTTP se declara no configurado sin endpoint', async () => {
