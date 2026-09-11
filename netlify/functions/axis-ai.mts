@@ -7,6 +7,12 @@
  *
  *   Navegador → /.netlify/functions/axis-ai → Gemini
  *
+ * Se llama a la API REST con `fetch` en lugar de usar el SDK, y no por gusto: el
+ * proyecto usa pnpm, que enlaza `node_modules` con symlinks, y al empaquetar la
+ * función esos enlaces viajaban rotos hasta Lambda. La función desplegada moría
+ * con `Cannot find package '@google/genai'` antes de ejecutar una sola línea
+ * propia. Sin dependencias no hay nada que empaquetar y el problema desaparece.
+ *
  * Lo que no hace, y no debe hacer nunca:
  *
  * - No decide nada. La recomendación viene ya decidida en el cuerpo de la
@@ -17,7 +23,6 @@
  *   solo un código propio que el cliente sabe interpretar.
  */
 
-import { GoogleGenAI } from '@google/genai'
 import {
   AXIS_AI_MODEL,
   GEMINI_TIMEOUT_MS,
@@ -28,13 +33,57 @@ import {
   parseModelText,
   parseProxyRequest,
   type AxisAiErrorCode,
+  type ProxyRequest,
 } from '../../lib/ai/gemini-contract'
+
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 function fail(code: AxisAiErrorCode, status: number): Response {
   return new Response(JSON.stringify({ ok: false, code }), {
     status,
     headers: PROXY_HEADERS,
   })
+}
+
+/**
+ * Llama a Gemini y devuelve el texto del modelo.
+ *
+ * La credencial va en la cabecera, nunca en la URL: una query string acaba en
+ * los registros de cualquier intermediario.
+ */
+async function askGemini(request: ProxyRequest, apiKey: string): Promise<string> {
+  const response = await fetch(
+    `${GEMINI_ENDPOINT}/${encodeURIComponent(AXIS_AI_MODEL)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: request.system }] },
+        contents: [{ role: 'user', parts: [{ text: buildUserPayload(request) }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          // Corto a propósito: AXIS responde en tres frases, no en tres párrafos.
+          maxOutputTokens: 400,
+          temperature: 0.4,
+        },
+      }),
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+    },
+  )
+
+  if (!response.ok) {
+    // El cuerpo del error de Google no se lee ni se propaga.
+    throw Object.assign(new Error('gemini'), { status: response.status })
+  }
+
+  const payload = (await response.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[]
+  }
+
+  return payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? ''
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -65,30 +114,11 @@ export default async function handler(request: Request): Promise<Response> {
     return fail('BAD_REQUEST', 400)
   }
 
-  // Un modelo colgado no puede dejar colgada la función.
-  const abort = AbortController ? new AbortController() : null
-  const timer = setTimeout(() => abort?.abort(), GEMINI_TIMEOUT_MS)
-
   let modelText: string
   try {
-    const genai = new GoogleGenAI({ apiKey })
-    const response = await genai.models.generateContent({
-      model: AXIS_AI_MODEL,
-      contents: buildUserPayload(parsed),
-      config: {
-        systemInstruction: parsed.system,
-        responseMimeType: 'application/json',
-        // Corto a propósito: AXIS responde en tres frases, no en tres párrafos.
-        maxOutputTokens: 400,
-        temperature: 0.4,
-        abortSignal: abort?.signal,
-      },
-    })
-    modelText = response.text ?? ''
+    modelText = await askGemini(parsed, apiKey)
   } catch (cause) {
     return fail(errorCodeFor(cause), 502)
-  } finally {
-    clearTimeout(timer)
   }
 
   const parsedModel = parseModelText(modelText)

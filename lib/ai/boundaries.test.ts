@@ -108,7 +108,7 @@ test('solo la función de servidor lee la credencial', () => {
 // El SDK
 // ---------------------------------------------------------------------------
 
-test('el SDK de Gemini no se importa desde el cliente', () => {
+test('el proveedor no se toca desde el cliente', () => {
   for (const path of CLIENT) {
     assert.doesNotMatch(
       read(path),
@@ -118,13 +118,36 @@ test('el SDK de Gemini no se importa desde el cliente', () => {
   }
 })
 
-test('el SDK solo se importa en la función de servidor', () => {
-  const importadores = ALL.filter((path) => /from '@google\/genai'/.test(read(path)))
+test('solo la función de servidor habla con el proveedor', () => {
+  const emisores = ALL.filter(
+    (path) => !path.endsWith('.test.ts') && PROVIDER_DEPENDENCY.test(read(path)),
+  )
 
   assert.deepEqual(
-    importadores.map((path) => path.split('/').slice(-2).join('/')),
+    emisores.map((path) => path.split('/').slice(-2).join('/')),
     ['functions/axis-ai.mts'],
   )
+})
+
+test('la función no arrastra dependencias que haya que empaquetar', () => {
+  /*
+   * Se llama a la API REST con fetch a propósito. El proyecto usa pnpm, que
+   * enlaza `node_modules` con symlinks, y al empaquetar la función esos enlaces
+   * viajaban rotos hasta Lambda: la función moría con `Cannot find package`
+   * antes de ejecutar una línea propia. Sin dependencias no hay nada que
+   * empaquetar, y este test evita que vuelvan a entrar sin darse cuenta.
+   */
+  const source = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+  const imports = [...source.matchAll(/from '([^']+)'/g)].map((match) => match[1])
+
+  assert.ok(imports.length > 0, 'algo importará')
+
+  for (const imported of imports) {
+    assert.ok(
+      imported.startsWith('.') || imported.startsWith('node:'),
+      `la función importa un paquete externo: ${imported}`,
+    )
+  }
 })
 
 test('el SDK no aparece en el export estático', () => {
