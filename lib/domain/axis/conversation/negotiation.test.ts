@@ -221,6 +221,25 @@ test('si el deporte del día se cae, la razón para frenar desaparece', () => {
   assert.notEqual(verdict.outcome, 'decline', 'sin partido no hay nada que reservar')
 })
 
+test('un deporte cancelado deja de contar hoy, pero sigue estando registrado', () => {
+  const contexto = buildAxisContext({
+    profile: profile(),
+    recoveryInputs: recovery(),
+    recentSessions: [],
+    activities: [basketball()],
+    cancelledToday: ['Baloncesto'],
+    now: MONDAY,
+  })
+  const briefing = buildBriefing(contexto, decide(contexto), [])
+
+  assert.deepEqual(briefing.activitiesToday, [], 'hoy no cuenta para decidir')
+  assert.deepEqual(
+    briefing.profile?.sports.map((sport) => sport.name),
+    ['Baloncesto'],
+    'pero AXIS no puede decir que no lo tienes registrado',
+  )
+})
+
 test('la cancelación se reconoce aunque el deporte se llame de otra forma', () => {
   // En el onboarding registró «Baloncesto»; al escribir dice «básquet».
   const request = parseChangeRequest('el básquet de hoy se ha cancelado', ['Baloncesto'])

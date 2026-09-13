@@ -228,10 +228,10 @@ export function PerfilScreen({
         />
       </div>
 
-      <SectionTitle>Actividades con horario</SectionTitle>
+      <SectionTitle>Tus deportes</SectionTitle>
       <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
-        Si tienes entrenamientos o partidos fijos, AXIS los tendrá en cuenta para no
-        proponerte una sesión que interfiera.
+        Entrenamientos o partidos que tengas entre semana. AXIS los tiene en cuenta para
+        no proponerte una sesión que interfiera.
       </p>
 
       <ul className="mt-4 space-y-2.5">
@@ -356,35 +356,54 @@ function DangerZone() {
     </div>
   )
 }
-
 // ---------------------------------------------------------------------------
 // Alta de actividad
 // ---------------------------------------------------------------------------
 
 const HOUR_OPTIONS = Array.from({ length: 17 }, (_, i) => 7 + i)
 
+/**
+ * Alta de un deporte, con el mismo modelo que usa el onboarding.
+ *
+ * Antes esto pedía **un** día y **una hora obligatoria**, mientras que el
+ * onboarding pedía **varios días** y ninguna hora. Eran dos formas distintas de
+ * registrar lo mismo, y el deporte que añadías aquí no se parecía al que habías
+ * registrado al empezar.
+ *
+ * Ahora manda el modelo del onboarding: días e intensidad. La hora es opcional y
+ * está plegada, porque casi nadie la necesita: AXIS solo la usa para saber si el
+ * partido ya ha pasado, y sin ella lo trata como pendiente, que es lo prudente.
+ *
+ * Se crea una actividad por cada día marcado, igual que en el onboarding.
+ */
 function ActivityForm({
   onAdd,
 }: {
   onAdd: (draft: {
     name: string
     weekday: Weekday
-    startMinute: number
-    endMinute: number
+    startMinute: number | null
+    endMinute: number | null
     intensity: ActivityIntensity
     loadsMuscleGroups: string[]
   }) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [weekday, setWeekday] = useState<Weekday>(0)
+  const [weekdays, setWeekdays] = useState<Weekday[]>([])
+  const [withSchedule, setWithSchedule] = useState(false)
   const [startHour, setStartHour] = useState(20)
   const [durationHours, setDurationHours] = useState(2)
   const [intensity, setIntensity] = useState<ActivityIntensity>('alta')
   const [loadsLegs, setLoadsLegs] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const canSave = name.trim().length > 0 && weekdays.length > 0
 
   const reset = () => {
     setName('')
+    setWeekdays([])
+    setWithSchedule(false)
     setStartHour(20)
     setDurationHours(2)
     setIntensity('alta')
@@ -392,16 +411,33 @@ function ActivityForm({
     setOpen(false)
   }
 
+  const toggleWeekday = (day: number) => {
+    setWeekdays((current) =>
+      current.includes(day as Weekday)
+        ? current.filter((value) => value !== day)
+        : [...current, day as Weekday].sort((a, b) => a - b),
+    )
+  }
+
   const submit = async () => {
-    if (name.trim().length === 0) return
-    await onAdd({
-      name: name.trim(),
-      weekday,
-      startMinute: minutesFromMidnight(startHour, 0),
-      endMinute: minutesFromMidnight(Math.min(startHour + durationHours, 23), 0),
-      intensity,
-      loadsMuscleGroups: loadsLegs ? ['piernas', 'gluteos'] : [],
-    })
+    if (!canSave) return
+    setSaving(true)
+
+    // Una actividad por día, como en el onboarding.
+    for (const weekday of weekdays) {
+      await onAdd({
+        name: name.trim(),
+        weekday,
+        startMinute: withSchedule ? minutesFromMidnight(startHour, 0) : null,
+        endMinute: withSchedule
+          ? minutesFromMidnight(Math.min(startHour + durationHours, 23), 0)
+          : null,
+        intensity,
+        loadsMuscleGroups: loadsLegs ? ['piernas', 'gluteos'] : [],
+      })
+    }
+
+    setSaving(false)
     reset()
   }
 
@@ -420,66 +456,9 @@ function ActivityForm({
 
   return (
     <div className="ax-enter mt-3 rounded-2xl border border-border bg-surface p-4">
-      <TextField
-        label="Actividad"
-        value={name}
-        placeholder="Baloncesto"
-        onChange={setName}
-      />
+      <TextField label="Actividad" value={name} placeholder="Baloncesto" onChange={setName} />
 
-      <div className="py-3">
-        <FieldLabel>Día</FieldLabel>
-        <div className="mt-2.5 flex justify-between gap-1.5">
-          {(['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const).map((initial, index) => (
-            <button
-              key={initial}
-              type="button"
-              onClick={() => setWeekday(index as Weekday)}
-              aria-pressed={weekday === index}
-              aria-label={WEEKDAY_LABELS[index as Weekday]}
-              className={
-                weekday === index
-                  ? 'h-11 flex-1 rounded-full border border-primary bg-primary text-[14px] font-semibold text-primary-foreground'
-                  : 'h-11 flex-1 rounded-full border border-border bg-background text-[14px] font-semibold text-muted-foreground'
-              }
-            >
-              {initial}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 py-3">
-        <FieldLabel>Empieza a las</FieldLabel>
-        <select
-          value={startHour}
-          onChange={(event) => setStartHour(Number(event.target.value))}
-          aria-label="Hora de inicio"
-          className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold tabular-nums outline-none"
-        >
-          {HOUR_OPTIONS.map((hour) => (
-            <option key={hour} value={hour}>
-              {formatMinutesOfDay(minutesFromMidnight(hour, 0))}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 py-3">
-        <FieldLabel>Duración</FieldLabel>
-        <select
-          value={durationHours}
-          onChange={(event) => setDurationHours(Number(event.target.value))}
-          aria-label="Duración"
-          className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold tabular-nums outline-none"
-        >
-          {[1, 2, 3].map((hours) => (
-            <option key={hours} value={hours}>
-              {hours} h
-            </option>
-          ))}
-        </select>
-      </div>
+      <WeekdayPicker label="Qué días" value={weekdays} onToggle={toggleWeekday} />
 
       <ChoiceGroup
         label="Exigencia"
@@ -501,23 +480,80 @@ function ActivityForm({
         Carga {MUSCLE_GROUP_LABELS.piernas.toLowerCase()}
       </button>
 
+      {/*
+        La hora, plegada. AXIS funciona sin ella: sin horario trata la actividad
+        como pendiente, que es lo conservador. Solo aporta si el deporte es
+        siempre a la misma hora y quieres que AXIS sepa si ya ha pasado.
+      */}
+      <button
+        type="button"
+        onClick={() => setWithSchedule((current) => !current)}
+        aria-pressed={withSchedule}
+        className="ax-press mt-4 min-h-11 w-full text-left text-[13.5px] font-medium text-muted-foreground"
+      >
+        {withSchedule ? '− Quitar la hora' : '+ Añadir una hora fija (opcional)'}
+      </button>
+
+      {withSchedule && (
+        <div className="ax-enter">
+          <div className="flex items-center justify-between gap-3 py-2">
+            <FieldLabel>Empieza a las</FieldLabel>
+            <select
+              value={startHour}
+              onChange={(event) => setStartHour(Number(event.target.value))}
+              aria-label="Hora de inicio"
+              className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold tabular-nums outline-none"
+            >
+              {HOUR_OPTIONS.map((hour) => (
+                <option key={hour} value={hour}>
+                  {formatMinutesOfDay(minutesFromMidnight(hour, 0))}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 py-2">
+            <FieldLabel>Duración</FieldLabel>
+            <select
+              value={durationHours}
+              onChange={(event) => setDurationHours(Number(event.target.value))}
+              aria-label="Duración"
+              className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold tabular-nums outline-none"
+            >
+              {[1, 2, 3].map((hours) => (
+                <option key={hours} value={hours}>
+                  {hours} h
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
       <div className="mt-5 flex gap-2">
         <button
           type="button"
           onClick={reset}
-          className="h-12 flex-1 rounded-2xl border border-border bg-background text-[14px] font-semibold text-muted-foreground"
+          disabled={saving}
+          className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-[14px] font-semibold text-muted-foreground disabled:opacity-40"
         >
           Cancelar
         </button>
         <button
           type="button"
           onClick={() => void submit()}
-          disabled={name.trim().length === 0}
-          className="h-12 flex-1 rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground disabled:opacity-40"
+          disabled={!canSave || saving}
+          className="ax-press h-12 flex-1 rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground disabled:opacity-40"
         >
-          Añadir
+          {saving ? 'Guardando…' : 'Añadir'}
         </button>
       </div>
+
+      {!canSave && (
+        <p className="mt-3 text-center text-[12.5px] text-muted-foreground">
+          Ponle nombre y marca al menos un día.
+        </p>
+      )}
     </div>
   )
 }

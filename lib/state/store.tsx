@@ -235,14 +235,21 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       loadedDayRef.current = dayKey
       try {
         const repositories = getRepositories()
-        const [storedProfile, storedActivities, storedRecovery, storedSessions, storedPlan] =
-          await Promise.all([
-            repositories.profile.get(),
-            repositories.activities.list(),
-            repositories.recovery.getByDay(dayKey),
-            repositories.workouts.list(SESSION_HISTORY_LIMIT),
-            repositories.dayPlan.getByDay(dayKey),
-          ])
+        const [
+          storedProfile,
+          storedActivities,
+          storedRecovery,
+          storedSessions,
+          storedPlan,
+          storedConversation,
+        ] = await Promise.all([
+          repositories.profile.get(),
+          repositories.activities.list(),
+          repositories.recovery.getByDay(dayKey),
+          repositories.workouts.list(SESSION_HISTORY_LIMIT),
+          repositories.dayPlan.getByDay(dayKey),
+          repositories.conversation.getByDay(dayKey),
+        ])
 
         if (cancelled) return
 
@@ -251,10 +258,20 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setActivities(storedActivities)
         setRecoveryInputs(storedRecovery ?? emptyRecoveryInputs(dayKey, nowIso()))
         setSessions(storedSessions)
-        // La elección de hoy, si el usuario confirmó un cambio antes de recargar.
-        setDayOverride(storedPlan)
-        setActionStatuses({})
-        setCancelledToday([])
+        /*
+         * Lo que el usuario decidió hoy y no se deduce de sus datos: la sesión
+         * que eligió y lo que dijo que hoy no ocurre. Ambas cosas sobreviven a
+         * una recarga; antes se perdían y AXIS volvía a contar con el partido
+         * que ya le habían dicho que se había cancelado.
+         */
+        setDayOverride(storedPlan?.override ?? null)
+        setCancelledToday(storedPlan?.cancelledActivities ?? [])
+
+        // Y el hilo de la conversación, con el estado de sus propuestas.
+        setAxisMessages(storedConversation?.messages ?? [])
+        setActionStatuses(
+          (storedConversation?.actionStatuses as Record<string, AxisActionStatus>) ?? {},
+        )
         setStatus(storedProfile ? 'ready' : 'onboarding')
       } catch (cause) {
         if (cancelled) return
@@ -300,18 +317,6 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   )
 
   /**
-   * Las actividades que hoy siguen en pie.
-   *
-   * Todo lo que decide AXIS parte de aquí, así que descartar una actividad caída
-   * en un solo sitio basta para que la decisión, las alternativas y la
-   * conversación cambien a la vez. No hay un segundo camino de decisión.
-   */
-  const activeActivities = useMemo(
-    () => activities.filter((activity) => !cancelledToday.includes(activity.name)),
-    [activities, cancelledToday],
-  )
-
-  /**
    * El contexto de AXIS, construido una sola vez.
    *
    * La decisión, el briefing y la validación de las acciones parten de aquí. Si
@@ -325,9 +330,10 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       recoveryInputs,
       recoveryScore,
       recentSessions: sessions,
-      activities: activeActivities,
+      activities,
+      cancelledToday,
     })
-  }, [status, profile, recoveryInputs, recoveryScore, sessions, activeActivities])
+  }, [status, profile, recoveryInputs, recoveryScore, sessions, activities, cancelledToday])
 
   const decision = useMemo(
     () => (axisContext ? engine.decide(axisContext) : null),
@@ -599,6 +605,23 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   // -------------------------------------------------------------------------
 
   /**
+   * Guarda el plan del día: la sesión elegida y lo que hoy no ocurre.
+   *
+   * Se escriben juntos porque son un solo registro. Cambiar una cosa no puede
+   * borrar la otra, así que quien llame pasa siempre las dos.
+   */
+  const persistDayPlan = useCallback(
+    async (next: { override: DayPlanOverride | null; cancelledActivities: string[] }) => {
+      await getRepositories().dayPlan.save({
+        dayKey: today,
+        override: next.override,
+        cancelledActivities: next.cancelledActivities,
+      })
+    },
+    [today],
+  )
+
+  /**
    * Convierte lo que AXIS ha propuesto en una acción pendiente de confirmar.
    *
    * Devuelve `null` cuando AXIS no ha llegado a una propuesta concreta, cuando se
@@ -656,9 +679,13 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         // motor vuelve a decidir sin ello, así que la sesión, las alternativas y
         // la propia conversación se recalculan a la vez.
         if (result.cancelledActivities && result.cancelledActivities.length > 0) {
-          setCancelledToday((current) => [
-            ...new Set([...current, ...result.cancelledActivities!]),
-          ])
+          const merged = [...new Set([...cancelledToday, ...result.cancelledActivities])]
+          setCancelledToday(merged)
+          // Se guarda para que al recargar AXIS no vuelva a contar con el
+          // partido que el usuario ya le ha dicho que se ha cancelado.
+          void persistDayPlan({ override: dayOverride, cancelledActivities: merged }).catch(
+            () => {},
+          )
         }
         setAxisMessages((current) => [
           ...current,
@@ -690,7 +717,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setAxisStatus('error')
       }
     },
-    [briefing, axisChangeMode],
+    [briefing, axisChangeMode, cancelledToday, dayOverride, persistDayPlan],
   )
 
   /**
@@ -731,7 +758,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       const override = overrideFrom(action, validation.target)
 
       try {
-        await getRepositories().dayPlan.save(override)
+        await persistDayPlan({ override, cancelledActivities: cancelledToday })
       } catch (cause) {
         // Si no se ha podido guardar, no se finge que sí: el estado real no
         // cambia y el botón queda en error, listo para reintentar.
@@ -749,7 +776,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       setDayOverride(override)
       setActionStatuses((current) => ({ ...current, [action.id]: { state: 'applied' } }))
     },
-    [actionStatuses, decision, axisContext],
+    [actionStatuses, decision, axisContext, cancelledToday, persistDayPlan],
   )
 
   /** El usuario descarta la propuesta. No se toca nada. */
@@ -761,6 +788,33 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  /*
+   * La conversación se guarda al cambiar.
+   *
+   * Vive en el dispositivo, como todo lo demás: no hay servidor ni historial de
+   * conversaciones en ningún sitio. Solo sirve para que recargar no borre el
+   * hilo ni deje una propuesta aplicada con aspecto de pendiente.
+   *
+   * El guardado no arranca hasta que la carga inicial ha terminado: si no, el
+   * primer render con la lista vacía borraría lo que se acaba de leer.
+   */
+  useEffect(() => {
+    if (status !== 'ready') return
+    if (loadedDayRef.current !== today) return
+
+    void getRepositories()
+      .conversation.save({
+        dayKey: today,
+        messages: axisMessages,
+        actionStatuses,
+        updatedAt: nowIso(),
+      })
+      .catch(() => {
+        // Perder el hilo no es motivo para molestar al usuario: la app sigue.
+      })
+  }, [status, today, axisMessages, actionStatuses])
+
+
   const clearAxisConversation = useCallback(() => {
     lastIntentRef.current = null
     setAxisMessages([])
@@ -768,7 +822,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setAxisError(null)
     setAxisUsedFallback(false)
     setAxisChangeMode(false)
-  }, [])
+    setActionStatuses({})
+    void getRepositories().conversation.clear(today).catch(() => {})
+  }, [today])
 
   /**
    * Borra todo y devuelve la app al primer arranque.

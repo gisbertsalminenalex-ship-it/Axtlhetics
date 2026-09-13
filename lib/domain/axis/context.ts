@@ -19,6 +19,8 @@ export type AxisContextInput = {
   /** Sesiones recientes, de la más nueva a la más antigua. */
   recentSessions: readonly WorkoutSession[]
   activities: readonly ScheduledActivity[]
+  /** Actividades que hoy no ocurren. Por defecto, ninguna. */
+  cancelledToday?: readonly string[]
   catalog?: readonly Exercise[]
   /** Momento de la decisión. Inyectable para que los tests sean deterministas. */
   now?: Date
@@ -45,6 +47,7 @@ export function buildAxisContext(input: AxisContextInput): AxisContext {
     recoveryScore,
     recentSessions: input.recentSessions,
     activities: input.activities,
+    cancelledToday: input.cancelledToday ?? [],
     catalog: input.catalog ?? EXERCISE_CATALOG,
   }
 }

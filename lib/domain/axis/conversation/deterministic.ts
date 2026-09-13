@@ -264,8 +264,10 @@ function answerSportToday(briefing: AxisBriefing): AxisAnswer {
       .filter((sport) => sport.weekdays.length > 0)
       .map((sport) => `${sport.name} los ${listNames(sport.weekdays.map((day) => WEEKDAY_LABELS[day as 0].toLowerCase()))}`)
 
+    // «Registrado» no: sí lo está, solo que hoy no toca. Decir lo contrario y
+    // acto seguido enumerar sus deportes se contradice en la misma frase.
     return say('sport_today', [
-      'Hoy no tienes ningún deporte registrado.',
+      'Hoy no tienes deporte.',
       upcoming.length > 0 ? `Tienes ${listNames(upcoming)}.` : '',
     ])
   }

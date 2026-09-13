@@ -304,6 +304,29 @@ export type DayPlanOverride = {
   source: 'axis_conversation'
 }
 
+/**
+ * Todo lo que el usuario ha decidido hoy y que no se deduce de sus datos.
+ *
+ * Son dos cosas distintas y las dos tienen que sobrevivir a una recarga:
+ *
+ * - `override`: qué sesión eligió, si cambió la que AXIS recomendaba.
+ * - `cancelledActivities`: qué del calendario dijo que hoy no ocurre. Sin esto,
+ *   al recargar AXIS volvía a dar por hecho el partido que el usuario ya le
+ *   había dicho que se había cancelado.
+ *
+ * Vive en un único registro por día. Un día puede tener cancelaciones sin haber
+ * cambiado de sesión, y al revés.
+ */
+export type DayPlan = {
+  dayKey: DayKey
+  override: DayPlanOverride | null
+  cancelledActivities: string[]
+}
+
+export function emptyDayPlan(dayKey: DayKey): DayPlan {
+  return { dayKey, override: null, cancelledActivities: [] }
+}
+
 export function overrideFrom(
   action: AxisActionProposal,
   target: AxisProposal,

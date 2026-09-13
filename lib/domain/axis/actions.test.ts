@@ -229,14 +229,18 @@ test('al aplicar, la elección guardada apunta a la nueva sesión', async () => 
   assert.equal(validation.ok, true)
   if (!validation.ok) return
 
-  await repositories.dayPlan.save(overrideFrom(action, validation.target))
+  await repositories.dayPlan.save({
+    dayKey: MONDAY_KEY,
+    override: overrideFrom(action, validation.target),
+    cancelledActivities: [],
+  })
 
   const stored = await repositories.dayPlan.getByDay(MONDAY_KEY)
-  assert.ok(stored)
-  assert.equal(stored.type, target.type)
-  assert.equal(stored.focus, target.session?.focus ?? null)
-  assert.equal(stored.originHeadline, w.current.headline, 'queda de qué se cambió')
-  assert.equal(stored.source, 'axis_conversation')
+  assert.ok(stored?.override)
+  assert.equal(stored.override.type, target.type)
+  assert.equal(stored.override.focus, target.session?.focus ?? null)
+  assert.equal(stored.override.originHeadline, w.current.headline, 'queda de qué se cambió')
+  assert.equal(stored.override.source, 'axis_conversation')
 })
 
 test('la propuesta activa pasa a ser la elegida', () => {

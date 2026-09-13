@@ -5,7 +5,7 @@
  * negocio vive aquí: esta capa solo guarda y recupera.
  */
 
-import type { DayPlanOverride } from '../../domain/axis/actions'
+import type { DayPlan } from '../../domain/axis/actions'
 import type { ScheduledActivity, UserProfile } from '../../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../../domain/profile/types'
 import type { RecoveryInputs } from '../../domain/recovery/types'
@@ -13,7 +13,9 @@ import type { DayKey } from '../../domain/shared/dates'
 import type { WorkoutSession } from '../../domain/workouts/types'
 import type {
   ActivityRepository,
+  ConversationRepository,
   DayPlanRepository,
+  StoredConversation,
   Repositories,
   RecoveryRepository,
   UserProfileRepository,
@@ -118,18 +120,44 @@ const workoutRepository: WorkoutRepository = {
 
 const dayPlanRepository: DayPlanRepository = {
   async getByDay(dayKey: DayKey) {
-    const stored = await read<DayPlanOverride | undefined>(STORES.dayPlan, (store) =>
-      store.get(dayKey),
-    )
-    return stored ?? null
+    const stored = await read<DayPlan | undefined>(STORES.dayPlan, (store) => store.get(dayKey))
+    if (!stored) return null
+    // Defensa por si un registro se escribió con la forma antigua: la migración
+    // lo arregla al abrir, pero leer nunca debe devolver algo a medias.
+    return {
+      dayKey: stored.dayKey,
+      override: stored.override ?? null,
+      cancelledActivities: Array.isArray(stored.cancelledActivities)
+        ? stored.cancelledActivities
+        : [],
+    }
   },
-  async save(override) {
+  async save(plan) {
     await write(STORES.dayPlan, (store) => {
-      store.put(override)
+      store.put(plan)
     })
   },
   async clear(dayKey) {
     await write(STORES.dayPlan, (store) => {
+      store.delete(dayKey)
+    })
+  },
+}
+
+const conversationRepository: ConversationRepository = {
+  async getByDay(dayKey: DayKey) {
+    const stored = await read<StoredConversation | undefined>(STORES.conversation, (store) =>
+      store.get(dayKey),
+    )
+    return stored ?? null
+  },
+  async save(conversation) {
+    await write(STORES.conversation, (store) => {
+      store.put(conversation)
+    })
+  },
+  async clear(dayKey) {
+    await write(STORES.conversation, (store) => {
       store.delete(dayKey)
     })
   },
@@ -142,5 +170,6 @@ export function createIndexedDbRepositories(): Repositories {
     recovery: recoveryRepository,
     workouts: workoutRepository,
     dayPlan: dayPlanRepository,
+    conversation: conversationRepository,
   }
 }

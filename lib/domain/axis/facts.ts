@@ -39,6 +39,15 @@ export const ACTIVITY_BUFFER_MINUTES = 60
 export function deriveFacts(context: AxisContext): AxisFacts {
   const { profile, recoveryInputs, recoveryScore, recentSessions, activities, dayKey } = context
 
+  /*
+   * Lo que el usuario ha dicho que hoy no ocurre no cuenta para decidir, pero
+   * sigue estando registrado: el calendario dice lo que suele pasar, no lo que
+   * pasa. Se filtra aquí y no antes para que AXIS pueda seguir diciendo que
+   * tienes baloncesto, aunque hoy se haya cancelado.
+   */
+  const cancelled = new Set(context.cancelledToday.map((name) => name.toLowerCase()))
+  const vigentes = activities.filter((activity) => !cancelled.has(activity.name.toLowerCase()))
+
   const recoveryValue = recoveryScore?.status === 'ok' ? recoveryScore.value : null
 
   const completedSessions = recentSessions.filter((session) => session.status === 'completed')
@@ -60,8 +69,8 @@ export function deriveFacts(context: AxisContext): AxisFacts {
 
   // Puede haber más de un deporte el mismo día. Se conservan todos y se destaca
   // el más exigente, que es el que condiciona la decisión.
-  const todayActivities = activities.filter((activity) => activity.weekday === weekday)
-  const tomorrowActivities = activities.filter(
+  const todayActivities = vigentes.filter((activity) => activity.weekday === weekday)
+  const tomorrowActivities = vigentes.filter(
     (activity) => activity.weekday === ((weekday + 1) % 7),
   )
 

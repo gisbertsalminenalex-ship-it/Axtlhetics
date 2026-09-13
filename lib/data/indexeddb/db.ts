@@ -6,7 +6,12 @@
  * nunca por conveniencia.
  */
 
-import { needsProfileUpgrade, upgradeProfileRecord } from '../migrations'
+import {
+  needsDayPlanUpgrade,
+  needsProfileUpgrade,
+  upgradeDayPlanRecord,
+  upgradeProfileRecord,
+} from '../migrations'
 
 export const DB_NAME = 'axtlhetics'
 
@@ -15,7 +20,7 @@ export const DB_NAME = 'axtlhetics'
  * anteriores intactos: `onupgradeneeded` los ejecuta en orden para quien venga de
  * una versión antigua.
  */
-export const DB_VERSION = 4
+export const DB_VERSION = 5
 
 export const STORES = {
   profile: 'profile',
@@ -23,6 +28,7 @@ export const STORES = {
   recovery: 'recovery',
   sessions: 'sessions',
   dayPlan: 'dayPlan',
+  conversation: 'conversation',
 } as const
 
 export type StoreName = (typeof STORES)[keyof typeof STORES]
@@ -76,6 +82,36 @@ function migrate(
    */
   if (oldVersion < 4) {
     db.createObjectStore(STORES.dayPlan, { keyPath: 'dayKey' })
+  }
+
+  /*
+   * v5: el registro del día deja de ser solo la sesión elegida y pasa a guardar
+   * también las actividades que el usuario ha dicho que hoy no ocurren. Sin
+   * esto, al recargar AXIS volvía a contar con el partido que le habían dicho
+   * que se había cancelado.
+   */
+  if (oldVersion >= 4 && oldVersion < 5 && transaction) {
+    const store = transaction.objectStore(STORES.dayPlan)
+    const cursorRequest = store.openCursor()
+
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result
+      if (!cursor) return
+
+      const stored = cursor.value
+      if (needsDayPlanUpgrade(stored)) {
+        cursor.update(upgradeDayPlanRecord(stored))
+      }
+      cursor.continue()
+    }
+  }
+
+  /*
+   * v5: la conversación con AXIS. Vivía solo en memoria y se perdía al recargar,
+   * junto con cualquier propuesta pendiente de confirmar. Un registro por día.
+   */
+  if (oldVersion < 5) {
+    db.createObjectStore(STORES.conversation, { keyPath: 'dayKey' })
   }
 }
 

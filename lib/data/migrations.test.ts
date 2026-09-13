@@ -7,7 +7,9 @@ import {
   dropLegacySports,
   extractLegacySports,
   FALLBACK_GOAL,
+  needsDayPlanUpgrade,
   needsProfileUpgrade,
+  upgradeDayPlanRecord,
   upgradeProfileRecord,
 } from './migrations'
 
@@ -31,8 +33,69 @@ function legacyProfile(goal: string | null = 'fuerza'): StoredProfile {
   return goal === null ? base : { ...base, goal }
 }
 
-test('la versión del esquema es la que guarda la elección del día', () => {
-  assert.equal(DB_VERSION, 4)
+test('la versión del esquema es la que guarda el plan del día y la conversación', () => {
+  assert.equal(DB_VERSION, 5)
+})
+
+// ---------------------------------------------------------------------------
+// v4 → v5: el plan del día
+// ---------------------------------------------------------------------------
+
+/** La forma que tenía un registro en v4: la elección, con los campos al desnudo. */
+function planV4(partial: Record<string, unknown> = {}) {
+  return {
+    dayKey: '2026-09-11',
+    type: 'LIGHT_TRAINING',
+    focus: 'tren_superior',
+    originHeadline: 'Sesión de tren superior adaptada a tu día.',
+    reason: 'Vas justo de tiempo.',
+    decidedAt: '2026-09-11T12:00:00.000Z',
+    source: 'axis_conversation',
+    ...partial,
+  }
+}
+
+test('una elección guardada en v4 se envuelve sin perder nada', () => {
+  const upgraded = upgradeDayPlanRecord(planV4())
+
+  assert.equal(upgraded.dayKey, '2026-09-11')
+  assert.deepEqual(upgraded.cancelledActivities, [])
+
+  const override = upgraded.override as Record<string, unknown>
+  assert.ok(override, 'la elección no se pierde: se envuelve')
+  assert.equal(override.type, 'LIGHT_TRAINING')
+  assert.equal(override.focus, 'tren_superior')
+  assert.equal(override.originHeadline, 'Sesión de tren superior adaptada a tu día.')
+  assert.equal(override.reason, 'Vas justo de tiempo.')
+  assert.equal(override.source, 'axis_conversation')
+  assert.equal(override.dayKey, '2026-09-11')
+})
+
+test('un registro ya en v5 no se vuelve a tocar', () => {
+  const v5 = {
+    dayKey: '2026-09-11',
+    override: { type: 'RECOVERY', focus: null },
+    cancelledActivities: ['Baloncesto'],
+  }
+
+  assert.equal(needsDayPlanUpgrade(v5), false)
+  assert.equal(upgradeDayPlanRecord(v5), v5, 'se devuelve el mismo objeto')
+})
+
+test('la migración del plan es idempotente', () => {
+  const una = upgradeDayPlanRecord(planV4())
+  const dos = upgradeDayPlanRecord(una)
+
+  assert.deepEqual(dos, una, 'aplicarla dos veces no cambia nada')
+  assert.equal(needsDayPlanUpgrade(una), false)
+})
+
+test('un día sin elección queda con el plan vacío, no roto', () => {
+  // Podría existir un registro sin `type` si algo lo escribió a medias.
+  const upgraded = upgradeDayPlanRecord({ dayKey: '2026-09-11' })
+
+  assert.equal(upgraded.override, null)
+  assert.deepEqual(upgraded.cancelledActivities, [])
 })
 
 // ---------------------------------------------------------------------------

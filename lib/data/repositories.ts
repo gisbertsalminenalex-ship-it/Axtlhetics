@@ -6,7 +6,8 @@
  * sin reescribir la aplicación.
  */
 
-import type { DayPlanOverride } from '../domain/axis/actions'
+import type { DayPlan } from '../domain/axis/actions'
+import type { AxisMessage } from '../domain/axis/conversation'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
@@ -45,8 +46,29 @@ export type WorkoutRepository = {
  * recomendación de AXIS. Nunca hay dos.
  */
 export type DayPlanRepository = {
-  getByDay(dayKey: DayKey): Promise<DayPlanOverride | null>
-  save(override: DayPlanOverride): Promise<void>
+  getByDay(dayKey: DayKey): Promise<DayPlan | null>
+  save(plan: DayPlan): Promise<void>
+  clear(dayKey: DayKey): Promise<void>
+}
+
+/**
+ * La conversación con AXIS, un registro por día.
+ *
+ * Se guarda en el dispositivo, como todo lo demás: no hay servidor ni historial
+ * de conversaciones en ningún sitio. Sirve para que recargar no borre el hilo ni
+ * las propuestas pendientes de confirmar.
+ */
+export type StoredConversation = {
+  dayKey: DayKey
+  messages: AxisMessage[]
+  /** Estado de cada propuesta de acción, para no repetir una ya aplicada. */
+  actionStatuses: Record<string, unknown>
+  updatedAt: string
+}
+
+export type ConversationRepository = {
+  getByDay(dayKey: DayKey): Promise<StoredConversation | null>
+  save(conversation: StoredConversation): Promise<void>
   clear(dayKey: DayKey): Promise<void>
 }
 
@@ -56,4 +78,5 @@ export type Repositories = {
   recovery: RecoveryRepository
   workouts: WorkoutRepository
   dayPlan: DayPlanRepository
+  conversation: ConversationRepository
 }

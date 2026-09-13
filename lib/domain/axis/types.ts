@@ -99,6 +99,14 @@ export type AxisContext = {
   /** Sesiones recientes, de la más nueva a la más antigua. */
   recentSessions: readonly WorkoutSession[]
   activities: readonly ScheduledActivity[]
+  /**
+   * Nombres de actividades que hoy no ocurren, según ha dicho el usuario.
+   *
+   * No se quitan de `activities`: siguen estando registradas, y AXIS debe poder
+   * decir que las tienes aunque hoy no las juegues. Lo que hacen es no contar
+   * para la decisión de hoy.
+   */
+  cancelledToday: readonly string[]
   catalog: readonly Exercise[]
 }
 

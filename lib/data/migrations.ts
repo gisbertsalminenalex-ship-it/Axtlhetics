@@ -14,6 +14,46 @@ import type { TrainingGoal } from '../domain/profile/types'
 /** Objetivo con el que se rellena un perfil que no declaraba ninguno. */
 export const FALLBACK_GOAL: TrainingGoal = 'salud_general'
 
+// ---------------------------------------------------------------------------
+// v4 → v5: el plan del día deja de ser solo la sesión elegida
+// ---------------------------------------------------------------------------
+
+/**
+ * En v4 cada registro de `dayPlan` era la elección de sesión, con sus campos al
+ * desnudo. En v5 pasa a ser un plan del día que además guarda qué actividades
+ * del calendario ha dicho el usuario que hoy no ocurren.
+ *
+ * Lo guardado no se pierde: la elección antigua se envuelve tal cual.
+ */
+export type StoredDayPlan = {
+  dayKey?: unknown
+  override?: unknown
+  cancelledActivities?: unknown
+  /** Campo de la forma antigua. Su presencia delata que hay que envolver. */
+  type?: unknown
+  [key: string]: unknown
+}
+
+export function needsDayPlanUpgrade(stored: StoredDayPlan): boolean {
+  return !('override' in stored) || !Array.isArray(stored.cancelledActivities)
+}
+
+export function upgradeDayPlanRecord(stored: StoredDayPlan): StoredDayPlan {
+  if (!needsDayPlanUpgrade(stored)) return stored
+
+  // La forma antigua se reconoce porque lleva `type` en la raíz: era la elección.
+  const wasOverride = 'type' in stored && stored.type !== undefined
+  const { dayKey, ...rest } = stored
+
+  return {
+    dayKey,
+    override: 'override' in stored ? stored.override : wasOverride ? { dayKey, ...rest } : null,
+    cancelledActivities: Array.isArray(stored.cancelledActivities)
+      ? stored.cancelledActivities
+      : [],
+  }
+}
+
 /**
  * Forma de un perfil guardado por una versión anterior del esquema.
  *
