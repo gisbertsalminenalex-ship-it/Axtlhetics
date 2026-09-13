@@ -13,7 +13,11 @@
 # variables de entorno de Netlify (nunca en el repositorio, nunca NEXT_PUBLIC_*).
 [functions]
   directory = "netlify/functions"
-  node_bundler = "esbuild"
+  # Sin `node_bundler`. Aquí había un "esbuild" que no hacía nada: para las
+  # funciones v2 (las que exportan `default`), zip-it-and-ship-it fuerza nft y
+  # solo atiende a este ajuste si vale "none". El manifest lo confirmaba —
+  # `"bundler": "nft"`— mientras la configuración decía otra cosa. Una línea que
+  # miente sobre lo que hace el sistema es peor que no tenerla.
 
 [build.environment]
   # La misma versión con la que se compila y se pasan los tests en local.

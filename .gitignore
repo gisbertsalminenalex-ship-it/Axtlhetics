@@ -16,3 +16,6 @@ out/
 
 # Local Netlify folder
 .netlify
+
+# Lockfile que genera `netlify dev` al preparar las Edge Functions.
+deno.lock

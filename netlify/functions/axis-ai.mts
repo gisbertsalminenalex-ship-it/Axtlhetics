@@ -133,6 +133,14 @@ export default async function handler(request: Request): Promise<Response> {
   )
 }
 
-export const config = {
-  path: '/.netlify/functions/axis-ai',
-}
+/*
+ * Sin `export const config`.
+ *
+ * Aquí había un `path: '/.netlify/functions/axis-ai'`, que es exactamente la
+ * ruta por defecto de cualquier función. Declararla como ruta personalizada no
+ * añadía nada y rompía el desarrollo local: `netlify dev` se negaba a invocarla
+ * con «cannot be invoked on /.netlify/functions/axis-ai, because the function
+ * has the following URL paths defined: /.netlify/functions/axis-ai».
+ *
+ * Sin la declaración, la función queda en esa misma URL por convención.
+ */
