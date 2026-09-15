@@ -49,6 +49,8 @@ La navegación inferior tiene **exactamente cuatro tabs**:
 
 **No incluir Progreso ni Perfil como tabs ni como pantallas independientes de Core v0.1.** El progreso avanzado y el perfil completo pertenecen a fases futuras salvo aprobación explícita.
 
+Lo que sí existe (D-007) es una **pantalla interna de perfil**, accesible desde el icono de usuario de Inicio: nombre, edad, medidas, objetivos, experiencia, días disponibles, duración habitual y deportes del calendario. Es el mismo formulario del onboarding en modo edición, no una quinta pestaña. Los deportes se registran con un único modelo (días + intensidad, hora opcional) tanto en el onboarding como en Perfil.
+
 ### Cómo se decide el entrenamiento del día (D-001)
 
 Axtlhetics **no se basa principalmente en que el usuario elija manualmente una rutina**. AXIS es el sistema de decisión que determina qué entrenamiento tiene sentido hacer ese día.
@@ -57,7 +59,7 @@ Esto no añade pantallas ni tabs: cambia quién decide el contenido de la sesió
 
 No construir un editor de rutinas ni un gestor de rutinas: la gestión avanzada de rutinas sigue fuera de Core v0.1.
 
-El detalle completo de entradas, salidas y restricciones está en `D-001`. Varios puntos derivados siguen abiertos (`P-001` a `P-004`, `P-009`) y no deben resolverse sin aprobación.
+El detalle completo de entradas, salidas y restricciones está en `D-001`. Los puntos derivados (`P-001` a `P-004`, `P-009`) quedaron cerrados por `D-008` y `D-010`: el usuario negocia la sesión con AXIS y confirma cada cambio; la «rutina utilizada» es la instantánea de la propuesta guardada en cada sesión; objetivos y duración salen del perfil; y el día de descanso tiene su propio estado en Inicio y Entrenamiento.
 
 No implementar funciones futuras simplemente porque sean técnicamente posibles: cuentas, social/community, wearables, sincronización, nube, IA externa, gamificación, perfil completo, progreso independiente, nutrición avanzada u otras capacidades de roadmap.
 
@@ -116,14 +118,17 @@ Claude should surface problems and propose improvements rather than silently cha
 - Tailwind CSS
 - shadcn/ui
 - Lucide React
-- IndexedDB for local persistence in Core v0.1
-- Netlify for web hosting/deployment
+- IndexedDB for local persistence in Core v0.1 (schema v6, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
+- Netlify for web hosting/deployment — static export, deployed as an installable PWA with offline support
+- Netlify Functions for the single server-side piece: `netlify/functions/axis-ai.mts`, the AXIS language layer
+- Gemini (REST via `fetch`, no SDK, model in `AXIS_AI_MODEL`) as the AXIS language provider behind that function
 - GitHub for version control
+- Tests: `node:test` with native type stripping (`pnpm test`), no test framework dependency
 
 Future possibilities, not current requirements:
 
 - Supabase for a future cloud backend if needed
-- OpenAI API or another appropriate AI provider for future AXIS capabilities
+- Any other AI provider, if the language layer ever changes: the domain must not know which provider is behind the function
 
 Do not introduce future infrastructure before it is actually required.
 
@@ -157,13 +162,17 @@ Core v0.1 is local-first.
 
 The application must work without an account and without a backend.
 
-IndexedDB is the current persistence layer.
+IndexedDB is the current persistence layer, at schema **v6**. Stores: `profile`, `activities`, `recovery`, `sessions`, `dayPlan`, `conversation`, `activeWorkout`. Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser.
+
+What persists locally today: the profile and calendar activities, daily recovery inputs, completed and abandoned workout sessions, the workout in progress (a single row, resumed on the next start), the day plan (the session the user confirmed plus the activities they said do not happen today) and the AXIS conversation with the state of its action proposals, one record per day.
+
+Components never touch IndexedDB. The flow is `UI → lib/state/store.tsx → repositories (lib/data) → IndexedDB`, with an in-memory fallback when IndexedDB is unavailable.
 
 Data models should use stable IDs, consistent dates and structures that can reasonably be migrated to a future relational/cloud database.
 
 Do not delete historical workout data simply for convenience.
 
-Do not send personal or training data to external services unless the feature explicitly requires it and the behavior has been approved.
+Do not send personal or training data to external services unless the feature explicitly requires it and the behavior has been approved. The only approved exception is the AXIS language layer (§11): the browser sends a trimmed briefing, without the user's name, to the same-origin Netlify function, which forwards it to Gemini. Nothing is stored server-side.
 
 ---
 
@@ -173,23 +182,19 @@ Do not send personal or training data to external services unless the feature ex
 
 Claude Design is the preferred tool for the generative/visual design phase. Claude Code must implement the approved visual language rather than inventing a different one.
 
-Current project phase: **VISUAL PROTOTYPE**.
+Current project phase: **FUNCTIONAL CORE v0.1**. The visual prototype was reviewed and approved (D-006) and the application is now real and deployed:
 
-During this phase, optimize for:
+- PWA on Netlify, installable and usable offline.
+- Local persistence in IndexedDB v6 through repositories.
+- Recovery Score (D-002, D-009) and Training Load (D-008) computed from real data.
+- AXIS deterministic engine deciding the day, with explained recommendations.
+- AXIS conversation: negotiation of the day's session, typed action proposals that the user confirms, conversation persisted locally per day.
+- Day plan and cancelled activities persisted.
+- Gemini as the AXIS language layer through a Netlify Function, with deterministic fallback.
 
-- visual quality
-- mobile-first composition
-- reusable visual components
-- realistic mock data
-- prototype navigation
-- visual states
-- transitions and micro-interactions
-- responsive behavior
-- accessibility and touch targets
+The rules of this section still apply to any **new** screen or component: the approved visual language is implemented, not reinvented, and the design phases below describe how it was reached. Mock data is no longer the default; real data through the store is.
 
-Do not activate production complexity merely to make the prototype functional. Real database persistence, real AXIS reasoning, external AI, backend/API integration and production analytics are not required for visual approval.
-
-Design process:
+Design process (completed for Core v0.1):
 
 1. Phase 0 — Preparation: extract required content from the Master Document and reconcile approved decisions.
 2. Phase 1 — Design System: colors, typography, spacing, components, iconography, motion and visual rules.
@@ -278,6 +283,14 @@ In Core v0.1, AXIS **is** local, deterministic and rule-based. No external gener
 
 The AXIS architecture must remain provider-agnostic and separated from the UI so that an external AI model can be introduced later without rewriting the application.
 
+### Current implementation state
+
+- **Engine** (`lib/domain/axis/engine.ts`, `rules.ts`, `facts.ts`, `session-builder.ts`): deterministic. It builds one `AxisContext` per day (`context.ts`) and produces a decision with a primary proposal, alternatives and explained factors.
+- **Conversation** (`lib/domain/axis/conversation/`): intents, negotiation of the day's session and follow-ups. The rule is *AXIS cedes by evidence, not by insistence*. It never opens with a compliment; the first sentence is the verdict.
+- **Actions** (`lib/domain/axis/actions.ts`): the conversation can end in a typed action proposal. The flow is `AXIS proposes → user confirms → domain validates (validateAction) → app changes`. Nothing changes because someone typed «sí» in the chat. Actions store the chosen option (type + focus), never a proposal id, and are resolved against the **current** decision when confirmed.
+- **Language layer** (`lib/domain/axis/conversation/ai.ts`, `netlify/functions/axis-ai.mts`): **the deterministic engine decides, the model writes.** Gemini receives the deterministic answer plus a trimmed briefing and may only rewrite the text; structured fields come out of the domain untouched. If the model suggests a different target it is discarded (`modelDisagreed`). It is only called for questions where natural wording adds something; data queries never reach it. Without a key, on error or on timeout the deterministic answer is used and the UI says so. The API key lives only in the function (`GEMINI_API_KEY`, never `NEXT_PUBLIC_*`); structural tests fail if the key or an SDK enters the client or if the domain learns which provider is behind the function.
+- **Persistence**: the conversation and its action statuses are saved per day; the day plan stores the confirmed session choice and the activities cancelled today.
+
 AXIS must not replace professional medical judgment.
 
 ### AXIS as the training decision engine (D-001)
@@ -292,7 +305,7 @@ Every recommendation carries a **short explanation of the reason**. Reference fo
 
 > «Hoy evitaremos cargar más las piernas porque tu fatiga muscular es elevada y ayer hiciste una sesión intensa.»
 
-Several derived points are still open (`P-001` to `P-004`, `P-009`). Do not resolve them independently.
+The derived points `P-001` to `P-004` and `P-009` are closed (D-008, D-010). Open points are listed only in the decisions register; do not resolve any of them independently.
 
 ### Recovery Score (D-002)
 
@@ -300,7 +313,9 @@ The Recovery Score is an **internal orientation index from 0 to 100**. It must n
 
 Approved weights: sleep 35 %, energy 20 %, muscular fatigue 20 %, stress 15 %, hydration 10 %.
 
-These weights must live in a **single centralized place in the code** so they can be changed without rewriting the logic. The `82` shown in the prototype is mock, not a computed result. If there is not enough data, do not invent a score — use the "datos insuficientes" state. AXIS must be able to explain the result briefly.
+These weights must live in a **single centralized place in the code** so they can be changed without rewriting the logic. The score is computed from the day's real inputs (`lib/domain/recovery/score.ts`). If there is not enough data, do not invent a score — use the "datos insuficientes" state. AXIS must be able to explain the result briefly.
+
+Training Load is implemented alongside it (`lib/domain/workouts/load.ts`, D-008): a 0–100 index over the last 7 days, shown as «—» when there is no completed session in the window.
 
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
@@ -360,7 +375,7 @@ States:
 - filled
 - complete
 
-Interaction in the prototype:
+Interaction (implemented in Recuperación, persisted in the day's recovery inputs):
 
 - tap empty → fill
 - tap filled → empty
@@ -391,17 +406,11 @@ Do not move to the next feature until the current feature is genuinely complete.
 
 ---
 
-## 14. First Claude Code session
+## 14. Starting a session
 
-The first Claude Code session should be an audit, not a mass implementation.
+The first Claude Code session was an audit; that step is done. Every later session starts the same way in miniature: read the decisions register, check `git log` for what changed last, and inspect the store and domain that the task touches before proposing anything.
 
-Inspect the repository, configuration, dependencies, architecture, existing components, navigation, persistence and current state.
-
-Compare the real repository against the Master Document, the approved Design System and this CLAUDE.md.
-
-Identify what exists, what is incomplete, what is provisional, risks and technical debt.
-
-Produce an audit and implementation plan before making large changes.
+Do not re-audit the whole repository for a bounded task. Do not start implementing a product change without checking it against the register first.
 
 ---
 
@@ -422,7 +431,7 @@ A complete feature should include, where applicable:
 - Successful build
 - Review against the Master Document
 
-During the **visual prototype phase**, mock data and mock interactions are acceptable and preferred when they make visual iteration faster. Production persistence and real AI logic are not completion requirements for visual approval.
+The visual prototype phase is over: a feature that touches user data is not complete until it reads and writes through the store and the repositories, survives a reload, and its domain logic is tested with `pnpm test`. Before calling it done: `pnpm test`, `pnpm typecheck`, `pnpm build`.
 
 Do not leave known critical issues behind and call the feature finished.
 

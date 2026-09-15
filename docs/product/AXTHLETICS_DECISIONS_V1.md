@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-09-08.
+**Última actualización:** 2026-09-15.
 
 ## Qué es este documento
 
@@ -75,7 +75,7 @@ La arquitectura debe permitir sustituir o ampliar ese motor determinista con IA 
 
 ### Qué NO decide esta entrada
 
-Ver `P-001`, `P-002`, `P-003` y `P-004` en la sección de pendientes: el grado de control del usuario sobre la sesión propuesta, el catálogo de ejercicios, cómo se captura la duración disponible y de dónde salen los objetivos del usuario siguen abiertos.
+Ver `P-001`, `P-002`, `P-003` y `P-004` en la sección de pendientes: el grado de control del usuario sobre la sesión propuesta, el catálogo de ejercicios, cómo se captura la duración disponible y de dónde salen los objetivos del usuario siguen abiertos. *(Cerrados después: `P-004` por D-008; `P-001`, `P-002`, `P-003` y `P-009` por D-010.)*
 
 ---
 
@@ -250,7 +250,7 @@ Ninguna es una decisión de producto: son la opción más pequeña que permitía
 - **Escalas de entrada** (`recovery/scales.ts`): energía, fatiga y estrés en 1–5; sueño en horas. Sueño normalizado por banda de edad (13–18 → 8–10 h; 19+ → 7–9 h; <13 → 9–11 h), con 0 puntos por debajo de 4 h y una penalización muy suave por encima de la banda que **nunca baja de 80**. Cubre lo pedido en `P-005`.
 - **Política de datos suficientes** (`recovery/weights.ts`): el sueño es obligatorio y hacen falta al menos 3 factores registrados. Conservadora y centralizada en una constante. Cubre `P-010`.
 - **La edad se guarda como número**, no como fecha de nacimiento. Es lo que pide el perfil y lo único que necesita la lógica de sueño; envejecerá y habrá que actualizarla a mano.
-- **La sesión en curso vive en memoria.** Si se cierra la aplicación a media sesión, se pierde (`P-014`). La sesión terminada sí se persiste siempre.
+- ~~**La sesión en curso vive en memoria.** Si se cierra la aplicación a media sesión, se pierde (`P-014`).~~ **Superado el 2026-09-15**: se persiste en cada cambio (IndexedDB v6, almacén `activeWorkout`, una única fila) y se reanuda al arrancar. La sesión terminada se persiste siempre.
 
 ### Interfaz
 
@@ -376,25 +376,65 @@ Se cierra siguiendo la regla de D-004: **el Design System se actualiza para refl
 
 ---
 
+## D-010 — Cierre formal de los puntos derivados de D-001
+
+**Fecha:** 2026-09-15 · **Estado:** aprobada
+
+Cierra `P-001`, `P-002`, `P-003` y `P-009`. Los cuatro se fueron resolviendo en el código entre el 8 y el 13 de septiembre, cada uno con su commit y sus tests, pero seguían listados como pendientes. Esta entrada registra **cómo** quedaron resueltos para que la resolución sea una decisión y no un accidente de implementación. No cambia nada del comportamiento actual.
+
+### Control del usuario sobre la sesión (`P-001`)
+
+El usuario **no elige** una rutina, pero **negocia** la sesión propuesta y controla su ejecución:
+
+- **Antes de empezar**, «Cambiar entrenamiento» abre una conversación acotada con AXIS (`lib/domain/axis/conversation/negotiation.ts`). AXIS pide el motivo y cede **por evidencia, no por insistencia**: acepta con un dato registrado o una carga que el usuario acaba de contar; sin evidencia se niega, explica y ofrece un punto intermedio. Puede pedir menos tiempo (`shorter`), otra zona, algo más suave o más exigente, o entrenar cuando AXIS frenaba (`train_anyway`, con criterio propio según el motivo del freno).
+- Todo cambio termina en una **propuesta de acción tipada** que el usuario confirma con un botón (`lib/domain/axis/actions.ts`). Nada cambia porque haya escrito «sí» en el chat. La acción se valida contra la decisión **vigente** al confirmarla.
+- **Durante la sesión**, el usuario ajusta carga y repeticiones serie a serie, salta ejercicios y puede abandonar. Todas esas diferencias quedan registradas como `modifications`.
+- AXIS no inventa sesiones: elige entre las alternativas que el motor ya generó.
+
+### «Rutina utilizada» (`P-002`)
+
+Cada `WorkoutSession` guarda una **instantánea de la propuesta** que la originó (`ProposalSnapshot`: id, tipo, titular, motivo, foco e intensidad) y la lista de **modificaciones** respecto a ella (`proposal_changed`, `exercise_skipped`, `session_shortened`, `session_abandoned`). Es una copia, no una referencia: si la lógica de AXIS cambia mañana, el historial sigue contando qué se recomendó aquel día y qué se hizo de verdad. Vive en `lib/domain/workouts/types.ts`.
+
+### Objetivos y duración disponible (`P-003`)
+
+Salen del **perfil**, que existe como pantalla interna (D-007), no como pestaña:
+
+- `goals` — entre 1 y 3 objetivos de entrenamiento; AXIS los usa para el rango de repeticiones y el estímulo de cada ejercicio (`session-builder.ts`).
+- `typicalSessionMinutes` — duración habitual; AXIS la usa como disponibilidad base (`facts.ts`) y la recorta cuando el calendario del día lo exige (`MODIFIED_TRAINING`).
+- `availableWeekdays` — días en los que el usuario suele entrenar.
+
+La **duración disponible hoy**, cuando difiere de la habitual, no tiene un control propio: se comunica a AXIS en la conversación («solo tengo 20 minutos») y entra como petición `shorter`, que se acomoda porque el tiempo es un límite real y no una preferencia. No se añade ningún control nuevo a las pantallas aprobadas.
+
+### Día sin entrenar (`P-009`)
+
+Cuando AXIS recomienda `RECOVERY` o `REST`:
+
+- **Inicio** muestra el titular del estado («Día de recuperar.» / «Día de descanso.»), la explicación de AXIS y, como acción principal, **«Ver recuperación»** en lugar de «Empezar entrenamiento».
+- **Entrenamiento** muestra «Hoy toca recuperar», sin lista de ejercicios, con la misma acción principal.
+
+La composición y la jerarquía de ambas pantallas no cambian: cambia el contenido de la tarjeta protagonista y el destino del botón. Es coherente con D-006.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
 
 ### Abiertas por D-001 (AXIS decide el entrenamiento)
 
-**`P-001` — ¿Qué control tiene el usuario sobre la sesión que propone AXIS?**
+**`P-001` — ¿Qué control tiene el usuario sobre la sesión que propone AXIS? CERRADO por D-010.**
 D-001 dice que el usuario no elige «principalmente» una rutina, lo que deja abierto si puede rechazar la propuesta, pedir otra, cambiar la duración o entrenar algo distinto. Afecta directamente al diseño de la pantalla de Entrenamiento.
 
-**`P-002` — ¿Qué se guarda como «rutina utilizada» si la sesión la genera AXIS?**
+**`P-002` — ¿Qué se guarda como «rutina utilizada» si la sesión la genera AXIS? CERRADO por D-010.**
 El Documento Maestro (Parte VI.3) exige almacenar «rutina utilizada» en cada entrenamiento. Con sesiones generadas hace falta decidir qué ocupa ese campo: una plantilla con identificador, una instantánea de la sesión generada, o un concepto nuevo. Bloquea el modelo de datos de la fase 3.
 
-**`P-003` — ¿De dónde salen los «objetivos del usuario» y la «duración disponible»?**
+**`P-003` — ¿De dónde salen los «objetivos del usuario» y la «duración disponible»? CERRADO por D-010.**
 D-001 los lista como entradas de AXIS, pero Core v0.1 no tiene pantalla de Perfil y la ficha de Fase 0 §1.2 limita el perfil al nombre. Tampoco existe ningún control en las seis pantallas aprobadas donde el usuario indique de cuánto tiempo dispone hoy. Sin decidir esto, AXIS no puede usar esas dos entradas.
 
 **`P-004` — Catálogo de ejercicios. CERRADO por D-008.**
 Ya estaba PENDIENTE en el Design System §26, y D-001 lo vuelve crítico: «grupos musculares trabajados recientemente» y «progresión de ejercicios» exigen que cada ejercicio tenga metadatos (grupo muscular, patrón de movimiento, progresión). Bloquea el motor de reglas.
 
-**`P-009` — ¿Qué muestran Inicio y Entrenamiento un día en que AXIS recomienda no entrenar?**
+**`P-009` — ¿Qué muestran Inicio y Entrenamiento un día en que AXIS recomienda no entrenar? CERRADO por D-010.**
 D-001 autoriza expresamente esa recomendación, pero el prototipo aprobado siempre muestra «Empezar entrenamiento» y una sesión de hoy. Es un estado visual que no existe y que no debo diseñar por mi cuenta.
 
 ### Abiertas por D-002 (Recovery Score)
@@ -424,8 +464,8 @@ Sigue PENDIENTE en el Design System §6 y §26 («blanco o blanco muy suavemente
 **`P-013` — Fórmula de Carga / Training Load. CERRADO por D-008.**
 Resuelto: índice 0–100 sobre los últimos 7 días, calculado en `lib/domain/workouts/load.ts`.
 
-**`P-014` — Persistir la sesión en curso.**
-Hoy vive en memoria. Cerrar la aplicación a media sesión la pierde. Persistirla no cambia el modelo de datos, solo añade una escritura por serie.
+**`P-014` — Persistir la sesión en curso. CERRADO.**
+Resuelto el 2026-09-15: la sesión se guarda entera en cada cambio (carga, repeticiones, serie completada, ejercicio saltado) en el almacén `activeWorkout` de IndexedDB v6, una sola fila con clave fija. Al arrancar, `reconcileStoredWorkout` (`lib/domain/workouts/active-workout.ts`) decide: si es de hoy se reanuda donde estaba; si es de otro día con series hechas pasa al historial como abandonada (o completada, si no quedaba nada) usando como cierre la hora del último guardado; si es de otro día sin series se descarta. Terminar o abandonar borra la fila. El modelo de datos de la sesión no cambia.
 
 **`P-012` — Ubicación de la skill de diseño. CERRADO.**
 Movida a `.claude/skills/` y corregidas sus referencias. Además se actualizó su contenido, que seguía describiendo la fase de prototipo visual y **prohibía explícitamente** IndexedDB, el Recovery Score real y el razonamiento real de AXIS: al activarse habría dado instrucciones contrarias a lo ya aprobado.
