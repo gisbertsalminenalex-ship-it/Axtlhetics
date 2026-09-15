@@ -12,9 +12,11 @@ import type { RecoveryInputs } from '../../domain/recovery/types'
 import type { DayKey } from '../../domain/shared/dates'
 import type { WorkoutSession } from '../../domain/workouts/types'
 import type {
+  ActiveWorkoutRepository,
   ActivityRepository,
   ConversationRepository,
   DayPlanRepository,
+  StoredActiveWorkout,
   StoredConversation,
   Repositories,
   RecoveryRepository,
@@ -22,7 +24,7 @@ import type {
   WorkoutRepository,
 } from '../repositories'
 import { needsProfileUpgrade, upgradeProfileRecord } from '../migrations'
-import { read, STORES, write } from './db'
+import { ACTIVE_WORKOUT_KEY, read, STORES, write } from './db'
 
 /**
  * Red de seguridad para perfiles anteriores a la v2 del esquema.
@@ -163,6 +165,30 @@ const conversationRepository: ConversationRepository = {
   },
 }
 
+/** La fila tal y como se guarda: el registro más la clave fija. */
+type ActiveWorkoutRow = StoredActiveWorkout & { id: typeof ACTIVE_WORKOUT_KEY }
+
+const activeWorkoutRepository: ActiveWorkoutRepository = {
+  async get() {
+    const stored = await read<ActiveWorkoutRow | undefined>(STORES.activeWorkout, (store) =>
+      store.get(ACTIVE_WORKOUT_KEY),
+    )
+    if (!stored) return null
+    return { workout: stored.workout, updatedAt: stored.updatedAt }
+  },
+  async save(stored) {
+    const row: ActiveWorkoutRow = { id: ACTIVE_WORKOUT_KEY, ...stored }
+    await write(STORES.activeWorkout, (store) => {
+      store.put(row)
+    })
+  },
+  async clear() {
+    await write(STORES.activeWorkout, (store) => {
+      store.delete(ACTIVE_WORKOUT_KEY)
+    })
+  },
+}
+
 export function createIndexedDbRepositories(): Repositories {
   return {
     profile: profileRepository,
@@ -171,5 +197,6 @@ export function createIndexedDbRepositories(): Repositories {
     workouts: workoutRepository,
     dayPlan: dayPlanRepository,
     conversation: conversationRepository,
+    activeWorkout: activeWorkoutRepository,
   }
 }

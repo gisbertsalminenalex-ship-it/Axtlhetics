@@ -51,7 +51,9 @@ import {
   adjustReps as adjustRepsIn,
   adjustWeight as adjustWeightIn,
   completeSet as completeSetIn,
+  hasProgress,
   markProposalChanged,
+  reconcileStoredWorkout,
   skipExercise as skipExerciseIn,
   startWorkout as startWorkoutFrom,
   toWorkoutSession,
@@ -65,6 +67,13 @@ import type { WorkoutSession } from '../domain/workouts/types'
 
 /** Cuántas sesiones carga la aplicación. Suficiente para historial y para AXIS. */
 const SESSION_HISTORY_LIMIT = 200
+
+/** Inserta o reemplaza una sesión manteniendo el orden del historial. */
+function withSession(list: WorkoutSession[], session: WorkoutSession): WorkoutSession[] {
+  return [session, ...list.filter((item) => item.id !== session.id)].sort((a, b) =>
+    b.dayKey.localeCompare(a.dayKey),
+  )
+}
 
 const engine = createDeterministicAxisEngine()
 
@@ -195,6 +204,16 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null)
   const [lastCompleted, setLastCompleted] = useState<WorkoutSession | null>(null)
 
+  /**
+   * La sesión en curso, de forma síncrona.
+   *
+   * Es la fuente de verdad para encadenar cambios: cada acción parte de aquí, no
+   * del valor que hubiera en el closure. Sin esto, dos toques seguidos al selector
+   * de carga antes de que React vuelva a renderizar perderían el primero, y lo que
+   * se guardara en disco no sería lo que se ve en pantalla.
+   */
+  const workoutRef = useRef<ActiveWorkout | null>(null)
+
   // La conversación vive durante la sesión de uso, sin persistencia todavía.
   const [axisMessages, setAxisMessages] = useState<AxisMessage[]>([])
   const [axisStatus, setAxisStatus] = useState<AxisChatStatus>('idle')
@@ -242,6 +261,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           storedSessions,
           storedPlan,
           storedConversation,
+          storedWorkout,
         ] = await Promise.all([
           repositories.profile.get(),
           repositories.activities.list(),
@@ -249,15 +269,46 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           repositories.workouts.list(SESSION_HISTORY_LIMIT),
           repositories.dayPlan.getByDay(dayKey),
           repositories.conversation.getByDay(dayKey),
+          repositories.activeWorkout.get(),
         ])
 
         if (cancelled) return
+
+        /*
+         * La sesión que quedó a medias al cerrar la aplicación.
+         *
+         * Solo se mira en un arranque en frío: si hay una sesión viva en memoria
+         * —la app se recarga al cambiar el día mientras se entrena— manda esa y
+         * lo guardado es su propio reflejo. Lo que se decide con lo guardado vive
+         * en el dominio; aquí solo se aplica.
+         */
+        let sessionsToShow = storedSessions
+        if (!workoutRef.current && storedWorkout) {
+          const outcome = reconcileStoredWorkout(storedWorkout.workout, {
+            today: dayKey,
+            savedAt: storedWorkout.updatedAt,
+          })
+          if (outcome.kind === 'resume') {
+            workoutRef.current = outcome.workout
+            setActiveWorkout(outcome.workout)
+          } else if (outcome.kind === 'archive') {
+            // Al historial como abandonada, y solo entonces se suelta la fila: si
+            // guardar falla, el registro sigue ahí y se reintenta al arrancar.
+            sessionsToShow = withSession(storedSessions, outcome.session)
+            void repositories.workouts
+              .save(outcome.session)
+              .then(() => repositories.activeWorkout.clear())
+              .catch(() => {})
+          } else {
+            void repositories.activeWorkout.clear().catch(() => {})
+          }
+        }
 
         setToday(dayKey)
         setProfile(storedProfile)
         setActivities(storedActivities)
         setRecoveryInputs(storedRecovery ?? emptyRecoveryInputs(dayKey, nowIso()))
-        setSessions(storedSessions)
+        setSessions(sessionsToShow)
         /*
          * Lo que el usuario decidió hoy y no se deduce de sus datos: la sesión
          * que eligió y lo que dijo que hoy no ocurre. Ambas cosas sobreviven a
@@ -523,37 +574,70 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   // Sesión en curso
   // -------------------------------------------------------------------------
 
+  /**
+   * Sustituye la sesión en curso y la escribe en el dispositivo.
+   *
+   * Cada cambio se guarda entero, en el momento: es lo que permite cerrar la
+   * aplicación a media serie y seguir exactamente donde se estaba. Con `null` se
+   * borra la fila. Las escrituras se encolan en el orden en que se piden, así que
+   * la última siempre es la que queda.
+   */
+  const replaceActiveWorkout = useCallback((next: ActiveWorkout | null) => {
+    workoutRef.current = next
+    setActiveWorkout(next)
+
+    const repository = getRepositories().activeWorkout
+    const write = next ? repository.save({ workout: next, updatedAt: nowIso() }) : repository.clear()
+    write.catch(() => {
+      setError('No se pudo guardar el entrenamiento en curso en este dispositivo.')
+    })
+  }, [])
+
+  const updateActiveWorkout = useCallback(
+    (change: (current: ActiveWorkout) => ActiveWorkout) => {
+      const current = workoutRef.current
+      if (!current) return
+      const next = change(current)
+      if (next !== current) replaceActiveWorkout(next)
+    },
+    [replaceActiveWorkout],
+  )
+
   const beginWorkout = useCallback(() => {
+    // Ya hay una en marcha: se sigue con ella. Nunca dos sesiones a la vez.
+    if (workoutRef.current) return
     if (!proposal || !decision) return
     const started = startWorkoutFrom(proposal)
     if (!started) return
 
     const changed = proposal.id !== decision.primary.id
-    setActiveWorkout(changed ? markProposalChanged(started, decision.primary.headline) : started)
-  }, [proposal, decision])
+    replaceActiveWorkout(
+      changed ? markProposalChanged(started, decision.primary.headline) : started,
+    )
+  }, [proposal, decision, replaceActiveWorkout])
 
-  const adjustWeight = useCallback((delta: number) => {
-    setActiveWorkout((current) => (current ? adjustWeightIn(current, delta) : current))
-  }, [])
+  const adjustWeight = useCallback(
+    (delta: number) => updateActiveWorkout((current) => adjustWeightIn(current, delta)),
+    [updateActiveWorkout],
+  )
 
-  const adjustReps = useCallback((delta: number) => {
-    setActiveWorkout((current) => (current ? adjustRepsIn(current, delta) : current))
-  }, [])
+  const adjustReps = useCallback(
+    (delta: number) => updateActiveWorkout((current) => adjustRepsIn(current, delta)),
+    [updateActiveWorkout],
+  )
 
-  const completeSet = useCallback(() => {
-    setActiveWorkout((current) => (current ? completeSetIn(current) : current))
-  }, [])
+  const completeSet = useCallback(
+    () => updateActiveWorkout(completeSetIn),
+    [updateActiveWorkout],
+  )
 
-  const skipExercise = useCallback(() => {
-    setActiveWorkout((current) => (current ? skipExerciseIn(current) : current))
-  }, [])
+  const skipExercise = useCallback(
+    () => updateActiveWorkout(skipExerciseIn),
+    [updateActiveWorkout],
+  )
 
   const saveSession = useCallback(async (session: WorkoutSession) => {
-    setSessions((current) =>
-      [session, ...current.filter((item) => item.id !== session.id)].sort((a, b) =>
-        b.dayKey.localeCompare(a.dayKey),
-      ),
-    )
+    setSessions((current) => withSession(current, session))
     try {
       await getRepositories().workouts.save(session)
     } catch {
@@ -563,28 +647,32 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
 
   const finishWorkout = useCallback(
     async (perceivedEffort: number | null) => {
-      if (!activeWorkout) return
-      const session = toWorkoutSession(activeWorkout, { status: 'completed', perceivedEffort })
+      const workout = workoutRef.current
+      if (!workout) return
+      const session = toWorkoutSession(workout, { status: 'completed', perceivedEffort })
       setLastCompleted(session)
-      setActiveWorkout(null)
+      // La fila de la sesión en curso se borra aquí. Si la app se cerrara justo
+      // antes, al volver la sesión aparecería terminada y se cerraría sola con
+      // el mismo id: no puede duplicarse en el historial.
+      replaceActiveWorkout(null)
       // El día ya está entrenado: la elección deja de tener efecto y se retira
       // también del almacenamiento, no solo de la memoria.
       setDayOverride(null)
       void getRepositories().dayPlan.clear(session.dayKey).catch(() => {})
       await saveSession(session)
     },
-    [activeWorkout, saveSession],
+    [replaceActiveWorkout, saveSession],
   )
 
   const abandonWorkout = useCallback(async () => {
-    if (!activeWorkout) return
-    const hasProgress = activeWorkout.entries.some((entry) => entry.sets.length > 0)
-    setActiveWorkout(null)
+    const workout = workoutRef.current
+    if (!workout) return
+    replaceActiveWorkout(null)
     // Una sesión sin ninguna serie no ensucia el historial: no se guarda.
-    if (hasProgress) {
-      await saveSession(toWorkoutSession(activeWorkout, { status: 'abandoned' }))
+    if (hasProgress(workout)) {
+      await saveSession(toWorkoutSession(workout, { status: 'abandoned' }))
     }
-  }, [activeWorkout, saveSession])
+  }, [replaceActiveWorkout, saveSession])
 
   const rateLastSession = useCallback(
     async (perceivedEffort: number) => {
@@ -852,6 +940,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setDayOverride(null)
     setActionStatuses({})
     setCancelledToday([])
+    // La base ya no existe: se vacía la memoria sin volver a escribir en ella.
+    workoutRef.current = null
     setActiveWorkout(null)
     setLastCompleted(null)
     clearAxisConversation()

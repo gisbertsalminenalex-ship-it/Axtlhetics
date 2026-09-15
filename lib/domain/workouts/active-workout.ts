@@ -5,8 +5,9 @@
  * al terminar. Son funciones puras e inmutables: la interfaz solo guarda el estado
  * que devuelven, sin lógica propia.
  *
- * DECISIÓN MÍNIMA: la sesión en curso vive en memoria. Si se cierra la aplicación a
- * media sesión, se pierde. Persistirla es una mejora posterior y no cambia el modelo.
+ * La sesión en curso se persiste tal cual en cada cambio, y al arrancar se
+ * decide qué hacer con lo guardado (`reconcileStoredWorkout`). Cerrar la
+ * aplicación a media sesión ya no la pierde.
  */
 
 import type { AxisProposal } from '../axis/types'
@@ -263,5 +264,132 @@ export function markProposalChanged(
       ...workout.modifications,
       { kind: 'proposal_changed', detail: `Se cambió la propuesta inicial: ${fromHeadline}` },
     ],
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reanudar una sesión guardada
+// ---------------------------------------------------------------------------
+
+/** `true` si el usuario ha completado al menos una serie. */
+export function hasProgress(workout: ActiveWorkout): boolean {
+  return workout.entries.some((entry) => entry.sets.length > 0)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isCompletedSet(value: unknown): value is CompletedSet {
+  return (
+    isRecord(value) &&
+    typeof value.reps === 'number' &&
+    (value.weightKg === null || typeof value.weightKg === 'number') &&
+    typeof value.completed === 'boolean'
+  )
+}
+
+function isActiveEntry(value: unknown): value is ActiveExerciseEntry {
+  return (
+    isRecord(value) &&
+    typeof value.exerciseId === 'string' &&
+    typeof value.name === 'string' &&
+    (value.imageUrl === null || typeof value.imageUrl === 'string') &&
+    typeof value.targetSets === 'number' &&
+    typeof value.targetReps === 'number' &&
+    typeof value.restSeconds === 'number' &&
+    typeof value.isTimed === 'boolean' &&
+    typeof value.unilateral === 'boolean' &&
+    typeof value.reps === 'number' &&
+    (value.weightKg === null || typeof value.weightKg === 'number') &&
+    Array.isArray(value.sets) &&
+    value.sets.every(isCompletedSet)
+  )
+}
+
+function isProposalSnapshot(value: unknown): value is ProposalSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.proposalId === 'string' &&
+    typeof value.type === 'string' &&
+    typeof value.headline === 'string' &&
+    typeof value.reason === 'string'
+  )
+}
+
+/** Solo lo que `toWorkoutSession` necesita para cerrar la sesión. */
+function isPlannedSession(value: unknown): value is PlannedSession {
+  return (
+    isRecord(value) &&
+    typeof value.focus === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.intensity === 'string' &&
+    typeof value.estimatedMinutes === 'number' &&
+    Array.isArray(value.muscleGroups) &&
+    Array.isArray(value.exercises)
+  )
+}
+
+/**
+ * Comprueba que lo leído del almacenamiento tiene la forma de una sesión en curso.
+ *
+ * Lo que hay en disco pudo escribirlo cualquier versión de la aplicación. Antes
+ * que reanudar algo a medias y romper la pantalla, se descarta: perder una sesión
+ * corrupta es mejor que no poder abrir la app.
+ */
+export function isActiveWorkout(value: unknown): value is ActiveWorkout {
+  if (!isRecord(value)) return false
+  if (typeof value.id !== 'string' || typeof value.dayKey !== 'string') return false
+  if (typeof value.startedAt !== 'string' || Number.isNaN(Date.parse(value.startedAt))) {
+    return false
+  }
+  if (!isProposalSnapshot(value.proposal) || !isPlannedSession(value.plan)) return false
+  if (!Array.isArray(value.entries) || !value.entries.every(isActiveEntry)) return false
+  if (!Array.isArray(value.modifications)) return false
+  return (
+    typeof value.exerciseIndex === 'number' &&
+    Number.isInteger(value.exerciseIndex) &&
+    value.exerciseIndex >= 0 &&
+    value.exerciseIndex <= value.entries.length
+  )
+}
+
+export type StoredWorkoutOutcome =
+  /** Es de hoy: se sigue exactamente donde se dejó. */
+  | { kind: 'resume'; workout: ActiveWorkout }
+  /** Es de otro día y tenía series hechas: pasa al historial como abandonada. */
+  | { kind: 'archive'; session: WorkoutSession }
+  /** No sirve: de otro día sin nada hecho, o con una forma que no se entiende. */
+  | { kind: 'discard' }
+
+/**
+ * Decide qué hacer con una sesión que quedó guardada al cerrar la aplicación.
+ *
+ * Se aplica la misma regla que al abandonar a mano: una sesión sin ninguna serie
+ * no ensucia el historial, y una con series se guarda como abandonada (o como
+ * completada, si ya no quedaba nada por hacer). El
+ * momento de cierre es `savedAt`, la última vez que se escribió el registro, que
+ * es un dato real; usar «ahora» inventaría una duración de horas o días.
+ */
+export function reconcileStoredWorkout(
+  stored: unknown,
+  options: { today: DayKey; savedAt: string },
+): StoredWorkoutOutcome {
+  if (!isActiveWorkout(stored)) return { kind: 'discard' }
+  if (stored.dayKey === options.today) return { kind: 'resume', workout: stored }
+  if (!hasProgress(stored)) return { kind: 'discard' }
+
+  const savedAt = new Date(options.savedAt)
+  const completedAt = Number.isNaN(savedAt.getTime()) ? new Date(stored.startedAt) : savedAt
+
+  // Si ya no quedaba ningún ejercicio, la sesión se hizo entera: la app se cerró
+  // entre la última serie y el resumen. Lo contrario sería registrar como
+  // abandonado un entrenamiento terminado.
+  return {
+    kind: 'archive',
+    session: toWorkoutSession(stored, {
+      status: isFinished(stored) ? 'completed' : 'abandoned',
+      completedAt,
+    }),
   }
 }

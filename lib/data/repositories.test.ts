@@ -6,9 +6,10 @@ import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import { emptyRecoveryInputs } from '../domain/recovery/types'
 import { minutesFromMidnight } from '../domain/shared/dates'
+import type { ActiveWorkout } from '../domain/workouts/active-workout'
 import type { WorkoutSession } from '../domain/workouts/types'
 import { getRepositories } from './index'
-import { isIndexedDbAvailable, openDatabase, STORES } from './indexeddb/db'
+import { ACTIVE_WORKOUT_KEY, isIndexedDbAvailable, openDatabase, STORES } from './indexeddb/db'
 import { createMemoryRepositories } from './memory-repositories'
 
 function profile(partial: Partial<UserProfile> = {}): UserProfile {
@@ -284,6 +285,94 @@ test('pedir una sesión que no existe devuelve null, no lanza', async () => {
 })
 
 // ---------------------------------------------------------------------------
+// Sesión en curso (P-014)
+// ---------------------------------------------------------------------------
+
+function activeWorkout(partial: Partial<ActiveWorkout> = {}): ActiveWorkout {
+  return {
+    id: 'workout-1',
+    dayKey: '2026-09-08',
+    startedAt: '2026-09-08T18:00:00.000Z',
+    proposal: {
+      proposalId: 'proposal-1',
+      type: 'TRAINING',
+      headline: 'Entrena tren superior.',
+      reason: 'Tu recuperación es buena.',
+      focus: 'tren_superior',
+      intensity: 'moderada',
+    },
+    plan: {
+      focus: 'tren_superior',
+      title: 'Fuerza · Tren superior',
+      intensity: 'moderada',
+      estimatedMinutes: 30,
+      muscleGroups: ['pecho'],
+      exercises: [],
+    },
+    entries: [
+      {
+        exerciseId: 'flexiones',
+        name: 'Flexiones',
+        imageUrl: null,
+        targetSets: 3,
+        targetReps: 10,
+        restSeconds: 60,
+        isTimed: false,
+        unilateral: false,
+        reps: 10,
+        weightKg: null,
+        sets: [{ reps: 10, weightKg: null, completed: true }],
+      },
+    ],
+    exerciseIndex: 0,
+    modifications: [],
+    ...partial,
+  }
+}
+
+test('la sesión en curso se guarda, se recupera entera y se borra', async () => {
+  const repositories = createMemoryRepositories()
+  assert.equal(await repositories.activeWorkout.get(), null)
+
+  const workout = activeWorkout()
+  await repositories.activeWorkout.save({ workout, updatedAt: '2026-09-08T18:05:00.000Z' })
+
+  const stored = await repositories.activeWorkout.get()
+  assert.deepEqual(stored?.workout, workout)
+  assert.equal(stored?.updatedAt, '2026-09-08T18:05:00.000Z')
+
+  await repositories.activeWorkout.clear()
+  assert.equal(await repositories.activeWorkout.get(), null)
+})
+
+test('guardar la sesión en curso varias veces deja una sola, la última', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.activeWorkout.save({
+    workout: activeWorkout({ exerciseIndex: 0 }),
+    updatedAt: '2026-09-08T18:05:00.000Z',
+  })
+  await repositories.activeWorkout.save({
+    workout: activeWorkout({ exerciseIndex: 1 }),
+    updatedAt: '2026-09-08T18:09:00.000Z',
+  })
+
+  const stored = await repositories.activeWorkout.get()
+  assert.equal(stored?.workout.exerciseIndex, 1)
+  assert.equal(stored?.updatedAt, '2026-09-08T18:09:00.000Z')
+})
+
+test('borrar una sesión en curso que no existe no lanza', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.activeWorkout.clear()
+  assert.equal(await repositories.activeWorkout.get(), null)
+})
+
+test('la fila de la sesión en curso tiene una clave fija', () => {
+  // Es lo que garantiza desde el esquema que nunca haya dos entrenamientos a la vez.
+  assert.equal(ACTIVE_WORKOUT_KEY, 'current')
+})
+
+// ---------------------------------------------------------------------------
 // Selección de implementación
 // ---------------------------------------------------------------------------
 
@@ -302,6 +391,7 @@ test('abrir la base sin IndexedDB falla de forma explícita', async () => {
 
 test('los almacenes esperados están declarados', () => {
   assert.deepEqual(Object.values(STORES).sort(), [
+    'activeWorkout',
     'activities',
     'conversation',
     'dayPlan',

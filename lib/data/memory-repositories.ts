@@ -11,7 +11,7 @@ import type { DayPlan } from '../domain/axis/actions'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
 import type { WorkoutSession } from '../domain/workouts/types'
-import type { Repositories } from './repositories'
+import type { Repositories, StoredActiveWorkout, StoredConversation } from './repositories'
 
 export function createMemoryRepositories(): Repositories {
   let profile: UserProfile | null = null
@@ -19,7 +19,8 @@ export function createMemoryRepositories(): Repositories {
   const recovery = new Map<DayKey, RecoveryInputs>()
   const sessions = new Map<string, WorkoutSession>()
   const dayPlan = new Map<DayKey, DayPlan>()
-  const conversation = new Map<DayKey, import('./repositories').StoredConversation>()
+  const conversation = new Map<DayKey, StoredConversation>()
+  let activeWorkout: StoredActiveWorkout | null = null
 
   return {
     profile: {
@@ -96,6 +97,17 @@ export function createMemoryRepositories(): Repositories {
       },
       async clear(dayKey) {
         conversation.delete(dayKey)
+      },
+    },
+    activeWorkout: {
+      async get() {
+        return activeWorkout
+      },
+      async save(stored) {
+        activeWorkout = stored
+      },
+      async clear() {
+        activeWorkout = null
       },
     },
   }

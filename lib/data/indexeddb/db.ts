@@ -20,7 +20,7 @@ export const DB_NAME = 'axtlhetics'
  * anteriores intactos: `onupgradeneeded` los ejecuta en orden para quien venga de
  * una versión antigua.
  */
-export const DB_VERSION = 5
+export const DB_VERSION = 6
 
 export const STORES = {
   profile: 'profile',
@@ -29,7 +29,14 @@ export const STORES = {
   sessions: 'sessions',
   dayPlan: 'dayPlan',
   conversation: 'conversation',
+  activeWorkout: 'activeWorkout',
 } as const
+
+/**
+ * Clave fija de la única fila de `activeWorkout`. Que la clave sea constante es
+ * lo que garantiza, desde el esquema, que nunca haya dos sesiones en curso.
+ */
+export const ACTIVE_WORKOUT_KEY = 'current'
 
 export type StoreName = (typeof STORES)[keyof typeof STORES]
 
@@ -112,6 +119,15 @@ function migrate(
    */
   if (oldVersion < 5) {
     db.createObjectStore(STORES.conversation, { keyPath: 'dayKey' })
+  }
+
+  /*
+   * v6: la sesión de entrenamiento en curso (P-014). Vivía solo en memoria y
+   * cerrar la aplicación a media sesión la perdía. Una única fila con clave
+   * fija: no hay dos entrenamientos a la vez.
+   */
+  if (oldVersion < 6) {
+    db.createObjectStore(STORES.activeWorkout, { keyPath: 'id' })
   }
 }
 

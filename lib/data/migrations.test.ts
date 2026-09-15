@@ -33,8 +33,8 @@ function legacyProfile(goal: string | null = 'fuerza'): StoredProfile {
   return goal === null ? base : { ...base, goal }
 }
 
-test('la versión del esquema es la que guarda el plan del día y la conversación', () => {
-  assert.equal(DB_VERSION, 5)
+test('la versión del esquema es la que guarda la sesión en curso', () => {
+  assert.equal(DB_VERSION, 6)
 })
 
 // ---------------------------------------------------------------------------

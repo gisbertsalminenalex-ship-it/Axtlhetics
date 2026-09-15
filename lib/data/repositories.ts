@@ -11,6 +11,7 @@ import type { AxisMessage } from '../domain/axis/conversation'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
+import type { ActiveWorkout } from '../domain/workouts/active-workout'
 import type { WorkoutSession } from '../domain/workouts/types'
 
 export type UserProfileRepository = {
@@ -72,6 +73,26 @@ export type ConversationRepository = {
   clear(dayKey: DayKey): Promise<void>
 }
 
+/**
+ * La sesión de entrenamiento en curso.
+ *
+ * Una fila como mucho: solo puede haber un entrenamiento a la vez. Se escribe
+ * tal cual en cada cambio, para que cerrar la aplicación a media sesión no la
+ * pierda, y se borra al terminar o abandonar. `updatedAt` es la última vez que se
+ * escribió: si la sesión se queda colgada de otro día, es el único dato real
+ * sobre cuándo se dejó.
+ */
+export type StoredActiveWorkout = {
+  workout: ActiveWorkout
+  updatedAt: string
+}
+
+export type ActiveWorkoutRepository = {
+  get(): Promise<StoredActiveWorkout | null>
+  save(stored: StoredActiveWorkout): Promise<void>
+  clear(): Promise<void>
+}
+
 export type Repositories = {
   profile: UserProfileRepository
   activities: ActivityRepository
@@ -79,4 +100,5 @@ export type Repositories = {
   workouts: WorkoutRepository
   dayPlan: DayPlanRepository
   conversation: ConversationRepository
+  activeWorkout: ActiveWorkoutRepository
 }
