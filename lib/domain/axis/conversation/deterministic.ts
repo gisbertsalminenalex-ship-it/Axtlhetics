@@ -401,6 +401,7 @@ function negotiate(
       proposedTarget: null,
       changeRequest: { kind: request.kind, focus: request.focus },
       cancelledActivities: request.cancelledActivities,
+      reportedLoad: request.reportedLoad,
     }
   }
 
@@ -414,6 +415,7 @@ function negotiate(
     proposedReason: verdict.text,
     changeRequest: { kind: request.kind, focus: request.focus },
     cancelledActivities: request.cancelledActivities,
+    reportedLoad: request.reportedLoad,
   }
 }
 

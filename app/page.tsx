@@ -47,7 +47,12 @@ export default function Page() {
 
           {store.status === 'ready' && axisOpen && (
             <div className="ax-enter">
-              <AxisChatScreen onClose={() => setAxisOpen(false)} />
+              <AxisChatScreen
+                onClose={() => {
+                  store.closeAxisChat()
+                  setAxisOpen(false)
+                }}
+              />
             </div>
           )}
 

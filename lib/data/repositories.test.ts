@@ -6,6 +6,7 @@ import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import { emptyRecoveryInputs } from '../domain/recovery/types'
 import { minutesFromMidnight } from '../domain/shared/dates'
+import { emptyDayMemory, type AxisDayMemory } from '../domain/axis/memory'
 import type { ActiveWorkout } from '../domain/workouts/active-workout'
 import type { WorkoutSession } from '../domain/workouts/types'
 import { getRepositories } from './index'
@@ -367,6 +368,46 @@ test('borrar una sesión en curso que no existe no lanza', async () => {
   assert.equal(await repositories.activeWorkout.get(), null)
 })
 
+// ---------------------------------------------------------------------------
+// Memoria de AXIS
+// ---------------------------------------------------------------------------
+
+test('la memoria de un día se guarda, se recupera entera y se borra', async () => {
+  const repositories = createMemoryRepositories()
+  assert.equal(await repositories.axisMemory.getByDay('2026-09-08'), null)
+
+  const memory: AxisDayMemory = {
+    ...emptyDayMemory('2026-09-08', '2026-09-08T10:00:00.000Z'),
+    cancelledActivities: ['Baloncesto'],
+    reportedLoads: [
+      {
+        quote: 'ayer 20 km',
+        muscleGroups: ['piernas'],
+        demanding: true,
+        reportedAt: '2026-09-08T10:00:00.000Z',
+        messageId: 'm1',
+      },
+    ],
+    messages: [{ id: 'm1', role: 'user', text: 'ayer 20 km', createdAt: '2026-09-08T10:00:00.000Z' }],
+    thread: { lastIntent: 'change', changeMode: true, lastChangeRequest: { kind: 'easier', focus: null } },
+  }
+  await repositories.axisMemory.save(memory)
+  assert.deepEqual(await repositories.axisMemory.getByDay('2026-09-08'), memory)
+
+  await repositories.axisMemory.clear('2026-09-08')
+  assert.equal(await repositories.axisMemory.getByDay('2026-09-08'), null)
+})
+
+test('cada día tiene su propia memoria y guardar dos veces sustituye', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.axisMemory.save(emptyDayMemory('2026-09-08'))
+  await repositories.axisMemory.save({ ...emptyDayMemory('2026-09-09'), cancelledActivities: ['Tenis'] })
+  await repositories.axisMemory.save({ ...emptyDayMemory('2026-09-08'), cancelledActivities: ['Baloncesto'] })
+
+  assert.deepEqual((await repositories.axisMemory.getByDay('2026-09-08'))?.cancelledActivities, ['Baloncesto'])
+  assert.deepEqual((await repositories.axisMemory.getByDay('2026-09-09'))?.cancelledActivities, ['Tenis'])
+})
+
 test('la fila de la sesión en curso tiene una clave fija', () => {
   // Es lo que garantiza desde el esquema que nunca haya dos entrenamientos a la vez.
   assert.equal(ACTIVE_WORKOUT_KEY, 'current')
@@ -393,8 +434,7 @@ test('los almacenes esperados están declarados', () => {
   assert.deepEqual(Object.values(STORES).sort(), [
     'activeWorkout',
     'activities',
-    'conversation',
-    'dayPlan',
+    'axisMemory',
     'profile',
     'recovery',
     'sessions',

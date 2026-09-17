@@ -7,10 +7,13 @@
  */
 
 import {
+  mergeIntoAxisMemory,
   needsDayPlanUpgrade,
   needsProfileUpgrade,
   upgradeDayPlanRecord,
   upgradeProfileRecord,
+  type StoredConversationRecord,
+  type StoredDayPlan,
 } from '../migrations'
 
 export const DB_NAME = 'axtlhetics'
@@ -20,16 +23,24 @@ export const DB_NAME = 'axtlhetics'
  * anteriores intactos: `onupgradeneeded` los ejecuta en orden para quien venga de
  * una versión antigua.
  */
-export const DB_VERSION = 6
+export const DB_VERSION = 7
 
 export const STORES = {
   profile: 'profile',
   activities: 'activities',
   recovery: 'recovery',
   sessions: 'sessions',
+  axisMemory: 'axisMemory',
+  activeWorkout: 'activeWorkout',
+} as const
+
+/**
+ * Almacenes que existieron y ya no. Solo la migración los nombra: nadie más
+ * puede leerlos ni escribirlos.
+ */
+const LEGACY_STORES = {
   dayPlan: 'dayPlan',
   conversation: 'conversation',
-  activeWorkout: 'activeWorkout',
 } as const
 
 /**
@@ -88,7 +99,7 @@ function migrate(
    * decidir y se selecciona la equivalente.
    */
   if (oldVersion < 4) {
-    db.createObjectStore(STORES.dayPlan, { keyPath: 'dayKey' })
+    db.createObjectStore(LEGACY_STORES.dayPlan, { keyPath: 'dayKey' })
   }
 
   /*
@@ -98,7 +109,7 @@ function migrate(
    * que se había cancelado.
    */
   if (oldVersion >= 4 && oldVersion < 5 && transaction) {
-    const store = transaction.objectStore(STORES.dayPlan)
+    const store = transaction.objectStore(LEGACY_STORES.dayPlan)
     const cursorRequest = store.openCursor()
 
     cursorRequest.onsuccess = () => {
@@ -118,7 +129,7 @@ function migrate(
    * junto con cualquier propuesta pendiente de confirmar. Un registro por día.
    */
   if (oldVersion < 5) {
-    db.createObjectStore(STORES.conversation, { keyPath: 'dayKey' })
+    db.createObjectStore(LEGACY_STORES.conversation, { keyPath: 'dayKey' })
   }
 
   /*
@@ -128,6 +139,65 @@ function migrate(
    */
   if (oldVersion < 6) {
     db.createObjectStore(STORES.activeWorkout, { keyPath: 'id' })
+  }
+
+  /*
+   * v7: la memoria de AXIS. El plan del día y la conversación eran dos
+   * registros del mismo día escritos por caminos distintos, y tres estados de
+   * la conversación no se guardaban en ningún sitio. Pasan a ser un solo
+   * registro por día.
+   *
+   * Los almacenes antiguos se leen enteros, se funden y **solo entonces** se
+   * eliminan, dentro de esta misma transacción de subida de versión: si algo
+   * falla a medias, la transacción se aborta y la base queda como estaba.
+   */
+  if (oldVersion < 7) {
+    const memory = db.createObjectStore(STORES.axisMemory, { keyPath: 'dayKey' })
+
+    // Una instalación nueva no tiene nada que fundir.
+    if (!transaction || oldVersion < 4) return
+
+    const plans = new Map<string, StoredDayPlan>()
+    const conversations = new Map<string, StoredConversationRecord>()
+
+    const finish = () => {
+      const days = new Set([...plans.keys(), ...conversations.keys()])
+      for (const dayKey of days) {
+        memory.put(mergeIntoAxisMemory(dayKey, plans.get(dayKey) ?? null, conversations.get(dayKey) ?? null))
+      }
+      db.deleteObjectStore(LEGACY_STORES.dayPlan)
+      if (oldVersion >= 5) db.deleteObjectStore(LEGACY_STORES.conversation)
+    }
+
+    const readConversations = () => {
+      if (oldVersion < 5) {
+        finish()
+        return
+      }
+      const cursorRequest = transaction.objectStore(LEGACY_STORES.conversation).openCursor()
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result
+        if (!cursor) {
+          finish()
+          return
+        }
+        const stored = cursor.value as StoredConversationRecord
+        if (typeof stored.dayKey === 'string') conversations.set(stored.dayKey, stored)
+        cursor.continue()
+      }
+    }
+
+    const readPlans = transaction.objectStore(LEGACY_STORES.dayPlan).openCursor()
+    readPlans.onsuccess = () => {
+      const cursor = readPlans.result
+      if (!cursor) {
+        readConversations()
+        return
+      }
+      const stored = cursor.value as StoredDayPlan
+      if (typeof stored.dayKey === 'string') plans.set(stored.dayKey, stored)
+      cursor.continue()
+    }
   }
 }
 

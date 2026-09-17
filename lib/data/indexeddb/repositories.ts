@@ -5,7 +5,7 @@
  * negocio vive aquí: esta capa solo guarda y recupera.
  */
 
-import type { DayPlan } from '../../domain/axis/actions'
+import { isAxisDayMemory, type AxisDayMemory } from '../../domain/axis/memory'
 import type { ScheduledActivity, UserProfile } from '../../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../../domain/profile/types'
 import type { RecoveryInputs } from '../../domain/recovery/types'
@@ -14,10 +14,8 @@ import type { WorkoutSession } from '../../domain/workouts/types'
 import type {
   ActiveWorkoutRepository,
   ActivityRepository,
-  ConversationRepository,
-  DayPlanRepository,
+  AxisMemoryRepository,
   StoredActiveWorkout,
-  StoredConversation,
   Repositories,
   RecoveryRepository,
   UserProfileRepository,
@@ -120,46 +118,20 @@ const workoutRepository: WorkoutRepository = {
   },
 }
 
-const dayPlanRepository: DayPlanRepository = {
+const axisMemoryRepository: AxisMemoryRepository = {
   async getByDay(dayKey: DayKey) {
-    const stored = await read<DayPlan | undefined>(STORES.dayPlan, (store) => store.get(dayKey))
-    if (!stored) return null
-    // Defensa por si un registro se escribió con la forma antigua: la migración
-    // lo arregla al abrir, pero leer nunca debe devolver algo a medias.
-    return {
-      dayKey: stored.dayKey,
-      override: stored.override ?? null,
-      cancelledActivities: Array.isArray(stored.cancelledActivities)
-        ? stored.cancelledActivities
-        : [],
-    }
+    const stored = await read<unknown>(STORES.axisMemory, (store) => store.get(dayKey))
+    // Leer nunca devuelve algo a medias: un registro que no se entiende es como
+    // si no existiera, y el día empieza vacío.
+    return isAxisDayMemory(stored) ? stored : null
   },
-  async save(plan) {
-    await write(STORES.dayPlan, (store) => {
-      store.put(plan)
+  async save(memory: AxisDayMemory) {
+    await write(STORES.axisMemory, (store) => {
+      store.put(memory)
     })
   },
   async clear(dayKey) {
-    await write(STORES.dayPlan, (store) => {
-      store.delete(dayKey)
-    })
-  },
-}
-
-const conversationRepository: ConversationRepository = {
-  async getByDay(dayKey: DayKey) {
-    const stored = await read<StoredConversation | undefined>(STORES.conversation, (store) =>
-      store.get(dayKey),
-    )
-    return stored ?? null
-  },
-  async save(conversation) {
-    await write(STORES.conversation, (store) => {
-      store.put(conversation)
-    })
-  },
-  async clear(dayKey) {
-    await write(STORES.conversation, (store) => {
+    await write(STORES.axisMemory, (store) => {
       store.delete(dayKey)
     })
   },
@@ -195,8 +167,7 @@ export function createIndexedDbRepositories(): Repositories {
     activities: activityRepository,
     recovery: recoveryRepository,
     workouts: workoutRepository,
-    dayPlan: dayPlanRepository,
-    conversation: conversationRepository,
+    axisMemory: axisMemoryRepository,
     activeWorkout: activeWorkoutRepository,
   }
 }

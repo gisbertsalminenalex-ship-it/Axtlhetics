@@ -9,6 +9,7 @@
  * registro, lo deja como está.
  */
 
+import { emptyDayMemory, type AxisDayMemory } from '../domain/axis/memory'
 import type { TrainingGoal } from '../domain/profile/types'
 
 /** Objetivo con el que se rellena un perfil que no declaraba ninguno. */
@@ -117,4 +118,67 @@ export function dropLegacySports<T extends StoredProfile>(stored: T): T {
 export function needsProfileUpgrade(stored: StoredProfile): boolean {
   const goalsPending = !Array.isArray(stored.goals) || stored.goals.length === 0
   return goalsPending || 'sports' in stored
+}
+
+// ---------------------------------------------------------------------------
+// v6 → v7: el plan del día y la conversación se funden en la memoria de AXIS
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo que había en `conversation` hasta v6: el hilo y el estado de sus acciones.
+ * Laxo a propósito: viene del disco.
+ */
+export type StoredConversationRecord = {
+  dayKey?: unknown
+  messages?: unknown
+  actionStatuses?: unknown
+  updatedAt?: unknown
+  [key: string]: unknown
+}
+
+/**
+ * Funde el plan del día (v4/v5) y la conversación (v5) en una memoria de AXIS.
+ *
+ * Regla de siempre: **no se pierde nada**. Cada campo antiguo va a su sitio y los
+ * nuevos —lo que el usuario contó, dónde estaba la conversación— empiezan
+ * vacíos, que es lo único cierto que se sabe de ellos. Un plan con la forma v4
+ * también entra: se pasa por su propia migración antes.
+ *
+ * Es pura e idempotente: fundir lo ya fundido devuelve lo mismo.
+ */
+export function mergeIntoAxisMemory(
+  dayKey: string,
+  plan: StoredDayPlan | null,
+  conversation: StoredConversationRecord | null,
+): AxisDayMemory {
+  const upgradedPlan = plan ? upgradeDayPlanRecord(plan) : null
+
+  const override =
+    upgradedPlan && typeof upgradedPlan.override === 'object' && upgradedPlan.override !== null
+      ? (upgradedPlan.override as AxisDayMemory['override'])
+      : null
+
+  const cancelledActivities = Array.isArray(upgradedPlan?.cancelledActivities)
+    ? upgradedPlan.cancelledActivities.filter((item): item is string => typeof item === 'string')
+    : []
+
+  const messages = Array.isArray(conversation?.messages)
+    ? (conversation.messages as AxisDayMemory['messages'])
+    : []
+
+  const actionStatuses =
+    conversation && typeof conversation.actionStatuses === 'object' && conversation.actionStatuses !== null
+      ? (conversation.actionStatuses as AxisDayMemory['actionStatuses'])
+      : {}
+
+  const updatedAt =
+    typeof conversation?.updatedAt === 'string' ? conversation.updatedAt : new Date(0).toISOString()
+
+  return {
+    ...emptyDayMemory(dayKey, updatedAt),
+    override,
+    cancelledActivities,
+    messages,
+    actionStatuses,
+  }
 }

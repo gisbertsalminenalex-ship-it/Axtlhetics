@@ -6,8 +6,7 @@
  * sin reescribir la aplicación.
  */
 
-import type { DayPlan } from '../domain/axis/actions'
-import type { AxisMessage } from '../domain/axis/conversation'
+import type { AxisDayMemory } from '../domain/axis/memory'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
@@ -41,35 +40,16 @@ export type WorkoutRepository = {
 }
 
 /**
- * La elección de entrenamiento del día.
+ * La memoria de AXIS, un registro por día.
  *
- * Una fila por día como mucho: o el usuario aceptó un cambio, o manda la
- * recomendación de AXIS. Nunca hay dos.
+ * Lo decidido hoy, lo que el usuario ha contado, el hilo de la conversación y
+ * dónde estaba. Se guarda en el dispositivo, como todo lo demás: no hay servidor
+ * ni historial de conversaciones en ningún sitio. Los días anteriores se
+ * conservan; nada aquí los lee todavía.
  */
-export type DayPlanRepository = {
-  getByDay(dayKey: DayKey): Promise<DayPlan | null>
-  save(plan: DayPlan): Promise<void>
-  clear(dayKey: DayKey): Promise<void>
-}
-
-/**
- * La conversación con AXIS, un registro por día.
- *
- * Se guarda en el dispositivo, como todo lo demás: no hay servidor ni historial
- * de conversaciones en ningún sitio. Sirve para que recargar no borre el hilo ni
- * las propuestas pendientes de confirmar.
- */
-export type StoredConversation = {
-  dayKey: DayKey
-  messages: AxisMessage[]
-  /** Estado de cada propuesta de acción, para no repetir una ya aplicada. */
-  actionStatuses: Record<string, unknown>
-  updatedAt: string
-}
-
-export type ConversationRepository = {
-  getByDay(dayKey: DayKey): Promise<StoredConversation | null>
-  save(conversation: StoredConversation): Promise<void>
+export type AxisMemoryRepository = {
+  getByDay(dayKey: DayKey): Promise<AxisDayMemory | null>
+  save(memory: AxisDayMemory): Promise<void>
   clear(dayKey: DayKey): Promise<void>
 }
 
@@ -98,7 +78,6 @@ export type Repositories = {
   activities: ActivityRepository
   recovery: RecoveryRepository
   workouts: WorkoutRepository
-  dayPlan: DayPlanRepository
-  conversation: ConversationRepository
+  axisMemory: AxisMemoryRepository
   activeWorkout: ActiveWorkoutRepository
 }

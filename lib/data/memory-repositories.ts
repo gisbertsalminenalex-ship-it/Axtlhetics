@@ -7,19 +7,18 @@
  */
 
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
-import type { DayPlan } from '../domain/axis/actions'
+import type { AxisDayMemory } from '../domain/axis/memory'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
 import type { WorkoutSession } from '../domain/workouts/types'
-import type { Repositories, StoredActiveWorkout, StoredConversation } from './repositories'
+import type { Repositories, StoredActiveWorkout } from './repositories'
 
 export function createMemoryRepositories(): Repositories {
   let profile: UserProfile | null = null
   const activities = new Map<string, ScheduledActivity>()
   const recovery = new Map<DayKey, RecoveryInputs>()
   const sessions = new Map<string, WorkoutSession>()
-  const dayPlan = new Map<DayKey, DayPlan>()
-  const conversation = new Map<DayKey, StoredConversation>()
+  const axisMemory = new Map<DayKey, AxisDayMemory>()
   let activeWorkout: StoredActiveWorkout | null = null
 
   return {
@@ -77,26 +76,15 @@ export function createMemoryRepositories(): Repositories {
         sessions.set(session.id, session)
       },
     },
-    dayPlan: {
+    axisMemory: {
       async getByDay(dayKey) {
-        return dayPlan.get(dayKey) ?? null
+        return axisMemory.get(dayKey) ?? null
       },
-      async save(plan) {
-        dayPlan.set(plan.dayKey, plan)
+      async save(memory) {
+        axisMemory.set(memory.dayKey, memory)
       },
       async clear(dayKey) {
-        dayPlan.delete(dayKey)
-      },
-    },
-    conversation: {
-      async getByDay(dayKey) {
-        return conversation.get(dayKey) ?? null
-      },
-      async save(stored) {
-        conversation.set(stored.dayKey, stored)
-      },
-      async clear(dayKey) {
-        conversation.delete(dayKey)
+        axisMemory.delete(dayKey)
       },
     },
     activeWorkout: {

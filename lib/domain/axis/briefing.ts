@@ -26,6 +26,7 @@ import { formatMinutesOfDay, type DayKey } from '../shared/dates'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
 import type { SessionFocus, WorkoutSession } from '../workouts/types'
 import { deriveFacts } from './facts'
+import type { ReportedLoadMemory } from './memory'
 import type { AxisContext, AxisDecision, AxisProposal, AxisRecommendationType } from './types'
 
 export type BriefingRecovery =
@@ -134,6 +135,13 @@ export type AxisBriefing = {
   daysSinceLastWorkout: number | null
   trainedToday: boolean
   recentMuscleGroups: string[]
+  /**
+   * Cargas que el usuario ha contado hoy y que no están registradas.
+   *
+   * Vienen de la memoria del día. La conversación las usa como evidencia; el
+   * motor no las mira: no son datos, son lo que el usuario dice.
+   */
+  reportedLoads: ReportedLoadMemory[]
 }
 
 /**
@@ -154,6 +162,8 @@ export function buildBriefing(
   selected?: AxisProposal | null,
   /** La elección confirmada de hoy, si la hay. */
   override?: { originHeadline: string; reason: string } | null,
+  /** Lo que el usuario ha contado hoy. Por defecto, nada. */
+  reportedLoads: readonly ReportedLoadMemory[] = [],
 ): AxisBriefing {
   const facts = deriveFacts(context)
   const load = computeTrainingLoad(sessions, context.dayKey)
@@ -210,6 +220,7 @@ export function buildBriefing(
     daysSinceLastWorkout: facts.daysSinceLastWorkout,
     trainedToday: facts.trainedToday,
     recentMuscleGroups: [...facts.recentMuscleGroups],
+    reportedLoads: [...reportedLoads],
   }
 }
 

@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-09-15.
+**Última actualización:** 2026-09-17.
 
 ## Qué es este documento
 
@@ -413,6 +413,30 @@ Cuando AXIS recomienda `RECOVERY` o `REST`:
 - **Entrenamiento** muestra «Hoy toca recuperar», sin lista de ejercicios, con la misma acción principal.
 
 La composición y la jerarquía de ambas pantallas no cambian: cambia el contenido de la tarjeta protagonista y el destino del botón. Es coherente con D-006.
+
+---
+
+## D-011 — Memoria de AXIS: un registro por día
+
+**Fecha:** 2026-09-17 · **Estado:** aprobada
+
+Todo lo que AXIS recuerda de un día y no se deduce de los datos vive en **un solo registro por `dayKey`** (`AxisDayMemory`, `lib/domain/axis/memory.ts`), persistido en IndexedDB v7 (almacén `axisMemory`). Sustituye a `dayPlan` y `conversation`, que se funden en la migración v6→v7 y se eliminan en la misma transacción una vez copiados.
+
+### Qué contiene
+
+- la sesión confirmada hoy (`override`) y las actividades que hoy no ocurren;
+- las cargas que el usuario ha contado y no están registradas (`reportedLoads`);
+- el hilo de mensajes y el estado de cada propuesta de acción;
+- dónde estaba la conversación: última intención, modo cambio y última petición.
+
+### Reglas
+
+- **«Cambiar entrenamiento» no borra el hilo.** Añade el mensaje de apertura y activa el modo cambio; si ya estaba activo, no se abre dos veces.
+- **El modo cambio termina** al confirmar una acción, al cancelarla o al pulsar «Volver». Sobrevive a una recarga mientras dure.
+- **Lo contado cuenta después.** Una carga contada en un mensaje sigue siendo evidencia para las peticiones posteriores del mismo día. Solo en la conversación: el motor, `deriveFacts` y las reglas no la leen. Se sigue diciendo que no consta registrada.
+- **Terminar de entrenar retira solo la elección.** Cancelaciones, cargas, hilo y acciones se conservan.
+- **La memoria de ayer no se aplica hoy.** Cada día empieza vacío; los registros de días anteriores se conservan sin límite, y por ahora nadie los lee.
+- Ninguna inteligencia nueva: es memoria, no decisión.
 
 ---
 

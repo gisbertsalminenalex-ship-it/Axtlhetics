@@ -25,6 +25,7 @@ import { buildBriefing } from './briefing'
 import { buildAxisContext } from './context'
 import { answerFromBriefing } from './conversation/deterministic'
 import { decide } from './engine'
+import { applyOverride, emptyDayMemory } from './memory'
 import type { AxisContext, AxisDecision, AxisProposal } from './types'
 
 const MONDAY = new Date(2026, 8, 7, 10, 0)
@@ -189,7 +190,7 @@ test('construir la acción no toca el estado ni la persistencia', async () => {
   anAction(w)
 
   assert.equal(
-    await repositories.dayPlan.getByDay(MONDAY_KEY),
+    await repositories.axisMemory.getByDay(MONDAY_KEY),
     null,
     'nada se ha guardado: hace falta confirmar',
   )
@@ -229,13 +230,11 @@ test('al aplicar, la elección guardada apunta a la nueva sesión', async () => 
   assert.equal(validation.ok, true)
   if (!validation.ok) return
 
-  await repositories.dayPlan.save({
-    dayKey: MONDAY_KEY,
-    override: overrideFrom(action, validation.target),
-    cancelledActivities: [],
-  })
+  await repositories.axisMemory.save(
+    applyOverride(emptyDayMemory(MONDAY_KEY), overrideFrom(action, validation.target), action.id),
+  )
 
-  const stored = await repositories.dayPlan.getByDay(MONDAY_KEY)
+  const stored = await repositories.axisMemory.getByDay(MONDAY_KEY)
   assert.ok(stored?.override)
   assert.equal(stored.override.type, target.type)
   assert.equal(stored.override.focus, target.session?.focus ?? null)

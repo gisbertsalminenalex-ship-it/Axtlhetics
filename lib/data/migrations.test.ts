@@ -3,10 +3,12 @@ import test from 'node:test'
 
 import { DB_VERSION } from './indexeddb/db'
 import type { StoredProfile } from './migrations'
+import { isAxisDayMemory } from '../domain/axis/memory'
 import {
   dropLegacySports,
   extractLegacySports,
   FALLBACK_GOAL,
+  mergeIntoAxisMemory,
   needsDayPlanUpgrade,
   needsProfileUpgrade,
   upgradeDayPlanRecord,
@@ -33,8 +35,8 @@ function legacyProfile(goal: string | null = 'fuerza'): StoredProfile {
   return goal === null ? base : { ...base, goal }
 }
 
-test('la versión del esquema es la que guarda la sesión en curso', () => {
-  assert.equal(DB_VERSION, 6)
+test('la versión del esquema es la que guarda la memoria de AXIS', () => {
+  assert.equal(DB_VERSION, 7)
 })
 
 // ---------------------------------------------------------------------------
@@ -224,4 +226,107 @@ test('migrar de v1 a v3 de una vez arregla objetivos y deportes', () => {
   assert.equal('goal' in upgraded, false)
   assert.equal('sports' in upgraded, false)
   assert.equal(upgraded.name, 'Alex')
+})
+
+// ---------------------------------------------------------------------------
+// v6 → v7: la memoria de AXIS
+// ---------------------------------------------------------------------------
+
+/** Un plan del día tal y como lo guardaba v5/v6. */
+function planV6(partial: Record<string, unknown> = {}) {
+  return {
+    dayKey: '2026-09-11',
+    override: {
+      dayKey: '2026-09-11',
+      type: 'LIGHT_TRAINING',
+      focus: 'tren_superior',
+      originHeadline: 'Entrena tren superior con intensidad moderada.',
+      reason: 'Vas justo de tiempo.',
+      decidedAt: '2026-09-11T12:00:00.000Z',
+      source: 'axis_conversation',
+    },
+    cancelledActivities: ['Baloncesto'],
+    ...partial,
+  }
+}
+
+/** Una conversación tal y como la guardaba v5/v6. */
+function conversationV6(partial: Record<string, unknown> = {}) {
+  return {
+    dayKey: '2026-09-11',
+    messages: [
+      { id: 'm1', role: 'user', text: 'hola', createdAt: '2026-09-11T12:00:00.000Z' },
+      {
+        id: 'm2',
+        role: 'axis',
+        text: 'Hoy toca tren superior.',
+        createdAt: '2026-09-11T12:00:01.000Z',
+        intent: 'today',
+        modelDisagreed: true,
+      },
+    ],
+    actionStatuses: { a1: { state: 'applied' } },
+    updatedAt: '2026-09-11T12:00:01.000Z',
+    ...partial,
+  }
+}
+
+test('plan y conversación del mismo día se funden sin perder ningún campo', () => {
+  const memory = mergeIntoAxisMemory('2026-09-11', planV6(), conversationV6())
+
+  assert.equal(isAxisDayMemory(memory), true)
+  assert.equal(memory.dayKey, '2026-09-11')
+  assert.equal(memory.schema, 1)
+  assert.deepEqual(memory.override, planV6().override)
+  assert.deepEqual(memory.cancelledActivities, ['Baloncesto'])
+  assert.deepEqual(memory.messages, conversationV6().messages)
+  assert.deepEqual(memory.actionStatuses, { a1: { state: 'applied' } })
+  assert.equal(memory.updatedAt, '2026-09-11T12:00:01.000Z')
+  // Lo nuevo empieza vacío: es lo único cierto que se sabe.
+  assert.deepEqual(memory.reportedLoads, [])
+  assert.deepEqual(memory.thread, { lastIntent: null, changeMode: false, lastChangeRequest: null })
+})
+
+test('solo plan, o solo conversación, también producen una memoria completa', () => {
+  const onlyPlan = mergeIntoAxisMemory('2026-09-11', planV6(), null)
+  assert.equal(isAxisDayMemory(onlyPlan), true)
+  assert.ok(onlyPlan.override)
+  assert.deepEqual(onlyPlan.messages, [])
+  assert.deepEqual(onlyPlan.actionStatuses, {})
+
+  const onlyConversation = mergeIntoAxisMemory('2026-09-11', null, conversationV6())
+  assert.equal(isAxisDayMemory(onlyConversation), true)
+  assert.equal(onlyConversation.override, null)
+  assert.deepEqual(onlyConversation.cancelledActivities, [])
+  assert.equal(onlyConversation.messages.length, 2)
+
+  const nothing = mergeIntoAxisMemory('2026-09-11', null, null)
+  assert.equal(isAxisDayMemory(nothing), true)
+  assert.equal(nothing.messages.length, 0)
+})
+
+test('un plan con la forma v4 llega a v7 correcto: las migraciones se encadenan', () => {
+  const memory = mergeIntoAxisMemory('2026-09-11', planV4(), null)
+  assert.equal(memory.override?.type, 'LIGHT_TRAINING')
+  assert.equal(memory.override?.focus, 'tren_superior')
+  assert.deepEqual(memory.cancelledActivities, [])
+})
+
+test('la fusión es idempotente: fundir lo ya fundido devuelve lo mismo', () => {
+  const once = mergeIntoAxisMemory('2026-09-11', planV6(), conversationV6())
+  const twice = mergeIntoAxisMemory('2026-09-11', once, once)
+  assert.deepEqual(twice, once)
+})
+
+test('un registro antiguo con campos rotos no rompe la fusión', () => {
+  const memory = mergeIntoAxisMemory(
+    '2026-09-11',
+    planV6({ cancelledActivities: 'Baloncesto', override: 'nada' }),
+    conversationV6({ messages: 'hola', actionStatuses: null, updatedAt: 42 }),
+  )
+  assert.equal(isAxisDayMemory(memory), true)
+  assert.equal(memory.override, null)
+  assert.deepEqual(memory.cancelledActivities, [])
+  assert.deepEqual(memory.messages, [])
+  assert.deepEqual(memory.actionStatuses, {})
 })

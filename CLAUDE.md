@@ -118,7 +118,7 @@ Claude should surface problems and propose improvements rather than silently cha
 - Tailwind CSS
 - shadcn/ui
 - Lucide React
-- IndexedDB for local persistence in Core v0.1 (schema v6, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
+- IndexedDB for local persistence in Core v0.1 (schema v7, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
 - Netlify for web hosting/deployment — static export, deployed as an installable PWA with offline support
 - Netlify Functions for the single server-side piece: `netlify/functions/axis-ai.mts`, the AXIS language layer
 - Gemini (REST via `fetch`, no SDK, model in `AXIS_AI_MODEL`) as the AXIS language provider behind that function
@@ -162,9 +162,9 @@ Core v0.1 is local-first.
 
 The application must work without an account and without a backend.
 
-IndexedDB is the current persistence layer, at schema **v6**. Stores: `profile`, `activities`, `recovery`, `sessions`, `dayPlan`, `conversation`, `activeWorkout`. Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser.
+IndexedDB is the current persistence layer, at schema **v7**. Stores: `profile`, `activities`, `recovery`, `sessions`, `axisMemory`, `activeWorkout`. Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser.
 
-What persists locally today: the profile and calendar activities, daily recovery inputs, completed and abandoned workout sessions, the workout in progress (a single row, resumed on the next start), the day plan (the session the user confirmed plus the activities they said do not happen today) and the AXIS conversation with the state of its action proposals, one record per day.
+What persists locally today: the profile and calendar activities, daily recovery inputs, completed and abandoned workout sessions, the workout in progress (a single row, resumed on the next start) and the AXIS memory, one record per day (`AxisDayMemory`): the confirmed session choice, the activities cancelled today, the loads the user reported, the conversation thread with the state of its action proposals, and where the conversation was (last intent, change mode, last change request). Records of previous days are kept; nothing reads them yet.
 
 Components never touch IndexedDB. The flow is `UI → lib/state/store.tsx → repositories (lib/data) → IndexedDB`, with an in-memory fallback when IndexedDB is unavailable.
 
@@ -185,11 +185,11 @@ Claude Design is the preferred tool for the generative/visual design phase. Clau
 Current project phase: **FUNCTIONAL CORE v0.1**. The visual prototype was reviewed and approved (D-006) and the application is now real and deployed:
 
 - PWA on Netlify, installable and usable offline.
-- Local persistence in IndexedDB v6 through repositories.
+- Local persistence in IndexedDB v7 through repositories.
 - Recovery Score (D-002, D-009) and Training Load (D-008) computed from real data.
 - AXIS deterministic engine deciding the day, with explained recommendations.
 - AXIS conversation: negotiation of the day's session, typed action proposals that the user confirms, conversation persisted locally per day.
-- Day plan and cancelled activities persisted.
+- AXIS memory persisted per day: confirmed choice, cancelled activities, reported loads, thread and its state (D-011).
 - Gemini as the AXIS language layer through a Netlify Function, with deterministic fallback.
 
 The rules of this section still apply to any **new** screen or component: the approved visual language is implemented, not reinvented, and the design phases below describe how it was reached. Mock data is no longer the default; real data through the store is.
@@ -292,7 +292,7 @@ The AXIS architecture must remain provider-agnostic and separated from the UI so
 - **Personality** (`lib/domain/axis/personality.ts`): who AXIS is and how it speaks, as data. The system prompt is generated from it; it contains no product rules.
 - **Safety** (`lib/domain/axis/safety.ts`): `checkModelText` is the exit gate for model text — empty, too long, emojis, exclamations, medical language, complacent openers, or a text that contradicts the domain verdict or the approved proposal is rejected and the deterministic answer is shown (`usedFallback`, `rejectedReason`). `reconcileTarget` stays the authority on actions; a model that proposes an unapproved target is recorded as `modelDisagreed` on the message.
 - **Knowledge** (`lib/domain/axis/knowledge/`): data only — sport vocabulary and what reported activities load, focus vocabulary, muscle-group entry point. The tables themselves live once, in `workouts/types.ts`; knowledge re-exports them. A test fails if a second definition appears.
-- **Persistence**: the conversation and its action statuses are saved per day; the day plan stores the confirmed session choice and the activities cancelled today.
+- **Memory** (`lib/domain/axis/memory.ts`, D-011): `AxisDayMemory` is the single per-day record — override, cancelled activities, reported loads, messages, action statuses and thread state. Pure operations (`rememberAnswer`, `openChangeThread`, `applyOverride`, `clearOverride`…) are the only way the store changes it; one effect persists it. «Cambiar entrenamiento» appends to the thread, never replaces it. Change mode ends on confirm, cancel or «Volver». Reported loads are evidence for the conversation only; the engine never reads them.
 
 AXIS must not replace professional medical judgment.
 

@@ -328,16 +328,6 @@ export type DayPlanOverride = {
  * Vive en un único registro por día. Un día puede tener cancelaciones sin haber
  * cambiado de sesión, y al revés.
  */
-export type DayPlan = {
-  dayKey: DayKey
-  override: DayPlanOverride | null
-  cancelledActivities: string[]
-}
-
-export function emptyDayPlan(dayKey: DayKey): DayPlan {
-  return { dayKey, override: null, cancelledActivities: [] }
-}
-
 export function overrideFrom(
   action: AxisActionProposal,
   target: AxisProposal,

@@ -27,6 +27,7 @@ import { listNames } from '../../shared/text'
 import type { AxisActionTarget } from '../actions'
 import type { AxisBriefing, BriefingAlternative } from '../briefing'
 import { describeFocus, FOCUS_MUSCLE_GROUPS, type SessionFocus } from '../knowledge/focus'
+import type { ReportedLoad } from '../memory'
 import { muscleGroupLabel } from '../knowledge/muscles'
 import {
   ACTIVITY_MENTION_TERMS,
@@ -52,18 +53,10 @@ export type ChangeRequestKind =
   | 'unclear'
 
 /**
- * Carga que el usuario dice haber hecho y que no consta en ningún sitio.
- *
- * Cuenta para decidir —ignorarla sería absurdo— pero se marca como no registrada,
- * porque AXIS no puede presentarla como un hecho comprobado.
+ * La carga contada vive en la memoria del día (`memory.ts`): se reexporta para
+ * quien ya la importaba de aquí.
  */
-export type ReportedLoad = {
-  /** Lo que el usuario escribió, tal cual, recortado. */
-  quote: string
-  /** Grupos que esa actividad carga, si se puede deducir. */
-  muscleGroups: string[]
-  demanding: boolean
-}
+export type { ReportedLoad }
 
 export type ChangeRequest = {
   kind: ChangeRequestKind
@@ -267,6 +260,12 @@ export type ChangeVerdict = {
   proposedTarget: AxisActionTarget | null
 }
 
+/** La carga contada más reciente del día. */
+function latestReportedLoad(loads: readonly (ReportedLoad & { reportedAt: string })[]): ReportedLoad {
+  const latest = loads.reduce((best, item) => (item.reportedAt > best.reportedAt ? item : best))
+  return { quote: latest.quote, muscleGroups: [...latest.muscleGroups], demanding: latest.demanding }
+}
+
 /** Alternativa que entrena algo distinto del foco que se quiere evitar. */
 function alternativeAvoiding(
   alternatives: readonly BriefingAlternative[],
@@ -363,7 +362,10 @@ const REPORTED_CLAUSE = 'Me fío de lo que me cuentas, aunque no me conste regis
  * juzga si hay motivo para escoger otra de las alternativas que ese motor ya
  * había preparado.
  */
-export function evaluateChange(request: ChangeRequest, briefing: AxisBriefing): ChangeVerdict {
+export function evaluateChange(
+  incoming: ChangeRequest,
+  briefing: AxisBriefing,
+): ChangeVerdict {
   const proposal = briefing.proposal
   if (!proposal) {
     return {
@@ -372,6 +374,17 @@ export function evaluateChange(request: ChangeRequest, briefing: AxisBriefing): 
       proposedTarget: null,
     }
   }
+
+  /*
+   * Lo que el usuario contó antes en el día sigue siendo cierto. Si este mensaje
+   * no trae una carga nueva, cuenta la última que contó: «ayer hice 20 km» y, un
+   * mensaje después, «hoy piernas no» es una sola conversación, no dos. Sigue
+   * sin estar registrada, y se dice igual.
+   */
+  const request: ChangeRequest =
+    incoming.reportedLoad === null && briefing.reportedLoads.length > 0
+      ? { ...incoming, reportedLoad: latestReportedLoad(briefing.reportedLoads) }
+      : incoming
 
   const alternatives = proposal.alternatives
   const currentFocus = proposal.session?.focus ?? null

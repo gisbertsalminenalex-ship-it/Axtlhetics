@@ -8,6 +8,7 @@
 
 import type { AxisActionProposal, AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
+import type { ReportedLoad } from '../memory'
 
 /** Lo que el usuario puede preguntar hoy. Cada intención se responde con datos reales. */
 export type AxisIntent =
@@ -99,6 +100,13 @@ export type AxisAnswer = {
   proposedReason?: string
   /** La petición que se acaba de juzgar, para reconocer que insiste con la misma. */
   changeRequest?: { kind: string; focus: string | null } | null
+  /**
+   * La carga que el usuario ha contado en este mensaje, si la hay.
+   *
+   * La aplicación la guarda en la memoria del día para que siga contando en las
+   * peticiones siguientes. Aquí solo se transporta.
+   */
+  reportedLoad?: ReportedLoad | null
   /**
    * Actividades del calendario que el usuario acaba de decir que hoy no ocurren.
    *
