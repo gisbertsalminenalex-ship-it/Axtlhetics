@@ -24,35 +24,17 @@
 
 import type { AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
+import { AXIS_PERSONALITY, AXIS_SYSTEM_PROMPT } from '../personality'
+import { checkModelText, type ModelTextRejection } from '../safety'
 import type { AxisAnswer, AxisConversationEngine, AxisIntent } from './types'
 
 export const AI_CONVERSATION_ID = 'axis-conversation-ai-v1'
 
 /**
- * Instrucciones de sistema que definen quién es AXIS.
- *
- * Vive en el dominio y no en el proveedor a propósito: la personalidad y los
- * límites de AXIS son una decisión de producto, no un ajuste de infraestructura.
- * Es la **única** fuente de la personalidad: lo que necesite el proveedor sobre
- * formato de salida se añade aparte, en `aiSystemPrompt()`.
+ * La personalidad vive en `personality.ts` y el prompt se genera desde ella. Se
+ * reexporta aquí para que quien ya lo importaba de la conversación no cambie.
  */
-export const AXIS_SYSTEM_PROMPT = [
-  'Eres AXIS, el sistema de orientación de Axtlhetics. No eres un asistente genérico.',
-  'Hablas en español, con frases cortas, tono calmado y seguro. Sin emojis, sin exclamaciones, sin saludos efusivos.',
-  'Respondes ÚNICAMENTE con los datos del briefing que recibes. No calculas métricas ni inventas sesiones, ejercicios, fechas ni cifras.',
-  'Si un dato no está en el briefing, dices claramente que no dispones de él. Nunca lo estimas.',
-  'La recomendación del día ya está decidida por el motor determinista: la explicas, no la sustituyes ni la contradices.',
-  'No eres médico. No diagnosticas, no interpretas síntomas y no hablas de lesiones. Si algo requiere criterio médico, dices que no puedes evaluarlo.',
-  'No hablas de peso corporal, estética ni dietas, y no propones entrenar por encima de lo que indica la recomendación.',
-  'Nada de lenguaje de marketing, ni entusiasmo impostado, ni frases de relleno.',
-  '',
-  'FIRMEZA. Eres un entrenador, no un asistente complaciente. Estas reglas están por encima de agradar:',
-  '- No cedes por insistencia, cedes por evidencia. Aceptas un cambio cuando algo lo respalda: un dato del briefing, o una carga que el usuario acaba de contarte. Si lo único que lo sostiene es que no le apetece, dices que no y explicas por qué.',
-  '- Nunca abres con «tienes razón», «buena idea», «claro» ni ningún cumplido. La primera frase es el veredicto.',
-  '- No cambias de criterio porque el usuario repita, se queje o insista. Si aporta información nueva, la valoras; si solo insiste, mantienes la recomendación.',
-  '- Discrepar es parte de tu trabajo. Decir que no, con el motivo, vale más que decir que sí para quedar bien.',
-  '- Lo que el usuario cuenta y no está en el briefing lo tienes en cuenta, pero dices que no te consta registrado. No lo presentas como un hecho comprobado.',
-].join('\n')
+export { AXIS_SYSTEM_PROMPT }
 
 /**
  * Lo que se le pide al proveedor además de la personalidad: formato y límites.
@@ -68,7 +50,7 @@ export function aiSystemPrompt(): string {
     'Recibes un JSON con `briefing` (los datos reales del usuario), `question` (lo que ha escrito) y `domain` (lo que el motor determinista ya ha concluido).',
     '`domain.text` es la respuesta correcta en cuanto al fondo. Tu trabajo es decirla mejor: más natural, más clara, sin perder ni un dato y sin añadir ninguno.',
     'No contradigas `domain`. Si el motor ha dicho que no, tú dices que no.',
-    'Responde en 1–3 frases. Nunca más de 4.',
+    `Responde en ${AXIS_PERSONALITY.limits.targetSentences}. Nunca más de ${AXIS_PERSONALITY.limits.maxSentences}.`,
     'Devuelve SOLO un objeto JSON con esta forma:',
     '{"message": "tu respuesta", "action": null}',
     'Si `domain.proposedTarget` no es null y la conversación va de cambiar el entrenamiento, copia ese mismo objeto en `action.target` y pon `action.type` a "change_training". No propongas un destino distinto del que te da el dominio: se descartaría.',
@@ -226,6 +208,31 @@ export function reconcileTarget(
 }
 
 // ---------------------------------------------------------------------------
+// Rechazar lo que el modelo devuelve
+// ---------------------------------------------------------------------------
+
+export type AiRejectionReason = ModelTextRejection | 'model_disagreed' | 'transport_error'
+
+/**
+ * El modelo ha respondido, pero lo que ha dicho no se puede enseñar.
+ *
+ * Es un error a propósito: quien llama ya cae al determinista ante cualquier
+ * fallo del proveedor, y esto es un fallo más, solo que con motivo conocido.
+ */
+export class AxisAiRejection extends Error {
+  readonly reason: AiRejectionReason
+  /** `true` si el modelo propuso un destino que el dominio no había aprobado. */
+  readonly modelDisagreed: boolean
+
+  constructor(reason: AiRejectionReason, detail: string, modelDisagreed = false) {
+    super(detail)
+    this.name = 'AxisAiRejection'
+    this.reason = reason
+    this.modelDisagreed = modelDisagreed
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Transporte
 // ---------------------------------------------------------------------------
 
@@ -325,17 +332,33 @@ export function createAiConversation(
         },
       })
 
-      // El transporte real ya lo comprueba, pero un transporte inyectado puede no
-      // hacerlo. Una respuesta en blanco no se enseña: se lanza y responde el
-      // determinista.
-      const text = response.text.trim()
-      if (text.length === 0) {
-        throw new Error('El servicio de AXIS devolvió una respuesta vacía.')
+      /*
+       * Dos puertas, y las dos son del dominio.
+       *
+       * La acción: `reconcileTarget` es la autoridad. Si el modelo propone un
+       * destino que el motor no aprobó, no se corrige ni se mezcla: se rechaza
+       * la respuesta entera y contesta el determinista, dejando constancia de
+       * que el modelo discrepó.
+       *
+       * El texto: `checkModelText` comprueba que la redacción no contradiga el
+       * veredicto ni la propuesta, y que respete la personalidad. Lo que no
+       * pasa no se enseña.
+       */
+      const reconciliation = reconcileTarget(response.action, domain.proposedTarget ?? null)
+      if (reconciliation.modelDisagreed) {
+        throw new AxisAiRejection(
+          'model_disagreed',
+          'El modelo propuso un cambio que el dominio no había aprobado.',
+          true,
+        )
       }
 
-      const { target } = reconcileTarget(response.action, domain.proposedTarget ?? null)
+      const check = checkModelText(response.text, domain)
+      if (!check.ok) {
+        throw new AxisAiRejection(check.reason, check.detail)
+      }
 
-      return { ...domain, text, proposedTarget: target }
+      return { ...domain, text: response.text.trim(), proposedTarget: reconciliation.target }
     },
   }
 }

@@ -46,7 +46,7 @@ export function decide(context: AxisContext): AxisDecision {
   const facts = deriveFacts(context)
   const outcome = evaluateRules(facts)
 
-  const primary = buildProposal(context, facts, outcome.type, outcome.factors, 'Recomendada')
+  const primary = buildProposal(context, facts, outcome.type, outcome.factors, 'Recomendada', outcome.rule)
   const alternatives = buildAlternatives(context, facts, outcome.type)
 
   return { primary, alternatives }
@@ -62,6 +62,7 @@ function buildProposal(
   type: AxisRecommendationType,
   factors: AxisFactor[],
   label: string,
+  rule: string,
   overrides: { focus?: SessionFocus; minutes?: number } = {},
 ): AxisProposal {
   const session = isTrainingRecommendation(type)
@@ -78,6 +79,7 @@ function buildProposal(
     session,
     factors,
     label,
+    rule,
   }
 }
 
@@ -125,7 +127,7 @@ function buildAlternatives(
   if (isTrainingRecommendation(primaryType)) {
     if (primaryType !== 'LIGHT_TRAINING') {
       alternatives.push(
-        buildProposal(context, facts, 'LIGHT_TRAINING', lighterFactors(), 'Más ligera'),
+        buildProposal(context, facts, 'LIGHT_TRAINING', lighterFactors(), 'Más ligera', 'alternative_lighter'),
       )
     }
 
@@ -137,12 +139,13 @@ function buildAlternatives(
         primaryType === 'LIGHT_TRAINING' ? 'LIGHT_TRAINING' : 'MODIFIED_TRAINING',
         otherFocusFactors(otherFocus),
         SESSION_FOCUS_LABELS[otherFocus],
+        'alternative_other_focus',
         { focus: otherFocus },
       ),
     )
 
     alternatives.push(
-      buildProposal(context, facts, 'RECOVERY', recoveryChoiceFactors(), 'Recuperación'),
+      buildProposal(context, facts, 'RECOVERY', recoveryChoiceFactors(), 'Recuperación', 'alternative_recovery'),
     )
   } else {
     alternatives.push(
@@ -152,6 +155,7 @@ function buildAlternatives(
         'LIGHT_TRAINING',
         shortSessionFactors(),
         'Sesión corta',
+        'alternative_short',
         { minutes: SHORT_SESSION_MINUTES },
       ),
     )
@@ -162,6 +166,7 @@ function buildAlternatives(
         'LIGHT_TRAINING',
         mobilityFactors(),
         'Movilidad',
+        'alternative_mobility',
         { focus: 'core_movilidad', minutes: SHORT_SESSION_MINUTES },
       ),
     )

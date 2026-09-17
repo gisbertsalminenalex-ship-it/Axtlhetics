@@ -63,6 +63,7 @@ const proposal: AxisProposal = {
   session: plan,
   factors: [],
   label: 'Recomendada',
+  rule: 'good_recovery',
 }
 
 const START = new Date(2026, 8, 8, 18, 0, 0)

@@ -18,9 +18,11 @@
 
 import type { AxisBriefing } from '../briefing'
 import {
+  AxisAiRejection,
   benefitsFromAi,
   createAiConversation,
   createHttpTransport,
+  type AiRejectionReason,
   type AxisAiTransport,
 } from './ai'
 import { answerFromBriefing, createDeterministicConversation } from './deterministic'
@@ -43,6 +45,15 @@ export type AxisConversationResult = AxisAnswer & {
   engineId: string
   /** `true` si se pidió IA pero respondió el determinista. */
   usedFallback: boolean
+  /**
+   * `true` si el modelo propuso un destino distinto del que el dominio aprobó.
+   *
+   * Se registra siempre que ocurre: un modelo que discrepa del motor es un
+   * problema que hay que poder ver, no algo que tapar.
+   */
+  modelDisagreed: boolean
+  /** Por qué se descartó la respuesta del modelo, si se descartó. */
+  rejectedReason: AiRejectionReason | null
 }
 
 /**
@@ -81,16 +92,38 @@ export function createAxisConversation(
     const worthIt = benefitsFromAi(local.intent) && benefitsFromAi(intent)
 
     if (!worthIt || !(await ai.isAvailable())) {
-      return { ...local, engineId: deterministic.id, usedFallback: false }
+      return {
+        ...local,
+        engineId: deterministic.id,
+        usedFallback: false,
+        modelDisagreed: false,
+        rejectedReason: null,
+      }
     }
 
     try {
       const answer = await ai.answer(question, briefing, memory)
-      return { ...answer, engineId: ai.id, usedFallback: false }
-    } catch {
-      // El proveedor ha fallado, ha tardado o ha devuelto algo ininteligible. No
-      // se propaga: AXIS sigue sabiendo responder por su cuenta.
-      return { ...local, engineId: deterministic.id, usedFallback: true }
+      return {
+        ...answer,
+        engineId: ai.id,
+        usedFallback: false,
+        modelDisagreed: false,
+        rejectedReason: null,
+      }
+    } catch (cause) {
+      /*
+       * El proveedor ha fallado, ha tardado, ha devuelto algo ininteligible, o
+       * ha dicho algo que el dominio no admite. No se propaga: AXIS sigue
+       * sabiendo responder por su cuenta. Lo único que sale es el motivo.
+       */
+      const rejection = cause instanceof AxisAiRejection ? cause : null
+      return {
+        ...local,
+        engineId: deterministic.id,
+        usedFallback: true,
+        modelDisagreed: rejection?.modelDisagreed ?? false,
+        rejectedReason: rejection?.reason ?? 'transport_error',
+      }
     }
   }
 
@@ -102,6 +135,7 @@ export {
   AI_TIMEOUT_MS,
   AI_WORTHY_INTENTS,
   AXIS_SYSTEM_PROMPT,
+  AxisAiRejection,
   aiSystemPrompt,
   benefitsFromAi,
   createAiConversation,
@@ -112,6 +146,7 @@ export {
   toAiBriefing,
 } from './ai'
 export type {
+  AiRejectionReason,
   AxisAiAction,
   AxisAiBriefing,
   AxisAiRequest,

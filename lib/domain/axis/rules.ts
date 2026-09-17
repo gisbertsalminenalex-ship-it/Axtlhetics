@@ -11,8 +11,9 @@
 import { RECOVERY_BAND_THRESHOLDS } from '../recovery/weights'
 import { formatMinutesOfDay } from '../shared/dates'
 import type { MuscleGroup, SessionFocus, SessionIntensity } from '../workouts/types'
-import { FOCUS_MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, SESSION_FOCUS_LABELS } from '../workouts/types'
 import { MIN_SESSION_MINUTES } from './facts'
+import { describeFocus, FOCUS_MUSCLE_GROUPS } from './knowledge/focus'
+import { isMuscleGroup } from './knowledge/muscles'
 import type { AxisFacts, AxisFactor, AxisRecommendationType } from './types'
 
 /** Nivel de fatiga a partir del cual AXIS deja de proponer una sesión normal. */
@@ -367,10 +368,6 @@ export function muscleGroupsToAvoid(facts: AxisFacts): MuscleGroup[] {
   return [...groups]
 }
 
-function isMuscleGroup(value: string): value is MuscleGroup {
-  return value in MUSCLE_GROUP_LABELS
-}
-
 export function intensityFor(type: AxisRecommendationType): SessionIntensity {
   switch (type) {
     case 'TRAINING':
@@ -394,7 +391,5 @@ export function describeRest(days: number): string {
   return `Han pasado ${days} días desde tu último entrenamiento.`
 }
 
-export function describeFocus(focus: SessionFocus): string {
-  return SESSION_FOCUS_LABELS[focus].toLowerCase()
-}
+export { describeFocus }
 

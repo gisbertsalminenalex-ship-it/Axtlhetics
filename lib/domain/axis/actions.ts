@@ -26,7 +26,7 @@
  *    pasar por `validateAction` como cualquier otra.
  */
 
-import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { EXERCISE_CATALOG, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
 import type { SessionFocus } from '../workouts/types'
 import type { DayKey } from '../shared/dates'
 import { createId, nowIso } from '../shared/ids'
@@ -78,6 +78,30 @@ export type AxisActionStatus =
   | { state: 'applied' }
   | { state: 'cancelled' }
   | { state: 'error'; message: string }
+
+// ---------------------------------------------------------------------------
+// Buscar una opción en la decisión
+// ---------------------------------------------------------------------------
+
+/**
+ * La propuesta de la decisión que corresponde a una elección estable.
+ *
+ * Es la única forma de traducir «tipo + foco» a una propuesta concreta, y la
+ * usan la validación, la elección guardada y la conversación. Si mañana cambia
+ * cómo se identifica una opción, cambia aquí y en ningún otro sitio.
+ */
+export function findProposal(
+  decision: AxisDecision,
+  target: AxisActionTarget,
+): AxisProposal | null {
+  const all = [decision.primary, ...decision.alternatives]
+  return (
+    all.find(
+      (proposal) =>
+        proposal.type === target.type && (proposal.session?.focus ?? null) === target.focus,
+    ) ?? null
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Huella del contexto
@@ -201,12 +225,7 @@ export function validateAction(
     }
   }
 
-  const all = [decision.primary, ...decision.alternatives]
-  const target = all.find(
-    (proposal) =>
-      proposal.type === action.target.type &&
-      (proposal.session?.focus ?? null) === action.target.focus,
-  )
+  const target = findProposal(decision, action.target)
 
   if (!target) {
     return {
@@ -242,13 +261,7 @@ export function validateAction(
 
 /** La propuesta de la que se parte, si sigue existiendo en la decisión vigente. */
 function currentProposalId(decision: AxisDecision, action: AxisActionProposal): string | null {
-  const all = [decision.primary, ...decision.alternatives]
-  const origin = all.find(
-    (proposal) =>
-      proposal.type === action.origin.type &&
-      (proposal.session?.focus ?? null) === action.origin.focus,
-  )
-  return origin?.id ?? null
+  return findProposal(decision, { type: action.origin.type, focus: action.origin.focus })?.id ?? null
 }
 
 /**
@@ -271,15 +284,13 @@ export function isSessionValid(proposal: AxisProposal): boolean {
     // La carga sugerida no puede pasarse del material disponible.
     if (planned.suggestedWeightKg !== null) {
       if (planned.suggestedWeightKg < 0) return false
-      if (planned.suggestedWeightKg > MAX_LOAD_KG) return false
+      if (planned.suggestedWeightKg > MAX_AVAILABLE_LOAD_KG) return false
     }
     return true
   })
 }
 
 /** Lo que hay en casa: una pesa de 5 kg. Ni barra, ni banco, ni gimnasio. */
-const MAX_LOAD_KG = 5
-
 // ---------------------------------------------------------------------------
 // Lo que se guarda para que el cambio sobreviva a una recarga
 // ---------------------------------------------------------------------------
@@ -351,12 +362,5 @@ export function resolveOverride(
   if (!override || !decision) return null
   if (override.dayKey !== dayKey) return null
 
-  const all = [decision.primary, ...decision.alternatives]
-  return (
-    all.find(
-      (proposal) =>
-        proposal.type === override.type &&
-        (proposal.session?.focus ?? null) === override.focus,
-    ) ?? null
-  )
+  return findProposal(decision, { type: override.type, focus: override.focus })
 }

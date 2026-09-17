@@ -493,3 +493,26 @@ test('cada propuesta tiene un identificador propio', () => {
   const ids = [decision.primary, ...decision.alternatives].map((proposal) => proposal.id)
   assert.equal(new Set(ids).size, ids.length)
 })
+
+// ---------------------------------------------------------------------------
+// Qué regla decidió
+// ---------------------------------------------------------------------------
+
+test('cada propuesta dice qué regla la decidió', () => {
+  const good = decide(contextWith({ recentSessions: [session()] }))
+  assert.equal(good.primary.rule, 'good_recovery')
+
+  const low = decide(contextWith({ recoveryInputs: recovery({ sleepHours: 3, energy: 1, muscleFatigue: 5, stress: 5 }) }))
+  assert.equal(low.primary.rule, 'low_recovery')
+
+  const unknown = decide(contextWith({ recoveryInputs: null }))
+  assert.equal(unknown.primary.rule, 'unknown_recovery')
+
+  const rested = decide(contextWith({ profile: profile({ availableWeekdays: [1, 3, 5] }) }))
+  assert.equal(rested.primary.rule, 'not_available_today')
+
+  // Las alternativas no las decide una regla: dicen por qué existen.
+  for (const alternative of [...good.alternatives, ...rested.alternatives]) {
+    assert.match(alternative.rule, /^alternative_/, alternative.label)
+  }
+})

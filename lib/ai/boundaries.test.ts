@@ -187,6 +187,20 @@ test('la conversación de AXIS no conoce a Gemini, ni a Netlify, ni a React', ()
   }
 })
 
+test('todo AXIS —motor, conocimiento, personalidad y seguridad— es puro: sin React ni persistencia', () => {
+  const axis = ALL.filter((path) => path.includes('/domain/axis/') && !path.endsWith('.test.ts'))
+
+  assert.ok(axis.length >= 15, 'deben existir los módulos de AXIS')
+
+  for (const path of axis) {
+    const source = read(path)
+    assert.doesNotMatch(source, /from 'react'|useState|useEffect|useRef/, `${path} toca React`)
+    assert.doesNotMatch(source, /indexedDB|getRepositories|from '[^']*\/data\//, `${path} toca la persistencia`)
+    assert.doesNotMatch(source, /from '[^']*\/state\//, `${path} toca el estado de la aplicación`)
+    assert.doesNotMatch(source, /from '[^']*netlify/i, `${path} importa algo de Netlify`)
+  }
+})
+
 test('el dominio entero es independiente del proveedor de IA', () => {
   const dominio = ALL.filter((path) => path.includes('/lib/domain/') && !path.endsWith('.test.ts'))
 

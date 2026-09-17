@@ -49,13 +49,42 @@ export type AxisMessage = {
    * no en una pantalla aparte. Su presencia no cambia nada por sí sola.
    */
   action?: AxisActionProposal | null
+  /**
+   * `true` si el modelo de lenguaje propuso algo que el dominio no aprobó y se
+   * respondió con el determinista. Queda en el mensaje, y por tanto guardado,
+   * para que un modelo que discrepa deje rastro.
+   */
+  modelDisagreed?: boolean
 }
+
+/**
+ * Qué ha decidido AXIS sobre una petición de cambio.
+ *
+ * Es el dato que hace explicable la firmeza: un texto puede sonar a sí o a no,
+ * pero el veredicto es uno de estos cuatro y no admite matices.
+ */
+export type AxisVerdict =
+  /** Se cambia: la evidencia lo respalda. */
+  | 'accept'
+  /** Ni lo uno ni lo otro: se ofrece un punto intermedio. */
+  | 'compromise'
+  /** No se cambia, y se explica por qué. */
+  | 'decline'
+  /** Falta saber algo para poder decidir. */
+  | 'need_info'
 
 export type AxisAnswer = {
   text: string
   intent: AxisIntent
   /** `true` si la respuesta es «no tengo ese dato». */
   unknown: boolean
+  /**
+   * El veredicto, cuando la respuesta juzga una petición de cambio.
+   *
+   * Es lo que permite comprobar que una redacción externa no convierta un «no»
+   * en un «sí»: el texto puede reescribirse, el veredicto no.
+   */
+  verdict?: AxisVerdict | null
   /**
    * La opción que AXIS propone para hoy, si ha llegado a una.
    *

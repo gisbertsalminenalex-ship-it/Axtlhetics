@@ -18,8 +18,9 @@ import { TRAINING_GOAL_LABELS } from '../../profile/types'
 import { RECOVERY_BAND_LABELS } from '../../recovery/types'
 import { formatTotalTime, formatVolume } from '../../history/stats'
 import { formatDuration, formatRelativeDay, WEEKDAY_LABELS } from '../../shared/dates'
+import { listNames } from '../../shared/text'
 import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
-import { SESSION_FOCUS_LABELS, type SessionFocus } from '../../workouts/types'
+import { describeFocus, type SessionFocus } from '../knowledge/focus'
 import type { AxisBriefing, BriefingActivity } from '../briefing'
 import { matchIntent } from './intents'
 import { evaluateChange, parseChangeRequest, type ChangeRequest } from './negotiation'
@@ -188,7 +189,7 @@ function answerWhyNot(briefing: AxisBriefing, focus: SessionFocus | null): AxisA
   }
   if (!focus) return answerWhy(briefing)
 
-  const asked = SESSION_FOCUS_LABELS[focus].toLowerCase()
+  const asked = describeFocus(focus)
 
   if (proposal.session && proposal.session.focus === focus) {
     return say('why_not', [`Justo eso es lo que te propongo hoy: ${proposal.session.title}.`, proposal.reason])
@@ -396,6 +397,7 @@ function negotiate(
       text: 'Sigo pensando lo mismo, y no por llevarte la contraria: nada de lo que me has dicho cambia tus datos, y son los datos los que deciden. Si hay algo que no tengo registrado —un esfuerzo de ayer, una molestia, que duermes mal esta semana—, dímelo concreto y lo reviso.',
       intent: 'change',
       unknown: false,
+      verdict: verdict.outcome,
       proposedTarget: null,
       changeRequest: { kind: request.kind, focus: request.focus },
       cancelledActivities: request.cancelledActivities,
@@ -406,6 +408,7 @@ function negotiate(
     text: verdict.text,
     intent: 'change',
     unknown: verdict.outcome === 'need_info',
+    verdict: verdict.outcome,
     // Se propone, no se aplica: hace falta que el usuario pulse el botón.
     proposedTarget: verdict.proposedTarget,
     proposedReason: verdict.text,
@@ -627,13 +630,6 @@ function unknown(intent: AxisIntent, text: string): AxisAnswer {
   return { text, intent, unknown: true }
 }
 
-/** `a, b y c` — sin coma de Oxford, que en español no se usa. */
-function listNames(items: readonly string[]): string {
-  if (items.length === 0) return ''
-  if (items.length === 1) return items[0]
-  return `${items.slice(0, -1).join(', ')} y ${items.at(-1)}`
-}
-
 function listExercises(
   exercises: { name: string; sets: number; reps: number; isTimed: boolean }[],
 ): string {
@@ -650,7 +646,7 @@ function describeActivityForUser(activity: BriefingActivity): string {
 
 function describeProposalFocus(proposal: NonNullable<AxisBriefing['proposal']>): string {
   return proposal.session
-    ? SESSION_FOCUS_LABELS[proposal.session.focus].toLowerCase()
+    ? describeFocus(proposal.session.focus)
     : 'la recuperación'
 }
 

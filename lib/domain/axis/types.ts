@@ -72,6 +72,12 @@ export type AxisProposal = {
   factors: AxisFactor[]
   /** Etiqueta corta para la lista de alternativas: `Más ligera`, `Recuperación`… */
   label: string
+  /**
+   * Qué decidió esta propuesta: el id de la regla que ganó (`good_recovery`,
+   * `low_recovery`…) o, en una alternativa, por qué existe (`alternative_lighter`).
+   * Sirve para explicar, depurar y testar; nunca se muestra tal cual.
+   */
+  rule: string
 }
 
 /**

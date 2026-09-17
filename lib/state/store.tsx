@@ -27,6 +27,7 @@ import { getRepositories } from '../data'
 import { deleteDatabase } from '../data/indexeddb/db'
 import {
   buildChangeTrainingAction,
+  findProposal,
   overrideFrom,
   resolveOverride,
   validateAction,
@@ -720,12 +721,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     (result: { proposedTarget?: AxisActionTarget | null; proposedReason?: string }) => {
       if (!result.proposedTarget || !decision || !proposal || !axisContext) return null
 
-      const all = [decision.primary, ...decision.alternatives]
-      const target = all.find(
-        (item) =>
-          item.type === result.proposedTarget!.type &&
-          (item.session?.focus ?? null) === result.proposedTarget!.focus,
-      )
+      const target = findProposal(decision, result.proposedTarget)
       if (!target || target.id === proposal.id) return null
 
       return buildChangeTrainingAction({
@@ -791,6 +787,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
              * conversación no es una confirmación.
              */
             action: buildPendingAction(result),
+            ...(result.modelDisagreed ? { modelDisagreed: true } : {}),
           },
         ])
 

@@ -13,7 +13,8 @@
  *    seguimiento se resuelve contra lo último que se habló.
  */
 
-import type { SessionFocus } from '../../workouts/types'
+import { FOCUS_TERMS, type SessionFocus } from '../knowledge/focus'
+import { SPORT_TERMS } from '../knowledge/sports'
 import type { AxisIntent } from './types'
 
 type IntentRule = {
@@ -53,10 +54,9 @@ const RULES: readonly IntentRule[] = [
   { intent: 'can_train', any: ['puedo entrenar', 'deberia entrenar', 'debería entrenar', 'tiene sentido entrenar', 'aunque tenga', 'aunque tengo'] },
 
   { intent: 'sport_impact', any: ['afecta', 'influye', 'condiciona'] },
-  {
-    intent: 'sport_today',
-    any: ['deporte', 'baloncesto', 'basket', 'partido', 'natacion', 'natación', 'futbol', 'fútbol', 'entreno de', 'actividad'],
-  },
+  // Los nombres de deporte salen del conocimiento compartido con la negociación:
+  // si AXIS entiende «básquet» al negociar, también lo entiende al clasificar.
+  { intent: 'sport_today', any: ['deporte', 'partido', 'entreno de', 'actividad', ...SPORT_TERMS] },
 
   { intent: 'last_session', any: ['ultimo', 'último', 'ayer', 'anterior', 'hice', 'entrene', 'entrené'] },
   { intent: 'week', any: ['semana', 'progres', 'evolucion', 'evolución', 'llevo', 'racha'] },
@@ -73,14 +73,6 @@ const RULES: readonly IntentRule[] = [
     intent: 'today',
     any: ['hoy', 'ahora', 'deberia', 'debería', 'toca', 'entreno', 'entrenar', 'sesion', 'sesión', 'que hago', 'qué hago'],
   },
-]
-
-/** Temas que el usuario puede nombrar y que AXIS entiende como foco de sesión. */
-const FOCUS_TERMS: readonly { focus: SessionFocus; terms: readonly string[] }[] = [
-  { focus: 'tren_inferior', terms: ['pierna', 'piernas', 'tren inferior', 'sentadilla', 'gluteo', 'glúteo'] },
-  { focus: 'tren_superior', terms: ['tren superior', 'pecho', 'espalda', 'brazo', 'brazos', 'hombro', 'hombros'] },
-  { focus: 'core_movilidad', terms: ['core', 'abdominal', 'movilidad', 'plancha'] },
-  { focus: 'cuerpo_completo', terms: ['cuerpo completo', 'todo el cuerpo', 'full body'] },
 ]
 
 /**

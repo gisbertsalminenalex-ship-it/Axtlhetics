@@ -23,11 +23,18 @@
  * - Decidir por su cuenta. Elige entre las alternativas que el motor ya generó.
  */
 
-import type { SessionFocus } from '../../workouts/types'
-import { MUSCLE_GROUP_LABELS } from '../../workouts/types'
+import { listNames } from '../../shared/text'
 import type { AxisActionTarget } from '../actions'
 import type { AxisBriefing, BriefingAlternative } from '../briefing'
+import { describeFocus, FOCUS_MUSCLE_GROUPS, type SessionFocus } from '../knowledge/focus'
+import { muscleGroupLabel } from '../knowledge/muscles'
+import {
+  ACTIVITY_MENTION_TERMS,
+  EFFORT_TERMS,
+  REPORTED_ACTIVITY_LOADS,
+} from '../knowledge/sports'
 import { detectFocus, normalizeQuestion } from './intents'
+import type { AxisVerdict } from './types'
 
 // ---------------------------------------------------------------------------
 // Lo que el usuario pide
@@ -106,32 +113,6 @@ const CANCELLED_TERMS = [
   'me lo han quitado', 'se ha suspendido', 'suspendido', 'no toca',
 ]
 
-/**
- * Cómo nombra el usuario lo que tiene en el calendario.
- *
- * Nadie escribe el nombre exacto que puso en el onboarding: si registró
- * «Baloncesto», dirá «básquet». Junto a los genéricos («entreno», «partido») van
- * los deportes habituales con sus variantes.
- */
-const ACTIVITY_WORDS = [
-  'entreno', 'entrenamiento', 'partido', 'clase', 'sesion', 'sesión', 'competicion', 'competición',
-  'baloncesto', 'basquet', 'básquet', 'basket', 'futbol', 'fútbol', 'natacion', 'natación',
-  'piscina', 'tenis', 'padel', 'pádel', 'balonmano', 'voley', 'vóley', 'atletismo', 'gimnasia',
-]
-
-/** Actividades que el usuario puede contar, y lo que cargan. */
-const REPORTED_ACTIVITIES: readonly { terms: readonly string[]; muscleGroups: string[] }[] = [
-  { terms: ['bici', 'bicicleta', 'ciclismo', 'spinning'], muscleGroups: ['piernas', 'gluteos'] },
-  { terms: ['corr', 'running', 'trote', 'maraton', 'maratón'], muscleGroups: ['piernas', 'gluteos'] },
-  { terms: ['andar', 'caminar', 'senderismo', 'montaña', 'montana'], muscleGroups: ['piernas'] },
-  { terms: ['partido', 'baloncesto', 'futbol', 'fútbol', 'basket', 'tenis', 'padel', 'pádel'], muscleGroups: ['piernas', 'gluteos'] },
-  { terms: ['natacion', 'natación', 'nadar', 'piscina'], muscleGroups: ['espalda', 'hombros'] },
-  { terms: ['escalada', 'escalar'], muscleGroups: ['espalda', 'brazos'] },
-]
-
-/** Señales de que lo contado fue exigente. */
-const DEMANDING_TERMS = ['km', 'kilometro', 'kilómetro', 'montaña', 'montana', 'intenso', 'duro', 'fuerte', 'largo', 'competicion', 'competición', 'partido']
-
 /** Marcas de que el usuario está contando algo que hizo, no preguntando. */
 const REPORT_TERMS = ['hice', 'he hecho', 'hicimos', 'estuve', 'me hice', 'ayer', 'esta manana', 'esta mañana', 'antes', 'vengo de', 'acabo de']
 
@@ -169,12 +150,12 @@ export function detectReportedLoad(message: string): ReportedLoad | null {
   const text = normalizeQuestion(message)
   if (!includesAny(text, REPORT_TERMS)) return null
 
-  const matched = REPORTED_ACTIVITIES.filter((entry) => includesAny(text, entry.terms))
+  const matched = REPORTED_ACTIVITY_LOADS.filter((entry) => includesAny(text, entry.terms))
   if (matched.length === 0) return null
 
   const muscleGroups = [...new Set(matched.flatMap((entry) => entry.muscleGroups))]
   // Un número seguido de «km» o una mención a montaña bastan para tomárselo en serio.
-  const demanding = includesAny(text, DEMANDING_TERMS) || /\d+\s*(km|k)\b/.test(text)
+  const demanding = includesAny(text, EFFORT_TERMS) || /\d+\s*(km|k)\b/.test(text)
 
   return { quote: message.trim(), muscleGroups, demanding }
 }
@@ -197,7 +178,7 @@ export function detectCancelledActivities(
   if (named.length > 0) return named
 
   // «hoy no tengo entreno»: no nombra el deporte, pero se refiere al del día.
-  if (includesAny(text, ACTIVITY_WORDS)) return [...todayActivityNames]
+  if (includesAny(text, ACTIVITY_MENTION_TERMS)) return [...todayActivityNames]
 
   return []
 }
@@ -270,15 +251,8 @@ export function parseChangeRequest(
 // Lo que AXIS responde
 // ---------------------------------------------------------------------------
 
-export type ChangeOutcome =
-  /** Se cambia: la evidencia lo respalda. */
-  | 'accept'
-  /** Ni lo uno ni lo otro: se ofrece un punto intermedio. */
-  | 'compromise'
-  /** No se cambia, y se explica por qué. */
-  | 'decline'
-  /** Falta saber algo para poder decidir. */
-  | 'need_info'
+/** El veredicto de una petición. Es el mismo tipo que viaja en la respuesta. */
+export type ChangeOutcome = AxisVerdict
 
 export type ChangeVerdict = {
   outcome: ChangeOutcome
@@ -291,31 +265,6 @@ export type ChangeVerdict = {
    * pulsa el botón de confirmar.
    */
   proposedTarget: AxisActionTarget | null
-}
-
-const FOCUS_LABELS: Record<SessionFocus, string> = {
-  tren_superior: 'tren superior',
-  tren_inferior: 'tren inferior',
-  core_movilidad: 'core y movilidad',
-  cuerpo_completo: 'cuerpo completo',
-}
-
-/** Grupos musculares que carga cada foco, para cruzarlos con lo ya trabajado. */
-const FOCUS_MUSCLE_GROUPS: Record<SessionFocus, string[]> = {
-  tren_superior: ['pecho', 'espalda', 'hombros', 'brazos'],
-  tren_inferior: ['piernas', 'gluteos'],
-  core_movilidad: ['core'],
-  cuerpo_completo: ['pecho', 'espalda', 'piernas', 'gluteos', 'core'],
-}
-
-function groupLabel(group: string): string {
-  return MUSCLE_GROUP_LABELS[group as keyof typeof MUSCLE_GROUP_LABELS] ?? group
-}
-
-function listNames(names: readonly string[]): string {
-  if (names.length === 0) return ''
-  if (names.length === 1) return names[0]
-  return `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
 }
 
 /** Alternativa que entrena algo distinto del foco que se quiere evitar. */
@@ -466,18 +415,18 @@ function evaluateAvoid(
   alternatives: readonly BriefingAlternative[],
 ): ChangeVerdict {
   const focus = request.focus!
-  const label = FOCUS_LABELS[focus]
+  const label = describeFocus(focus)
 
   // Puede que ni siquiera sea lo que hay previsto.
   if (currentFocus !== focus && currentFocus !== 'cuerpo_completo') {
     return {
       outcome: 'accept',
-      text: `Hoy no tocaba ${label}: la sesión es de ${FOCUS_LABELS[currentFocus ?? 'cuerpo_completo']}. No hay nada que quitar.`,
+      text: `Hoy no tocaba ${label}: la sesión es de ${describeFocus(currentFocus ?? 'cuerpo_completo')}. No hay nada que quitar.`,
       proposedTarget: null,
     }
   }
 
-  const groups = FOCUS_MUSCLE_GROUPS[focus]
+  const groups: readonly string[] = FOCUS_MUSCLE_GROUPS[focus]
   const evidence: string[] = []
 
   // 1. Lo que el usuario acaba de contar.
@@ -491,7 +440,7 @@ function evaluateAvoid(
   // 2. Lo que ya está trabajado estos días.
   const recent = briefing.recentMuscleGroups.filter((group) => groups.includes(group))
   if (recent.length > 0) {
-    evidence.push(`ya llevas ${listNames(recent.map(groupLabel).map((g) => g.toLowerCase()))} trabajado estos días`)
+    evidence.push(`ya llevas ${listNames(recent.map(muscleGroupLabel))} trabajado estos días`)
   }
 
   // 3. Deporte de hoy o de mañana que carga esa zona. El que el usuario acaba de
@@ -563,7 +512,7 @@ function evaluateWant(
   alternatives: readonly BriefingAlternative[],
 ): ChangeVerdict {
   const focus = request.focus!
-  const label = FOCUS_LABELS[focus]
+  const label = describeFocus(focus)
 
   if (currentFocus === focus) {
     return {
@@ -573,13 +522,13 @@ function evaluateWant(
     }
   }
 
-  const groups = FOCUS_MUSCLE_GROUPS[focus]
+  const groups: readonly string[] = FOCUS_MUSCLE_GROUPS[focus]
   const recent = briefing.recentMuscleGroups.filter((group) => groups.includes(group))
 
   if (recent.length > 0) {
     return {
       outcome: 'decline',
-      text: `No hoy. Ya llevas ${listNames(recent.map(groupLabel).map((g) => g.toLowerCase()))} trabajado estos días, y repetir esa zona sin recuperarla no la hace crecer, la desgasta. Lo dejamos para dentro de un día o dos.`,
+      text: `No hoy. Ya llevas ${listNames(recent.map(muscleGroupLabel))} trabajado estos días, y repetir esa zona sin recuperarla no la hace crecer, la desgasta. Lo dejamos para dentro de un día o dos.`,
       proposedTarget: null,
     }
   }
