@@ -260,6 +260,43 @@ export function isActionApplied(memory: AxisDayMemory, actionId: string): boolea
   return memory.actionStatuses[actionId]?.state === 'applied'
 }
 
+/** Estado explícito de una acción. Sin registro guardado, está pendiente. */
+export function actionStatusOf(memory: AxisDayMemory, actionId: string): AxisActionStatus {
+  return memory.actionStatuses[actionId] ?? { state: 'pending' }
+}
+
+/** Ids de las acciones del hilo que todavía se pueden confirmar. */
+export function pendingActionIds(memory: AxisDayMemory): string[] {
+  const ids: string[] = []
+  for (const message of memory.messages) {
+    const id = message.action?.id
+    if (!id || ids.includes(id)) continue
+    const state = actionStatusOf(memory, id).state
+    if (state === 'pending' || state === 'error') ids.push(id)
+  }
+  return ids
+}
+
+/**
+ * Cierra las demás propuestas pendientes del día.
+ *
+ * Cuando se aplica un cambio, las otras propuestas que quedaban en el hilo
+ * partían de una sesión que ya no es la que hay. No se confirman: quedan como
+ * `superseded`, sin botón. Las ya aplicadas, canceladas o con error de otro
+ * momento no se tocan.
+ */
+export function supersedeOtherActions(
+  memory: AxisDayMemory,
+  keepActionId: string,
+  now: string = nowIso(),
+): AxisDayMemory {
+  const others = pendingActionIds(memory).filter((id) => id !== keepActionId)
+  if (others.length === 0) return memory
+  const actionStatuses = { ...memory.actionStatuses }
+  for (const id of others) actionStatuses[id] = { state: 'superseded' }
+  return touch({ ...memory, actionStatuses }, now)
+}
+
 /**
  * Aplica una acción confirmada: la elección pasa a ser la de hoy, la acción
  * queda como aplicada y la negociación termina.

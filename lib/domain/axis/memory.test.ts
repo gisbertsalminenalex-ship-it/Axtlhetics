@@ -334,9 +334,9 @@ function app(repositories = createMemoryRepositories(), sessions = [upperSession
       await persist()
     },
     async confirm(answer: AxisMessage) {
-      const { decision, context } = day()
+      const { decision, context, proposal } = day()
       const action = answer.action!
-      const validation = validateAction(action, decision, context)
+      const validation = validateAction(action, decision, context, proposal)
       if (!validation.ok) {
         memory = markActionError(memory, action.id, validation.message)
       } else {

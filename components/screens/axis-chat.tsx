@@ -212,6 +212,15 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
     )
   }
 
+  // Otra propuesta se aplicó después: esta partía de una sesión que ya no es la que hay.
+  if (status.state === 'superseded') {
+    return (
+      <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+        Ya aplicaste otro cambio después de esta propuesta.
+      </p>
+    )
+  }
+
   return (
     <div className="mt-2">
       <p className="px-1 text-[13px] text-muted-foreground">{action.summary}</p>

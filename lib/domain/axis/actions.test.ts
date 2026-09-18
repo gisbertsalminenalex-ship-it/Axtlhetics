@@ -15,7 +15,6 @@ import { EXERCISE_CATALOG } from '../workouts/catalog'
 import type { WorkoutSession } from '../workouts/types'
 import {
   buildChangeTrainingAction,
-  contextFingerprint,
   isSessionValid,
   overrideFrom,
   resolveOverride,
@@ -211,12 +210,11 @@ test('la sesión activa sigue siendo la misma mientras no se confirme', () => {
 test('una acción válida resuelve la propuesta destino real', () => {
   const w = world()
   const target = someAlternative(w.decision)
-  const validation = validateAction(anAction(w, target), w.decision, w.context)
+  const validation = validateAction(anAction(w, target), w.decision, w.context, w.current)
 
   assert.equal(validation.ok, true)
   if (validation.ok) {
     assert.equal(validation.target.id, target.id)
-    assert.equal(validation.recomputed, false, 'el contexto no ha cambiado')
   }
 })
 
@@ -226,7 +224,7 @@ test('al aplicar, la elección guardada apunta a la nueva sesión', async () => 
   const target = someAlternative(w.decision)
   const action = anAction(w, target)
 
-  const validation = validateAction(action, w.decision, w.context)
+  const validation = validateAction(action, w.decision, w.context, w.current)
   assert.equal(validation.ok, true)
   if (!validation.ok) return
 
@@ -246,7 +244,7 @@ test('la propuesta activa pasa a ser la elegida', () => {
   const w = world()
   const target = someAlternative(w.decision)
   const action = anAction(w, target)
-  const validation = validateAction(action, w.decision, w.context)
+  const validation = validateAction(action, w.decision, w.context, w.current)
   assert.equal(validation.ok, true)
   if (!validation.ok) return
 
@@ -266,7 +264,7 @@ test('tras recargar, la elección se vuelve a resolver contra la decisión nueva
   const w = world()
   const target = someAlternative(w.decision)
   const action = anAction(w, target)
-  const validation = validateAction(action, w.decision, w.context)
+  const validation = validateAction(action, w.decision, w.context, w.current)
   assert.equal(validation.ok, true)
   if (!validation.ok) return
 
@@ -285,7 +283,7 @@ test('tras recargar, la elección se vuelve a resolver contra la decisión nueva
 test('una elección de otro día no se aplica a hoy', () => {
   const w = world()
   const action = anAction(w)
-  const validation = validateAction(action, w.decision, w.context)
+  const validation = validateAction(action, w.decision, w.context, w.current)
   if (!validation.ok) return
 
   const override = overrideFrom(action, validation.target)
@@ -302,7 +300,7 @@ test('aplicar dos veces la misma acción no tiene efecto la segunda', () => {
   const action = anAction(w, target)
 
   // Primera vez: válida.
-  assert.equal(validateAction(action, w.decision, w.context).ok, true)
+  assert.equal(validateAction(action, w.decision, w.context, w.current).ok, true)
 
   /*
    * Segunda vez, ya con esa sesión activa. El origen de la acción es la sesión
@@ -314,7 +312,7 @@ test('aplicar dos veces la misma acción no tiene efecto la segunda', () => {
     target,
     reason: 'Prueba',
   })
-  const segunda = validateAction(yaAplicada, w.decision, w.context)
+  const segunda = validateAction(yaAplicada, w.decision, w.context, target)
 
   assert.equal(segunda.ok, false)
   if (!segunda.ok) assert.equal(segunda.reason, 'sin_efecto')
@@ -323,7 +321,7 @@ test('aplicar dos veces la misma acción no tiene efecto la segunda', () => {
 test('una propuesta de otro día se rechaza en vez de aplicarse', () => {
   const w = world()
   const action = { ...anAction(w), dayKey: '2026-09-01' }
-  const validation = validateAction(action, w.decision, w.context)
+  const validation = validateAction(action, w.decision, w.context, w.current)
 
   assert.equal(validation.ok, false)
   if (!validation.ok) assert.equal(validation.reason, 'otro_dia')
@@ -336,13 +334,12 @@ test('si la opción ya no existe con los datos de ahora, se rechaza', () => {
   // El usuario registra un partido mientras el botón estaba en pantalla: AXIS
   // decide otra vez y puede que esa opción ya no esté sobre la mesa.
   const despues = world({ activities: [basketball()] })
-  const validation = validateAction(action, despues.decision, despues.context)
+  const validation = validateAction(action, despues.decision, despues.context, despues.current)
 
   if (!validation.ok) {
     assert.equal(validation.reason, 'ya_no_disponible')
   } else {
     // Si sigue existiendo, se aplica la versión recalculada, no la vieja.
-    assert.equal(validation.recomputed, true, 'debe avisar de que el contexto cambió')
     assert.ok(
       [despues.decision.primary, ...despues.decision.alternatives].some(
         (p) => p.id === validation.target.id,
@@ -352,18 +349,21 @@ test('si la opción ya no existe con los datos de ahora, se rechaza', () => {
   }
 })
 
-test('la huella del contexto cambia cuando cambia algo que decide', () => {
+test('sin huella del contexto: la protección es revalidar contra la decisión de ahora', () => {
   const base = world()
-  const conPartido = world({ activities: [basketball()] })
-  const sinRecuperacion = world({ recoveryInputs: null })
+  const action = anAction(base)
+  assert.equal('contextFingerprint' in action, false, 'la acción no guarda ninguna huella')
 
-  assert.notEqual(contextFingerprint(base.context), contextFingerprint(conPartido.context))
-  assert.notEqual(contextFingerprint(base.context), contextFingerprint(sinRecuperacion.context))
-  assert.equal(
-    contextFingerprint(base.context),
-    contextFingerprint(world().context),
-    'el mismo estado da la misma huella',
-  )
+  // Sin recuperación registrada la decisión cambia; la acción se juzga contra la nueva.
+  const despues = world({ recoveryInputs: null })
+  const validation = validateAction(action, despues.decision, despues.context, despues.current)
+  if (validation.ok) {
+    assert.ok([despues.decision.primary, ...despues.decision.alternatives].some((p) => p.id === validation.target.id))
+  } else {
+    // O la opción ya no existe, o con los datos nuevos es justo la que manda:
+    // en ambos casos la acción antigua no se aplica tal cual.
+    assert.ok(['ya_no_disponible', 'sin_efecto'].includes(validation.reason), validation.reason)
+  }
 })
 
 // ---------------------------------------------------------------------------

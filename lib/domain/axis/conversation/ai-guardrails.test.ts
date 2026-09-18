@@ -243,7 +243,7 @@ test('el modelo no puede inventar una propuesta cuando el dominio no aprobó nin
     target: { ...decision.primary, type: 'TRAINING', session: null },
     reason: 'inventada',
   })
-  const validation = validateAction(fake, decision, context)
+  const validation = validateAction(fake, decision, context, decision.primary)
   assert.equal(validation.ok, false)
 })
 
@@ -363,13 +363,13 @@ test('lo que el modelo redacta sigue teniendo que pasar por validateAction y por
   assert.equal(action.type, 'change_training')
 
   // Solo al confirmar se valida, contra la decisión vigente.
-  const validation = validateAction(action, decision, context)
+  const validation = validateAction(action, decision, context, decision.primary)
   assert.equal(validation.ok, true)
   if (validation.ok) assert.equal(validation.target.id, target!.id)
 
   // Y una acción de otro día, aunque venga bien formada, no se aplica.
   const stale = { ...action, dayKey: '2026-09-01' }
-  assert.equal(validateAction(stale, decision, context).ok, false)
+  assert.equal(validateAction(stale, decision, context, decision.primary).ok, false)
 })
 
 // ---------------------------------------------------------------------------

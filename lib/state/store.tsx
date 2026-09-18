@@ -26,14 +26,17 @@ import {
 import { getRepositories } from '../data'
 import { deleteDatabase } from '../data/indexeddb/db'
 import {
-  buildChangeTrainingAction,
-  findProposal,
-  overrideFrom,
+  applyAction,
+  dismissAction,
+  executeAction,
+  proposeAction,
+  sanitizeActions,
+  type AxisDay,
+} from '../domain/axis/action-engine'
+import {
   resolveOverride,
-  validateAction,
   type AxisActionProposal,
   type AxisActionStatus,
-  type AxisActionTarget,
 } from '../domain/axis/actions'
 import { buildAxisContext } from '../domain/axis/context'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
@@ -60,14 +63,11 @@ import {
 } from '../domain/workouts/active-workout'
 import { buildBriefing, type AxisBriefing } from '../domain/axis/briefing'
 import {
-  applyOverride,
-  cancelAction,
   clearOverride,
   clearThread,
   closeChangeThread,
   conversationMemoryOf,
   emptyDayMemory,
-  isActionApplied,
   markActionError,
   openChangeThread,
   rememberAnswer,
@@ -218,7 +218,21 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
    * equivalente. Si esa opción ya no existe con los datos de ahora, no se aplica
    * nada y manda la recomendación fresca.
    */
-  const [memory, setMemory] = useState<AxisDayMemory>(() => emptyDayMemory('1970-01-01'))
+  const [memory, setMemoryState] = useState<AxisDayMemory>(() => emptyDayMemory('1970-01-01'))
+  /**
+   * La memoria, de forma síncrona.
+   *
+   * Cada cambio parte de aquí y no del valor que hubiera en un closure: así el
+   * ciclo de una acción recibe siempre la memoria más reciente, y dos cambios
+   * seguidos no se pisan. Mismo patrón que `workoutRef`.
+   */
+  const memoryRef = useRef<AxisDayMemory>(memory)
+  const commitMemory = useCallback((change: (current: AxisDayMemory) => AxisDayMemory) => {
+    const next = change(memoryRef.current)
+    if (next === memoryRef.current) return
+    memoryRef.current = next
+    setMemoryState(next)
+  }, [])
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null)
   const [lastCompleted, setLastCompleted] = useState<WorkoutSession | null>(null)
 
@@ -311,8 +325,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
          * no hay registro de hoy, el día empieza vacío: la memoria de ayer no
          * se aplica a las preguntas de hoy.
          */
-        setMemory(
-          storedMemory && storedMemory.dayKey === dayKey ? storedMemory : emptyDayMemory(dayKey),
+        // Una acción guardada que no se entiende no puede tener botón.
+        commitMemory(() =>
+          storedMemory && storedMemory.dayKey === dayKey
+            ? sanitizeActions(storedMemory)
+            : emptyDayMemory(dayKey),
         )
         setStatus(storedProfile ? 'ready' : 'onboarding')
       } catch (cause) {
@@ -390,6 +407,16 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const trainingLoad = useMemo(
     () => computeTrainingLoad(sessions, today),
     [sessions, today],
+  )
+
+  /**
+   * El día contra el que se proponen y ejecutan las acciones: contexto,
+   * decisión y propuesta seleccionada. Es lo único que el ciclo de vida de una
+   * acción necesita saber del estado de la aplicación.
+   */
+  const day = useMemo<AxisDay | null>(
+    () => (axisContext && decision && proposal ? { context: axisContext, decision, selected: proposal } : null),
+    [axisContext, decision, proposal],
   )
 
   /**
@@ -555,7 +582,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setAxisStatus('idle')
     // Se añade al hilo del día, no lo sustituye: lo hablado antes sigue ahí.
     // Si ya se estaba negociando, no se abre una segunda vez.
-    setMemory((current) =>
+    commitMemory((current) =>
       openChangeThread(current, {
         id: createId(),
         role: 'axis',
@@ -654,7 +681,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       replaceActiveWorkout(null)
       // El día ya está entrenado: la elección deja de tener efecto. Solo ella:
       // lo que el usuario contó y lo que hoy no ocurre siguen siendo ciertos.
-      setMemory((current) => clearOverride(current))
+      commitMemory((current) => clearOverride(current))
       await saveSession(session)
     },
     [replaceActiveWorkout, saveSession],
@@ -688,30 +715,6 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   // Conversación con AXIS
   // -------------------------------------------------------------------------
 
-  /**
-   * Convierte lo que AXIS ha propuesto en una acción pendiente de confirmar.
-   *
-   * Devuelve `null` cuando AXIS no ha llegado a una propuesta concreta, cuando se
-   * ha negado, o cuando la opción que propone no existe en la decisión vigente:
-   * un botón que no lleva a ninguna parte es peor que no tener botón.
-   */
-  const buildPendingAction = useCallback(
-    (result: { proposedTarget?: AxisActionTarget | null; proposedReason?: string }) => {
-      if (!result.proposedTarget || !decision || !proposal || !axisContext) return null
-
-      const target = findProposal(decision, result.proposedTarget)
-      if (!target || target.id === proposal.id) return null
-
-      return buildChangeTrainingAction({
-        context: axisContext,
-        origin: proposal,
-        target,
-        reason: result.proposedReason ?? '',
-      })
-    },
-    [decision, proposal, axisContext],
-  )
-
   const askAxis = useCallback(
     async (question: string) => {
       const text = question.trim()
@@ -724,7 +727,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         createdAt: nowIso(),
       }
 
-      setMemory((current) => rememberQuestion(current, asked))
+      commitMemory((current) => rememberQuestion(current, asked))
       setAxisStatus('thinking')
       setAxisError(null)
 
@@ -744,7 +747,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
            * cuando el usuario pulsa el botón. Que haya escrito «sí» en la
            * conversación no es una confirmación.
            */
-          action: buildPendingAction(result),
+          action: day ? proposeAction(day, result) : null,
           ...(result.modelDisagreed ? { modelDisagreed: true } : {}),
         }
 
@@ -754,7 +757,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
          * no ocurre —el motor vuelve a decidir sin ello— y la carga que ha
          * contado, que seguirá contando en las peticiones siguientes.
          */
-        setMemory((current) => rememberAnswer(current, answer, result))
+        commitMemory((current) => rememberAnswer(current, answer, result))
 
         setAxisUsedFallback(result.usedFallback)
         setAxisStatus('idle')
@@ -767,66 +770,56 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setAxisStatus('error')
       }
     },
-    [briefing, memory, buildPendingAction],
+    [briefing, memory, day, commitMemory],
   )
+
+  /** Acciones que se están ejecutando ahora mismo, para no lanzar dos veces la misma. */
+  const inFlightRef = useRef<Set<string>>(new Set())
 
   /**
    * Aplica una propuesta de acción, y solo cuando el usuario pulsa el botón.
    *
    * Este es el único camino por el que la conversación puede cambiar el estado
-   * real. Antes de llegar aquí no se ha tocado nada, por muchos «sí» que haya
-   * habido en el chat.
-   *
-   * El orden importa: primero se valida contra la decisión **vigente**, no
-   * contra la que había cuando AXIS lo propuso. Si el usuario ha registrado un
-   * deporte o su recuperación mientras el botón estaba en pantalla, la opción se
-   * vuelve a buscar con los datos de ahora; si ya no existe, se rechaza en lugar
-   * de aplicar una sesión calculada con información vieja.
+   * real. El ciclo entero —comprobar contra la decisión vigente, aplicar,
+   * guardar— vive en el dominio (`executeAction`); aquí solo se le da el día,
+   * la memoria más reciente y el sitio donde guardar, y se refleja lo que
+   * devuelve. Nada queda aplicado hasta que la memoria se ha guardado.
    */
   const confirmAxisAction = useCallback(
     async (action: AxisActionProposal) => {
-      // Una acción ya aplicada no se aplica dos veces.
-      if (isActionApplied(memory, action.id)) return
-
-      if (!decision || !axisContext) {
-        setMemory((current) =>
-          markActionError(current, action.id, 'Todavía no tengo tu día calculado.'),
-        )
-        return
-      }
-
-      const validation = validateAction(action, decision, axisContext)
-      if (!validation.ok) {
-        setMemory((current) => markActionError(current, action.id, validation.message))
-        return
-      }
-
-      const override = overrideFrom(action, validation.target)
-
+      if (inFlightRef.current.has(action.id)) return
+      inFlightRef.current.add(action.id)
       try {
-        // Se escribe antes de cambiar el estado: si no se ha podido guardar, no
-        // se finge que sí. El botón queda en error, listo para reintentar.
-        await getRepositories().axisMemory.save(applyOverride(memory, override, action.id))
-      } catch (cause) {
-        setMemory((current) =>
-          markActionError(
-            current,
-            action.id,
-            cause instanceof Error ? cause.message : 'No he podido guardar el cambio.',
-          ),
-        )
-        return
+        if (!day) {
+          commitMemory((current) =>
+            markActionError(current, action.id, 'Todavía no tengo tu día calculado.'),
+          )
+          return
+        }
+        const snapshot = memoryRef.current
+        const result = await executeAction(action, day, snapshot, getRepositories().axisMemory)
+        commitMemory((current) => {
+          if (current === snapshot) return result.memory
+          // Llegó algo al hilo mientras se guardaba: se vuelve a aplicar sobre lo
+          // último, que el guardado general recogerá.
+          return result.ok
+            ? applyAction(action, day, current).memory
+            : markActionError(current, action.id, result.message)
+        })
+      } finally {
+        inFlightRef.current.delete(action.id)
       }
-
-      setMemory((current) => applyOverride(current, override, action.id))
     },
-    [memory, decision, axisContext],
+    [day, commitMemory],
   )
 
   /** El usuario descarta la propuesta. No se toca nada más; la negociación termina. */
-  const cancelAxisAction = useCallback((action: AxisActionProposal) => {
-    setMemory((current) => cancelAction(current, action.id))
-  }, [])
+  const cancelAxisAction = useCallback(
+    (action: AxisActionProposal) => {
+      commitMemory((current) => dismissAction(action, current))
+    },
+    [commitMemory],
+  )
 
   /*
    * La memoria del día se guarda al cambiar.
@@ -855,11 +848,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setAxisStatus('idle')
     setAxisError(null)
     setAxisUsedFallback(false)
-    setMemory((current) => clearThread(current))
+    commitMemory((current) => clearThread(current))
   }, [])
 
   const closeAxisChat = useCallback(() => {
-    setMemory((current) => closeChangeThread(current))
+    commitMemory((current) => closeChangeThread(current))
   }, [])
 
   /**
@@ -887,7 +880,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setRecoveryInputs(emptyRecoveryInputs(dayKey, nowIso()))
     // La base ya no existe: se vacía la memoria sin volver a escribir en ella.
     // El guardado no se dispara porque la app deja de estar `ready`.
-    setMemory(emptyDayMemory(dayKey))
+    commitMemory(() => emptyDayMemory(dayKey))
     workoutRef.current = null
     setActiveWorkout(null)
     setLastCompleted(null)

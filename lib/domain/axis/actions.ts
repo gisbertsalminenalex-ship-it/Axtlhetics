@@ -17,17 +17,18 @@
  *    en cada `decide()`, así que un id no sobrevive a una recarga ni a un
  *    recálculo. Se guarda la *elección* —tipo y foco—, que sí es estable, y al
  *    aplicar se busca esa opción en la decisión vigente.
- * 2. **La acción lleva una huella del contexto** con el que se generó. Si el
- *    contexto ha cambiado —un deporte nuevo, la recuperación registrada—, no se
- *    aplica a ciegas: se vuelve a resolver contra la decisión actual, y si ya no
- *    existe esa opción se rechaza.
+ * 2. **La acción no se aplica a ciegas.** Al confirmar se vuelve a resolver
+ *    contra la decisión **vigente**: si el contexto ha cambiado —un deporte
+ *    nuevo, la recuperación registrada— y esa opción ya no existe, se rechaza.
+ *    No hace falta guardar ninguna huella del contexto: revalidar es la
+ *    protección.
  * 3. **El tipo es una unión discriminada.** No hay texto libre ejecutable: el día
  *    que un modelo de lenguaje produzca una de estas, tendrá que encajar aquí y
  *    pasar por `validateAction` como cualquier otra.
  */
 
 import { EXERCISE_CATALOG, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
-import type { SessionFocus } from '../workouts/types'
+import type { Exercise, SessionFocus } from '../workouts/types'
 import type { DayKey } from '../shared/dates'
 import { createId, nowIso } from '../shared/ids'
 import type { AxisContext, AxisDecision, AxisProposal, AxisRecommendationType } from './types'
@@ -68,15 +69,20 @@ export type AxisActionProposal = {
   reason: string
   target: AxisActionTarget
   origin: AxisActionOrigin
-  /** Estado del contexto cuando se generó, para detectar que quedó obsoleta. */
-  contextFingerprint: string
 }
 
-/** Estado de una acción dentro de la conversación. Vive en la aplicación. */
+/**
+ * Estado de una acción dentro de la conversación. Vive en la memoria del día.
+ *
+ * `superseded`: otra acción del mismo día se aplicó después de proponer esta.
+ * Ya no tiene sentido ejecutarla: la sesión que quería cambiar ya no es la que
+ * hay.
+ */
 export type AxisActionStatus =
   | { state: 'pending' }
   | { state: 'applied' }
   | { state: 'cancelled' }
+  | { state: 'superseded' }
   | { state: 'error'; message: string }
 
 // ---------------------------------------------------------------------------
@@ -101,39 +107,6 @@ export function findProposal(
         proposal.type === target.type && (proposal.session?.focus ?? null) === target.focus,
     ) ?? null
   )
-}
-
-// ---------------------------------------------------------------------------
-// Huella del contexto
-// ---------------------------------------------------------------------------
-
-/**
- * Resumen de lo que, si cambia, invalida una propuesta de acción.
- *
- * No es un hash criptográfico ni pretende serlo: es una lista de lo que el motor
- * mira para decidir. Si algo de esto es distinto al confirmar, la propuesta se
- * generó con otra información y no puede aplicarse tal cual.
- */
-export function contextFingerprint(context: AxisContext): string {
-  const recovery =
-    context.recoveryScore && context.recoveryScore.status === 'ok'
-      ? String(context.recoveryScore.value)
-      : 'sin-datos'
-
-  const activities = context.activities
-    .map((activity) => activity.id)
-    .sort()
-    .join(',')
-
-  const lastSession = context.recentSessions[0]?.id ?? 'ninguna'
-
-  return [
-    context.dayKey,
-    recovery,
-    activities,
-    lastSession,
-    String(context.recentSessions.length),
-  ].join('|')
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +142,6 @@ export function buildChangeTrainingAction(params: {
       type: origin.type,
       focus: origin.session?.focus ?? null,
     },
-    contextFingerprint: contextFingerprint(context),
   }
 }
 
@@ -193,7 +165,7 @@ export type AxisActionRejection =
   | 'sin_efecto'
 
 export type AxisActionValidation =
-  | { ok: true; target: AxisProposal; recomputed: boolean }
+  | { ok: true; target: AxisProposal }
   | { ok: false; reason: AxisActionRejection; message: string }
 
 /**
@@ -201,14 +173,18 @@ export type AxisActionValidation =
  * aplicar.
  *
  * La resolución es contra la **decisión vigente**, no contra la que había cuando
- * se generó la acción. Si el contexto ha cambiado, se marca `recomputed`: la
- * opción se ha vuelto a calcular con los datos de ahora, no se ha aplicado una
- * sesión antigua.
+ * se generó la acción. Si el contexto ha cambiado, la opción se vuelve a
+ * calcular con los datos de ahora; si ya no existe, se rechaza.
+ *
+ * Esto responde a «¿puede ejecutarse?». Nunca a «¿debería recomendarse?»: eso
+ * ya lo decidió el motor al generar las alternativas.
  */
 export function validateAction(
   action: AxisActionProposal,
   decision: AxisDecision,
   context: AxisContext,
+  /** La propuesta que el usuario tiene seleccionada ahora mismo. */
+  selected: AxisProposal,
 ): AxisActionValidation {
   // Unión discriminada: un tipo desconocido no llega hasta aquí, y si el día de
   // mañana se añade otro, TypeScript obliga a tratarlo.
@@ -235,7 +211,7 @@ export function validateAction(
     }
   }
 
-  if (!isSessionValid(target)) {
+  if (!isSessionValid(target, context.catalog)) {
     return {
       ok: false,
       reason: 'sesion_invalida',
@@ -243,8 +219,10 @@ export function validateAction(
     }
   }
 
-  const current = currentProposalId(decision, action)
-  if (current === target.id) {
+  // Se compara con lo que el usuario tiene **ahora**, no con el origen que la
+  // acción recuerda: si mientras tanto aplicó otro cambio y ya está en esa
+  // sesión, no hay nada que cambiar.
+  if (selected.id === target.id) {
     return {
       ok: false,
       reason: 'sin_efecto',
@@ -252,16 +230,7 @@ export function validateAction(
     }
   }
 
-  return {
-    ok: true,
-    target,
-    recomputed: action.contextFingerprint !== contextFingerprint(context),
-  }
-}
-
-/** La propuesta de la que se parte, si sigue existiendo en la decisión vigente. */
-function currentProposalId(decision: AxisDecision, action: AxisActionProposal): string | null {
-  return findProposal(decision, { type: action.origin.type, focus: action.origin.focus })?.id ?? null
+  return { ok: true, target }
 }
 
 /**
@@ -272,12 +241,16 @@ function currentProposalId(decision: AxisDecision, action: AxisActionProposal): 
  * aquí para el día en que la propuesta venga de un modelo de lenguaje: entonces
  * esta comprobación es lo único que impide aplicar ejercicios inventados.
  */
-export function isSessionValid(proposal: AxisProposal): boolean {
+export function isSessionValid(
+  proposal: AxisProposal,
+  /** El catálogo con el que decidió el motor. Por defecto, el real. */
+  catalog: readonly Exercise[] = EXERCISE_CATALOG,
+): boolean {
   const session = proposal.session
   if (!session) return true
 
   return session.exercises.every((planned) => {
-    const exercise = EXERCISE_CATALOG.find((item) => item.id === planned.exerciseId)
+    const exercise = catalog.find((item) => item.id === planned.exerciseId)
     if (!exercise) return false
     if (planned.sets <= 0 || planned.reps <= 0) return false
 

@@ -440,6 +440,32 @@ Todo lo que AXIS recuerda de un día y no se deduce de los datos vive en **un so
 
 ---
 
+## D-012 — AxisActionEngine: el ciclo de vida de una acción
+
+**Fecha:** 2026-09-17 · **Estado:** aprobada
+
+La ejecución de las acciones que AXIS propone vive en un módulo de dominio, `lib/domain/axis/action-engine.ts`, con una sola responsabilidad:
+
+```
+propuesta → comprobación → confirmación del usuario → aplicación → memoria guardada
+```
+
+**No es otro cerebro.** No decide qué entrenar (`AxisEngine`), no juzga si un cambio conviene (negociación) y no interpreta al modelo de lenguaje (`reconcileTarget`). Ejecuta de forma segura lo que el dominio ya permitió. No importa `rules`, `facts` ni `session-builder`; no conoce React, IndexedDB, Netlify ni el proveedor.
+
+### Reglas
+
+- **Solo la decisión vigente.** Al confirmar, la opción se vuelve a buscar en la decisión de ahora (`findProposal`). Se retira la «huella del contexto» (`contextFingerprint`/`recomputed`): revalidar es la protección, no una comparación de hashes.
+- **Sin efecto contra la selección actual.** Una acción cuyo destino ya es la sesión seleccionada se rechaza como `sin_efecto`, aunque su origen fuera otro.
+- **Nada queda aplicado antes de guardarse.** `executeAction` comprueba, aplica en memoria y guarda; devuelve la memoria guardada. Si guardar falla, el override no se aplica y la acción queda en error reintentable, sin ocultar el motivo.
+- **Una vez.** Aplicada, cancelada o superada, una acción no vuelve a ejecutarse aunque se llame al dominio directamente. Dos confirmaciones casi simultáneas producen el mismo resultado.
+- **Superseded.** Al aplicar una acción, las demás pendientes del día (incluidas las que estaban en error) pasan a `superseded` y pierden el botón. Las aplicadas y canceladas no se tocan.
+- **Lo leído de disco se comprueba.** Una acción con forma desconocida se queda sin botón.
+- `isSessionValid` usa el catálogo del contexto, el mismo con el que decidió el motor.
+
+Sigue habiendo un único tipo de acción, `change_training`. Añadir otro exige extender la unión discriminada y pasar por el mismo ciclo.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
