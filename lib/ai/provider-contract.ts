@@ -10,21 +10,34 @@
  */
 
 /**
+ * El proveedor es Groq, por su API compatible con OpenAI y por su plan gratuito.
+ * Es lo único que sabe de él el sistema: esta constante, la forma de la
+ * petición y dónde viene el texto en la respuesta. El dominio no lo conoce.
+ */
+export const PROVIDER_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
+
+/**
  * Modelo que usa AXIS. Un único sitio, y cambiable sin tocar código.
  *
- * Flash porque la conversación es corta, tiene que ir rápida y esta fase se
- * mantiene en el nivel gratuito. `globalThis.process` y no `process` a secas:
- * este módulo solo corre en el servidor, pero así no explota si algún día se
- * importa desde otro sitio.
+ * `openai/gpt-oss-120b`: modelo de producción incluido en el plan gratuito de
+ * Groq, con buen español y respuesta rápida. `GROQ_MODEL` permite cambiarlo
+ * desde el entorno si un día se limita o se retira, sin desplegar código.
+ * `globalThis.process` y no `process` a secas: este módulo solo corre en el
+ * servidor, pero así no explota si algún día se importa desde otro sitio.
  */
-export const AXIS_AI_MODEL =
-  globalThis.process?.env?.GEMINI_MODEL ?? 'gemini-2.5-flash'
+export const AXIS_AI_MODEL = globalThis.process?.env?.GROQ_MODEL ?? 'openai/gpt-oss-120b'
 
 /** Techo de lo que se acepta del cliente. Un briefing normal ronda los 4 KB. */
 export const MAX_REQUEST_BYTES = 64 * 1024
 
-/** Cuánto se espera a Gemini dentro de la función. Menor que el del navegador. */
-export const GEMINI_TIMEOUT_MS = 7000
+/** Cuánto se espera al proveedor dentro de la función. Menor que el del navegador. */
+export const PROVIDER_TIMEOUT_MS = 7000
+
+/**
+ * Tokens de salida como máximo. AXIS responde en tres frases, no en tres
+ * párrafos; el margen es para el JSON que las envuelve.
+ */
+export const MAX_COMPLETION_TOKENS = 600
 
 /**
  * Errores que la función puede devolver.
@@ -100,6 +113,49 @@ export function buildUserPayload(request: ProxyRequest): string {
 }
 
 /**
+ * El cuerpo de la petición al proveedor, en el formato de chat compatible con
+ * OpenAI que usa Groq.
+ *
+ * La personalidad va como mensaje de sistema y el briefing con la pregunta como
+ * mensaje de usuario. Se pide JSON (`response_format`) porque lo que se espera
+ * es `{"message", "action"}`, y temperatura baja: se le pide redactar, no crear.
+ * Los modelos `gpt-oss` razonan antes de contestar; `reasoning_effort: low`
+ * mantiene la latencia y el gasto de tokens al mínimo y solo se envía a ellos.
+ */
+export function buildProviderRequest(
+  request: ProxyRequest,
+  model: string = AXIS_AI_MODEL,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: 'system', content: request.system },
+      { role: 'user', content: buildUserPayload(request) },
+    ],
+    temperature: 0.4,
+    max_completion_tokens: MAX_COMPLETION_TOKENS,
+    response_format: { type: 'json_object' },
+  }
+  if (model.startsWith('openai/gpt-oss')) body.reasoning_effort = 'low'
+  return body
+}
+
+/**
+ * El texto del modelo dentro de la respuesta del proveedor.
+ *
+ * Está en `choices[0].message.content`. Lo que haya en cualquier otro campo
+ * —razonamiento, uso de tokens, ids— no se mira. Si no hay texto, cadena vacía:
+ * quien llama lo tratará como respuesta que no se entiende.
+ */
+export function readProviderText(payload: unknown): string {
+  if (typeof payload !== 'object' || payload === null) return ''
+  const choices = (payload as { choices?: unknown }).choices
+  if (!Array.isArray(choices) || choices.length === 0) return ''
+  const message = (choices[0] as { message?: { content?: unknown } })?.message
+  return typeof message?.content === 'string' ? message.content : ''
+}
+
+/**
  * Lee la respuesta del modelo.
  *
  * Se pide JSON, pero un modelo puede devolver el JSON envuelto en un bloque de
@@ -148,14 +204,14 @@ function extractJsonObject(text: string): string | null {
 /**
  * Traduce un fallo del proveedor a un código propio.
  *
- * Cualquier fallo al llamar a Gemini —cuota agotada, 500, timeout, red caída—
+ * Cualquier fallo al llamar al proveedor —cuota agotada, 500, timeout, red caída—
  * acaba en el mismo sitio: `AI_UNAVAILABLE`. No se distinguen porque para el
  * cliente no cambian nada, hace exactamente lo mismo en todos los casos: caer al
  * motor determinista. Distinguirlos aquí solo serviría para filtrar información
- * de Google a través de un código de error.
+ * del proveedor a través de un código de error.
  *
  * Lo único que sí se distingue, y se hace en la función, es haber hablado con
- * Gemini y no entender lo que ha contestado: eso es `AI_BAD_RESPONSE`.
+ * el proveedor y no entender lo que ha contestado: eso es `AI_BAD_RESPONSE`.
  */
 export function errorCodeFor(_cause: unknown): AxisAiErrorCode {
   return 'AI_UNAVAILABLE'

@@ -19,7 +19,7 @@
  * 4. **Si falla, responde el determinista.** La conversación nunca se queda muerta.
  *
  * Este módulo es puro: no conoce React, ni IndexedDB, ni Netlify, ni el SDK de
- * ningún proveedor. Cambiar de Gemini a otro modelo no se toca aquí.
+ * ningún proveedor. Cambiar de proveedor o de modelo no se toca aquí.
  */
 
 import type { AxisActionTarget } from '../actions'

@@ -45,13 +45,22 @@ const ALL = sourceFiles()
  * No es nombrarlo en un comentario: explicar por qué una decisión está tomada es
  * justo lo contrario de acoplarse a ella.
  */
-const PROVIDER_DEPENDENCY = /@google\/genai|GoogleGenAI|generativelanguage\.googleapis\.com/
+/** Rastro del proveedor actual (Groq) y del anterior (Gemini): ninguno puede salir de la función. */
+const PROVIDER_DEPENDENCY = /api\.groq\.com|groq-sdk|from 'groq|@google\/genai|GoogleGenAI|generativelanguage\.googleapis\.com/
+
+/**
+ * Herramientas que se ejecutan a mano en desarrollo (`scripts/`). No se
+ * despliegan ni entran en el bundle; una de ellas lee la credencial a propósito
+ * para probar el proveedor en vivo.
+ */
+const DEV_TOOLS = (path: string) => path.includes('/scripts/')
 
 /** Lo que acaba en el navegador: la app de Next, sin la función de servidor. */
 const CLIENT = ALL.filter(
   (path) =>
     !path.includes('/netlify/functions/') &&
     !path.includes('/lib/ai/') &&
+    !DEV_TOOLS(path) &&
     !path.endsWith('.test.ts'),
 )
 
@@ -64,11 +73,11 @@ test('el proyecto tiene archivos que revisar', () => {
   assert.ok(CLIENT.length > 20)
 })
 
-test('ningún archivo del cliente menciona la clave de Gemini', () => {
+test('ningún archivo del cliente menciona la clave del proveedor', () => {
   for (const path of CLIENT) {
     assert.doesNotMatch(
       read(path),
-      /GEMINI_API_KEY/,
+      /GROQ_API_KEY|GEMINI_API_KEY/,
       `${path} menciona la credencial y acaba en el navegador`,
     )
   }
@@ -78,16 +87,16 @@ test('no existe ninguna variable pública con la clave', () => {
   for (const path of ALL) {
     assert.doesNotMatch(
       read(path),
-      /NEXT_PUBLIC_[A-Z_]*(GEMINI|API_KEY|GENAI)/,
+      /NEXT_PUBLIC_[A-Z_]*(GROQ|GEMINI|API_KEY|GENAI)/,
       `${path}: NEXT_PUBLIC_* acaba dentro del bundle, a la vista de cualquiera`,
     )
   }
 })
 
 test('no hay ninguna clave escrita a mano en el repositorio', () => {
-  // Las claves de Google empiezan por AIza y tienen 39 caracteres.
+  // Las claves de Groq empiezan por gsk_; las de Google por AIza y tienen 39 caracteres.
   for (const path of ALL) {
-    assert.doesNotMatch(read(path), /AIza[0-9A-Za-z_-]{35}/, `${path} parece contener una API key`)
+    assert.doesNotMatch(read(path), /gsk_[0-9A-Za-z]{20,}|AIza[0-9A-Za-z_-]{35}/, `${path} parece contener una API key`)
   }
 })
 
@@ -95,7 +104,10 @@ test('solo la función de servidor lee la credencial', () => {
   // Los tests quedan fuera: la regla es sobre el código que se despliega, y su
   // propio test necesita manipular la variable para comprobar que falta.
   const lectores = ALL.filter(
-    (path) => !path.endsWith('.test.ts') && /process\.env\.GEMINI_API_KEY/.test(read(path)),
+    (path) =>
+      !path.endsWith('.test.ts') &&
+      !DEV_TOOLS(path) &&
+      /process\.env\.(GROQ|GEMINI)_API_KEY/.test(read(path)),
   )
 
   assert.deepEqual(
@@ -118,15 +130,30 @@ test('el proveedor no se toca desde el cliente', () => {
   }
 })
 
-test('solo la función de servidor habla con el proveedor', () => {
+test('solo el proxy de servidor —contrato y función— conoce al proveedor', () => {
   const emisores = ALL.filter(
     (path) => !path.endsWith('.test.ts') && PROVIDER_DEPENDENCY.test(read(path)),
   )
 
+  // El contrato es el único sitio donde está escrita la URL del proveedor; la
+  // función la usa a través de él y es la única que llama. Nadie más.
   assert.deepEqual(
     emisores.map((path) => path.split('/').slice(-2).join('/')),
-    ['functions/axis-ai.mts'],
+    ['ai/provider-contract.ts'],
   )
+
+  const funcion = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+  assert.match(funcion, /PROVIDER_ENDPOINT/)
+  assert.match(funcion, /fetch\(PROVIDER_ENDPOINT/)
+
+  const otrosConFetch = ALL.filter(
+    (path) =>
+      !path.endsWith('.test.ts') &&
+      !path.endsWith('functions/axis-ai.mts') &&
+      /fetch\(PROVIDER_ENDPOINT|api\.groq\.com\/openai/.test(read(path)) &&
+      !path.endsWith('ai/provider-contract.ts'),
+  )
+  assert.deepEqual(otrosConFetch, [], 'nadie más llama al proveedor')
 })
 
 test('la función no arrastra dependencias que haya que empaquetar', () => {
@@ -160,7 +187,7 @@ test('el SDK no aparece en el export estático', () => {
   }
 
   for (const chunk of chunks) {
-    assert.doesNotMatch(read(chunk), /GEMINI_API_KEY/, `${chunk} lleva la credencial`)
+    assert.doesNotMatch(read(chunk), /GROQ_API_KEY|GEMINI_API_KEY|api\.groq\.com/, `${chunk} lleva la credencial o el proveedor`)
   }
 })
 
@@ -168,7 +195,7 @@ test('el SDK no aparece en el export estático', () => {
 // El dominio no sabe quién es el proveedor
 // ---------------------------------------------------------------------------
 
-test('la conversación de AXIS no conoce a Gemini, ni a Netlify, ni a React', () => {
+test('la conversación de AXIS no conoce al proveedor, ni a Netlify, ni a React', () => {
   const conversacion = ALL.filter(
     (path) => path.includes('/domain/axis/conversation/') && !path.endsWith('.test.ts'),
   )
@@ -232,11 +259,35 @@ test('la función no persiste conversaciones ni añade analítica', () => {
 test('el ejemplo de entorno no contiene una clave real', () => {
   const ejemplo = readFileSync(new URL('.env.example', ROOT), 'utf8')
 
-  assert.match(ejemplo, /GEMINI_API_KEY=\s*$/m, 'debe quedar vacía')
-  assert.doesNotMatch(ejemplo, /AIza/)
+  assert.match(ejemplo, /GROQ_API_KEY=\s*$/m, 'debe quedar vacía')
+  assert.doesNotMatch(ejemplo, /gsk_|AIza/)
 })
 
 test('.env.local está ignorado por git', () => {
   const ignore = readFileSync(new URL('.gitignore', ROOT), 'utf8')
   assert.match(ignore, /\.env\*?\.local|\.env\.local/)
+})
+
+// ---------------------------------------------------------------------------
+// El proveedor es Groq, y solo lo sabe la función
+// ---------------------------------------------------------------------------
+
+test('el proveedor anterior ya no se utiliza en ningún sitio', () => {
+  for (const path of ALL) {
+    if (path.endsWith('.test.ts')) continue
+    assert.doesNotMatch(read(path), /gemini|GoogleGenAI|generativelanguage/i, `${path} sigue nombrando al proveedor anterior`)
+  }
+  const envExample = readFileSync(new URL('.env.example', ROOT), 'utf8')
+  assert.doesNotMatch(envExample, /GEMINI/)
+  assert.match(envExample, /GROQ_API_KEY=/)
+})
+
+test('lib/domain/axis no importa nada del proveedor', () => {
+  const dominioAxis = ALL.filter((path) => path.includes('/lib/domain/axis/') && !path.endsWith('.test.ts'))
+  assert.ok(dominioAxis.length >= 15)
+  for (const path of dominioAxis) {
+    const imports = read(path).match(/^import .*$/gm)?.join('\n') ?? ''
+    assert.doesNotMatch(imports, /groq|lib\/ai\/|provider-contract|netlify/i, `${path} importa al proveedor`)
+    assert.doesNotMatch(read(path), /api\.groq\.com|GROQ_API_KEY|gpt-oss/i, `${path} conoce al proveedor`)
+  }
 })

@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-09-17.
+**Última actualización:** 2026-09-19.
 
 ## Qué es este documento
 
@@ -463,6 +463,21 @@ propuesta → comprobación → confirmación del usuario → aplicación → me
 - `isSessionValid` usa el catálogo del contexto, el mismo con el que decidió el motor.
 
 Sigue habiendo un único tipo de acción, `change_training`. Añadir otro exige extender la unión discriminada y pasar por el mismo ciclo.
+
+---
+
+## D-013 — Proveedor de lenguaje de AXIS: Groq, a coste cero
+
+**Fecha:** 2026-09-19 · **Estado:** aprobada
+
+La capa de lenguaje de AXIS (`lib/domain/axis/conversation/ai.ts` + `netlify/functions/axis-ai.mts`) usa **Groq** como proveedor, con el modelo `openai/gpt-oss-120b` (plan gratuito, producción). Sustituye a Gemini. Es un cambio de proveedor, no de arquitectura: el modelo sigue redactando y nada más; AXIS decide, `reconcileTarget` y `safety.ts` validan, `AxisActionEngine` ejecuta, el usuario confirma.
+
+### Reglas
+
+- **Coste objetivo: 0 €.** Solo el acceso gratuito de Groq. Si el plan gratuito deja de cubrir el uso, AXIS sigue funcionando con el determinista.
+- La credencial es `GROQ_API_KEY`, solo en la función de Netlify. `GROQ_MODEL` permite cambiar de modelo desde el entorno.
+- El dominio (`lib/domain/axis`) no importa ni nombra al proveedor; un test lo vigila.
+- Fallback determinista intacto ante error, timeout, respuesta inválida, límite de uso o clave ausente.
 
 ---
 

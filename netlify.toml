@@ -9,7 +9,7 @@
   command = "npm run build"
   publish = "out"
 
-# La única pieza de servidor: el proxy de IA. Necesita GEMINI_API_KEY en las
+# La única pieza de servidor: el proxy de IA. Necesita GROQ_API_KEY en las
 # variables de entorno de Netlify (nunca en el repositorio, nunca NEXT_PUBLIC_*).
 [functions]
   directory = "netlify/functions"
