@@ -28,15 +28,27 @@ import {
   GEMINI_TIMEOUT_MS,
   MAX_REQUEST_BYTES,
   PROXY_HEADERS,
+  RATE_LIMIT,
   buildUserPayload,
+  checkRequestOrigin,
   errorCodeFor,
   parseModelText,
   parseProxyRequest,
+  trustedOriginsFromEnv,
   type AxisAiErrorCode,
   type ProxyRequest,
 } from '../../lib/ai/gemini-contract'
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
+
+/** El host donde está sirviendo la función. Una petición del mismo sitio siempre cuadra con él. */
+function hostOfRequest(request: Request): string | null {
+  try {
+    return new URL(request.url).host
+  } catch {
+    return null
+  }
+}
 
 function fail(code: AxisAiErrorCode, status: number): Response {
   return new Response(JSON.stringify({ ok: false, code }), {
@@ -91,6 +103,18 @@ export default async function handler(request: Request): Promise<Response> {
     return fail('BAD_REQUEST', 405)
   }
 
+  /*
+   * Solo la propia aplicación. Se comprueba antes que nada, incluida la
+   * credencial: quien no debería llamar no se entera ni de si hay IA.
+   *
+   * No es autenticación —`Origin` se puede escribir a mano— sino la defensa que
+   * corta lo fácil. Contra lo demás está el límite de tasa de la plataforma.
+   */
+  const trusted = trustedOriginsFromEnv(process.env, hostOfRequest(request))
+  if (!checkRequestOrigin(request.headers, trusted).ok) {
+    return fail('FORBIDDEN', 403)
+  }
+
   // La credencial vive solo aquí, en el entorno del servidor.
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
@@ -133,14 +157,23 @@ export default async function handler(request: Request): Promise<Response> {
   )
 }
 
-/*
- * Sin `export const config`.
+/**
+ * Configuración de la función.
  *
- * Aquí había un `path: '/.netlify/functions/axis-ai'`, que es exactamente la
- * ruta por defecto de cualquier función. Declararla como ruta personalizada no
- * añadía nada y rompía el desarrollo local: `netlify dev` se negaba a invocarla
- * con «cannot be invoked on /.netlify/functions/axis-ai, because the function
- * has the following URL paths defined: /.netlify/functions/axis-ai».
+ * Solo el límite de tasa. Lo aplica Netlify por IP y dominio antes de que la
+ * función arranque, y responde 429 al superarlo: es lo que impide que alguien
+ * que descubra la URL se gaste la cuota. Los valores viven en el contrato para
+ * poder comprobarlos en un test. `netlify dev` no lo aplica en local.
  *
- * Sin la declaración, la función queda en esa misma URL por convención.
+ * Sin `path`: aquí hubo un `path: '/.netlify/functions/axis-ai'`, que es
+ * exactamente la ruta por defecto, y declararla como ruta personalizada rompía
+ * el desarrollo local. La función sigue en esa URL por convención.
  */
+export const config = {
+  rateLimit: {
+    windowLimit: RATE_LIMIT.windowLimit,
+    windowSize: RATE_LIMIT.windowSize,
+    aggregateBy: ['ip', 'domain'],
+    action: 'rate_limit',
+  },
+}

@@ -170,3 +170,84 @@ test('hay límites de tamaño y de tiempo', () => {
 test('la respuesta del proxy nunca se cachea', () => {
   assert.equal(PROXY_HEADERS['Cache-Control'], 'no-store')
 })
+
+// ---------------------------------------------------------------------------
+// Quién puede llamar a la función
+// ---------------------------------------------------------------------------
+
+import { checkRequestOrigin, RATE_LIMIT, trustedOriginsFromEnv } from './gemini-contract'
+
+const SITE = 'https://axthletics.netlify.app'
+
+function headers(entries: Record<string, string>): Headers {
+  return new Headers(entries)
+}
+
+test('los orígenes de confianza salen del entorno de Netlify y del host de la petición', () => {
+  const trusted = trustedOriginsFromEnv(
+    { URL: SITE, DEPLOY_PRIME_URL: 'https://deploy-preview-3--axthletics.netlify.app', DEPLOY_URL: 'no es una url' },
+    'axthletics.netlify.app',
+  )
+  assert.deepEqual(trusted.hosts, ['axthletics.netlify.app', 'deploy-preview-3--axthletics.netlify.app'])
+  assert.equal(trusted.allowLocalhost, false)
+
+  // Sin entorno, el host de la petición basta: la función sirve desde el sitio.
+  assert.deepEqual(trustedOriginsFromEnv({}, 'mi-dominio.com').hosts, ['mi-dominio.com'])
+  assert.deepEqual(trustedOriginsFromEnv({}).hosts, [])
+})
+
+test('localhost solo se admite en desarrollo', () => {
+  assert.equal(trustedOriginsFromEnv({ CONTEXT: 'dev' }).allowLocalhost, true)
+  assert.equal(trustedOriginsFromEnv({ NETLIFY_DEV: 'true' }).allowLocalhost, true)
+  assert.equal(trustedOriginsFromEnv({ CONTEXT: 'production' }).allowLocalhost, false)
+
+  const dev = trustedOriginsFromEnv({ CONTEXT: 'dev' }, 'localhost:8888')
+  assert.equal(checkRequestOrigin(headers({ origin: 'http://localhost:3000' }), dev).ok, true)
+  assert.equal(checkRequestOrigin(headers({ origin: 'http://127.0.0.1:4000' }), dev).ok, true)
+
+  const prod = trustedOriginsFromEnv({ URL: SITE }, 'axthletics.netlify.app')
+  assert.deepEqual(checkRequestOrigin(headers({ origin: 'http://localhost:3000' }), prod), { ok: false, reason: 'untrusted' })
+})
+
+test('la propia aplicación pasa: por Origin o, si falta, por Referer', () => {
+  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  assert.equal(checkRequestOrigin(headers({ origin: SITE }), trusted).ok, true)
+  assert.equal(checkRequestOrigin(headers({ referer: `${SITE}/` }), trusted).ok, true)
+  assert.equal(checkRequestOrigin(headers({ origin: SITE, 'sec-fetch-site': 'same-origin' }), trusted).ok, true)
+})
+
+test('sin Origin ni Referer no se sabe quién llama: se rechaza', () => {
+  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  assert.deepEqual(checkRequestOrigin(headers({}), trusted), { ok: false, reason: 'missing' })
+  assert.deepEqual(checkRequestOrigin(headers({ 'content-type': 'application/json' }), trusted), { ok: false, reason: 'missing' })
+})
+
+test('otro sitio, un origen roto o un subdominio parecido no pasan', () => {
+  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  for (const origin of [
+    'https://otro-sitio.com',
+    'https://axthletics.netlify.app.evil.com',
+    'https://evil-axthletics.netlify.app',
+    'null',
+    'no-es-una-url',
+  ]) {
+    assert.deepEqual(checkRequestOrigin(headers({ origin }), trusted), { ok: false, reason: 'untrusted' }, origin)
+  }
+})
+
+test('lo que dice el navegador manda: Sec-Fetch-Site cross-site se rechaza aunque Origin cuadre', () => {
+  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  assert.deepEqual(
+    checkRequestOrigin(headers({ origin: SITE, 'sec-fetch-site': 'cross-site' }), trusted),
+    { ok: false, reason: 'cross_site' },
+  )
+  assert.deepEqual(
+    checkRequestOrigin(headers({ origin: SITE, 'sec-fetch-site': 'none' }), trusted),
+    { ok: false, reason: 'cross_site' },
+  )
+})
+
+test('el límite de tasa es razonable y cabe en lo que Netlify admite', () => {
+  assert.ok(RATE_LIMIT.windowLimit >= 5 && RATE_LIMIT.windowLimit <= 60)
+  assert.ok(RATE_LIMIT.windowSize > 0 && RATE_LIMIT.windowSize <= 180)
+})

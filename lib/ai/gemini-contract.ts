@@ -42,6 +42,8 @@ export type AxisAiErrorCode =
   | 'AI_UNAVAILABLE'
   /** El proveedor respondió algo que no se entiende. */
   | 'AI_BAD_RESPONSE'
+  /** La petición no viene de la propia aplicación. */
+  | 'FORBIDDEN'
 
 export type AxisAiProxyError = { ok: false; code: AxisAiErrorCode }
 export type AxisAiProxySuccess = { ok: true; text: string; action: unknown }
@@ -164,4 +166,106 @@ export const PROXY_HEADERS: Record<string, string> = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
+}
+
+// ---------------------------------------------------------------------------
+// Quién puede llamar a la función
+// ---------------------------------------------------------------------------
+
+/**
+ * Límite de tasa que aplica Netlify a la función, por IP y dominio.
+ *
+ * Es la protección real contra alguien que descubra la URL y la use para
+ * gastar la cuota: la aplica la plataforma antes de que la función arranque,
+ * y devuelve 429. Vive aquí, y no solo en la función, para poder comprobar en
+ * un test que la función lo declara. Una persona pregunta a AXIS unas pocas
+ * veces por minuto; veinte es holgado para el uso real y ridículo para el abuso.
+ */
+export const RATE_LIMIT = {
+  windowLimit: 20,
+  /** Segundos. Netlify admite hasta 180. */
+  windowSize: 60,
+} as const
+
+/**
+ * De dónde se aceptan peticiones.
+ *
+ * `hosts` son los dominios donde vive la aplicación: el sitio publicado y, en
+ * Netlify, los de previsualización. `allowLocalhost` solo en desarrollo.
+ */
+export type TrustedOrigins = {
+  hosts: readonly string[]
+  allowLocalhost: boolean
+}
+
+function hostOf(url: string | undefined): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).host
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Los orígenes de confianza, a partir del entorno de Netlify y de la propia
+ * URL de la petición.
+ *
+ * `URL` es el dominio principal del sitio, `DEPLOY_PRIME_URL` y `DEPLOY_URL`
+ * los de esta publicación. El host de la petición se añade siempre: es donde
+ * la función está sirviendo, así que una petición del mismo sitio siempre
+ * cuadra aunque el entorno no diga nada. `CONTEXT=dev` es `netlify dev`.
+ */
+export function trustedOriginsFromEnv(
+  env: Record<string, string | undefined>,
+  requestHost: string | null = null,
+): TrustedOrigins {
+  const hosts = new Set<string>()
+  for (const key of ['URL', 'DEPLOY_PRIME_URL', 'DEPLOY_URL']) {
+    const host = hostOf(env[key])
+    if (host) hosts.add(host)
+  }
+  if (requestHost) hosts.add(requestHost)
+  return {
+    hosts: [...hosts],
+    allowLocalhost: env.CONTEXT === 'dev' || env.NETLIFY_DEV === 'true',
+  }
+}
+
+function isLocalhost(host: string): boolean {
+  const name = host.replace(/:\d+$/, '')
+  return name === 'localhost' || name === '127.0.0.1' || name === '[::1]'
+}
+
+export type OriginCheck =
+  | { ok: true }
+  | { ok: false; reason: 'missing' | 'untrusted' | 'cross_site' }
+
+/**
+ * Comprueba que la petición viene de la propia aplicación.
+ *
+ * No es autenticación: `Origin` lo puede escribir cualquiera con `curl`. Es
+ * una defensa adicional que corta lo fácil —una página de otro dominio, un
+ * script sin cabeceras— y deja el resto al límite de tasa de la plataforma.
+ * Lo que sí es fiable viene del navegador: `Sec-Fetch-Site` lo pone el propio
+ * navegador y una página ajena no puede falsearlo.
+ *
+ * Se mira `Origin` y, si no está, `Referer`. Sin ninguno de los dos no hay
+ * forma de saber quién llama, y se rechaza.
+ */
+export function checkRequestOrigin(headers: Headers, trusted: TrustedOrigins): OriginCheck {
+  const fetchSite = headers.get('sec-fetch-site')
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'same-site') {
+    return { ok: false, reason: 'cross_site' }
+  }
+
+  const source = headers.get('origin') ?? headers.get('referer')
+  if (!source) return { ok: false, reason: 'missing' }
+
+  const host = hostOf(source)
+  if (!host) return { ok: false, reason: 'untrusted' }
+
+  if (trusted.hosts.includes(host)) return { ok: true }
+  if (trusted.allowLocalhost && isLocalhost(host)) return { ok: true }
+  return { ok: false, reason: 'untrusted' }
 }
