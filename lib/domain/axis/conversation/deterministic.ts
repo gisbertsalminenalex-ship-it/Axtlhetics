@@ -21,8 +21,9 @@ import { formatDuration, formatRelativeDay, WEEKDAY_LABELS } from '../../shared/
 import { listNames } from '../../shared/text'
 import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { describeFocus, type SessionFocus } from '../knowledge/focus'
+import { muscleGroupLabel } from '../knowledge/muscles'
 import type { AxisBriefing, BriefingActivity } from '../briefing'
-import { matchIntent } from './intents'
+import { detectExercise, looksLikeQuestion, looksLikeRequest, matchIntent } from './intents'
 import { evaluateChange, parseChangeRequest, type ChangeRequest } from './negotiation'
 import type {
   AxisAnswer,
@@ -72,11 +73,25 @@ export function answerFromBriefing(
       question,
       briefing.activitiesToday.map((activity) => activity.name),
     )
+    /*
+     * Una pregunta no es una petición. «¿Qué músculos trabajan las
+     * sentadillas?» nombra piernas y «¿por qué necesito descansar?» contiene
+     * «descansar», pero ninguna pide cambiar nada: se responden como lo que
+     * son. Una pregunta sí se negocia cuando pide algo («¿podemos no hacer
+     * piernas?», «¿puedes cambiarlo?») o cuando trae una carga que contar.
+     */
+    const isQuestion =
+      looksLikeQuestion(question) &&
+      !looksLikeRequest(question) &&
+      request.reportedLoad === null &&
+      match.intent !== 'change' &&
+      match.intent !== 'shorten'
     const asksForChange =
-      request.kind !== 'unclear' ||
-      request.reportedLoad !== null ||
-      match.intent === 'change' ||
-      match.intent === 'unknown'
+      !isQuestion &&
+      (request.kind !== 'unclear' ||
+        request.reportedLoad !== null ||
+        match.intent === 'change' ||
+        match.intent === 'unknown')
 
     if (!isMedicalOrForeign && asksForChange) {
       /*
@@ -137,6 +152,8 @@ export function answerFromBriefing(
       return answerChanged(briefing)
     case 'shorten':
       return answerShorten(briefing)
+    case 'exercise':
+      return answerExercise(briefing, question)
     case 'medical':
       return answerMedical()
     case 'out_of_scope':
@@ -573,6 +590,32 @@ function answerOutOfScope(): AxisAnswer {
     'out_of_scope',
     `Eso queda fuera de lo que puedo ayudarte a decidir. Puedo ayudarte con ${SCOPE}.`,
   )
+}
+
+const CATEGORY_LABELS = { empuje: 'empuje', tiron: 'tirón', piernas: 'piernas', core: 'core' } as const
+
+/**
+ * «¿Para qué sirven las flexiones?»
+ *
+ * Se responde con lo que el catálogo sabe de ese ejercicio: patrón, músculos e
+ * instrucciones. Nada más: AXIS no es una enciclopedia de fisiología, y lo que
+ * no está en el catálogo no se inventa.
+ */
+function answerExercise(briefing: AxisBriefing, question: string): AxisAnswer {
+  const exercise = detectExercise(question)
+  if (!exercise) return answerUnknown()
+
+  const primary = listNames(exercise.primaryMuscles.map(muscleGroupLabel))
+  const secondary = exercise.secondaryMuscles.map(muscleGroupLabel)
+  const parts = [
+    `${exercise.name}: ejercicio de ${CATEGORY_LABELS[exercise.category]}. Trabaja sobre todo ${primary}${secondary.length > 0 ? `, y de paso ${listNames(secondary)}` : ''}.`,
+    exercise.instructions,
+  ]
+
+  const inSession = briefing.proposal?.session?.exercises.some((item) => item.name === exercise.name) ?? false
+  if (inSession) parts.push('Hoy está en tu sesión.')
+
+  return say('exercise', parts)
 }
 
 function answerUnknown(): AxisAnswer {

@@ -13,6 +13,8 @@
  *    seguimiento se resuelve contra lo último que se habló.
  */
 
+import { EXERCISE_CATALOG } from '../../workouts/catalog'
+import type { Exercise } from '../../workouts/types'
 import { FOCUS_TERMS, type SessionFocus } from '../knowledge/focus'
 import { SPORT_TERMS } from '../knowledge/sports'
 import type { AxisIntent } from './types'
@@ -64,7 +66,7 @@ const RULES: readonly IntentRule[] = [
 
   {
     intent: 'recovery',
-    any: ['recuper', 'descans', 'sueño', 'sueno', 'dormid', 'fatiga', 'energia', 'energía', 'estres', 'estrés', 'hidrat'],
+    any: ['recuper', 'recovery', 'descans', 'sueño', 'sueno', 'dormid', 'fatiga', 'energia', 'energía', 'estres', 'estrés', 'hidrat'],
   },
 
   { intent: 'goals', any: ['objetivo', 'meta', 'priorizar', 'prioridad'] },
@@ -102,12 +104,98 @@ export type IntentMatch = {
   isFollowUp: boolean
 }
 
+/**
+ * `true` si `term` aparece como palabra (o principio de palabra) en `text`.
+ *
+ * Por principio de palabra y no por subcadena: «core» está dentro de «score» y
+ * «Recovery Score» no es una pregunta sobre el core. «pierna» sí debe encontrar
+ * «piernas».
+ */
+function includesWord(text: string, term: string): boolean {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^a-z0-9])${escaped}`).test(text)
+}
+
 export function detectFocus(question: string): SessionFocus | null {
   const text = normalizeQuestion(question)
   for (const entry of FOCUS_TERMS) {
-    if (entry.terms.some((term) => text.includes(normalizeQuestion(term)))) {
+    if (entry.terms.some((term) => includesWord(text, normalizeQuestion(term)))) {
       return entry.focus
     }
+  }
+  return null
+}
+
+/** Saludos y muletillas con las que suele empezar un mensaje; no cambian lo que pide. */
+const GREETINGS = ['hola', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches', 'hey', 'oye', 'axis', 'una pregunta', 'pregunta']
+
+/** Con qué empieza una pregunta informativa. */
+const QUESTION_OPENERS = [
+  'que ', 'para que', 'por que', 'como ', 'cuanto', 'cuanta', 'cual', 'cuales', 'donde',
+  'cuando', 'quien', 'es cierto', 'es verdad', 'es bueno', 'es malo', 'sirve', 'me explicas',
+  'explicame', 'puedes explicar', 'sabes ',
+]
+
+/**
+ * `true` si el mensaje tiene forma de pregunta, no de petición.
+ *
+ * Lo decide la forma —signos de interrogación o un arranque interrogativo tras
+ * el saludo—, no el tema: «¿qué músculos trabajan las sentadillas?» es una
+ * pregunta aunque nombre piernas; «hoy piernas no» es una petición aunque no
+ * lleve verbo.
+ */
+export function looksLikeQuestion(question: string): boolean {
+  if (/[?¿]/.test(question)) return true
+
+  let text = normalizeQuestion(question)
+  let stripped = true
+  while (stripped) {
+    stripped = false
+    for (const greeting of GREETINGS) {
+      if (text.startsWith(greeting)) {
+        text = text.slice(greeting.length).replace(/^[\s,.!;:]+/, '')
+        stripped = true
+      }
+    }
+  }
+  return QUESTION_OPENERS.some((opener) => text.startsWith(opener))
+}
+
+/** Con qué se pide algo, aunque vaya entre signos de interrogación. */
+const REQUEST_MARKERS = [
+  'podemos', 'puedes', 'puedo', 'podrias', 'quiero', 'prefiero', 'hazme', 'ponme', 'dame',
+  'cambia', 'me apetece', 'no hacer', 'evitar', 'saltar', 'dejar', 'mejor hacer', 'y si hago',
+]
+
+/**
+ * `true` si el mensaje pide algo. «¿Podemos no hacer piernas?» es una
+ * petición aunque lleve interrogación; «¿qué músculos trabajan las
+ * sentadillas?» no pide nada.
+ */
+export function looksLikeRequest(question: string): boolean {
+  const text = normalizeQuestion(question)
+  return REQUEST_MARKERS.some((marker) => includesWord(text, marker))
+}
+
+/**
+ * El ejercicio del catálogo que nombra el mensaje, si nombra alguno.
+ *
+ * Primero el nombre completo (el más largo gana: «flexiones diamante» antes que
+ * «flexiones»), después la raíz de la primera palabra, para que «sentadillas»
+ * encuentre «Sentadilla» y «flexion» encuentre «Flexiones».
+ */
+export function detectExercise(question: string, catalog: readonly Exercise[] = EXERCISE_CATALOG): Exercise | null {
+  const text = normalizeQuestion(question)
+  const byLength = [...catalog].sort((a, b) => b.name.length - a.name.length)
+
+  for (const exercise of byLength) {
+    if (includesWord(text, normalizeQuestion(exercise.name))) return exercise
+  }
+
+  for (const exercise of byLength) {
+    const first = normalizeQuestion(exercise.name).split(' ')[0]
+    const stem = first.replace(/(es|s)$/, '')
+    if (stem.length >= 5 && includesWord(text, stem)) return exercise
   }
   return null
 }
@@ -136,6 +224,11 @@ export function matchIntent(
       return { intent: 'why_not', focus, isFollowUp }
     }
     return { intent: rule.intent, focus, isFollowUp }
+  }
+
+  // Preguntar por un ejercicio concreto se responde con el catálogo.
+  if (detectExercise(question)) {
+    return { intent: 'exercise', focus, isFollowUp }
   }
 
   // Nada ha encajado. Si es un seguimiento corto, se hereda el tema anterior.

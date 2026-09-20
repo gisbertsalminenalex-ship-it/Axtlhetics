@@ -30,6 +30,8 @@ export type AxisIntent =
   | 'shorten'
   | 'medical'
   | 'out_of_scope'
+  /** Pregunta por un ejercicio del catálogo: para qué sirve, qué trabaja, cómo se hace. */
+  | 'exercise'
   | 'unknown'
 
 export type AxisMessageRole = 'user' | 'axis'

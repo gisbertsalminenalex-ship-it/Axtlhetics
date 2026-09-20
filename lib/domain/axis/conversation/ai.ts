@@ -125,6 +125,7 @@ export const AI_WORTHY_INTENTS: readonly AxisIntent[] = [
   'can_train',
   'sport_impact',
   'goals',
+  'exercise',
 ]
 
 export function benefitsFromAi(intent: AxisIntent): boolean {
