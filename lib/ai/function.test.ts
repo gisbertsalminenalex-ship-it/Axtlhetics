@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 /**
- * La función de Netlify, invocada igual que la invocará el runtime.
+ * El route handler de `/api/axis-ai`, invocado igual que lo invocará Vercel.
  *
  * Solo se prueban los caminos que no salen a la red: sin credencial, método
  * equivocado y cuerpos inválidos. Lo que ocurre al otro lado —cuota, 500,
@@ -10,11 +10,11 @@ import test from 'node:test'
  * es donde vive esa lógica precisamente para poder probarla sin llamar a nadie.
  */
 
-import handler, { config } from '../../netlify/functions/axis-ai.mts'
-import { AXIS_AI_MODEL, PROVIDER_ENDPOINT, RATE_LIMIT } from './provider-contract'
+import { POST as handler, maxDuration, runtime } from '../../app/api/axis-ai/route'
+import { AXIS_AI_MODEL, PROVIDER_ENDPOINT, PROVIDER_TIMEOUT_MS } from './provider-contract'
 
-const SITE = 'https://axthletics.netlify.app'
-const ENDPOINT = `${SITE}/.netlify/functions/axis-ai`
+const SITE = 'https://axthletics.vercel.app'
+const ENDPOINT = `${SITE}/api/axis-ai`
 
 function validBody(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
@@ -54,14 +54,11 @@ test('sin credencial configurada responde que la IA no está disponible', async 
   assert.equal(body.code, 'AI_NOT_CONFIGURED')
 })
 
-test('solo acepta POST', async () => {
-  process.env.GROQ_API_KEY = 'clave-de-prueba'
-
-  for (const method of ['GET', 'PUT', 'DELETE']) {
-    const { status, body } = await call({ method })
-    assert.equal(status, 405, method)
-    assert.equal(body.code, 'BAD_REQUEST', method)
-  }
+test('solo existe el método POST: no hay GET que consultar', async () => {
+  const route = await import('../../app/api/axis-ai/route')
+  assert.equal(typeof route.POST, 'function')
+  assert.equal('GET' in route, false)
+  assert.equal('default' in route, false, 'sin export por defecto: no es una función de Netlify')
 })
 
 test('un cuerpo inválido se rechaza antes de llamar a nadie', async () => {
@@ -122,7 +119,7 @@ test('una petición sin Origin ni Referer se rechaza, aunque haya credencial', a
 test('una petición desde otro sitio se rechaza antes de mirar nada más', async () => {
   delete process.env.GROQ_API_KEY
 
-  for (const origin of ['https://otro-sitio.com', 'https://axthletics.netlify.app.evil.com', 'null']) {
+  for (const origin of ['https://otro-sitio.com', 'https://axthletics.vercel.app.evil.com', 'null']) {
     const { status, body } = await call({ method: 'POST', body: validBody(), headers: { origin } })
     assert.equal(status, 403, origin)
     // Sin credencial habría sido 503: el origen se comprueba antes, y el de
@@ -159,23 +156,20 @@ test('la propia aplicación pasa el filtro de origen aunque el entorno no diga n
   assert.equal(viaReferer.status, 503)
 })
 
-test('la función declara el límite de tasa nativo de Netlify por IP y dominio', () => {
-  assert.deepEqual(config, {
-    rateLimit: {
-      windowLimit: RATE_LIMIT.windowLimit,
-      windowSize: RATE_LIMIT.windowSize,
-      aggregateBy: ['ip', 'domain'],
-      action: 'rate_limit',
-    },
-  })
-  assert.equal('path' in config, false, 'sin path: rompía netlify dev')
+test('la ruta corre en Node.js y se corta después de nuestro propio timeout, nunca antes', async () => {
+  assert.equal(runtime, 'nodejs')
+  assert.equal(maxDuration, 10)
+  assert.ok(maxDuration * 1000 > PROVIDER_TIMEOUT_MS, 'el corte lo da nuestro código, con código propio')
+  // Un `config` de Netlify aquí rompería el build de Next.
+  const route = await import('../../app/api/axis-ai/route')
+  assert.equal('config' in route, false)
 })
 
 test('el rechazo por origen tampoco filtra nada', async () => {
   const response = await handler(new Request(ENDPOINT, { method: 'POST', body: validBody() }))
   const body = await response.json()
   assert.deepEqual(Object.keys(body).sort(), ['code', 'ok'])
-  assert.doesNotMatch(JSON.stringify(body), /origin|host|netlify|groq|gemini/i)
+  assert.doesNotMatch(JSON.stringify(body), /origin|host|vercel|netlify|groq|gemini/i)
 })
 
 // ---------------------------------------------------------------------------

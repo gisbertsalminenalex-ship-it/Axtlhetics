@@ -183,19 +183,32 @@ test('la respuesta del proxy nunca se cachea', () => {
 
 import { checkRequestOrigin, RATE_LIMIT, trustedOriginsFromEnv } from './provider-contract'
 
-const SITE = 'https://axthletics.netlify.app'
+const SITE = 'https://axthletics.vercel.app'
 
 function headers(entries: Record<string, string>): Headers {
   return new Headers(entries)
 }
 
-test('los orígenes de confianza salen del entorno de Netlify y del host de la petición', () => {
+test('los orígenes de confianza salen del entorno de Vercel y del host de la petición', () => {
+  // Vercel da los hosts sin esquema.
   const trusted = trustedOriginsFromEnv(
-    { URL: SITE, DEPLOY_PRIME_URL: 'https://deploy-preview-3--axthletics.netlify.app', DEPLOY_URL: 'no es una url' },
-    'axthletics.netlify.app',
+    {
+      VERCEL_PROJECT_PRODUCTION_URL: 'axthletics.vercel.app',
+      VERCEL_URL: 'axthletics-abc123-alex.vercel.app',
+      VERCEL_BRANCH_URL: 'axthletics-git-main-alex.vercel.app',
+      VERCEL_ENV: 'production',
+    },
+    'axthletics.vercel.app',
   )
-  assert.deepEqual(trusted.hosts, ['axthletics.netlify.app', 'deploy-preview-3--axthletics.netlify.app'])
+  assert.deepEqual(trusted.hosts, [
+    'axthletics.vercel.app',
+    'axthletics-abc123-alex.vercel.app',
+    'axthletics-git-main-alex.vercel.app',
+  ])
   assert.equal(trusted.allowLocalhost, false)
+
+  // Con esquema también vale, y lo que no es un host se ignora.
+  assert.deepEqual(trustedOriginsFromEnv({ VERCEL_URL: 'https://x.vercel.app', VERCEL_BRANCH_URL: '' }).hosts, ['x.vercel.app'])
 
   // Sin entorno, el host de la petición basta: la función sirve desde el sitio.
   assert.deepEqual(trustedOriginsFromEnv({}, 'mi-dominio.com').hosts, ['mi-dominio.com'])
@@ -203,37 +216,38 @@ test('los orígenes de confianza salen del entorno de Netlify y del host de la p
 })
 
 test('localhost solo se admite en desarrollo', () => {
-  assert.equal(trustedOriginsFromEnv({ CONTEXT: 'dev' }).allowLocalhost, true)
-  assert.equal(trustedOriginsFromEnv({ NETLIFY_DEV: 'true' }).allowLocalhost, true)
-  assert.equal(trustedOriginsFromEnv({ CONTEXT: 'production' }).allowLocalhost, false)
+  assert.equal(trustedOriginsFromEnv({ VERCEL_ENV: 'development' }).allowLocalhost, true)
+  assert.equal(trustedOriginsFromEnv({ NODE_ENV: 'development' }).allowLocalhost, true)
+  assert.equal(trustedOriginsFromEnv({ VERCEL_ENV: 'production', NODE_ENV: 'production' }).allowLocalhost, false)
+  assert.equal(trustedOriginsFromEnv({ VERCEL_ENV: 'preview' }).allowLocalhost, false)
 
-  const dev = trustedOriginsFromEnv({ CONTEXT: 'dev' }, 'localhost:8888')
+  const dev = trustedOriginsFromEnv({ NODE_ENV: 'development' }, 'localhost:3000')
   assert.equal(checkRequestOrigin(headers({ origin: 'http://localhost:3000' }), dev).ok, true)
   assert.equal(checkRequestOrigin(headers({ origin: 'http://127.0.0.1:4000' }), dev).ok, true)
 
-  const prod = trustedOriginsFromEnv({ URL: SITE }, 'axthletics.netlify.app')
+  const prod = trustedOriginsFromEnv({ VERCEL_PROJECT_PRODUCTION_URL: 'axthletics.vercel.app' }, 'axthletics.vercel.app')
   assert.deepEqual(checkRequestOrigin(headers({ origin: 'http://localhost:3000' }), prod), { ok: false, reason: 'untrusted' })
 })
 
 test('la propia aplicación pasa: por Origin o, si falta, por Referer', () => {
-  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  const trusted = trustedOriginsFromEnv({ VERCEL_PROJECT_PRODUCTION_URL: 'axthletics.vercel.app' })
   assert.equal(checkRequestOrigin(headers({ origin: SITE }), trusted).ok, true)
   assert.equal(checkRequestOrigin(headers({ referer: `${SITE}/` }), trusted).ok, true)
   assert.equal(checkRequestOrigin(headers({ origin: SITE, 'sec-fetch-site': 'same-origin' }), trusted).ok, true)
 })
 
 test('sin Origin ni Referer no se sabe quién llama: se rechaza', () => {
-  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  const trusted = trustedOriginsFromEnv({ VERCEL_PROJECT_PRODUCTION_URL: 'axthletics.vercel.app' })
   assert.deepEqual(checkRequestOrigin(headers({}), trusted), { ok: false, reason: 'missing' })
   assert.deepEqual(checkRequestOrigin(headers({ 'content-type': 'application/json' }), trusted), { ok: false, reason: 'missing' })
 })
 
 test('otro sitio, un origen roto o un subdominio parecido no pasan', () => {
-  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  const trusted = trustedOriginsFromEnv({ VERCEL_PROJECT_PRODUCTION_URL: 'axthletics.vercel.app' })
   for (const origin of [
     'https://otro-sitio.com',
-    'https://axthletics.netlify.app.evil.com',
-    'https://evil-axthletics.netlify.app',
+    'https://axthletics.vercel.app.evil.com',
+    'https://evil-axthletics.vercel.app',
     'null',
     'no-es-una-url',
   ]) {
@@ -242,7 +256,7 @@ test('otro sitio, un origen roto o un subdominio parecido no pasan', () => {
 })
 
 test('lo que dice el navegador manda: Sec-Fetch-Site cross-site se rechaza aunque Origin cuadre', () => {
-  const trusted = trustedOriginsFromEnv({ URL: SITE })
+  const trusted = trustedOriginsFromEnv({ VERCEL_PROJECT_PRODUCTION_URL: 'axthletics.vercel.app' })
   assert.deepEqual(
     checkRequestOrigin(headers({ origin: SITE, 'sec-fetch-site': 'cross-site' }), trusted),
     { ok: false, reason: 'cross_site' },
@@ -253,9 +267,9 @@ test('lo que dice el navegador manda: Sec-Fetch-Site cross-site se rechaza aunqu
   )
 })
 
-test('el límite de tasa es razonable y cabe en lo que Netlify admite', () => {
+test('el límite de tasa de referencia es razonable y cabe en lo que admite el firewall de Vercel', () => {
   assert.ok(RATE_LIMIT.windowLimit >= 5 && RATE_LIMIT.windowLimit <= 60)
-  assert.ok(RATE_LIMIT.windowSize > 0 && RATE_LIMIT.windowSize <= 180)
+  assert.ok(RATE_LIMIT.windowSize >= 10 && RATE_LIMIT.windowSize <= 600)
 })
 
 // ---------------------------------------------------------------------------

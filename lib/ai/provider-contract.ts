@@ -1,11 +1,11 @@
 /**
  * Contrato del proxy de IA.
  *
- * Vive aparte de la función de Netlify a propósito: aquí no se importa ningún
+ * Vive aparte del route handler a propósito: aquí no se importa ningún
  * SDK ni se toca la red, así que todo esto se puede probar con `node:test` sin
  * credenciales y sin salir a internet.
  *
- * La función del servidor se queda con lo que no se puede probar así: leer la
+ * La ruta del servidor se queda con lo que no se puede probar así: leer la
  * variable de entorno y hablar con el proveedor.
  */
 
@@ -229,17 +229,19 @@ export const PROXY_HEADERS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 /**
- * Límite de tasa que aplica Netlify a la función, por IP y dominio.
+ * Límite de tasa del endpoint, por IP.
  *
  * Es la protección real contra alguien que descubra la URL y la use para
- * gastar la cuota: la aplica la plataforma antes de que la función arranque,
- * y devuelve 429. Vive aquí, y no solo en la función, para poder comprobar en
- * un test que la función lo declara. Una persona pregunta a AXIS unas pocas
- * veces por minuto; veinte es holgado para el uso real y ridículo para el abuso.
+ * gastar la cuota. En Vercel no se declara en código: es una regla del
+ * firewall del proyecto (Firewall → Configure → New Rule → path `/api/axis-ai`
+ * → Rate Limit, ventana fija, por IP, acción 429), disponible en el plan Hobby.
+ * Estos valores son la referencia para esa regla, y un test los mantiene
+ * razonables. Una persona pregunta a AXIS unas pocas veces por minuto; veinte
+ * es holgado para el uso real y ridículo para el abuso.
  */
 export const RATE_LIMIT = {
   windowLimit: 20,
-  /** Segundos. Netlify admite hasta 180. */
+  /** Segundos. El firewall de Vercel admite de 10 s a 10 min. */
   windowSize: 60,
 } as const
 
@@ -247,44 +249,47 @@ export const RATE_LIMIT = {
  * De dónde se aceptan peticiones.
  *
  * `hosts` son los dominios donde vive la aplicación: el sitio publicado y, en
- * Netlify, los de previsualización. `allowLocalhost` solo en desarrollo.
+ * Vercel, los de previsualización. `allowLocalhost` solo en desarrollo.
  */
 export type TrustedOrigins = {
   hosts: readonly string[]
   allowLocalhost: boolean
 }
 
+/** El host de una URL, o de un host a secas como los que da Vercel. */
 function hostOf(url: string | undefined): string | null {
   if (!url) return null
   try {
-    return new URL(url).host
+    return new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`).host || null
   } catch {
     return null
   }
 }
 
 /**
- * Los orígenes de confianza, a partir del entorno de Netlify y de la propia
+ * Los orígenes de confianza, a partir del entorno de Vercel y de la propia
  * URL de la petición.
  *
- * `URL` es el dominio principal del sitio, `DEPLOY_PRIME_URL` y `DEPLOY_URL`
- * los de esta publicación. El host de la petición se añade siempre: es donde
- * la función está sirviendo, así que una petición del mismo sitio siempre
- * cuadra aunque el entorno no diga nada. `CONTEXT=dev` es `netlify dev`.
+ * `VERCEL_PROJECT_PRODUCTION_URL` es el dominio de producción, `VERCEL_URL` y
+ * `VERCEL_BRANCH_URL` los de esta publicación; Vercel los da **sin esquema**
+ * (`mi-sitio.vercel.app`), y solo si el proyecto expone las variables del
+ * sistema. Por eso el host de la petición se añade siempre: es donde la ruta
+ * está sirviendo, así que una petición del mismo sitio siempre cuadra aunque
+ * el entorno no diga nada. `localhost` solo en desarrollo.
  */
 export function trustedOriginsFromEnv(
   env: Record<string, string | undefined>,
   requestHost: string | null = null,
 ): TrustedOrigins {
   const hosts = new Set<string>()
-  for (const key of ['URL', 'DEPLOY_PRIME_URL', 'DEPLOY_URL']) {
+  for (const key of ['VERCEL_PROJECT_PRODUCTION_URL', 'VERCEL_URL', 'VERCEL_BRANCH_URL']) {
     const host = hostOf(env[key])
     if (host) hosts.add(host)
   }
   if (requestHost) hosts.add(requestHost)
   return {
     hosts: [...hosts],
-    allowLocalhost: env.CONTEXT === 'dev' || env.NETLIFY_DEV === 'true',
+    allowLocalhost: env.VERCEL_ENV === 'development' || env.NODE_ENV === 'development',
   }
 }
 

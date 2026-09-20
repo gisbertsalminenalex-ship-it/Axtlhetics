@@ -33,7 +33,7 @@ export type AxisConversationOptions = {
   /**
    * Endpoint propio que habla con el proveedor.
    *
-   * En producción es la función de Netlify. `null` desactiva la IA por completo.
+   * En producción es la ruta `/api/axis-ai` de la propia app. `null` desactiva la IA por completo.
    */
   aiEndpoint?: string | null
   /** Transporte alternativo. Se usa en los tests para no tocar la red. */

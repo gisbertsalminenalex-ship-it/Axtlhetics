@@ -11,11 +11,5 @@ node_modules
 # TypeScript incremental build info
 *.tsbuildinfo
 
-# Static export
-out/
-
-# Local Netlify folder
-.netlify
-
-# Lockfile que genera `netlify dev` al preparar las Edge Functions.
-deno.lock
+# Carpeta local de la CLI de Vercel (`vercel link`)
+.vercel

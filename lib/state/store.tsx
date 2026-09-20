@@ -95,12 +95,12 @@ const engine = createDeterministicAxisEngine()
 /**
  * Endpoint propio que habla con el proveedor de IA.
  *
- * Es una función de Netlify del mismo origen. El navegador nunca llama al
- * proveedor ni conoce la credencial: si la función no existe (servidor estático
- * local) o falla, responde el motor determinista y no se nota más que en el aviso
- * de la interfaz.
+ * Es un route handler de Next del mismo origen (`app/api/axis-ai`). El
+ * navegador nunca llama al proveedor ni conoce la credencial: si la ruta falla
+ * o no responde, contesta el motor determinista y no se nota más que en el
+ * aviso de la interfaz.
  */
-const AXIS_AI_ENDPOINT = '/.netlify/functions/axis-ai'
+const AXIS_AI_ENDPOINT = '/api/axis-ai'
 
 /**
  * Conversación de AXIS.

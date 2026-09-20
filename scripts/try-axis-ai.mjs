@@ -5,15 +5,16 @@
  *
  * Lee GROQ_API_KEY del entorno o de `.env.local` (que está en .gitignore).
  * Construye un día real con el motor determinista, pide una redacción a la
- * función de Netlify exactamente como lo haría el navegador, y pasa la respuesta
+ * ruta `/api/axis-ai` exactamente como lo haría el navegador, y pasa la respuesta
  * por las mismas puertas que la aplicación: `reconcileTarget` y `checkModelText`.
+ * La ruta se invoca igual que lo haría Vercel, sin levantar ningún servidor.
  *
  * No escribe nada en ningún sitio. No forma parte del build ni de los tests.
  */
 
 import { readFileSync } from 'node:fs'
 
-import handler from '../netlify/functions/axis-ai.mts'
+import { POST as handler } from '../app/api/axis-ai/route.ts'
 import { buildBriefing } from '../lib/domain/axis/briefing.ts'
 import { buildAxisContext } from '../lib/domain/axis/context.ts'
 import { answerFromBriefing } from '../lib/domain/axis/conversation/deterministic.ts'
@@ -59,11 +60,11 @@ function context_day(d) {
 const decision = decide(context)
 const briefing = buildBriefing(context, decision, [], decision.primary, null, [])
 
-const SITE = 'https://axthletics.netlify.app'
+const SITE = 'https://axthletics.vercel.app'
 
 async function ask(question, memory) {
   const domain = answerFromBriefing(question, briefing, memory)
-  const request = new Request(`${SITE}/.netlify/functions/axis-ai`, {
+  const request = new Request(`${SITE}/api/axis-ai`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: SITE, 'Sec-Fetch-Site': 'same-origin' },
     body: JSON.stringify({

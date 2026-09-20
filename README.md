@@ -38,7 +38,7 @@ The current stack includes:
 - shadcn/ui
 - Lucide React
 - IndexedDB
-- Netlify
+- Vercel
 - PWA
 
 AXIS uses local, deterministic logic in Core v0.1. An external AI provider may be introduced in a future version, but it is not required for the current core product.

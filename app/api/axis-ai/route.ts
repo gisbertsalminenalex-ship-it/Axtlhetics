@@ -3,15 +3,12 @@
  *
  * Es el **único** punto del sistema que conoce la credencial y el único que habla
  * con el proveedor. El navegador llama aquí, del mismo origen, y nunca ve la
- * clave: por eso existe esta función y no una llamada directa desde React.
+ * clave: por eso existe esta ruta y no una llamada directa desde React.
  *
- *   Navegador → /.netlify/functions/axis-ai → Groq
+ *   Navegador → /api/axis-ai (route handler de Next, función de Vercel) → Groq
  *
- * Se llama a la API REST con `fetch` en lugar de usar un SDK, y no por gusto: el
- * proyecto usa pnpm, que enlaza `node_modules` con symlinks, y al empaquetar la
- * función esos enlaces viajaban rotos hasta Lambda (con el proveedor anterior la
- * función desplegada moría antes de ejecutar una sola línea propia). Sin
- * dependencias no hay nada que empaquetar y el problema desaparece.
+ * Se llama a la API REST con `fetch` en lugar de usar un SDK: sin dependencias
+ * no hay nada que empaquetar, y un test lo vigila.
  *
  * Lo que no hace, y no debe hacer nunca:
  *
@@ -28,7 +25,6 @@ import {
   PROVIDER_ENDPOINT,
   PROVIDER_TIMEOUT_MS,
   PROXY_HEADERS,
-  RATE_LIMIT,
   buildProviderRequest,
   checkRequestOrigin,
   errorCodeFor,
@@ -38,9 +34,19 @@ import {
   trustedOriginsFromEnv,
   type AxisAiErrorCode,
   type ProxyRequest,
-} from '../../lib/ai/provider-contract'
+} from '../../../lib/ai/provider-contract'
 
-/** El host donde está sirviendo la función. Una petición del mismo sitio siempre cuadra con él. */
+/**
+ * Configuración del route handler (Vercel Functions, runtime Node.js).
+ *
+ * `maxDuration` va por encima del timeout interno hacia el proveedor (7 s) para
+ * que quien corte sea siempre nuestro código, con un código propio, y no la
+ * plataforma con un 504 vacío.
+ */
+export const runtime = 'nodejs'
+export const maxDuration = 10
+
+/** El host donde está sirviendo la ruta. Una petición del mismo sitio siempre cuadra con él. */
 function hostOfRequest(request: Request): string | null {
   try {
     return new URL(request.url).host
@@ -82,17 +88,14 @@ async function askProvider(request: ProxyRequest, apiKey: string): Promise<strin
   return readProviderText(await response.json())
 }
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') {
-    return fail('BAD_REQUEST', 405)
-  }
-
+export async function POST(request: Request): Promise<Response> {
   /*
    * Solo la propia aplicación. Se comprueba antes que nada, incluida la
    * credencial: quien no debería llamar no se entera ni de si hay IA.
    *
    * No es autenticación —`Origin` se puede escribir a mano— sino la defensa que
-   * corta lo fácil. Contra lo demás está el límite de tasa de la plataforma.
+   * corta lo fácil. Contra lo demás está el límite de tasa del firewall de
+   * Vercel, que se configura en el panel del proyecto (ver `RATE_LIMIT`).
    */
   const trusted = trustedOriginsFromEnv(process.env, hostOfRequest(request))
   if (!checkRequestOrigin(request.headers, trusted).ok) {
@@ -139,25 +142,4 @@ export default async function handler(request: Request): Promise<Response> {
     JSON.stringify({ text: parsedModel.message, action: parsedModel.action }),
     { status: 200, headers: PROXY_HEADERS },
   )
-}
-
-/**
- * Configuración de la función.
- *
- * Solo el límite de tasa. Lo aplica Netlify por IP y dominio antes de que la
- * función arranque, y responde 429 al superarlo: es lo que impide que alguien
- * que descubra la URL se gaste la cuota. Los valores viven en el contrato para
- * poder comprobarlos en un test. `netlify dev` no lo aplica en local.
- *
- * Sin `path`: aquí hubo un `path: '/.netlify/functions/axis-ai'`, que es
- * exactamente la ruta por defecto, y declararla como ruta personalizada rompía
- * el desarrollo local. La función sigue en esa URL por convención.
- */
-export const config = {
-  rateLimit: {
-    windowLimit: RATE_LIMIT.windowLimit,
-    windowSize: RATE_LIMIT.windowSize,
-    aggregateBy: ['ip', 'domain'],
-    action: 'rate_limit',
-  },
 }

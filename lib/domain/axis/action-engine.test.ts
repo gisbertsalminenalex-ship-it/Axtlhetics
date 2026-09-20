@@ -615,7 +615,7 @@ test('el engine de acciones no es otro cerebro: no importa reglas, hechos, const
   assert.doesNotMatch(source, /from 'react'|indexedDB|getRepositories|from '[^']*\/data\//)
   // Lo que importa son las importaciones, no que el comentario diga que no los conoce.
   const imports = source.match(/^import .*$/gm)?.join('\n') ?? ''
-  assert.doesNotMatch(imports, /gemini|netlify|conversation\/ai|lib\/ai/i)
+  assert.doesNotMatch(imports, /gemini|groq|netlify|vercel|app\/api|conversation\/ai|lib\/ai/i)
   assert.doesNotMatch(source, /from '[^']*components\//)
 })
 

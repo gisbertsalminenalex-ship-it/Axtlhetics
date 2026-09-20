@@ -450,7 +450,7 @@ La ejecución de las acciones que AXIS propone vive en un módulo de dominio, `l
 propuesta → comprobación → confirmación del usuario → aplicación → memoria guardada
 ```
 
-**No es otro cerebro.** No decide qué entrenar (`AxisEngine`), no juzga si un cambio conviene (negociación) y no interpreta al modelo de lenguaje (`reconcileTarget`). Ejecuta de forma segura lo que el dominio ya permitió. No importa `rules`, `facts` ni `session-builder`; no conoce React, IndexedDB, Netlify ni el proveedor.
+**No es otro cerebro.** No decide qué entrenar (`AxisEngine`), no juzga si un cambio conviene (negociación) y no interpreta al modelo de lenguaje (`reconcileTarget`). Ejecuta de forma segura lo que el dominio ya permitió. No importa `rules`, `facts` ni `session-builder`; no conoce React, IndexedDB, el hosting ni el proveedor.
 
 ### Reglas
 
@@ -470,14 +470,37 @@ Sigue habiendo un único tipo de acción, `change_training`. Añadir otro exige 
 
 **Fecha:** 2026-09-19 · **Estado:** aprobada
 
-La capa de lenguaje de AXIS (`lib/domain/axis/conversation/ai.ts` + `netlify/functions/axis-ai.mts`) usa **Groq** como proveedor, con el modelo `openai/gpt-oss-120b` (plan gratuito, producción). Sustituye a Gemini. Es un cambio de proveedor, no de arquitectura: el modelo sigue redactando y nada más; AXIS decide, `reconcileTarget` y `safety.ts` validan, `AxisActionEngine` ejecuta, el usuario confirma.
+La capa de lenguaje de AXIS (`lib/domain/axis/conversation/ai.ts` + el endpoint de servidor, hoy `app/api/axis-ai/route.ts` por D-014) usa **Groq** como proveedor, con el modelo `openai/gpt-oss-120b` (plan gratuito, producción). Sustituye a Gemini. Es un cambio de proveedor, no de arquitectura: el modelo sigue redactando y nada más; AXIS decide, `reconcileTarget` y `safety.ts` validan, `AxisActionEngine` ejecuta, el usuario confirma.
 
 ### Reglas
 
 - **Coste objetivo: 0 €.** Solo el acceso gratuito de Groq. Si el plan gratuito deja de cubrir el uso, AXIS sigue funcionando con el determinista.
-- La credencial es `GROQ_API_KEY`, solo en la función de Netlify. `GROQ_MODEL` permite cambiar de modelo desde el entorno.
+- La credencial es `GROQ_API_KEY`, solo en el endpoint de servidor. `GROQ_MODEL` permite cambiar de modelo desde el entorno.
 - El dominio (`lib/domain/axis`) no importa ni nombra al proveedor; un test lo vigila.
 - Fallback determinista intacto ante error, timeout, respuesta inválida, límite de uso o clave ausente.
+
+---
+
+## D-014 — Hosting: de Netlify a Vercel
+
+**Fecha:** 2026-09-20 · **Estado:** aprobada
+
+AXTHLETICS se despliega en **Vercel** en lugar de Netlify. Es un cambio de hosting, no de producto ni de arquitectura: la app sigue siendo local-first, con todo el estado en IndexedDB, y AXIS sigue decidiendo en el navegador.
+
+### Qué cambia
+
+- El único código de servidor —la capa de lenguaje de AXIS— pasa de una función de Netlify (`netlify/functions/axis-ai.mts`) a un route handler de Next (`app/api/axis-ai/route.ts`, runtime Node.js, `maxDuration = 10`). El contrato del endpoint es el mismo: `{ system, question, briefing, domain }` → `{ text, action }`, con los mismos códigos de error.
+- El cliente llama a `/api/axis-ai`. Los guardarraíles (`reconcileTarget`, `safety.ts`), `AxisActionEngine`, la memoria y el dominio no se tocan.
+- Deja de haber export estático (`output: 'export'`): un route handler POST no cabe en él. La página sigue prerrenderizada como HTML estático; el service worker y la PWA siguen igual.
+- Las cabeceras de seguridad que vivían en `netlify.toml` las pone `next.config.mjs`.
+- La comprobación de origen lee `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_URL` y `VERCEL_BRANCH_URL` (sin esquema) más el host de la propia petición; `localhost` solo en desarrollo.
+- El límite de tasa ya no se declara en código: es una regla del **Firewall** de Vercel sobre `/api/axis-ai` (por IP, ventana fija, 429), disponible en el plan Hobby. Los valores de referencia siguen en `RATE_LIMIT` (20 peticiones / 60 s). Hay que crearla a mano después del primer deploy.
+- `GROQ_API_KEY` se configura en Vercel (Project → Settings → Environment Variables, entorno Production, Sensitive).
+- **`@vercel/analytics` sigue sin montarse.** Estar en Vercel no aprueba la analítica: CLAUDE.md §8 sigue prohibiendo enviar datos a servicios no aprobados (D-007 se mantiene).
+
+### Coste asumido
+
+Al cambiar de origen (`axthletics.netlify.app` → `*.vercel.app`) **los datos actuales de IndexedDB no se conservan**: IndexedDB está atada al origen y la app no tiene exportación/importación. Se acepta explícitamente por ser una app en desarrollo.
 
 ---
 

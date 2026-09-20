@@ -18,7 +18,7 @@
  * - Al aplicar una, las demás pendientes del día quedan superadas: partían de
  *   una sesión que ya no es la que hay.
  *
- * Este módulo no conoce React, IndexedDB, Netlify ni el proveedor de IA. Para
+ * Este módulo no conoce React, IndexedDB, el hosting ni el proveedor de IA. Para
  * persistir recibe un puerto mínimo; para decidir, nada: solo compone lo que ya
  * existe en `actions.ts` y `memory.ts`.
  */

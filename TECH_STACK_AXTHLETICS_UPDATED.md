@@ -155,9 +155,9 @@ AXIS must not be tightly coupled to the UI or to a specific AI provider.
 
 ## Hosting & Deployment
 
-- Netlify
+- Vercel
 
-Netlify is the hosting and deployment platform for the web application.
+Vercel is the hosting and deployment platform for the web application (D-014). The only server-side piece is the `app/api/axis-ai` route handler; everything else is static.
 
 The application should be deployable as a Progressive Web App.
 

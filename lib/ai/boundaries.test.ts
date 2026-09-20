@@ -15,7 +15,7 @@ const ROOT = new URL('../../', import.meta.url)
 
 /** Todos los archivos de código del proyecto, sin dependencias ni artefactos. */
 function sourceFiles(dir = ROOT, acc: string[] = []): string[] {
-  const IGNORED = new Set(['node_modules', '.next', 'out', '.git', '.netlify', 'docs'])
+  const IGNORED = new Set(['node_modules', '.next', 'out', '.git', '.vercel', '.netlify', 'docs'])
 
   for (const entry of readdirSync(dir)) {
     if (IGNORED.has(entry)) continue
@@ -55,10 +55,10 @@ const PROVIDER_DEPENDENCY = /api\.groq\.com|groq-sdk|from 'groq|@google\/genai|G
  */
 const DEV_TOOLS = (path: string) => path.includes('/scripts/')
 
-/** Lo que acaba en el navegador: la app de Next, sin la función de servidor. */
+/** Lo que acaba en el navegador: la app de Next, sin la ruta de servidor. */
 const CLIENT = ALL.filter(
   (path) =>
-    !path.includes('/netlify/functions/') &&
+    !path.includes('/app/api/') &&
     !path.includes('/lib/ai/') &&
     !DEV_TOOLS(path) &&
     !path.endsWith('.test.ts'),
@@ -111,8 +111,8 @@ test('solo la función de servidor lee la credencial', () => {
   )
 
   assert.deepEqual(
-    lectores.map((path) => path.split('/').slice(-2).join('/')),
-    ['functions/axis-ai.mts'],
+    lectores.map((path) => path.split('/').slice(-3).join('/')),
+    ['api/axis-ai/route.ts'],
   )
 })
 
@@ -142,29 +142,27 @@ test('solo el proxy de servidor —contrato y función— conoce al proveedor', 
     ['ai/provider-contract.ts'],
   )
 
-  const funcion = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+  const funcion = read(ALL.find((path) => path.endsWith('api/axis-ai/route.ts'))!)
   assert.match(funcion, /PROVIDER_ENDPOINT/)
   assert.match(funcion, /fetch\(PROVIDER_ENDPOINT/)
 
   const otrosConFetch = ALL.filter(
     (path) =>
       !path.endsWith('.test.ts') &&
-      !path.endsWith('functions/axis-ai.mts') &&
+      !path.endsWith('api/axis-ai/route.ts') &&
       /fetch\(PROVIDER_ENDPOINT|api\.groq\.com\/openai/.test(read(path)) &&
       !path.endsWith('ai/provider-contract.ts'),
   )
   assert.deepEqual(otrosConFetch, [], 'nadie más llama al proveedor')
 })
 
-test('la función no arrastra dependencias que haya que empaquetar', () => {
+test('la ruta de servidor no arrastra dependencias que haya que empaquetar', () => {
   /*
-   * Se llama a la API REST con fetch a propósito. El proyecto usa pnpm, que
-   * enlaza `node_modules` con symlinks, y al empaquetar la función esos enlaces
-   * viajaban rotos hasta Lambda: la función moría con `Cannot find package`
-   * antes de ejecutar una línea propia. Sin dependencias no hay nada que
-   * empaquetar, y este test evita que vuelvan a entrar sin darse cuenta.
+   * Se llama a la API REST con fetch a propósito: sin SDK del proveedor ni
+   * paquetes en la función. Este test evita que vuelvan a entrar sin darse
+   * cuenta.
    */
-  const source = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+  const source = read(ALL.find((path) => path.endsWith('api/axis-ai/route.ts'))!)
   const imports = [...source.matchAll(/from '([^']+)'/g)].map((match) => match[1])
 
   assert.ok(imports.length > 0, 'algo importará')
@@ -177,11 +175,11 @@ test('la función no arrastra dependencias que haya que empaquetar', () => {
   }
 })
 
-test('el SDK no aparece en el export estático', () => {
-  // Si el bundle de producción existe, se comprueba que no lo lleva dentro.
+test('la credencial y el proveedor no aparecen en el bundle del navegador', () => {
+  // Si el build existe, se comprueba que los chunks del cliente no lo llevan dentro.
   let chunks: string[]
   try {
-    chunks = sourceFiles(new URL('out/_next/static/chunks/', ROOT))
+    chunks = sourceFiles(new URL('.next/static/chunks/', ROOT))
   } catch {
     return // Sin build todavía: nada que comprobar.
   }
@@ -195,7 +193,7 @@ test('el SDK no aparece en el export estático', () => {
 // El dominio no sabe quién es el proveedor
 // ---------------------------------------------------------------------------
 
-test('la conversación de AXIS no conoce al proveedor, ni a Netlify, ni a React', () => {
+test('la conversación de AXIS no conoce al proveedor, ni al hosting, ni a React', () => {
   const conversacion = ALL.filter(
     (path) => path.includes('/domain/axis/conversation/') && !path.endsWith('.test.ts'),
   )
@@ -208,7 +206,7 @@ test('la conversación de AXIS no conoce al proveedor, ni a Netlify, ni a React'
     // en un comentario para explicar por qué algo está así no es acoplamiento:
     // es justo lo contrario.
     assert.doesNotMatch(source, PROVIDER_DEPENDENCY, `${path} depende del proveedor`)
-    assert.doesNotMatch(source, /from '[^']*netlify/i, `${path} importa algo de Netlify`)
+    assert.doesNotMatch(source, /from '[^']*(netlify|vercel|app\/api)/i, `${path} importa algo del hosting`)
     assert.doesNotMatch(source, /from 'react'|useState|useEffect/, `${path} toca React`)
     assert.doesNotMatch(source, /indexedDB|getRepositories/, `${path} toca la persistencia`)
   }
@@ -224,7 +222,7 @@ test('todo AXIS —motor, conocimiento, personalidad y seguridad— es puro: sin
     assert.doesNotMatch(source, /from 'react'|useState|useEffect|useRef/, `${path} toca React`)
     assert.doesNotMatch(source, /indexedDB|getRepositories|from '[^']*\/data\//, `${path} toca la persistencia`)
     assert.doesNotMatch(source, /from '[^']*\/state\//, `${path} toca el estado de la aplicación`)
-    assert.doesNotMatch(source, /from '[^']*netlify/i, `${path} importa algo de Netlify`)
+    assert.doesNotMatch(source, /from '[^']*(netlify|vercel|app\/api)/i, `${path} importa algo del hosting`)
   }
 })
 
@@ -236,8 +234,8 @@ test('el dominio entero es independiente del proveedor de IA', () => {
   }
 })
 
-test('la función de servidor no importa React ni el estado de la aplicación', () => {
-  const source = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+test('la ruta de servidor no importa React ni el estado de la aplicación', () => {
+  const source = read(ALL.find((path) => path.endsWith('api/axis-ai/route.ts'))!)
 
   assert.doesNotMatch(source, /from 'react'/)
   assert.doesNotMatch(source, /lib\/state/)
@@ -248,8 +246,8 @@ test('la función de servidor no importa React ni el estado de la aplicación', 
 // El proxy no guarda nada
 // ---------------------------------------------------------------------------
 
-test('la función no persiste conversaciones ni añade analítica', () => {
-  const source = read(ALL.find((path) => path.endsWith('functions/axis-ai.mts'))!)
+test('la ruta no persiste conversaciones ni añade analítica', () => {
+  const source = read(ALL.find((path) => path.endsWith('api/axis-ai/route.ts'))!)
 
   for (const prohibido of [/supabase/i, /createClient/, /analytics/i, /\btrack\(/, /writeFile/]) {
     assert.doesNotMatch(source, prohibido, 'el proxy no debe guardar nada')
@@ -287,7 +285,7 @@ test('lib/domain/axis no importa nada del proveedor', () => {
   assert.ok(dominioAxis.length >= 15)
   for (const path of dominioAxis) {
     const imports = read(path).match(/^import .*$/gm)?.join('\n') ?? ''
-    assert.doesNotMatch(imports, /groq|lib\/ai\/|provider-contract|netlify/i, `${path} importa al proveedor`)
+    assert.doesNotMatch(imports, /groq|lib\/ai\/|provider-contract|netlify|vercel|app\/api/i, `${path} importa al proveedor`)
     assert.doesNotMatch(read(path), /api\.groq\.com|GROQ_API_KEY|gpt-oss/i, `${path} conoce al proveedor`)
   }
 })

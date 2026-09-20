@@ -18,7 +18,7 @@
  *    `validateAction` y por el botón de confirmar, como cualquier otra.
  * 4. **Si falla, responde el determinista.** La conversación nunca se queda muerta.
  *
- * Este módulo es puro: no conoce React, ni IndexedDB, ni Netlify, ni el SDK de
+ * Este módulo es puro: no conoce React, ni IndexedDB, ni el hosting, ni el SDK de
  * ningún proveedor. Cambiar de proveedor o de modelo no se toca aquí.
  */
 
