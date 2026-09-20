@@ -161,10 +161,16 @@ export function looksLikeQuestion(question: string): boolean {
   return QUESTION_OPENERS.some((opener) => text.startsWith(opener))
 }
 
-/** Con qué se pide algo, aunque vaya entre signos de interrogación. */
+/**
+ * Con qué se pide algo, aunque vaya entre signos de interrogación.
+ *
+ * Las últimas no son verbos de pedir sino límites que se cuentan —«tengo menos
+ * tiempo hoy»— y que piden lo mismo que «hazme algo más corto» sin decirlo.
+ */
 const REQUEST_MARKERS = [
   'podemos', 'puedes', 'puedo', 'podrias', 'quiero', 'prefiero', 'hazme', 'ponme', 'dame',
   'cambia', 'me apetece', 'no hacer', 'evitar', 'saltar', 'dejar', 'mejor hacer', 'y si hago',
+  'tengo menos tiempo', 'tengo poco tiempo', 'no me da tiempo', 'voy justo',
 ]
 
 /**

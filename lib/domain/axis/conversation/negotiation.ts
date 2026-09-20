@@ -80,6 +80,7 @@ const WANT_TERMS = ['quiero hacer', 'prefiero', 'me apetece', 'hagamos', 'mejor 
 const SHORTER_TERMS = [
   'menos tiempo', 'mas corto', 'más corto', 'mas corta', 'más corta', 'poco tiempo',
   'voy justo', 'solo tengo', 'no me da tiempo', '20 minutos', '15 minutos', '30 minutos', 'media hora',
+  'menos ejercicios',
 ]
 const EASIER_TERMS = [
   'mas suave', 'más suave', 'mas ligero', 'más ligero', 'mas ligera', 'más ligera',

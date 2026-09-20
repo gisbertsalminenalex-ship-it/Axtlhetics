@@ -172,7 +172,10 @@ export type AnswerOutcome = {
  * Guarda una respuesta de AXIS y lo que se ha aprendido con ella.
  *
  * - La intención, para el seguimiento corto («¿y por qué?»).
- * - La petición de cambio, para reconocer la insistencia.
+ * - La petición de cambio, para reconocer la insistencia. Si la hay, la
+ *   conversación queda en modo cambio: una negociación abierta escribiendo
+ *   («quiero una sesión más corta») sigue igual que una abierta con el botón,
+ *   y termina como ella —al confirmar, al cancelar o con «Volver»—.
  * - Lo que el usuario ha dicho que hoy no ocurre, sin duplicar.
  * - La carga que ha contado, una sola vez por frase: repetirla no la hace más
  *   cierta.
@@ -205,6 +208,7 @@ export function rememberAnswer(
       thread: {
         ...memory.thread,
         lastIntent: outcome.intent,
+        changeMode: memory.thread.changeMode || outcome.changeRequest != null,
         lastChangeRequest: outcome.changeRequest ?? memory.thread.lastChangeRequest,
       },
     },

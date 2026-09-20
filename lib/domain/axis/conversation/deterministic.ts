@@ -23,7 +23,7 @@ import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { describeFocus, type SessionFocus } from '../knowledge/focus'
 import { muscleGroupLabel } from '../knowledge/muscles'
 import type { AxisBriefing, BriefingActivity } from '../briefing'
-import { detectExercise, looksLikeQuestion, looksLikeRequest, matchIntent } from './intents'
+import { detectExercise, looksLikeQuestion, looksLikeRequest, matchIntent, type IntentMatch } from './intents'
 import { evaluateChange, parseChangeRequest, type ChangeRequest } from './negotiation'
 import type {
   AxisAnswer,
@@ -117,6 +117,14 @@ export function answerFromBriefing(
 
       return negotiate(request, briefing)
     }
+  } else {
+    /*
+     * Fuera del modo cambio, una petición inequívoca de modificar la sesión
+     * abre la negociación igual que si se hubiera pulsado «Cambiar
+     * entrenamiento». Lo que no sea inequívoco sigue necesitando el botón.
+     */
+    const request = explicitChangeRequest(question, match, briefing)
+    if (request) return negotiate(request, briefing)
   }
 
   switch (match.intent) {
@@ -387,6 +395,50 @@ function answerTired(briefing: AxisBriefing): AxisAnswer {
 // ---------------------------------------------------------------------------
 // Cambiar la propuesta
 // ---------------------------------------------------------------------------
+
+/**
+ * Lo que se puede pedir sin estar ya negociando: cambios con nombre propio.
+ *
+ * Quedan fuera `want_focus` a secas, `train_anyway` y `unclear`: los tres se
+ * deducen de mencionar una zona o de querer entrenar, que fuera del modo
+ * cambio son con mucha más frecuencia una pregunta o un comentario que una
+ * petición. Ahí sigue haciendo falta el botón.
+ */
+const EXPLICIT_CHANGE_KINDS: ReadonlySet<ChangeRequest['kind']> = new Set([
+  'shorter',
+  'easier',
+  'harder',
+  'rest',
+  'avoid_focus',
+])
+
+/**
+ * La petición de cambio que hay en un mensaje escrito fuera del modo cambio,
+ * o `null` si no es inequívoca.
+ *
+ * Inequívoca quiere decir dos cosas a la vez: que el mensaje **pide** algo
+ * (`looksLikeRequest`: «quiero», «hazme», «podemos», «tengo menos tiempo»…) y
+ * que lo que pide tiene **nombre**: más corta, más ligera, más dura, descansar
+ * o evitar una zona. Ninguna de las dos basta sola. «¿Es mejor una sesión más
+ * corta?» nombra el cambio pero pregunta, y se responde como pregunta; «quiero
+ * cambiar el entrenamiento» pide pero no dice qué, y AXIS pregunta el motivo.
+ * Un «¿y si…?» tampoco cuenta: es una hipótesis, no una orden.
+ */
+function explicitChangeRequest(
+  question: string,
+  match: IntentMatch,
+  briefing: AxisBriefing,
+): ChangeRequest | null {
+  if (match.intent === 'medical' || match.intent === 'out_of_scope') return null
+  if (match.isFollowUp) return null
+  if (!looksLikeRequest(question)) return null
+
+  const request = parseChangeRequest(
+    question,
+    briefing.activitiesToday.map((activity) => activity.name),
+  )
+  return EXPLICIT_CHANGE_KINDS.has(request.kind) ? request : null
+}
 
 /**
  * Negocia un cambio de la sesión de hoy.
