@@ -62,7 +62,7 @@ export function RecuperacionScreen() {
       </header>
 
       {/* Score — protagonist */}
-      <section className="flex flex-col items-center rounded-3xl border border-border bg-background px-5 py-8 text-center shadow-[0_1px_2px_rgba(10,10,11,0.04)]">
+      <section className="flex flex-col items-center rounded-3xl border border-border bg-background px-5 py-8 text-center">
         <p className="text-[13px] font-medium text-muted-foreground">Tu recuperación</p>
 
         <CircularMetric
@@ -312,7 +312,7 @@ function Glass({ filled }: { filled: boolean }) {
         </clipPath>
       </defs>
 
-      <path d={GLASS_PATH} fill="var(--muted)" />
+      <path d={GLASS_PATH} fill="var(--track)" />
 
       <g clipPath={`url(#${clipId})`}>
         <rect

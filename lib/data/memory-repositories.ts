@@ -98,5 +98,34 @@ export function createMemoryRepositories(): Repositories {
         activeWorkout = null
       },
     },
+    /*
+     * Aquí no hay transacción que valga: son mapas en memoria y las escrituras no
+     * pueden fallar a mitad. Exportar sigue teniendo sentido —permite sacar los
+     * datos de una sesión que, sin IndexedDB, se perdería igualmente al cerrar.
+     */
+    backup: {
+      async readAll() {
+        return {
+          profile,
+          activities: [...activities.values()],
+          recovery: [...recovery.values()],
+          sessions: [...sessions.values()],
+          axisMemory: [...axisMemory.values()],
+        }
+      },
+      async replaceAll(contents) {
+        activities.clear()
+        recovery.clear()
+        sessions.clear()
+        axisMemory.clear()
+
+        profile = contents.profile
+        for (const activity of contents.activities) activities.set(activity.id, activity)
+        for (const inputs of contents.recovery) recovery.set(inputs.dayKey, inputs)
+        for (const session of contents.sessions) sessions.set(session.id, session)
+        for (const memory of contents.axisMemory) axisMemory.set(memory.dayKey, memory)
+        activeWorkout = null
+      },
+    },
   }
 }

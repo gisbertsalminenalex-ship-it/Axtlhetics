@@ -11,6 +11,16 @@
  */
 
 import type { DayKey } from '../shared/dates'
+import {
+  isArrayOf,
+  isDayKey,
+  isFiniteNumber,
+  isIsoDate,
+  isNullableNumber,
+  isNullableString,
+  isOneOf,
+  isRecord,
+} from '../shared/guards'
 
 export type MuscleGroup =
   | 'pecho'
@@ -222,3 +232,71 @@ export function volumeOfSession(exercises: PerformedExercise[]): number {
   return exercises.reduce((total, exercise) => total + volumeOfExercise(exercise), 0)
 }
 
+
+// ---------------------------------------------------------------------------
+// Comprobación de forma
+//
+// Una sesión importada de un archivo entra directa en el historial, y de ahí
+// pasa a la Carga, al gráfico del Historial y a lo que AXIS da por hecho que
+// entrenaste. Si algo no cuadra, no entra.
+// ---------------------------------------------------------------------------
+
+const SESSION_FOCUSES = Object.keys(SESSION_FOCUS_LABELS) as SessionFocus[]
+const MUSCLE_GROUPS = Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[]
+const SESSION_INTENSITIES: readonly SessionIntensity[] = ['ligera', 'moderada', 'alta']
+const SESSION_STATUSES: readonly WorkoutSessionStatus[] = ['completed', 'abandoned']
+
+function isMuscleGroupValue(value: unknown): value is MuscleGroup {
+  return isOneOf(value, MUSCLE_GROUPS)
+}
+
+function isCompletedSetValue(value: unknown): value is CompletedSet {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.reps) &&
+    isNullableNumber(value.weightKg) &&
+    typeof value.completed === 'boolean'
+  )
+}
+
+function isPerformedExercise(value: unknown): value is PerformedExercise {
+  return (
+    isRecord(value) &&
+    typeof value.exerciseId === 'string' &&
+    typeof value.name === 'string' &&
+    isArrayOf(value.sets, isCompletedSetValue)
+  )
+}
+
+function isSessionModification(value: unknown): value is SessionModification {
+  return isRecord(value) && typeof value.kind === 'string' && typeof value.detail === 'string'
+}
+
+function isProposalSnapshotValue(value: unknown): value is ProposalSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.proposalId === 'string' &&
+    typeof value.type === 'string' &&
+    typeof value.headline === 'string' &&
+    typeof value.reason === 'string'
+  )
+}
+
+export function isWorkoutSession(value: unknown): value is WorkoutSession {
+  if (!isRecord(value)) return false
+  if (typeof value.id !== 'string' || !isDayKey(value.dayKey)) return false
+  if (!isIsoDate(value.startedAt)) return false
+  if (value.completedAt !== null && !isIsoDate(value.completedAt)) return false
+  if (!isFiniteNumber(value.durationSeconds) || value.durationSeconds < 0) return false
+  if (!isOneOf(value.focus, SESSION_FOCUSES)) return false
+  if (typeof value.title !== 'string') return false
+  if (!isOneOf(value.intensity, SESSION_INTENSITIES)) return false
+  if (!isArrayOf(value.muscleGroups, isMuscleGroupValue)) return false
+  if (!isArrayOf(value.exercises, isPerformedExercise)) return false
+  if (!isFiniteNumber(value.totalVolumeKg) || value.totalVolumeKg < 0) return false
+  if (!isOneOf(value.status, SESSION_STATUSES)) return false
+  if (!isNullableNumber(value.perceivedEffort)) return false
+  if (value.proposal !== null && !isProposalSnapshotValue(value.proposal)) return false
+  if (!isArrayOf(value.modifications, isSessionModification)) return false
+  return isNullableString(value.notes)
+}

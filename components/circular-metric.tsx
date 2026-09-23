@@ -44,7 +44,7 @@ export function CircularMetric({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="var(--border)"
+          stroke="var(--track)"
           strokeWidth={stroke}
         />
         {/* Sin valor no se dibuja arco: el remate redondeado dejaría un punto suelto. */}

@@ -6,6 +6,7 @@
  */
 
 import type { DayKey } from '../shared/dates'
+import { isDayKey, isNullableNumber, isRecord } from '../shared/guards'
 
 /** Escala 1–5 compartida por energía, fatiga y estrés. */
 export type Scale5 = 1 | 2 | 3 | 4 | 5
@@ -120,3 +121,32 @@ export type RecoveryScore =
       reason: string
     }
 
+
+/**
+ * Comprobación de forma, para lo que llega de una copia de seguridad.
+ *
+ * Las escalas se comprueban de verdad, no solo que sean números: un `energy: 9`
+ * colado desde un archivo editado a mano recorrería todo el cálculo del Recovery
+ * Score y saldría por el otro lado como una puntuación imposible.
+ */
+function isNullableScale5(value: unknown): value is Scale5 | null {
+  return value === null || (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5)
+}
+
+export function isRecoveryInputs(value: unknown): value is RecoveryInputs {
+  if (!isRecord(value)) return false
+  if (!isDayKey(value.dayKey)) return false
+  if (!isNullableNumber(value.sleepHours)) return false
+  if (value.sleepHours !== null && (value.sleepHours < 0 || value.sleepHours > 24)) return false
+  if (!isNullableScale5(value.energy)) return false
+  if (!isNullableScale5(value.muscleFatigue)) return false
+  if (!isNullableScale5(value.stress)) return false
+  if (!isNullableNumber(value.hydrationGlasses)) return false
+  if (
+    value.hydrationGlasses !== null &&
+    (value.hydrationGlasses < 0 || value.hydrationGlasses > HYDRATION_GLASS_COUNT)
+  ) {
+    return false
+  }
+  return typeof value.updatedAt === 'string'
+}

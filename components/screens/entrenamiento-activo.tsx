@@ -8,6 +8,7 @@ import {
   currentEntry,
   currentSetNumber,
   currentVolumeKg,
+  hasProgress,
   nextEntry,
   WEIGHT_STEP_KG,
 } from '@/lib/domain/workouts/active-workout'
@@ -29,6 +30,7 @@ export function EntrenamientoActivo() {
 
   const [elapsed, setElapsed] = useState(0)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [confirmingExit, setConfirmingExit] = useState(false)
 
   const startedAt = activeWorkout?.startedAt
 
@@ -57,15 +59,39 @@ export function EntrenamientoActivo() {
 
   if (!entry) return null
 
+  /*
+   * La confirmación ocupa la pantalla en vez de superponerse. No hay nada que
+   * mirar detrás mientras se decide, y así no se puede tocar «Completar serie»
+   * por error con la pregunta abierta. Una pantalla, una pregunta.
+   */
+  if (confirmingExit) {
+    return (
+      <ExitConfirmation
+        completedSets={completedSetsTotal(activeWorkout)}
+        elapsed={elapsed}
+        onStay={() => setConfirmingExit(false)}
+        onLeave={() => void abandonWorkout()}
+      />
+    )
+  }
+
   return (
     <div className="flex min-h-full flex-col px-6 pb-8">
       {/* Top bar */}
       <header className="flex items-center justify-between pt-2 pb-5">
         <button
           type="button"
-          onClick={() => void abandonWorkout()}
+          /*
+           * Con series hechas, salir no es gratis: la sesión se cierra como
+           * interrumpida y no se puede volver a ella. Se pregunta. Sin nada
+           * hecho no hay nada que perder y se sale directo, sin fricción.
+           */
+          onClick={() => {
+            if (hasProgress(activeWorkout)) setConfirmingExit(true)
+            else void abandonWorkout()
+          }}
           aria-label="Salir del entrenamiento"
-          className="-ml-2 flex h-11 w-11 items-center justify-center"
+          className="ax-press -ml-2 flex h-11 w-11 items-center justify-center"
         >
           <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
         </button>
@@ -232,6 +258,66 @@ export function EntrenamientoActivo() {
             </li>
           </ul>
         )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Confirmación antes de dejar una sesión a medias.
+ *
+ * Mismo criterio que el borrado de datos en Perfil: la confirmación es parte de
+ * la pantalla, no un `confirm()` del navegador, que bloquea la página entera.
+ *
+ * Dice exactamente qué pasa —se guarda como interrumpida y no se puede volver a
+ * ella— porque es lo que el usuario necesita saber para decidir. Solo aparece
+ * cuando hay series hechas: si no hay nada que perder, no se pregunta.
+ */
+function ExitConfirmation({
+  completedSets,
+  elapsed,
+  onStay,
+  onLeave,
+}: {
+  completedSets: number
+  elapsed: number
+  onStay: () => void
+  onLeave: () => void
+}) {
+  return (
+    /*
+      Misma composición que una pregunta del onboarding: titular grande arriba y
+      la acción debajo. No se centra en vertical porque el contenedor de pantalla
+      de `page.tsx` no impone altura, así que un `min-h-full` aquí no resolvería.
+    */
+    <div className="ax-enter px-6 pt-10 pb-8">
+      <h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em] text-balance">
+        ¿Dejas el entrenamiento?
+      </h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground text-pretty">
+        Llevas{' '}
+        <span className="font-semibold text-foreground tabular-nums">
+          {completedSets} {completedSets === 1 ? 'serie' : 'series'}
+        </span>{' '}
+        en {formatDuration(elapsed)}. Se guardará como sesión interrumpida y no podrás
+        retomarla.
+      </p>
+
+      <div className="mt-10">
+        <button
+          type="button"
+          onClick={onStay}
+          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+        >
+          Seguir entrenando
+        </button>
+        <button
+          type="button"
+          onClick={onLeave}
+          className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-error"
+        >
+          Salir y guardar lo hecho
+        </button>
       </div>
     </div>
   )

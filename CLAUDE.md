@@ -172,6 +172,8 @@ Data models should use stable IDs, consistent dates and structures that can reas
 
 Do not delete historical workout data simply for convenience.
 
+The user can **export everything to a JSON file and restore it** (D-015, `lib/domain/backup/`). It is the only mitigation against losing the history when the browser evicts the storage, and it introduces no server: the download is the browser's and the read is local. Importing **replaces**, never merges; it is atomic across stores, rejects an empty or newer-schema file, validates record by record and reports what it discarded. It is reachable from Perfil and from the first onboarding step, because an empty device is exactly when it is needed.
+
 Do not send personal or training data to external services unless the feature explicitly requires it and the behavior has been approved. The only approved exception is the AXIS language layer (§11): the browser sends a trimmed briefing, without the user's name, to the same-origin route `/api/axis-ai`, which forwards it to the language provider (Groq). Nothing is stored server-side.
 
 ---

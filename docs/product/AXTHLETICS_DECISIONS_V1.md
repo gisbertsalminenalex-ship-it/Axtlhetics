@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-09-19.
+**Última actualización:** 2026-09-22.
 
 ## Qué es este documento
 
@@ -501,6 +501,53 @@ AXTHLETICS se despliega en **Vercel** en lugar de Netlify. Es un cambio de hosti
 ### Coste asumido
 
 Al cambiar de origen (`axthletics.netlify.app` → `*.vercel.app`) **los datos actuales de IndexedDB no se conservan**: IndexedDB está atada al origen y la app no tiene exportación/importación. Se acepta explícitamente por ser una app en desarrollo.
+
+---
+
+## D-015 — Copia de seguridad local: exportar e importar
+
+**Fecha:** 2026-09-22 · **Estado:** aprobada
+
+AXTHLETICS incorpora **exportación e importación de todos los datos del dispositivo** como archivo JSON. Cierra el coste que D-014 había asumido explícitamente («la app no tiene exportación/importación») y cubre un riesgo que hasta ahora no tenía ninguna mitigación.
+
+### Por qué
+
+Core v0.1 es local-first: no hay cuenta, no hay servidor y no hay copia en ningún otro sitio. La consecuencia es que **el historial entero puede desaparecer sin que nadie lo borre**: iOS desaloja el almacenamiento de una PWA tras unos días sin abrirla, el usuario puede cambiar de teléfono, o limpiar los datos del navegador. Un archivo que el usuario guarda donde quiera es la única red posible sin introducir infraestructura que Core v0.1 no necesita.
+
+Esto **no** abre la puerta a la nube, a cuentas ni a sincronización. Sigue sin haber servidor: el archivo no sale del dispositivo salvo que el usuario lo mueva.
+
+### Qué se exporta
+
+Perfil, actividades del calendario, recuperación de todos los días, sesiones de entrenamiento y memoria de AXIS (incluidas las conversaciones).
+
+**Queda fuera la sesión en curso** (`activeWorkout`): es transitoria por diseño y restaurar media sesión de otro día no significa nada. Al restaurar se descarta también la que hubiera en el dispositivo, porque pertenecía a los datos que se acaban de sustituir.
+
+### Formato
+
+- Archivo JSON con envoltura: `kind: 'axtlhetics.backup'`, `schema` (versión **del archivo**, hoy 1), `exportedAt` y `appSchema` (versión del esquema de IndexedDB, informativa).
+- `schema` y la versión de IndexedDB son **independientes**: la base puede subir de versión sin que el archivo cambie de forma, y al revés.
+- Nombre: `axtlhetics-AAAA-MM-DD.json`.
+- Una copia con `schema` mayor que el conocido **se rechaza**: puede tener campos que esta versión no sabría conservar.
+
+### Importar reemplaza
+
+Importar **sustituye** todo lo que haya en el dispositivo. No fusiona. Es lo que significa restaurar una copia, es predecible y evita tener que decidir quién gana en cada choque.
+
+Reglas asociadas:
+
+- Es destructivo, así que pasa por una **confirmación que dice con números qué se va a perder**, igual que el borrado de datos (D-007).
+- La escritura es **atómica**: los seis almacenes se sustituyen en una única transacción. Una restauración a medias —perfil nuevo e historial viejo— sería peor que no restaurar.
+- Una copia válida pero **vacía se rechaza** en vez de dejar el dispositivo en blanco.
+- Los registros se validan **uno a uno**. Los que no se entienden se descartan, el resto se importa y **se dice cuántos se han descartado**. Que una sesión antigua esté corrupta no es razón para no devolver las demás.
+- Tras restaurar, la aplicación **se recarga**. Cambia todo a la vez —perfil, historial, recuperación, memoria— y de ahí cuelgan la decisión del día, el briefing y la Carga; rehidratar eso pieza a pieza es la forma segura de que algo se quede apuntando a los datos anteriores.
+
+### Dónde vive
+
+En **Perfil → Copia de seguridad**, encima del borrado de datos, y además en el **primer paso del onboarding** («Ya tengo una copia de seguridad»). Lo segundo no es opcional: el dispositivo vacío es justo cuando hace falta restaurar, y sin ese acceso habría que completar el onboarding entero para llegar a Perfil y que la restauración lo borrase acto seguido.
+
+### Privacidad
+
+El archivo contiene datos personales y las conversaciones con AXIS. La interfaz lo dice donde se descarga: es para el usuario, no para compartir. No se envía a ningún sitio: la descarga la hace el navegador y la lectura es local.
 
 ---
 

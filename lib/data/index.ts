@@ -21,3 +21,12 @@ export function getRepositories(): Repositories {
 }
 
 export type { Repositories } from './repositories'
+
+/**
+ * Versión del esquema de almacenamiento local.
+ *
+ * Se re-exporta aquí para que quien la necesite —hoy solo la copia de seguridad,
+ * que la escribe en el archivo a título informativo— no tenga que importar nada
+ * de `indexeddb/`. Qué hay detrás sigue siendo asunto de esta capa.
+ */
+export { DB_VERSION as STORAGE_SCHEMA_VERSION } from './indexeddb/db'

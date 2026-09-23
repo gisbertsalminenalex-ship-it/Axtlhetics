@@ -8,6 +8,14 @@
  */
 
 import type { Weekday } from '../shared/dates'
+import {
+  isArrayOf,
+  isFiniteNumber,
+  isIsoDate,
+  isNullableNumber,
+  isOneOf,
+  isRecord,
+} from '../shared/guards'
 
 /**
  * Objetivos de entrenamiento.
@@ -188,4 +196,53 @@ export function sportsFromActivities(
 
 export function isAvailableOn(profile: UserProfile, weekday: Weekday): boolean {
   return profile.availableWeekdays.includes(weekday)
+}
+
+// ---------------------------------------------------------------------------
+// Comprobación de forma
+//
+// Necesarias para importar una copia de seguridad: el archivo lo puede haber
+// escrito otra versión de la aplicación, o el propio usuario con un editor.
+// ---------------------------------------------------------------------------
+
+const WEEKDAYS: readonly Weekday[] = [0, 1, 2, 3, 4, 5, 6]
+
+/* Derivados de las etiquetas, que son la única lista: añadir un nivel no puede
+   dejar la comprobación desincronizada. */
+const EXPERIENCE_ORDER = Object.keys(EXPERIENCE_LABELS) as ExperienceLevel[]
+const ACTIVITY_INTENSITY_ORDER = Object.keys(ACTIVITY_INTENSITY_LABELS) as ActivityIntensity[]
+
+function isWeekday(value: unknown): value is Weekday {
+  return typeof value === 'number' && (WEEKDAYS as readonly number[]).includes(value)
+}
+
+function isTrainingGoal(value: unknown): value is TrainingGoal {
+  return isOneOf(value, TRAINING_GOAL_ORDER)
+}
+
+export function isUserProfile(value: unknown): value is UserProfile {
+  if (!isRecord(value)) return false
+  if (value.id !== PRIMARY_PROFILE_ID) return false
+  if (typeof value.name !== 'string') return false
+  if (!isFiniteNumber(value.age) || !isFiniteNumber(value.heightCm)) return false
+  if (!isFiniteNumber(value.weightKg) || !isFiniteNumber(value.typicalSessionMinutes)) {
+    return false
+  }
+  // Al menos un objetivo: sin él AXIS no sabe hacia dónde empujar.
+  if (!isArrayOf(value.goals, isTrainingGoal) || value.goals.length === 0) return false
+  if (!isOneOf(value.experience, EXPERIENCE_ORDER)) return false
+  if (!isArrayOf(value.availableWeekdays, isWeekday)) return false
+  return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
+}
+
+export function isScheduledActivity(value: unknown): value is ScheduledActivity {
+  if (!isRecord(value)) return false
+  if (typeof value.id !== 'string' || typeof value.name !== 'string') return false
+  if (!isWeekday(value.weekday)) return false
+  if (!isNullableNumber(value.startMinute) || !isNullableNumber(value.endMinute)) return false
+  if (!isOneOf(value.intensity, ACTIVITY_INTENSITY_ORDER)) return false
+  if (!isArrayOf(value.loadsMuscleGroups, (item): item is string => typeof item === 'string')) {
+    return false
+  }
+  return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }

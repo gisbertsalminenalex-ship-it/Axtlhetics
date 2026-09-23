@@ -32,7 +32,7 @@ export function HistorialScreen() {
       </header>
 
       {/* Segmented control */}
-      <div className="flex rounded-2xl bg-muted p-1">
+      <div className="flex rounded-2xl bg-track p-1">
         {RANGES.map((option) => (
           <button
             key={option}

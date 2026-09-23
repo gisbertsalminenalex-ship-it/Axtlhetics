@@ -440,3 +440,66 @@ test('los almacenes esperados están declarados', () => {
     'sessions',
   ])
 })
+
+// ---------------------------------------------------------------------------
+// Copia de seguridad
+// ---------------------------------------------------------------------------
+
+test('leer todo devuelve lo que hay en cada almacén', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.profile.save(profile())
+  await repositories.activities.save(activity())
+  await repositories.recovery.save(emptyRecoveryInputs('2026-09-08', '2026-09-08T10:00:00.000Z'))
+  await repositories.workouts.save(session())
+  await repositories.axisMemory.save(emptyDayMemory('2026-09-08', '2026-09-08T10:00:00.000Z'))
+
+  const all = await repositories.backup.readAll()
+  assert.equal(all.profile?.name, 'Alex')
+  assert.equal(all.activities.length, 1)
+  assert.equal(all.recovery.length, 1)
+  assert.equal(all.sessions.length, 1)
+  assert.equal(all.axisMemory.length, 1)
+})
+
+test('restaurar sustituye lo que había, no lo suma', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.profile.save(profile({ name: 'Antiguo' }))
+  await repositories.workouts.save(session({ id: 'vieja' }))
+  await repositories.activities.save(activity({ id: 'vieja-actividad' }))
+
+  await repositories.backup.replaceAll({
+    profile: profile({ name: 'Restaurado' }),
+    activities: [],
+    recovery: [],
+    sessions: [session({ id: 'nueva' })],
+    axisMemory: [],
+  })
+
+  assert.equal((await repositories.profile.get())?.name, 'Restaurado')
+  const sessions = await repositories.workouts.list()
+  assert.deepEqual(sessions.map((item) => item.id), ['nueva'], 'la vieja no sobrevive')
+  assert.deepEqual(await repositories.activities.list(), [], 'ni las actividades')
+})
+
+test('restaurar descarta la sesión que estuviera en curso', async () => {
+  /*
+   * Una sesión a medias pertenecía a los datos que se acaban de sustituir. Si
+   * sobreviviera, al arrancar se reanudaría un entrenamiento de un plan que ya
+   * no existe en este dispositivo.
+   */
+  const repositories = createMemoryRepositories()
+  await repositories.activeWorkout.save({
+    workout: { id: 'w' } as unknown as ActiveWorkout,
+    updatedAt: '2026-09-08T10:00:00.000Z',
+  })
+
+  await repositories.backup.replaceAll({
+    profile: profile(),
+    activities: [],
+    recovery: [],
+    sessions: [],
+    axisMemory: [],
+  })
+
+  assert.equal(await repositories.activeWorkout.get(), null)
+})

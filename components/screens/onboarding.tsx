@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
+import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -305,12 +306,20 @@ export function OnboardingScreen() {
 
         <div className="mt-8">
           {step.id === 'name' && (
-            <TextField
-              label="Tu nombre"
-              value={draft.name}
-              placeholder="Alex"
-              onChange={(name) => patch({ name })}
-            />
+            <>
+              <TextField
+                label="Tu nombre"
+                value={draft.name}
+                placeholder="Alex"
+                onChange={(name) => patch({ name })}
+              />
+              {/*
+                Quien llega aquí con una copia no viene a empezar de cero: viene
+                de un teléfono nuevo o de un almacenamiento desalojado. Es el
+                único paso donde se ofrece, y en segundo plano.
+              */}
+              <RestoreFromBackup />
+            </>
           )}
 
           {step.id === 'age' && (

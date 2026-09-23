@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
+import { BackupControls } from '@/components/profile/backup-controls'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -281,6 +282,7 @@ export function PerfilScreen({
         )}
       </div>
 
+      {!isOnboarding && <BackupControls />}
       {!isOnboarding && <DangerZone />}
     </div>
   )

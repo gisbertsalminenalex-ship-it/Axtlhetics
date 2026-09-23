@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { BottomNav, type Tab } from '@/components/bottom-nav'
+import { ErrorBanner } from '@/components/error-banner'
 import { AppLoading } from '@/components/screens/app-loading'
 import { AxisChatScreen } from '@/components/screens/axis-chat'
 import { EntrenamientoScreen } from '@/components/screens/entrenamiento'
@@ -107,6 +108,18 @@ export default function Page() {
             </>
           )}
         </main>
+
+        {/*
+          El aviso va fuera del scroll y pegado abajo, entre el contenido y la
+          barra: así se ve igual en cualquier pantalla y en cualquier punto del
+          scroll, sin taparla. `main` es `flex-1`, de modo que el aviso le quita
+          alto en vez de superponerse.
+        */}
+        {store.error && (
+          <div className="shrink-0 px-6 pt-2 pb-3">
+            <ErrorBanner message={store.error} onDismiss={store.dismissError} />
+          </div>
+        )}
 
         {!immersive && <BottomNav active={tab} onChange={setTab} />}
       </div>

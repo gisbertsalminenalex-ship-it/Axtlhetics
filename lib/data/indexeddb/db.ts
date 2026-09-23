@@ -278,3 +278,31 @@ export async function deleteDatabase(): Promise<void> {
     request.onblocked = () => resolve()
   })
 }
+
+/**
+ * Escribe en varios almacenes dentro de **una sola transacción**.
+ *
+ * Lo necesita restaurar una copia de seguridad, que vacía y reescribe todo. Con
+ * una transacción por almacén, un fallo a mitad dejaría el dispositivo con el
+ * perfil nuevo y el historial viejo: ni lo que había ni lo que se importaba.
+ * Aquí, o entran los cinco almacenes o no entra ninguno y queda lo que había.
+ */
+export async function writeAcross(
+  stores: readonly StoreName[],
+  operation: (get: (store: StoreName) => IDBObjectStore) => void,
+): Promise<void> {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(stores as string[], 'readwrite')
+    try {
+      operation((store) => transaction.objectStore(store))
+    } catch (cause) {
+      transaction.abort()
+      reject(cause instanceof Error ? cause : new Error('Error al guardar.'))
+      return
+    }
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error ?? new Error('Error al guardar.'))
+    transaction.onabort = () => reject(transaction.error ?? new Error('Guardado cancelado.'))
+  })
+}

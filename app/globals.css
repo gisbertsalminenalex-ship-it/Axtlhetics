@@ -7,13 +7,13 @@
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-track: var(--track);
+  --color-muted-nontext: var(--muted-nontext);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
 
   /* Brand + status */
   --color-axis: var(--axis);
@@ -38,19 +38,49 @@
 :root {
   color-scheme: light;
 
-  --background: #ffffff;
-  --foreground: #0a0a0b;
-  --card: #ffffff;
-  --card-foreground: #0a0a0b;
-  --muted: #f4f5f7;
-  --muted-foreground: #71757e;
-  --border: #ececef;
-  --surface: #f7f8fa;
+  /* -------------------------------------------------------------------
+     Paleta del Design System §6.
+
+     Los valores son los aprobados, no los que fuera acumulando el código:
+     D-004 dice que un color no queda aprobado por estar ya escrito aquí.
+     Antes había una escala de grises propia (#0a0a0b, #71757e, #ececef,
+     #f7f8fa) que no coincidía con ninguno.
+     ------------------------------------------------------------------- */
+
+  /* Canvas general (P-011, cerrado por D-016): blanco muy suavemente grisáceo.
+     No llega a #FAFAFA a propósito: ahí se confundiría con `--surface` y las
+     agrupaciones dejarían de leerse sobre el fondo. */
+  --background: #fcfcfc;
+  --foreground: #111111;
+  --muted-foreground: #6b6b6b;
+  --border: #d6d6d6;
+  --surface: #f7f7f7;
+  /* Pistas de anillos, carriles y huecos por llenar. Más claro que el borde:
+     una pista no es un límite, es el fondo de un recorrido. */
+  --track: #eaeaea;
+  /* Iconos inactivos y anotaciones internas. Es gris de NO-texto: el texto
+     secundario tiene el suyo y son distintos a propósito. */
+  --muted-nontext: #9a9a9a;
 
   --primary: #0a61f8;
   --primary-foreground: #ffffff;
+  /* Acento azul muy suave, para superficies que deban teñirse sin gritar. */
+  --secondary: #dce8ff;
   --axis: #0a61f8;
   --ink: #0d1b2a;
+
+  /**
+   * Elevación (Design System §10, P-008 cerrado por D-016).
+   *
+   * «Sin sombras por defecto». Este token es la **única** excepción aprobada:
+   * el pulgar del selector del Historial, que se mueve y se superpone a su
+   * carril, y ahí la profundidad comunica algo. La separación de todo lo demás
+   * se consigue con superficies, bordes y espacio en blanco.
+   *
+   * Existe como token y no como valor suelto para que la excepción se pueda
+   * contar: si aparece una segunda sombra en el código, se ve.
+   */
+  --elevation-control: 0 1px 2px rgb(17 17 17 / 0.08);
 
   /* Colores semánticos (D-005 / P-007). 0-49 rojo, 50-74 naranja, 75-100 verde. */
   --success: #1ba672;

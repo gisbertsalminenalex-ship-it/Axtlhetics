@@ -331,3 +331,19 @@ test('un plan o una propuesta a medias invalidan el registro', () => {
   assert.equal(isActiveWorkout({ ...workout, plan: { title: 'x' } }), false)
   assert.equal(isActiveWorkout({ ...workout, proposal: { proposalId: 'p' } }), false)
 })
+
+test('saltar todos los ejercicios agota la sesión pero no cuenta como progreso', () => {
+  /*
+   * El caso que hacía que una sesión vacía entrara en el historial como
+   * completada: la sesión se agota igual que si se hubiera hecho entera
+   * —`isFinished` es true y no queda ejercicio en curso— pero sin una sola
+   * serie. Quien la guarde tiene que mirar `hasProgress`, no `isFinished`.
+   */
+  let workout = fresh()
+  for (let i = 0; i < plan.exercises.length; i += 1) workout = skipExercise(workout)
+
+  assert.equal(isFinished(workout), true)
+  assert.equal(currentEntry(workout), null)
+  assert.equal(hasProgress(workout), false)
+  assert.equal(completedSetsTotal(workout), 0)
+})

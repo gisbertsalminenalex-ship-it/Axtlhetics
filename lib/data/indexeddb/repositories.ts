@@ -13,6 +13,7 @@ import type { DayKey } from '../../domain/shared/dates'
 import type { WorkoutSession } from '../../domain/workouts/types'
 import type {
   ActiveWorkoutRepository,
+  BackupRepository,
   ActivityRepository,
   AxisMemoryRepository,
   StoredActiveWorkout,
@@ -22,7 +23,7 @@ import type {
   WorkoutRepository,
 } from '../repositories'
 import { needsProfileUpgrade, upgradeProfileRecord } from '../migrations'
-import { ACTIVE_WORKOUT_KEY, read, STORES, write } from './db'
+import { ACTIVE_WORKOUT_KEY, read, STORES, write, writeAcross } from './db'
 
 /**
  * Red de seguridad para perfiles anteriores a la v2 del esquema.
@@ -161,6 +162,59 @@ const activeWorkoutRepository: ActiveWorkoutRepository = {
   },
 }
 
+/**
+ * Copia de seguridad: leer todo y sustituirlo todo.
+ *
+ * Lee cada almacén por su cuenta —una lectura inconsistente no rompe nada— pero
+ * escribe los seis en una única transacción: una restauración a medias sería
+ * peor que no restaurar.
+ */
+const backupRepository: BackupRepository = {
+  async readAll() {
+    const [profile, activities, recovery, sessions, axisMemory] = await Promise.all([
+      profileRepository.get(),
+      activityRepository.list(),
+      read<RecoveryInputs[]>(STORES.recovery, (store) => store.getAll()),
+      read<WorkoutSession[]>(STORES.sessions, (store) => store.getAll()),
+      read<unknown[]>(STORES.axisMemory, (store) => store.getAll()),
+    ])
+
+    return {
+      profile,
+      activities,
+      recovery,
+      sessions,
+      // Un registro de memoria que ya no se entiende no viaja a la copia.
+      axisMemory: axisMemory.filter(isAxisDayMemory),
+    }
+  },
+
+  async replaceAll(contents) {
+    const stores = [
+      STORES.profile,
+      STORES.activities,
+      STORES.recovery,
+      STORES.sessions,
+      STORES.axisMemory,
+      STORES.activeWorkout,
+    ] as const
+
+    await writeAcross(stores, (get) => {
+      for (const store of stores) get(store).clear()
+
+      if (contents.profile) get(STORES.profile).put(contents.profile)
+      for (const activity of contents.activities) get(STORES.activities).put(activity)
+      for (const inputs of contents.recovery) get(STORES.recovery).put(inputs)
+      for (const session of contents.sessions) get(STORES.sessions).put(session)
+      for (const memory of contents.axisMemory) get(STORES.axisMemory).put(memory)
+      /*
+       * La sesión en curso no viaja en la copia y tampoco sobrevive a una: lo
+       * que hubiera a medias pertenecía a los datos que se acaban de sustituir.
+       */
+    })
+  },
+}
+
 export function createIndexedDbRepositories(): Repositories {
   return {
     profile: profileRepository,
@@ -169,5 +223,6 @@ export function createIndexedDbRepositories(): Repositories {
     workouts: workoutRepository,
     axisMemory: axisMemoryRepository,
     activeWorkout: activeWorkoutRepository,
+    backup: backupRepository,
   }
 }

@@ -23,7 +23,12 @@ import {
   type ReactNode,
 } from 'react'
 
-import { getRepositories } from '../data'
+import { getRepositories, STORAGE_SCHEMA_VERSION } from '../data'
+import {
+  backupFileName,
+  buildBackup,
+  type BackupContents,
+} from '../domain/backup/backup'
 import { deleteDatabase } from '../data/indexeddb/db'
 import {
   applyAction,
@@ -154,6 +159,22 @@ type AxtlheticsStore = {
    * No rota alternativas: AXIS pide el motivo y decide con los datos.
    */
   openChangeConversation(): void
+  /** El usuario ha leído el aviso de error. Se retira hasta que vuelva a fallar algo. */
+  dismissError(): void
+  /**
+   * Lee todo el dispositivo y lo devuelve como archivo listo para descargar.
+   *
+   * No toca el DOM: quien llama decide qué hacer con el texto. `null` si no se
+   * ha podido leer el almacenamiento.
+   */
+  exportBackup(): Promise<{ fileName: string; json: string } | null>
+  /**
+   * Sustituye todo lo del dispositivo por el contenido de una copia.
+   *
+   * Es destructivo: lo que hubiera antes se pierde. Recibe el contenido ya
+   * validado por el dominio, nunca un archivo en bruto.
+   */
+  importBackup(contents: BackupContents): Promise<boolean>
   /** Borra todos los datos del dispositivo y vuelve al primer arranque. */
   clearAllData(): Promise<void>
 
@@ -673,6 +694,22 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     async (perceivedEffort: number | null) => {
       const workout = workoutRef.current
       if (!workout) return
+
+      /*
+       * Saltar todos los ejercicios no es haber entrenado.
+       *
+       * La sesión se agota igual —no queda ejercicio en curso— pero sin una sola
+       * serie hecha no se guarda: una sesión vacía en el historial contaría como
+       * día entrenado en `trainedToday` y en la Carga, y AXIS recomendaría
+       * descansar mañana por un entrenamiento que no existió. Mismo criterio que
+       * al abandonar. Tampoco se borra la elección del día: el día sigue sin
+       * entrenar, así que lo que el usuario eligió sigue en pie.
+       */
+      if (!hasProgress(workout)) {
+        replaceActiveWorkout(null)
+        return
+      }
+
       const session = toWorkoutSession(workout, { status: 'completed', perceivedEffort })
       setLastCompleted(session)
       // La fila de la sesión en curso se borra aquí. Si la app se cerrara justo
@@ -855,6 +892,54 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     commitMemory((current) => closeChangeThread(current))
   }, [])
 
+  const dismissError = useCallback(() => setError(null), [])
+
+  // -------------------------------------------------------------------------
+  // Copia de seguridad
+  // -------------------------------------------------------------------------
+
+  const exportBackup = useCallback(async () => {
+    try {
+      const contents = await getRepositories().backup.readAll()
+      const exportedAt = nowIso()
+      const backup = buildBackup(contents, { exportedAt, appSchema: STORAGE_SCHEMA_VERSION })
+      return {
+        fileName: backupFileName(exportedAt),
+        // Con sangría: si alguien abre el archivo, debería poder leerlo.
+        json: JSON.stringify(backup, null, 2),
+      }
+    } catch {
+      setError('No se pudieron leer tus datos para exportarlos.')
+      return null
+    }
+  }, [])
+
+  /**
+   * Restaura una copia.
+   *
+   * Tras escribir, se recarga la página en vez de reconstruir el estado a mano.
+   * No es pereza: al restaurar cambia **todo** a la vez —perfil, historial,
+   * recuperación del día, memoria de AXIS— y de ahí cuelgan la decisión del día,
+   * el briefing y la Carga. Rehidratar eso pieza a pieza es la forma segura de
+   * que algo se quede apuntando a los datos anteriores. Lo importado ya está en
+   * disco, así que el arranque normal lo lee y lo deja todo coherente por el
+   * mismo camino de siempre.
+   */
+  const importBackup = useCallback(async (contents: BackupContents) => {
+    try {
+      await getRepositories().backup.replaceAll(contents)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'No se pudo restaurar la copia en este dispositivo.',
+      )
+      return false
+    }
+    // La sesión en curso ya no existe: no hay nada que guardar al descargar.
+    workoutRef.current = null
+    window.location.reload()
+    return true
+  }, [])
+
   /**
    * Borra todo y devuelve la app al primer arranque.
    *
@@ -915,6 +1000,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       updateRecovery,
       toggleHydrationGlass,
       openChangeConversation,
+      dismissError,
+      exportBackup,
+      importBackup,
       clearAllData,
       briefing,
       axisMessages: memory.messages,
@@ -960,6 +1048,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       updateRecovery,
       toggleHydrationGlass,
       openChangeConversation,
+      dismissError,
+      exportBackup,
+      importBackup,
       clearAllData,
       briefing,
       memory.messages,

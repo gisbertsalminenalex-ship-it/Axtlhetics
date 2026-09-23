@@ -7,6 +7,7 @@
  */
 
 import type { AxisDayMemory } from '../domain/axis/memory'
+import type { BackupContents } from '../domain/backup/backup'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
@@ -80,4 +81,19 @@ export type Repositories = {
   workouts: WorkoutRepository
   axisMemory: AxisMemoryRepository
   activeWorkout: ActiveWorkoutRepository
+  backup: BackupRepository
+}
+
+/**
+ * Lectura y sustitución completas del dispositivo, para las copias de seguridad.
+ *
+ * Es la única pieza que mira todos los almacenes a la vez, y por eso vive aparte:
+ * los demás repositorios saben de una cosa cada uno y así deben seguir.
+ *
+ * `replaceAll` es **destructivo y atómico**: deja el dispositivo exactamente como
+ * dice la copia, y si falla no deja nada a medias.
+ */
+export type BackupRepository = {
+  readAll(): Promise<BackupContents>
+  replaceAll(contents: BackupContents): Promise<void>
 }
