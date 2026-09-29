@@ -25,7 +25,7 @@ import type {
 import { volumeOfSession } from './types'
 
 /** Escalón del selector de carga, en kg. */
-export const WEIGHT_STEP_KG = 2.5
+export const WEIGHT_STEP_KG = 0.5
 export const MAX_WEIGHT_KG = 400
 export const MAX_REPS = 50
 

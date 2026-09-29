@@ -12,6 +12,7 @@ import {
   currentVolumeKg,
   isFinished,
   MAX_REPS,
+  MAX_WEIGHT_KG,
   skipExercise,
   startWorkout,
   toWorkoutSession,
@@ -117,8 +118,45 @@ test('el selector de carga sube y baja en escalones y no cruza el cero', () => {
   workout = adjustWeight(workout, 1)
   assert.equal(currentEntry(workout)?.weightKg, 80 + WEIGHT_STEP_KG)
 
-  for (let i = 0; i < 100; i += 1) workout = adjustWeight(workout, -1)
+  for (let i = 0; i < 1000; i += 1) workout = adjustWeight(workout, -1)
   assert.equal(currentEntry(workout)?.weightKg, 0)
+})
+
+test('el escalón de carga es de medio kilo', () => {
+  assert.equal(WEIGHT_STEP_KG, 0.5)
+})
+
+test('la carga sube y baja de medio kilo en medio kilo y sigue siendo un número', () => {
+  let workout = fresh()
+  for (let i = 0; i < 60; i += 1) workout = adjustWeight(workout, -1)
+  assert.equal(currentEntry(workout)?.weightKg, 50)
+
+  const up: unknown[] = []
+  for (let i = 0; i < 4; i += 1) {
+    workout = adjustWeight(workout, 1)
+    up.push(currentEntry(workout)?.weightKg)
+  }
+  assert.deepEqual(up, [50.5, 51, 51.5, 52])
+
+  const down: unknown[] = []
+  for (let i = 0; i < 4; i += 1) {
+    workout = adjustWeight(workout, -1)
+    down.push(currentEntry(workout)?.weightKg)
+  }
+  assert.deepEqual(down, [51.5, 51, 50.5, 50])
+  assert.ok(up.concat(down).every((kg) => typeof kg === 'number'))
+})
+
+test('el selector de carga no pasa del máximo', () => {
+  let workout = fresh()
+  for (let i = 0; i < 1000; i += 1) workout = adjustWeight(workout, 1)
+  assert.equal(currentEntry(workout)?.weightKg, MAX_WEIGHT_KG)
+})
+
+test('una serie registrada con medio kilo conserva el valor exacto', () => {
+  let workout = adjustWeight(fresh(), 1)
+  workout = completeSet(workout)
+  assert.equal(workout.entries[0].sets[0].weightKg, 80.5)
 })
 
 test('un ejercicio sin carga sugerida empieza en nulo y sube desde cero', () => {
@@ -142,7 +180,7 @@ test('las repeticiones se mantienen dentro de un rango razonable', () => {
 
 test('se registra lo que realmente se hizo, no lo que se propuso', () => {
   let workout = fresh()
-  workout = adjustWeight(workout, 2) // 85 kg
+  workout = adjustWeight(workout, 10) // 85 kg
   workout = adjustReps(workout, -2) // 6 reps
   workout = completeSet(workout)
 
@@ -251,7 +289,7 @@ test('un registro corrupto no se reconoce como sesión', () => {
 test('la sesión de hoy se reanuda exactamente donde se dejó', () => {
   let workout = fresh()
   workout = completeSet(workout)
-  workout = adjustWeight(workout, 2)
+  workout = adjustWeight(workout, 10) // 85 kg
 
   const outcome = reconcileStoredWorkout(roundTrip(workout), {
     today: '2026-09-08',
