@@ -34,7 +34,8 @@ import {
   EFFORT_TERMS,
   REPORTED_ACTIVITY_LOADS,
 } from '../knowledge/sports'
-import { detectFocus, normalizeQuestion } from './intents'
+import { isTrainingRecommendation } from '../types'
+import { asksForMoreTime, detectFocus, normalizeQuestion } from './intents'
 import type { AxisVerdict } from './types'
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,8 @@ export type ChangeRequestKind =
   | 'avoid_focus'
   | 'want_focus'
   | 'shorter'
+  /** Más tiempo. Se juzga como subir la carga: más minutos son más volumen. */
+  | 'longer'
   | 'easier'
   | 'harder'
   | 'rest'
@@ -89,6 +92,7 @@ const EASIER_TERMS = [
 const HARDER_TERMS = [
   'mas duro', 'más duro', 'mas dura', 'más dura', 'mas intenso', 'más intenso',
   'mas fuerte', 'más fuerte', 'subir la intensidad', 'exigente', 'mas volumen', 'más volumen',
+  'mas intensidad', 'más intensidad',
 ]
 const REST_TERMS = ['descansar', 'no entrenar', 'dia libre', 'día libre', 'parar hoy', 'saltarme el dia', 'saltarme el día']
 
@@ -205,6 +209,8 @@ export function parseChangeRequest(
   if (focus !== null && (includesAny(text, AVOID_TERMS) || (hasBareNo && !wantsIt))) {
     return { kind: 'avoid_focus', ...base }
   }
+  // Antes que acortar: «15 minutos más» contiene «15 minutos» y pide lo contrario.
+  if (asksForMoreTime(message)) return { kind: 'longer', ...base }
   if (includesAny(text, SHORTER_TERMS)) return { kind: 'shorter', ...base }
   if (includesAny(text, HARDER_TERMS)) return { kind: 'harder', ...base }
   if (includesAny(text, EASIER_TERMS)) return { kind: 'easier', ...base }
@@ -294,6 +300,23 @@ function shortestAlternative(
   )
   if (timed.length === 0) return null
   return timed.reduce((best, a) => (a.estimatedMinutes! < best.estimatedMinutes! ? a : best))
+}
+
+/**
+ * La alternativa de entrenamiento más larga que la sesión actual, si el motor
+ * preparó alguna. Sin sesión actual no hay con qué comparar: no se alarga nada.
+ */
+function longestAlternative(
+  alternatives: readonly BriefingAlternative[],
+  currentMinutes: number | null,
+): BriefingAlternative | null {
+  if (currentMinutes === null) return null
+  const longer = alternatives.filter(
+    (a) =>
+      isTrainingRecommendation(a.type) && a.estimatedMinutes !== null && a.estimatedMinutes > currentMinutes,
+  )
+  if (longer.length === 0) return null
+  return longer.reduce((best, a) => (a.estimatedMinutes! > best.estimatedMinutes! ? a : best))
 }
 
 /**
@@ -398,6 +421,8 @@ export function evaluateChange(
       return evaluateWant(request, briefing, currentFocus, alternatives)
     case 'shorter':
       return evaluateShorter(alternatives, currentMinutes)
+    case 'longer':
+      return evaluateLonger(briefing, alternatives, currentMinutes)
     case 'easier':
       return evaluateEasier(request, briefing, alternatives)
     case 'harder':
@@ -583,6 +608,66 @@ function evaluateShorter(
   }
 }
 
+/**
+ * Que la carga acumulada permite subir, solo si se conoce. Quien llega aquí ya
+ * pasó el freno de carga alta; sin sesiones en la ventana no hay carga que
+ * citar, y su ausencia no se convierte en un permiso (D-016).
+ */
+function loadAllowsClause(briefing: AxisBriefing): string {
+  return briefing.load.known ? ' y la carga acumulada lo permite' : ''
+}
+
+/**
+ * Más tiempo. No es un límite como el de acortar: es más volumen, y se juzga
+ * con los mismos frenos que subir la carga. Si pasa, solo se elige entre lo
+ * que el motor ya preparó; si no hay nada más largo, se dice. Nunca se rellena
+ * con ejercicios o series que nadie ha planificado.
+ */
+function evaluateLonger(
+  briefing: AxisBriefing,
+  alternatives: readonly BriefingAlternative[],
+  currentMinutes: number | null,
+): ChangeVerdict {
+  if (briefing.recovery.known && briefing.recovery.band === 'low') {
+    return {
+      outcome: 'decline',
+      text: `No. Tu recuperación está en ${briefing.recovery.value}${briefing.recovery.weakest.length > 0 ? ` y lo que peor está es ${listNames(briefing.recovery.weakest)}` : ''}. Más tiempo hoy no es más entrenamiento, es más fatiga que pagarás en las próximas sesiones. No alargo el entrenamiento: hoy toca priorizar la recuperación.`,
+      proposedTarget: null,
+    }
+  }
+
+  if (briefing.load.known && briefing.load.band === 'alta') {
+    return {
+      outcome: 'decline',
+      text: `Hoy no. Llevas ${briefing.load.sessionCount} sesiones en ${briefing.load.windowDays} días y tu carga acumulada ya está alta. Alargar la sesión ahora suma volumen justo cuando toca asimilar el que ya llevas.`,
+      proposedTarget: null,
+    }
+  }
+
+  if (!briefing.recovery.known) {
+    return {
+      outcome: 'need_info',
+      text: 'Antes de alargar la sesión necesito saber cómo estás: registra tu recuperación de hoy y lo decido con datos. A ciegas no te voy a mandar más volumen.',
+      proposedTarget: null,
+    }
+  }
+
+  const longer = longestAlternative(alternatives, currentMinutes)
+  if (longer) {
+    return {
+      outcome: 'accept',
+      text: `Hoy sí: tu recuperación está en ${briefing.recovery.value}${loadAllowsClause(briefing)}. Cambio a ${nameOf(longer)}, unos ${longer.estimatedMinutes} min.`,
+      proposedTarget: asTarget(longer),
+    }
+  }
+
+  return {
+    outcome: 'compromise',
+    text: 'No tengo una versión más larga preparada para hoy. La sesión se queda como está: no voy a inventarte ejercicios ni volumen que no he planificado.',
+    proposedTarget: null,
+  }
+}
+
 /** Algo más suave. Se concede si hay con qué, sin fingir que da igual. */
 function evaluateEasier(
   request: ChangeRequest,
@@ -648,7 +733,7 @@ function evaluateHarder(
   const harder = alternatives.find((a) => a.type === 'TRAINING')
   return {
     outcome: 'accept',
-    text: `Hoy sí: tu recuperación está en ${briefing.recovery.value} y la carga acumulada lo permite.${harder ? ` Cambio a ${nameOf(harder)}.` : ' Sube el peso hasta quedarte a una o dos repeticiones del fallo en las últimas series.'}`,
+    text: `Hoy sí: tu recuperación está en ${briefing.recovery.value}${loadAllowsClause(briefing)}.${harder ? ` Cambio a ${nameOf(harder)}.` : ' Sube el peso hasta quedarte a una o dos repeticiones del fallo en las últimas series.'}`,
     proposedTarget: asTarget(harder),
   }
 }

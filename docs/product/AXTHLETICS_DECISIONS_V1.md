@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-09-22.
+**Última actualización:** 2026-10-01.
 
 ## Qué es este documento
 
@@ -403,7 +403,7 @@ Salen del **perfil**, que existe como pantalla interna (D-007), no como pestaña
 - `typicalSessionMinutes` — duración habitual; AXIS la usa como disponibilidad base (`facts.ts`) y la recorta cuando el calendario del día lo exige (`MODIFIED_TRAINING`).
 - `availableWeekdays` — días en los que el usuario suele entrenar.
 
-La **duración disponible hoy**, cuando difiere de la habitual, no tiene un control propio: se comunica a AXIS en la conversación («solo tengo 20 minutos») y entra como petición `shorter`, que se acomoda porque el tiempo es un límite real y no una preferencia. No se añade ningún control nuevo a las pantallas aprobadas.
+La **duración disponible hoy**, cuando difiere de la habitual, no tiene un control propio: se comunica a AXIS en la conversación («solo tengo 20 minutos») y entra como petición `shorter`, que se acomoda porque el tiempo es un límite real y no una preferencia. No se añade ningún control nuevo a las pantallas aprobadas. *(Ampliado por D-017: también se puede pedir más tiempo, como petición `longer`.)*
 
 ### Día sin entrenar (`P-009`)
 
@@ -548,6 +548,43 @@ En **Perfil → Copia de seguridad**, encima del borrado de datos, y además en 
 ### Privacidad
 
 El archivo contiene datos personales y las conversaciones con AXIS. La interfaz lo dice donde se descarga: es para el usuario, no para compartir. No se envía a ningún sitio: la descarga la hace el navegador y la lectura es local.
+
+---
+
+## D-017 — Pedir más tiempo en la negociación (`longer`)
+
+**Fecha:** 2026-10-01 · **Estado:** aprobada · Amplía D-010 (`P-001`, `P-003`).
+
+AXIS admite peticiones **explícitas** de aumentar la duración de la sesión del día. Hasta ahora la negociación solo contemplaba pedir menos tiempo (`shorter`), y las peticiones de más tiempo se leían mal: «quiero poner 15 minutos más de ejercicios» contenía «15 minutos» y entraba como `shorter`, y un «más larga» posterior heredaba ese `shorter`. En producción, AXIS contestaba a quien pedía más que no tenía una versión más corta.
+
+### Qué cuenta como pedir más tiempo
+
+- «Más larga», «más largo», «más tiempo», «más rato», «alargar»; «+15 min»; «15 minutos más», «10 minutos extra»; «añade 10 minutos».
+- Se mira **antes** que acortar. Una cifra de duración sola sigue siendo `shorter` («solo tengo 15 minutos», «quiero algo de 20 minutos»); solo es `longer` con «más», «extra» o «+».
+- «Más» a secas no basta: «más intensidad» y «más volumen» siguen siendo `harder`.
+- Negado en el mismo tramo de frase no cuenta: «no tengo más tiempo» no es pedir más.
+
+### Preguntas y peticiones
+
+- Desde cualquier estado, una petición de más tiempo abre la negociación, igual que las demás peticiones con nombre propio. «+15 min» y «10 minutos extra» cuentan como petición aunque no lleven verbo de pedir.
+- **Una pregunta no modifica la sesión**: «¿es mejor una sesión más larga?», «¿+15 min?» o «¿sería mejor añadir 10 minutos?» se responden como preguntas, sin veredicto ni acción.
+- En modo cambio, una petición de más tiempo **no hereda** la petición anterior (`lastChangeRequest`): la corrige.
+
+### Veredicto
+
+Más minutos son más volumen, así que se juzga con los **mismos frenos deterministas que pedir más exigencia** (`harder`):
+
+1. Recuperación baja → **rechazo**: no se alarga el entrenamiento, toca priorizar la recuperación.
+2. Carga acumulada alta → **rechazo**.
+3. Recuperación sin registrar → **pide datos** antes de decidir.
+4. Recuperación suficiente y el motor **ya preparó** una alternativa de entrenamiento más larga que la sesión actual → **acepta** y la propone como acción, que el usuario confirma (D-010).
+5. Recuperación suficiente sin esa alternativa → **compromiso**: la sesión se queda como está, sin propuesta ni acción.
+
+AXIS **no inventa ejercicios, series, volumen, duración adicional ni una sesión nueva**. Solo elige entre las alternativas que el motor generó; si ninguna es más larga, lo dice. Hoy el motor no genera alternativas más largas que la principal (que ya usa `typicalSessionMinutes`), así que la respuesta habitual será el compromiso.
+
+Al aceptar, la carga solo se cita como permiso si se conoce: con la carga sin datos, el texto no dice que «la carga acumulada lo permite». Se aplica igual al aceptar una petición `harder`.
+
+No añade pantallas, controles, tipos de acción ni cambios en el motor de sesiones. Las respuestas son deterministas; la capa de lenguaje no interviene en ellas.
 
 ---
 

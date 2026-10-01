@@ -104,6 +104,14 @@ const CLEAR_CHANGES: ReadonlyArray<{ message: string; kind: string }> = [
   { message: '¿puedes hacerla más ligera?', kind: 'easier' },
   { message: 'no quiero hacer piernas', kind: 'avoid_focus' },
   { message: '¿podemos no hacer piernas?', kind: 'avoid_focus' },
+  { message: 'quiero una sesión más larga', kind: 'longer' },
+  { message: 'quiero más tiempo', kind: 'longer' },
+  { message: 'quiero poner 15 minutos más de ejercicios', kind: 'longer' },
+  { message: 'añade 10 minutos', kind: 'longer' },
+  { message: 'quiero alargar la sesión', kind: 'longer' },
+  // Sin verbo de pedir, pero dicen exactamente qué cambio quieren.
+  { message: '+15 min', kind: 'longer' },
+  { message: '10 minutos extra', kind: 'longer' },
 ]
 
 const INFORMATIVE = [
@@ -115,6 +123,9 @@ const INFORMATIVE = [
   // Nombran el cambio, pero preguntan: la palabra no basta.
   '¿es mejor una sesión más corta?',
   '¿cuánto dura una sesión más ligera?',
+  '¿es mejor una sesión más larga?',
+  '¿+15 min?',
+  '¿sería mejor añadir 10 minutos?',
 ]
 
 // ---------------------------------------------------------------------------
@@ -135,6 +146,38 @@ test('1. «quiero una sesión más corta» desde frío negocia, propone la alter
   assert.ok(action, 'hay botón de confirmar')
   assert.equal(action.type, 'change_training')
   assert.deepEqual(action.target, answer.proposedTarget)
+})
+
+test('«quiero una sesión más larga» desde frío negocia como `longer` y, sin nada más largo preparado, no propone nada', () => {
+  const { briefing, day } = setup()
+  const answer = answerFromBriefing('quiero una sesión más larga', briefing, COLD)
+
+  assert.equal(answer.intent, 'change')
+  assert.deepEqual(answer.changeRequest, { kind: 'longer', focus: null })
+  assert.equal(answer.verdict, 'compromise')
+  assert.equal(answer.proposedTarget ?? null, null)
+  assert.doesNotMatch(answer.text, /m[aá]s corta/i)
+  assert.equal(proposeAction(day, answer), null, 'sin alternativa no hay botón')
+})
+
+test('«+15 min» y «10 minutos extra» desde frío negocian igual que «quiero una sesión más larga»', () => {
+  const { briefing } = setup()
+  const reference = answerFromBriefing('quiero una sesión más larga', briefing, COLD)
+
+  for (const message of ['+15 min', '10 minutos extra', 'quiero poner 15 minutos más de ejercicios']) {
+    const answer = answerFromBriefing(message, briefing, COLD)
+    assert.equal(answer.intent, 'change', message)
+    assert.deepEqual(answer.changeRequest, { kind: 'longer', focus: null }, message)
+    assert.equal(answer.verdict, reference.verdict, `${message}: mismo veredicto`)
+    assert.equal(answer.text, reference.text, `${message}: misma respuesta`)
+  }
+
+  // Con forma de pregunta, se responden como pregunta.
+  for (const question of ['¿+15 min?', '¿sería mejor añadir 10 minutos?']) {
+    const answer = answerFromBriefing(question, briefing, COLD)
+    assert.notEqual(answer.intent, 'change', question)
+    assert.equal(answer.changeRequest ?? null, null, question)
+  }
 })
 
 test('desde frío se lee exactamente igual que con el modo cambio activo', () => {

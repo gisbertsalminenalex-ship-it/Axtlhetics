@@ -23,7 +23,7 @@ import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { describeFocus, type SessionFocus } from '../knowledge/focus'
 import { muscleGroupLabel } from '../knowledge/muscles'
 import type { AxisBriefing, BriefingActivity } from '../briefing'
-import { detectExercise, looksLikeQuestion, looksLikeRequest, matchIntent, type IntentMatch } from './intents'
+import { asksForMoreTime, detectExercise, looksLikeQuestion, looksLikeRequest, matchIntent, type IntentMatch } from './intents'
 import { evaluateChange, parseChangeRequest, type ChangeRequest } from './negotiation'
 import type {
   AxisAnswer,
@@ -406,6 +406,7 @@ function answerTired(briefing: AxisBriefing): AxisAnswer {
  */
 const EXPLICIT_CHANGE_KINDS: ReadonlySet<ChangeRequest['kind']> = new Set([
   'shorter',
+  'longer',
   'easier',
   'harder',
   'rest',
@@ -418,11 +419,15 @@ const EXPLICIT_CHANGE_KINDS: ReadonlySet<ChangeRequest['kind']> = new Set([
  *
  * Inequívoca quiere decir dos cosas a la vez: que el mensaje **pide** algo
  * (`looksLikeRequest`: «quiero», «hazme», «podemos», «tengo menos tiempo»…) y
- * que lo que pide tiene **nombre**: más corta, más ligera, más dura, descansar
+ * que lo que pide tiene **nombre**: más corta, más larga, más ligera, más dura, descansar
  * o evitar una zona. Ninguna de las dos basta sola. «¿Es mejor una sesión más
  * corta?» nombra el cambio pero pregunta, y se responde como pregunta; «quiero
  * cambiar el entrenamiento» pide pero no dice qué, y AXIS pregunta el motivo.
  * Un «¿y si…?» tampoco cuenta: es una hipótesis, no una orden.
+ *
+ * Pedir más tiempo es la excepción a la primera condición: «+15 min» o «10
+ * minutos extra» no llevan verbo y ya lo dicen todo. Cuentan como petición
+ * mientras no tengan forma de pregunta; «¿+15 min?» se responde como pregunta.
  */
 function explicitChangeRequest(
   question: string,
@@ -431,7 +436,8 @@ function explicitChangeRequest(
 ): ChangeRequest | null {
   if (match.intent === 'medical' || match.intent === 'out_of_scope') return null
   if (match.isFollowUp) return null
-  if (!looksLikeRequest(question)) return null
+  const statesMoreTime = asksForMoreTime(question) && !looksLikeQuestion(question)
+  if (!looksLikeRequest(question) && !statesMoreTime) return null
 
   const request = parseChangeRequest(
     question,

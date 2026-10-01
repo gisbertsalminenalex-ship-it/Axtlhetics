@@ -9,6 +9,7 @@ import { buildBriefing, type AxisBriefing } from '../briefing'
 import { buildAxisContext } from '../context'
 import { decide } from '../engine'
 import { answerFromBriefing } from './deterministic'
+import { matchIntent } from './intents'
 import {
   changeOpeningMessage,
   detectReportedLoad,
@@ -529,4 +530,233 @@ test('sin propuesta no hay nada que negociar y se dice', () => {
     assert.equal(verdict.outcome, 'need_info')
     assert.match(verdict.text, /no tengo una sesi[oó]n/i)
   }
+})
+
+// ---------------------------------------------------------------------------
+// Más tiempo (`longer`)
+//
+// Regresión del fallo visto en producción: «quiero poner 15 minutos más de
+// ejercicios» se leía como acortar porque contiene «15 minutos», y «más larga»
+// heredaba ese `shorter`. AXIS contestaba a quien pedía más que no tenía una
+// versión más corta.
+// ---------------------------------------------------------------------------
+
+const LONGER_MESSAGES = [
+  'quiero una sesión más larga',
+  'quiero más tiempo',
+  'quiero poner 15 minutos más de ejercicios',
+  'añade 10 minutos',
+  '+15 min',
+  '10 minutos extra',
+  'quiero alargar la sesión',
+  'más larga',
+]
+
+test('reconoce las peticiones de más tiempo como `longer`', () => {
+  for (const message of LONGER_MESSAGES) {
+    assert.equal(parseChangeRequest(message).kind, 'longer', message)
+  }
+})
+
+test('negar el «más tiempo» no es pedirlo', () => {
+  assert.notEqual(parseChangeRequest('no tengo más tiempo').kind, 'longer')
+  assert.notEqual(parseChangeRequest('no quiero una sesión más larga').kind, 'longer')
+  // Un «no» en otro tramo de la frase no niega la petición.
+  assert.equal(parseChangeRequest('no tengo partido, quiero más tiempo').kind, 'longer')
+})
+
+test('las cifras de duración sin «más» siguen siendo acortar', () => {
+  for (const message of [
+    'solo tengo 15 minutos',
+    'quiero algo de 20 minutos',
+    'quiero una sesión más corta',
+    'tengo menos tiempo hoy',
+    'hoy voy justo, ¿algo más corto?',
+  ]) {
+    assert.equal(parseChangeRequest(message).kind, 'shorter', message)
+  }
+})
+
+test('«más» a secas no es pedir tiempo: intensidad y volumen conservan su sentido', () => {
+  assert.equal(parseChangeRequest('quiero más intensidad').kind, 'harder')
+  assert.equal(parseChangeRequest('quiero más volumen').kind, 'harder')
+  assert.equal(parseChangeRequest('quiero algo más intenso').kind, 'harder')
+})
+
+test('«15 minutos más» no se clasifica como acortar en la intención', () => {
+  assert.notEqual(matchIntent('quiero poner 15 minutos más de ejercicios').intent, 'shorten')
+  assert.notEqual(matchIntent('10 minutos extra').intent, 'shorten')
+  // Sin «más», la cifra sigue siendo acortar.
+  assert.equal(matchIntent('solo tengo 15 minutos').intent, 'shorten')
+})
+
+function withLoad(briefing: AxisBriefing, band: 'baja' | 'moderada' | 'alta'): AxisBriefing {
+  return { ...briefing, load: { known: true, value: 80, band, sessionCount: 6, windowDays: 7 } }
+}
+
+/** El mismo día, pero con una alternativa de entrenamiento más larga preparada. */
+function withLongerAlternative(briefing: AxisBriefing): AxisBriefing {
+  const proposal = briefing.proposal!
+  // Con la recuperación baja el motor propone recuperar y no hay sesión.
+  const current = proposal.session?.estimatedMinutes ?? 0
+  return {
+    ...briefing,
+    proposal: {
+      ...proposal,
+      alternatives: [
+        ...proposal.alternatives,
+        { id: 'longer', label: 'Sesión completa', type: 'TRAINING', focus: 'tren_inferior', estimatedMinutes: current + 15 },
+      ],
+    },
+  }
+}
+
+const LOW_RECOVERY = recovery({ sleepHours: 4, energy: 1, muscleFatigue: 5, stress: 5 })
+
+test('más tiempo con la recuperación baja se rechaza', () => {
+  const briefing = withLongerAlternative(briefingWith({ recoveryInputs: LOW_RECOVERY }))
+  const verdict = evaluateChange(parseChangeRequest('quiero una sesión más larga'), briefing)
+
+  assert.equal(verdict.outcome, 'decline')
+  assert.match(verdict.text, /^no\b/i, 'la primera palabra es el veredicto')
+  assert.equal(verdict.proposedTarget, null)
+  assert.doesNotMatch(verdict.text, SYCOPHANCY)
+
+  // El motor propone recuperar: no hay sesión que «se quede como está».
+  assert.equal(briefing.proposal?.session ?? null, null)
+  assert.doesNotMatch(verdict.text, /se queda como est[aá]/i)
+  assert.match(verdict.text, /no alargo el entrenamiento/i)
+  assert.match(verdict.text, /priorizar la recuperaci[oó]n/i)
+})
+
+test('con la carga desconocida, aceptar más tiempo no afirma nada de la carga', () => {
+  const briefing = withLongerAlternative(briefingWith())
+  assert.equal(briefing.load.known, false, 'sin sesiones en la ventana no hay carga')
+
+  const verdict = evaluateChange(parseChangeRequest('quiero una sesión más larga'), briefing)
+
+  assert.equal(verdict.outcome, 'accept')
+  assert.doesNotMatch(verdict.text, /carga/i)
+  assert.doesNotMatch(verdict.text, /lo permite/i)
+})
+
+test('con la carga conocida y compatible, aceptar más tiempo puede citarla', () => {
+  const briefing = withLongerAlternative(withLoad(briefingWith(), 'moderada'))
+  const verdict = evaluateChange(parseChangeRequest('quiero una sesión más larga'), briefing)
+
+  assert.equal(verdict.outcome, 'accept')
+  assert.match(verdict.text, /la carga acumulada lo permite/i)
+})
+
+test('con la carga desconocida, aceptar más caña no afirma que la carga lo permita', () => {
+  const briefing = briefingWith()
+  assert.equal(briefing.load.known, false)
+
+  const verdict = evaluateChange(parseChangeRequest('ponme algo más duro'), briefing)
+
+  assert.equal(verdict.outcome, 'accept')
+  assert.doesNotMatch(verdict.text, /carga acumulada/i)
+  assert.doesNotMatch(verdict.text, /lo permite/i)
+})
+
+test('con la carga conocida y compatible, aceptar más caña puede citarla', () => {
+  const verdict = evaluateChange(parseChangeRequest('ponme algo más duro'), withLoad(briefingWith(), 'moderada'))
+
+  assert.equal(verdict.outcome, 'accept')
+  assert.match(verdict.text, /la carga acumulada lo permite/i)
+})
+
+test('más tiempo con la carga acumulada alta se rechaza', () => {
+  const briefing = withLongerAlternative(withLoad(briefingWith(), 'alta'))
+  const verdict = evaluateChange(parseChangeRequest('quiero más tiempo'), briefing)
+
+  assert.equal(verdict.outcome, 'decline')
+  assert.match(verdict.text, /carga acumulada/i)
+  assert.equal(verdict.proposedTarget, null)
+  assert.doesNotMatch(verdict.text, SYCOPHANCY)
+})
+
+test('sin recuperación registrada no alarga la sesión a ciegas', () => {
+  const briefing = briefingWith({ recoveryInputs: null })
+  const verdict = evaluateChange(parseChangeRequest('añade 10 minutos'), briefing)
+
+  assert.equal(verdict.outcome, 'need_info')
+  assert.match(verdict.text, /registra tu recuperaci[oó]n/i)
+  assert.equal(verdict.proposedTarget, null)
+})
+
+test('con recuperación suficiente y una alternativa más larga preparada, la propone', () => {
+  const briefing = withLongerAlternative(withLoad(briefingWith(), 'moderada'))
+  const verdict = evaluateChange(parseChangeRequest('quiero poner 15 minutos más de ejercicios'), briefing)
+
+  assert.equal(verdict.outcome, 'accept')
+  assert.deepEqual(verdict.proposedTarget, { type: 'TRAINING', focus: 'tren_inferior' })
+  assert.match(verdict.text, /«Sesión completa»/)
+  assert.doesNotMatch(verdict.text, SYCOPHANCY)
+})
+
+test('sin alternativa más larga preparada, compromiso honesto: no inventa ejercicios ni volumen', () => {
+  const briefing = briefingWith()
+  const current = briefing.proposal!.session!.estimatedMinutes
+  assert.ok(
+    briefing.proposal!.alternatives.every((a) => a.estimatedMinutes === null || a.estimatedMinutes <= current),
+    'el motor no prepara hoy nada más largo',
+  )
+
+  const verdict = evaluateChange(parseChangeRequest('quiero una sesión más larga'), briefing)
+
+  assert.equal(verdict.outcome, 'compromise')
+  assert.equal(verdict.proposedTarget, null)
+  assert.match(verdict.text, /no tengo una versi[oó]n m[aá]s larga/i)
+  assert.doesNotMatch(verdict.text, /m[aá]s corta/i)
+  assert.doesNotMatch(verdict.text, /a[nñ]ade|series?\b|repetici/i, 'no receta volumen que el motor no preparó')
+  assert.doesNotMatch(verdict.text, SYCOPHANCY)
+})
+
+test('ninguna respuesta a pedir más tiempo abre con un cumplido', () => {
+  const variants = [
+    briefingWith(),
+    withLongerAlternative(briefingWith()),
+    withLoad(briefingWith(), 'alta'),
+    briefingWith({ recoveryInputs: null }),
+    briefingWith({ recoveryInputs: LOW_RECOVERY }),
+  ]
+  for (const briefing of variants) {
+    for (const message of LONGER_MESSAGES) {
+      const answer = negotiate(message, briefing)
+      assert.equal(answer.changeRequest?.kind, 'longer', message)
+      assert.doesNotMatch(answer.text, SYCOPHANCY, message)
+    }
+  }
+})
+
+test('producción: «15 minutos más» y después «más larga» no heredan `shorter`', () => {
+  const briefing = briefingWith()
+
+  // Primer mensaje, desde Inicio, sin pulsar nada.
+  const first = answerFromBriefing('quiero poner 15 minutos más de ejercicios', briefing)
+  assert.equal(first.intent, 'change')
+  assert.deepEqual(first.changeRequest, { kind: 'longer', focus: null })
+  assert.doesNotMatch(first.text, /m[aá]s corta/i)
+
+  // La conversación queda en modo cambio con esa petición pendiente.
+  const second = answerFromBriefing('más larga', briefing, {
+    lastIntent: 'change',
+    changeMode: true,
+    lastChangeRequest: first.changeRequest ?? null,
+  })
+  assert.equal(second.intent, 'change')
+  assert.deepEqual(second.changeRequest, { kind: 'longer', focus: null })
+  assert.doesNotMatch(second.text, /m[aá]s corta/i)
+})
+
+test('una petición de más tiempo corrige un `shorter` anterior, no lo hereda', () => {
+  const answer = answerFromBriefing('más larga', briefingWith(), {
+    lastIntent: 'change',
+    changeMode: true,
+    lastChangeRequest: { kind: 'shorter', focus: null },
+  })
+
+  assert.deepEqual(answer.changeRequest, { kind: 'longer', focus: null })
+  assert.doesNotMatch(answer.text, /m[aá]s corta/i)
 })

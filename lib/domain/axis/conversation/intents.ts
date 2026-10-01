@@ -184,6 +184,45 @@ export function looksLikeRequest(question: string): boolean {
 }
 
 /**
+ * Pedir más tiempo, no menos.
+ *
+ * Una cifra suelta es un límite: «solo tengo 15 minutos». Con «más», «extra» o
+ * un «+» delante es lo contrario: «15 minutos más». Las cifras se leían siempre
+ * como acortar, y AXIS contestaba a quien pedía más que no tenía una versión
+ * más corta. Por eso esto se mira antes que cualquier término de acortar.
+ *
+ * «Más» a secas no basta: «más intensidad» o «más volumen» piden otra cosa.
+ */
+const MORE_TIME_TERMS = ['mas larga', 'mas largo', 'mas tiempo', 'mas rato', 'alarg']
+const MORE_MINUTES_PATTERNS: readonly RegExp[] = [
+  /\+\s*\d+\s*min/, // «+15 min»
+  /\d+\s*min(uto)?s?\s+(de\s+)?(mas|extra)\b/, // «15 minutos más», «10 minutos extra»
+  /\banad\w*\b[^.,;]*\d+\s*min/, // «añade 10 minutos»
+]
+
+/**
+ * «No tengo más tiempo» o «no quiero una sesión más larga» dicen lo contrario.
+ * Cuenta como negada si hay un «no» antes dentro del mismo tramo de frase: sin
+ * una coma ni un punto de por medio, para que «no tengo partido, quiero más
+ * tiempo» siga siendo pedir más.
+ */
+function negatedBefore(text: string, at: number): boolean {
+  return /\bno\b[^,.;]*$/.test(text.slice(0, at))
+}
+
+export function asksForMoreTime(question: string): boolean {
+  const text = normalizeQuestion(question)
+  const patterns = [
+    ...MORE_TIME_TERMS.map((term) => new RegExp(`(^|[^a-z0-9])${term}`)),
+    ...MORE_MINUTES_PATTERNS,
+  ]
+  return patterns.some((pattern) => {
+    const found = pattern.exec(text)
+    return found !== null && !negatedBefore(text, found.index)
+  })
+}
+
+/**
  * El ejercicio del catálogo que nombra el mensaje, si nombra alguno.
  *
  * Primero el nombre completo (el más largo gana: «flexiones diamante» antes que
@@ -224,6 +263,9 @@ export function matchIntent(
     const matchesAny = rule.any.some((term) => text.includes(normalizeQuestion(term)))
     if (!matchesAny) continue
     if (rule.and && !rule.and.some((term) => text.includes(normalizeQuestion(term)))) continue
+
+    // «15 minutos más» nombra una cifra de acortar, pero pide lo contrario.
+    if (rule.intent === 'shorten' && asksForMoreTime(question)) continue
 
     // «¿Y por qué no piernas?» es un «por qué no» con foco, no un «por qué» suelto.
     if (rule.intent === 'why' && focus !== null) {
