@@ -304,6 +304,8 @@ export type DayPlanOverride = {
 export function overrideFrom(
   action: AxisActionProposal,
   target: AxisProposal,
+  /** El mismo reloj que el resto de la aplicación de la acción. */
+  now: string = nowIso(),
 ): DayPlanOverride {
   return {
     dayKey: action.dayKey,
@@ -311,7 +313,7 @@ export function overrideFrom(
     focus: target.session?.focus ?? null,
     originHeadline: action.origin.headline,
     reason: action.reason,
-    decidedAt: nowIso(),
+    decidedAt: now,
     source: 'axis_conversation',
   }
 }

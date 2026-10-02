@@ -463,6 +463,16 @@ test('doble confirmación: la segunda recibe ya_aplicada y no escribe', async ()
   if (a.ok && b.ok) assert.deepEqual(a.memory, b.memory, 'y producen exactamente lo mismo: idempotente')
 })
 
+test('el reloj inyectado manda en toda la acción aplicada, también en el decidedAt del cambio', async () => {
+  const day = dayWith()
+  const action = actionFor(day)
+  const memory = withAction(emptyDayMemory(DAY, NOW), action)
+
+  const result = await executeAction(action, day, memory, port(), NOW)
+  assert.equal(result.ok, true)
+  if (result.ok) assert.equal(result.memory.override?.decidedAt, NOW)
+})
+
 test('confirmación después de recargar: la acción leída del repositorio se ejecuta contra la decisión nueva', async () => {
   const repositories = createMemoryRepositories()
   const day = dayWith()

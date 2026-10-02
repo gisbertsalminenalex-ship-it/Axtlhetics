@@ -173,7 +173,7 @@ export function applyAction(
     }
   }
 
-  const override = overrideFrom(action, check.target)
+  const override = overrideFrom(action, check.target, now)
   const applied = applyOverride(memory, override, action.id, now)
   return { ok: true, memory: supersedeOtherActions(applied, action.id, now), override }
 }
