@@ -151,6 +151,12 @@ export function formatMonthName(key: DayKey): string {
   return `${MONTH_NAMES[date.getMonth()]} de ${date.getFullYear()}`
 }
 
+/** `sábado 12 de septiembre` — para decir una fecha dentro de una frase. */
+export function formatDayInSentence(key: DayKey): string {
+  const date = fromDayKey(key)
+  return `${WEEKDAY_LABELS[weekdayOf(date)].toLowerCase()} ${date.getDate()} de ${MONTH_NAMES[date.getMonth()].toLowerCase()}`
+}
+
 export function formatYearName(key: DayKey): string {
   return String(fromDayKey(key).getFullYear())
 }

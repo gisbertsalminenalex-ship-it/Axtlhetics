@@ -49,7 +49,7 @@ La navegación inferior tiene **exactamente cuatro tabs**:
 
 **No incluir Progreso ni Perfil como tabs ni como pantallas independientes de Core v0.1.** El progreso avanzado y el perfil completo pertenecen a fases futuras salvo aprobación explícita.
 
-Lo que sí existe (D-007) es una **pantalla interna de perfil**, accesible desde el icono de usuario de Inicio: nombre, edad, medidas, objetivos, experiencia, días disponibles, duración habitual y deportes del calendario. Es el mismo formulario del onboarding en modo edición, no una quinta pestaña. Los deportes se registran con un único modelo (días + intensidad, hora opcional) tanto en el onboarding como en Perfil.
+Lo que sí existe (D-007) es una **pantalla interna de perfil**, accesible desde el icono de usuario de Inicio: nombre, edad, medidas, objetivos, experiencia, días disponibles, duración habitual y deportes del calendario. Es el mismo formulario del onboarding en modo edición, no una quinta pestaña. Los deportes se registran con un único modelo (días + intensidad, hora opcional) tanto en el onboarding como en Perfil. En Perfil, una actividad puede ser además de **un día concreto** en vez de cada semana (D-018): es el caso de un partido, que cambia de día de una semana a otra o no existe.
 
 ### Cómo se decide el entrenamiento del día (D-001)
 

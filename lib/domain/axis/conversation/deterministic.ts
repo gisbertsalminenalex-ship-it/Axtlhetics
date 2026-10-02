@@ -17,7 +17,7 @@
 import { TRAINING_GOAL_LABELS } from '../../profile/types'
 import { RECOVERY_BAND_LABELS } from '../../recovery/types'
 import { formatTotalTime, formatVolume } from '../../history/stats'
-import { formatDuration, formatRelativeDay, WEEKDAY_LABELS } from '../../shared/dates'
+import { addDays, formatDayInSentence, formatDuration, formatRelativeDay, WEEKDAY_LABELS } from '../../shared/dates'
 import { listNames } from '../../shared/text'
 import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { describeFocus, type SessionFocus } from '../knowledge/focus'
@@ -275,26 +275,38 @@ function answerFactors(briefing: AxisBriefing): AxisAnswer {
 // Deporte
 // ---------------------------------------------------------------------------
 
+/** Cuántas actividades con fecha se nombran como mucho al decir lo próximo. */
+const MAX_UPCOMING_NAMED = 3
+
 function answerSportToday(briefing: AxisBriefing): AxisAnswer {
   const today = briefing.activitiesToday
 
   if (today.length === 0) {
     const sports = briefing.profile?.sports ?? []
-    if (sports.length === 0) {
+    // Un partido de un día concreto también es un deporte registrado (D-018).
+    const dated = briefing.upcomingDatedActivities
+    if (sports.length === 0 && dated.length === 0) {
       return unknown(
         'sport_today',
         'No tienes ningún deporte registrado. Puedes añadirlo desde tu perfil y lo tendré en cuenta.',
       )
     }
-    const upcoming = sports
+    const recurring = sports
       .filter((sport) => sport.weekdays.length > 0)
       .map((sport) => `${sport.name} los ${listNames(sport.weekdays.map((day) => WEEKDAY_LABELS[day as 0].toLowerCase()))}`)
+
+    // Cuándo es cada uno, para que «hoy no» y «el sábado sí» no se confundan.
+    const tomorrow = addDays(briefing.dayKey, 1)
+    const next = dated
+      .slice(0, MAX_UPCOMING_NAMED)
+      .map((activity) => `${activity.name} ${activity.date === tomorrow ? 'mañana' : `el ${formatDayInSentence(activity.date)}`}`)
 
     // «Registrado» no: sí lo está, solo que hoy no toca. Decir lo contrario y
     // acto seguido enumerar sus deportes se contradice en la misma frase.
     return say('sport_today', [
       'Hoy no tienes deporte.',
-      upcoming.length > 0 ? `Tienes ${listNames(upcoming)}.` : '',
+      recurring.length > 0 ? `Tienes ${listNames(recurring)}.` : '',
+      next.length > 0 ? `Lo próximo con fecha: ${listNames(next)}.` : '',
     ])
   }
 

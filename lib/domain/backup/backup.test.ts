@@ -237,3 +237,44 @@ test('una lista que no es una lista no rompe la lectura', () => {
   if (!result.ok) return
   assert.equal(result.counts.activities, 0)
 })
+
+// ---------------------------------------------------------------------------
+// Actividades con fecha (D-018)
+// ---------------------------------------------------------------------------
+
+test('una copia antigua, con actividades sin `date`, se importa entera', () => {
+  const file = roundTrip(fullContents()) as { data: { activities: Record<string, unknown>[] } }
+  assert.equal('date' in file.data.activities[0], false, 'como las escribía la versión anterior')
+
+  const result = parseBackup(file)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+
+  assert.equal(result.discarded, 0)
+  assert.equal(result.counts.activities, 1)
+  assert.equal(result.contents.activities[0].date ?? null, null, 'sigue siendo recurrente')
+})
+
+test('una copia nueva conserva la fecha de un partido', () => {
+  const match: ScheduledActivity = { ...activity, id: 'match-1', name: 'Partido', weekday: 5, date: '2026-09-26' }
+  const contents = { ...fullContents(), activities: [activity, match] }
+
+  const result = parseBackup(roundTrip(contents))
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+
+  assert.deepEqual(result.contents.activities, [activity, match])
+  assert.equal(result.discarded, 0)
+})
+
+test('una actividad con una fecha que no es un día local se descarta sola', () => {
+  const file = roundTrip(fullContents()) as { data: Record<string, unknown> }
+  file.data.activities = [activity, { ...activity, id: 'act-2', date: '2026-09-26T10:00:00.000Z' }]
+
+  const result = parseBackup(file)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+
+  assert.equal(result.counts.activities, 1)
+  assert.equal(result.discarded, 1)
+})

@@ -639,3 +639,147 @@ test('quitar lo repetido no mutila las palabras que quedan', () => {
     assert.match(answer.text.trim(), /\.$/, `no termina en punto: ${answer.text}`)
   }
 })
+
+// ---------------------------------------------------------------------------
+// Partidos de un día concreto (D-018)
+// ---------------------------------------------------------------------------
+
+/** Un partido con fecha. Hoy, en estos tests, es el lunes 2026-09-07. */
+function matchOn(date: string): ScheduledActivity {
+  return { ...sportOn('Partido', [0], 'alta')[0], id: `partido-${date}`, date }
+}
+
+test('un partido con fecha de hoy es el deporte de hoy, no un deporte recurrente', () => {
+  const { briefing } = briefingWith({ activities: [matchOn(MONDAY_KEY)] }, [session()])
+
+  assert.deepEqual(briefing.activitiesToday.map((activity) => activity.name), ['Partido'])
+  assert.deepEqual(briefing.profile?.sports ?? [], [], 'no se presenta como «juegas los lunes»')
+
+  const answer = answerFromBriefing('¿Tengo partido hoy?', briefing)
+  assert.equal(answer.intent, 'sport_today')
+  assert.equal(answer.unknown, false)
+  assert.match(answer.text, /partido/i)
+})
+
+test('un partido con fecha de mañana condiciona hoy y AXIS lo explica', () => {
+  const { briefing, context } = briefingWith({ activities: [matchOn('2026-09-08')] }, [session()])
+
+  assert.deepEqual(briefing.activitiesTomorrow.map((activity) => activity.name), ['Partido'])
+  const decision = decide(context)
+  assert.equal(decision.primary.type, 'LIGHT_TRAINING')
+  assert.match(decision.primary.reason, /mañana/i)
+
+  const answer = answerFromBriefing('¿Cómo afecta el partido al entrenamiento?', briefing)
+  assert.equal(answer.intent, 'sport_impact')
+  assert.match(answer.text, /partido/i)
+})
+
+test('un partido de otra semana no aparece hoy ni mañana', () => {
+  const { briefing } = briefingWith({ activities: [matchOn('2026-09-14')] }, [session()])
+  assert.equal(briefing.activitiesToday.length, 0, 'es lunes, pero el de la semana que viene')
+  assert.equal(briefing.activitiesTomorrow.length, 0)
+})
+
+test('«hoy no hay partido» cancela el partido con fecha de hoy', () => {
+  const { briefing } = briefingWith({ activities: [matchOn(MONDAY_KEY)] }, [session()])
+  const answer = answerFromBriefing('hoy al final no hay partido', briefing, {
+    lastIntent: 'change',
+    changeMode: true,
+  })
+
+  assert.deepEqual(answer.cancelledActivities, ['Partido'])
+
+  // Y, ya cancelado, deja de pesar en la decisión de hoy.
+  const after = briefingWith(
+    { activities: [matchOn(MONDAY_KEY)], cancelledToday: answer.cancelledActivities },
+    [session()],
+  )
+  assert.equal(after.briefing.activitiesToday.length, 0)
+  assert.equal(decide(after.context).primary.type, 'TRAINING')
+})
+
+// ---------------------------------------------------------------------------
+// «¿Tengo partido hoy?» con partidos de un día concreto (D-018)
+//
+// Regresión: con solo un partido futuro registrado, AXIS respondía «No tienes
+// ningún deporte registrado», porque miraba únicamente los deportes recurrentes.
+// ---------------------------------------------------------------------------
+
+const NO_SPORT_REGISTERED = /ning[uú]n deporte registrado/i
+
+test('con solo un partido futuro, «¿Tengo partido hoy?» no dice que no haya deporte registrado', () => {
+  const { briefing } = briefingWith({ activities: [matchOn('2026-09-12')] }, [session()])
+  const answer = answerFromBriefing('¿Tengo partido hoy?', briefing)
+
+  assert.equal(answer.intent, 'sport_today')
+  assert.equal(answer.unknown, false)
+  assert.doesNotMatch(answer.text, NO_SPORT_REGISTERED)
+})
+
+test('partido futuro y ninguno hoy: distingue hoy del día del partido', () => {
+  const { briefing } = briefingWith({ activities: [matchOn('2026-09-12')] }, [session()])
+  const answer = answerFromBriefing('¿Tengo partido hoy?', briefing)
+
+  assert.match(answer.text, /^Hoy no tienes deporte\./)
+  assert.match(answer.text, /Partido el s[aá]bado 12 de septiembre/)
+  assert.deepEqual(briefing.upcomingDatedActivities, [
+    { name: 'Partido', date: '2026-09-12', intensity: 'alta' },
+  ])
+})
+
+test('un partido mañana se dice «mañana», no con la fecha', () => {
+  const { briefing } = briefingWith({ activities: [matchOn('2026-09-08')] }, [session()])
+  const answer = answerFromBriefing('¿Tengo partido hoy?', briefing)
+
+  assert.match(answer.text, /^Hoy no tienes deporte\./)
+  assert.match(answer.text, /Partido mañana/)
+})
+
+test('un partido hoy se sigue detectando como el deporte de hoy', () => {
+  const { briefing } = briefingWith({ activities: [matchOn(MONDAY_KEY)] }, [session()])
+  const answer = answerFromBriefing('¿Tengo partido hoy?', briefing)
+
+  assert.match(answer.text, /^S[ií]/)
+  assert.match(answer.text, /partido/i)
+  assert.doesNotMatch(answer.text, /^Hoy no tienes deporte/)
+  assert.deepEqual(briefing.upcomingDatedActivities, [], 'el de hoy no es «próximo»')
+})
+
+test('un partido de otra semana no cuenta como hoy, pero se dice cuándo es', () => {
+  // También es lunes, pero el de la semana que viene.
+  const { briefing } = briefingWith({ activities: [matchOn('2026-09-14')] }, [session()])
+  const answer = answerFromBriefing('¿Tengo partido hoy?', briefing)
+
+  assert.match(answer.text, /^Hoy no tienes deporte\./)
+  assert.match(answer.text, /el lunes 14 de septiembre/)
+})
+
+test('un partido que ya pasó no se anuncia como próximo', () => {
+  const { briefing } = briefingWith({ activities: [matchOn('2026-09-05')] }, [session()])
+  assert.deepEqual(briefing.upcomingDatedActivities, [])
+  assert.doesNotMatch(answerFromBriefing('¿Tengo partido hoy?', briefing).text, /5 de septiembre/)
+})
+
+test('semana sin ningún partido: la respuesta es la de siempre', () => {
+  const none = answerFromBriefing('¿Tengo partido hoy?', briefingWith({}, [session()]).briefing)
+  assert.equal(none.unknown, true)
+  assert.match(none.text, NO_SPORT_REGISTERED)
+
+  // Con un deporte recurrente que hoy no toca, tampoco cambia nada.
+  const weekly = answerFromBriefing(
+    '¿Tengo partido hoy?',
+    briefingWith({ activities: sportOn('Baloncesto', [2], 'alta') }, [session()]).briefing,
+  )
+  assert.equal(weekly.text, 'Hoy no tienes deporte. Tienes Baloncesto los miércoles.')
+})
+
+test('recurrente y partido futuro a la vez: nombra los dos, cada uno con su cuándo', () => {
+  const { briefing } = briefingWith(
+    { activities: [...sportOn('Baloncesto', [2], 'media'), matchOn('2026-09-13')] },
+    [session()],
+  )
+  const answer = answerFromBriefing('¿Tengo partido hoy?', briefing)
+
+  assert.match(answer.text, /Baloncesto los miércoles/)
+  assert.match(answer.text, /Partido el domingo 13 de septiembre/)
+})

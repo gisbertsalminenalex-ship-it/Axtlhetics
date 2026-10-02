@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-01.
+**Última actualización:** 2026-10-02.
 
 ## Qué es este documento
 
@@ -651,6 +651,49 @@ AXIS **no inventa ejercicios, series, volumen, duración adicional ni una sesió
 Al aceptar, la carga solo se cita como permiso si se conoce: con la carga sin datos, el texto no dice que «la carga acumulada lo permite». Se aplica igual al aceptar una petición `harder`.
 
 No añade pantallas, controles, tipos de acción ni cambios en el motor de sesiones. Las respuestas son deterministas; la capa de lenguaje no interviene en ellas.
+
+---
+
+## D-018 — Partidos por fecha: actividades de un día concreto
+
+**Fecha:** 2026-10-02 · **Estado:** aprobada · Amplía el modelo de deportes de D-007.
+
+El partido **no es una propiedad fija de ningún día**. Puede ser sábado una semana, domingo la siguiente, entre semana, o no haberlo. Hasta ahora toda actividad del calendario era recurrente («cada sábado»): para mover un partido había que borrar el deporte y volver a crearlo, y el cambio valía para todas las semanas.
+
+### Modelo
+
+`ScheduledActivity` gana un campo opcional `date: DayKey | null`.
+
+- **Sin `date`** (ausente o `null`): **recurrente**, cada semana en su `weekday`. Es el caso de los entrenamientos de un deporte, y el de todos los registros anteriores a esta decisión, que no cambian.
+- **Con `date`**: **de un día concreto**, solo ese día. `weekday` se mantiene igual al día de la semana de la fecha, pero quien manda es la fecha.
+- La fecha es un `DayKey` **local** (`YYYY-MM-DD`), igual que el resto del dominio. Nunca UTC.
+- Los entrenamientos normales **no** se convierten en eventos con fecha.
+
+### Comportamiento
+
+- `activityOccursOn(activity, dayKey)` decide si una actividad ocurre un día. Los hechos de AXIS la usan para hoy y para mañana; las reglas (`demanding_activity_today`, `demanding_activity_tomorrow`) no cambian.
+- Un partido con fecha **solo cuenta ese día**: no se repite la semana siguiente, y uno que **ya pasó deja de afectar** a AXIS sin que nadie lo borre.
+- Una **semana sin partido** es simplemente una semana sin ningún evento de un día.
+- Si el mismo día hay una actividad recurrente y un partido, cuentan las dos y decide la más exigente, como ya pasaba con varios deportes el mismo día.
+- La cancelación de hoy por conversación («hoy no hay partido») funciona igual con un partido con fecha.
+- Los **deportes** que AXIS conoce (`sportsFromActivities`) son solo los recurrentes: un partido de un día no es «un deporte que juegas los sábados».
+- El briefing incluye además `upcomingDatedActivities`: las actividades de un día concreto **posteriores a hoy** (nombre, fecha e intensidad), por fecha. No deciden nada; sirven para que «¿Tengo partido hoy?» responda «Hoy no tienes deporte. Lo próximo con fecha: Partido el sábado 12 de septiembre» en vez de «No tienes ningún deporte registrado» cuando el único deporte es un partido futuro. Como el resto del briefing, también lo recibe la capa de lenguaje (sin el nombre del usuario), aunque esa pregunta la responde siempre el determinista.
+- La decisión sigue siendo **determinista**. La capa de lenguaje no cambia y solo redacta.
+
+### Perfil
+
+- Al añadir una actividad se elige **«Cada semana»** (días de la semana, como hasta ahora) o **«Un día concreto»** (una fecha de los próximos 28 días).
+- La fecha de un partido **se cambia en el sitio** (`updateActivity`), sin borrar ni recrear la actividad: conserva su id y su fecha de alta.
+- El onboarding no cambia: registra deportes recurrentes.
+
+### Datos
+
+- **Sin migración de IndexedDB**: no cambia ningún almacén ni índice. Un registro sin `date` se lee como recurrente.
+- La copia de seguridad acepta las actividades sin `date` (copias anteriores) y conserva la fecha en las nuevas. Una `date` que no es un día local descarta solo ese registro.
+
+### Fuera de esta decisión
+
+Cancelar por conversación un partido de **mañana**, una regla de recuperación para el día después del partido, una planificación semanal completa y un calendario visual. Siguen sin existir.
 
 ---
 

@@ -7,9 +7,10 @@
  * Perfil NO es una pestaña principal: se edita desde una pantalla interna.
  */
 
-import type { Weekday } from '../shared/dates'
+import { weekdayOfKey, type DayKey, type Weekday } from '../shared/dates'
 import {
   isArrayOf,
+  isDayKey,
   isFiniteNumber,
   isIsoDate,
   isNullableNumber,
@@ -93,15 +94,26 @@ export const ACTIVITY_INTENSITY_LABELS: Record<ActivityIntensity, string> = {
 }
 
 /**
- * Una actividad con horario fijo: «Lunes, baloncesto, 20:00–22:00».
+ * Una actividad del calendario: «Lunes, baloncesto, 20:00–22:00».
  *
- * Se guarda por día de la semana porque el caso real es un horario recurrente,
- * no un evento suelto de calendario.
+ * Dos formas (D-018):
+ *
+ * - **Recurrente** (`date` ausente o `null`): ocurre cada semana en `weekday`.
+ *   Es el caso de los entrenamientos de un deporte.
+ * - **De un día concreto** (`date`): ocurre solo ese día. Es el caso de un
+ *   partido, que puede ser sábado una semana y domingo la siguiente, o no
+ *   haberlo. `weekday` se mantiene igual al día de la semana de `date`, pero
+ *   quien manda es la fecha.
  */
 export type ScheduledActivity = {
   id: string
   name: string
   weekday: Weekday
+  /**
+   * Día local (`YYYY-MM-DD`) en que ocurre, si es de un día concreto. Los
+   * registros anteriores a D-018 no lo tienen: son recurrentes.
+   */
+  date?: DayKey | null
   /**
    * Minutos desde medianoche. `20:00` → `1200`.
    *
@@ -168,13 +180,19 @@ export type Sport = {
   loadsMuscleGroups: string[]
 }
 
-/** Reconstruye los deportes agrupando las actividades por nombre. */
+/**
+ * Reconstruye los deportes agrupando las actividades por nombre.
+ *
+ * Solo las recurrentes: un partido de un día concreto no es «un deporte que
+ * practicas los sábados», y contarlo así diría algo falso de las demás semanas.
+ */
 export function sportsFromActivities(
   activities: readonly ScheduledActivity[],
 ): Sport[] {
   const byName = new Map<string, Sport>()
 
   for (const activity of activities) {
+    if (isDatedActivity(activity)) continue
     const existing = byName.get(activity.name)
     if (existing) {
       if (!existing.weekdays.includes(activity.weekday)) {
@@ -196,6 +214,55 @@ export function sportsFromActivities(
 
 export function isAvailableOn(profile: UserProfile, weekday: Weekday): boolean {
   return profile.availableWeekdays.includes(weekday)
+}
+
+/** `true` si la actividad es de un día concreto (D-018), no recurrente. */
+export function isDatedActivity(
+  activity: Pick<ScheduledActivity, 'date'>,
+): activity is { date: DayKey } {
+  return activity.date != null
+}
+
+/**
+ * Si la actividad ocurre el día `dayKey` (local).
+ *
+ * Una de un día concreto, solo ese día: por eso un partido que ya pasó deja de
+ * contar sin que nadie lo borre. Una recurrente, cada semana en su `weekday`.
+ */
+export function activityOccursOn(
+  activity: Pick<ScheduledActivity, 'weekday' | 'date'>,
+  dayKey: DayKey,
+): boolean {
+  if (isDatedActivity(activity)) return activity.date === dayKey
+  return activity.weekday === weekdayOfKey(dayKey)
+}
+
+/** Lo que se puede cambiar de una actividad ya guardada. */
+export type ActivityChanges = Partial<
+  Pick<
+    ScheduledActivity,
+    'name' | 'weekday' | 'date' | 'startMinute' | 'endMinute' | 'intensity' | 'loadsMuscleGroups'
+  >
+>
+
+/**
+ * La actividad con los cambios aplicados, sin borrarla ni recrearla: conserva
+ * su `id` y su `createdAt`. Si tiene fecha, `weekday` se recalcula de ella para
+ * que nunca digan cosas distintas.
+ */
+export function withActivityChanges(
+  activity: ScheduledActivity,
+  changes: ActivityChanges,
+  now: string,
+): ScheduledActivity {
+  const next: ScheduledActivity = {
+    ...activity,
+    ...changes,
+    id: activity.id,
+    createdAt: activity.createdAt,
+    updatedAt: now,
+  }
+  return isDatedActivity(next) ? { ...next, weekday: weekdayOfKey(next.date) } : next
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +306,8 @@ export function isScheduledActivity(value: unknown): value is ScheduledActivity 
   if (!isRecord(value)) return false
   if (typeof value.id !== 'string' || typeof value.name !== 'string') return false
   if (!isWeekday(value.weekday)) return false
+  // Ausente o `null`: recurrente, como todas las anteriores a D-018.
+  if (value.date !== undefined && value.date !== null && !isDayKey(value.date)) return false
   if (!isNullableNumber(value.startMinute) || !isNullableNumber(value.endMinute)) return false
   if (!isOneOf(value.intensity, ACTIVITY_INTENSITY_ORDER)) return false
   if (!isArrayOf(value.loadsMuscleGroups, (item): item is string => typeof item === 'string')) {

@@ -47,7 +47,13 @@ import { buildAxisContext } from '../domain/axis/context'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
 import { computeHistoryStats, weeklyActivityFor, type HistoryRange, type HistoryStats } from '../domain/history/stats'
-import type { ScheduledActivity, UserProfile, UserProfileDraft } from '../domain/profile/types'
+import {
+  withActivityChanges,
+  type ActivityChanges,
+  type ScheduledActivity,
+  type UserProfile,
+  type UserProfileDraft,
+} from '../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
 import { computeRecoveryScore } from '../domain/recovery/score'
 import type { RecoveryInputs, RecoveryScore } from '../domain/recovery/types'
@@ -120,6 +126,15 @@ export type AppStatus = 'loading' | 'onboarding' | 'ready'
 
 export type ActivityDraft = Omit<ScheduledActivity, 'id' | 'createdAt' | 'updatedAt'>
 
+/** Por día de la semana y hora de inicio, como las devuelve el repositorio. */
+function sortActivities(activities: ScheduledActivity[]): ScheduledActivity[] {
+  return activities.sort((a, b) =>
+    a.weekday === b.weekday
+      ? (a.startMinute ?? 0) - (b.startMinute ?? 0)
+      : a.weekday - b.weekday,
+  )
+}
+
 type AxtlheticsStore = {
   status: AppStatus
   /** Mensaje de error de carga o guardado. `null` si todo va bien. */
@@ -148,6 +163,7 @@ type AxtlheticsStore = {
 
   saveProfile(draft: UserProfileDraft): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
+  updateActivity(id: string, changes: ActivityChanges): Promise<void>
   removeActivity(id: string): Promise<void>
 
   updateRecovery(patch: Partial<Omit<RecoveryInputs, 'dayKey' | 'updatedAt'>>): Promise<void>
@@ -499,25 +515,37 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
 
   const addActivity = useCallback(async (draft: ActivityDraft) => {
     const timestamp = nowIso()
-    const activity: ScheduledActivity = {
-      ...draft,
-      id: createId(),
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }
-    setActivities((current) =>
-      [...current, activity].sort((a, b) =>
-        a.weekday === b.weekday
-          ? (a.startMinute ?? 0) - (b.startMinute ?? 0)
-          : a.weekday - b.weekday,
-      ),
+    // Sin cambios, solo alinea el día de la semana con la fecha si la tiene.
+    const activity = withActivityChanges(
+      { ...draft, id: createId(), createdAt: timestamp, updatedAt: timestamp },
+      {},
+      timestamp,
     )
+    setActivities((current) => sortActivities([...current, activity]))
     try {
       await getRepositories().activities.save(activity)
     } catch {
       setError('No se pudo guardar la actividad.')
     }
   }, [])
+
+  /** Cambia una actividad sin borrarla: el mismo id, con su `createdAt` (D-018). */
+  const updateActivity = useCallback(
+    async (id: string, changes: ActivityChanges) => {
+      const current = activities.find((activity) => activity.id === id)
+      if (!current) return
+      const updated = withActivityChanges(current, changes, nowIso())
+      setActivities((list) =>
+        sortActivities(list.map((activity) => (activity.id === id ? updated : activity))),
+      )
+      try {
+        await getRepositories().activities.save(updated)
+      } catch {
+        setError('No se pudo guardar la actividad.')
+      }
+    },
+    [activities],
+  )
 
   const removeActivity = useCallback(async (id: string) => {
     setActivities((current) => current.filter((activity) => activity.id !== id))
@@ -996,6 +1024,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       historyStats,
       saveProfile,
       addActivity,
+      updateActivity,
       removeActivity,
       updateRecovery,
       toggleHydrationGlass,
@@ -1044,6 +1073,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       historyStats,
       saveProfile,
       addActivity,
+      updateActivity,
       removeActivity,
       updateRecovery,
       toggleHydrationGlass,

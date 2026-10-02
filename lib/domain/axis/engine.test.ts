@@ -6,6 +6,7 @@ import type { RecoveryInputs } from '../recovery/types'
 import { minutesFromMidnight } from '../shared/dates'
 import type { PerformedExercise, WorkoutSession } from '../workouts/types'
 import { buildAxisContext } from './context'
+import { deriveFacts } from './facts'
 import { decide } from './engine'
 import { isTrainingRecommendation } from './types'
 import { findExercise, isAvailable, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
@@ -515,4 +516,156 @@ test('cada propuesta dice qué regla la decidió', () => {
   for (const alternative of [...good.alternatives, ...rested.alternatives]) {
     assert.match(alternative.rule, /^alternative_/, alternative.label)
   }
+})
+
+// ---------------------------------------------------------------------------
+// Partidos por fecha y semana variable (D-018)
+//
+// La semana del 7 al 13 de septiembre de 2026: lunes 7 … domingo 13. El lunes
+// siguiente es el 14. La regla de la víspera (`demanding_activity_tomorrow`) y
+// la del día (`demanding_activity_today`) no saben qué día es el partido: lo
+// leen de los hechos, que ahora miran la fecha.
+// ---------------------------------------------------------------------------
+
+const WEEK = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13']
+const NEXT_MONDAY = '2026-09-14'
+
+function matchOn(date: string, partial: Partial<ScheduledActivity> = {}): ScheduledActivity {
+  return {
+    id: `match-${date}`,
+    name: 'Partido',
+    // A propósito distinto del día de `date`: si algo leyera `weekday` en vez de
+    // la fecha, el partido caería en lunes y estos tests fallarían.
+    weekday: 0,
+    date,
+    startMinute: null,
+    endMinute: null,
+    intensity: 'alta',
+    loadsMuscleGroups: ['piernas', 'gluteos'],
+    createdAt: '2026-09-01T10:00:00.000Z',
+    updatedAt: '2026-09-01T10:00:00.000Z',
+    ...partial,
+  }
+}
+
+/** El contexto de un día concreto a las 10:00, con la recuperación de ese día. */
+function contextOn(
+  dayKey: string,
+  activities: ScheduledActivity[],
+  overrides: Partial<Parameters<typeof buildAxisContext>[0]> = {},
+) {
+  const [year, month, day] = dayKey.split('-').map(Number)
+  return buildAxisContext({
+    profile: profile(),
+    recoveryInputs: recovery({ dayKey }),
+    recentSessions: [],
+    activities,
+    now: new Date(year, month - 1, day, 10, 0),
+    ...overrides,
+  })
+}
+
+/** La regla que decide cada día, o el tipo si ninguna regla de actividad entra. */
+function ruleOn(dayKey: string, activities: ScheduledActivity[]): string {
+  const { primary } = decide(contextOn(dayKey, activities))
+  return primary.rule === 'demanding_activity_today' || primary.rule === 'demanding_activity_tomorrow'
+    ? primary.rule
+    : primary.type
+}
+
+test('semana sin partido: ningún día se condiciona', () => {
+  for (const dayKey of WEEK) {
+    assert.equal(ruleOn(dayKey, []), 'TRAINING', dayKey)
+  }
+})
+
+test('partido el sábado: el viernes se suaviza y el sábado se adapta', () => {
+  const activities = [matchOn('2026-09-12')]
+  assert.deepEqual(
+    WEEK.map((dayKey) => ruleOn(dayKey, activities)),
+    ['TRAINING', 'TRAINING', 'TRAINING', 'TRAINING', 'demanding_activity_tomorrow', 'demanding_activity_today', 'TRAINING'],
+  )
+  const friday = decide(contextOn('2026-09-11', activities)).primary
+  assert.equal(friday.type, 'LIGHT_TRAINING')
+  assert.match(friday.reason + friday.factors.map((f) => f.detail).join(' '), /partido/i)
+})
+
+test('partido el domingo: el sábado se suaviza y el domingo se adapta', () => {
+  const activities = [matchOn('2026-09-13')]
+  assert.deepEqual(
+    WEEK.map((dayKey) => ruleOn(dayKey, activities)),
+    ['TRAINING', 'TRAINING', 'TRAINING', 'TRAINING', 'TRAINING', 'demanding_activity_tomorrow', 'demanding_activity_today'],
+  )
+})
+
+test('partido el miércoles: también funciona entre semana', () => {
+  const activities = [matchOn('2026-09-09')]
+  assert.deepEqual(
+    WEEK.map((dayKey) => ruleOn(dayKey, activities)),
+    ['TRAINING', 'demanding_activity_tomorrow', 'demanding_activity_today', 'TRAINING', 'TRAINING', 'TRAINING', 'TRAINING'],
+  )
+})
+
+test('salto domingo → lunes: un partido el lunes suaviza el domingo anterior', () => {
+  // Con fecha y recurrente: los dos tienen que cruzar el cambio de semana.
+  assert.equal(ruleOn('2026-09-13', [matchOn(NEXT_MONDAY)]), 'demanding_activity_tomorrow')
+  assert.equal(ruleOn(NEXT_MONDAY, [matchOn(NEXT_MONDAY)]), 'demanding_activity_today')
+
+  const weeklyMonday = matchOn(NEXT_MONDAY, { date: null, weekday: 0 })
+  assert.equal(ruleOn('2026-09-13', [weeklyMonday]), 'demanding_activity_tomorrow')
+})
+
+test('el partido puede ser sábado una semana y domingo la siguiente', () => {
+  const activities = [matchOn('2026-09-12'), matchOn('2026-09-20')]
+
+  assert.equal(ruleOn('2026-09-12', activities), 'demanding_activity_today', 'sábado 12: partido')
+  assert.equal(ruleOn('2026-09-13', activities), 'TRAINING', 'domingo 13: nada')
+  assert.equal(ruleOn('2026-09-19', activities), 'demanding_activity_tomorrow', 'sábado 19: víspera')
+  assert.equal(ruleOn('2026-09-20', activities), 'demanding_activity_today', 'domingo 20: partido')
+})
+
+test('un partido con fecha no se repite el mismo día de la semana siguiente', () => {
+  const activities = [matchOn('2026-09-12')]
+  assert.equal(ruleOn('2026-09-18', activities), 'TRAINING', 'viernes 18: no es víspera de nada')
+  assert.equal(ruleOn('2026-09-19', activities), 'TRAINING', 'sábado 19: no hay partido')
+})
+
+test('un partido que ya pasó deja de contar sin borrarlo', () => {
+  const activities = [matchOn('2026-09-12')]
+  const facts = deriveFacts(contextOn(NEXT_MONDAY, activities))
+
+  assert.equal(facts.todayActivity, null)
+  assert.equal(facts.tomorrowActivity, null)
+  assert.equal(ruleOn(NEXT_MONDAY, activities), 'TRAINING')
+})
+
+test('recurrente y partido el mismo día: cuentan los dos y decide el más exigente', () => {
+  const easyTraining = matchOn('2026-09-12', {
+    id: 'training-sat',
+    name: 'Tecnificación',
+    date: null,
+    weekday: 5,
+    intensity: 'baja',
+    loadsMuscleGroups: [],
+  })
+  const facts = deriveFacts(contextOn('2026-09-12', [easyTraining, matchOn('2026-09-12')]))
+
+  assert.equal(facts.todayActivities.length, 2)
+  assert.equal(facts.todayActivity?.name, 'Partido')
+  assert.equal(ruleOn('2026-09-12', [easyTraining, matchOn('2026-09-12')]), 'demanding_activity_today')
+})
+
+test('cancelar hoy el partido con fecha le quita el peso en la decisión', () => {
+  const activities = [matchOn('2026-09-12')]
+  const cancelled = decide(contextOn('2026-09-12', activities, { cancelledToday: ['Partido'] }))
+  assert.equal(cancelled.primary.type, 'TRAINING')
+})
+
+test('cambiar los días disponibles cambia qué días se entrena', () => {
+  const weekendsOff = profile({ availableWeekdays: [0, 1, 2, 3, 4] })
+  const saturday = decide(contextOn('2026-09-12', [], { profile: weekendsOff })).primary
+  const friday = decide(contextOn('2026-09-11', [], { profile: weekendsOff })).primary
+
+  assert.equal(saturday.rule, 'not_available_today')
+  assert.equal(friday.type, 'TRAINING')
 })

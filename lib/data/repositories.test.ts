@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
-import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
+import { PRIMARY_PROFILE_ID, withActivityChanges } from '../domain/profile/types'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import { emptyRecoveryInputs } from '../domain/recovery/types'
 import { minutesFromMidnight } from '../domain/shared/dates'
@@ -135,6 +135,35 @@ test('borrar una actividad que no existe no rompe nada', async () => {
   const repositories = createMemoryRepositories()
   await repositories.activities.remove('fantasma')
   assert.deepEqual(await repositories.activities.list(), [])
+})
+
+test('un partido con fecha se guarda y se lee con su fecha (D-018)', async () => {
+  const repositories = createMemoryRepositories()
+  const training = activity({ id: 'training' })
+  const match = activity({ id: 'match', name: 'Partido', weekday: 5, date: '2026-09-12' })
+  await repositories.activities.save(training)
+  await repositories.activities.save(match)
+
+  const list = await repositories.activities.list()
+  assert.deepEqual(list.find((item) => item.id === 'match'), match)
+  assert.equal(list.find((item) => item.id === 'training')?.date, undefined, 'el recurrente sigue sin fecha')
+})
+
+test('cambiar la fecha de un partido lo actualiza en el sitio, sin duplicarlo (D-018)', async () => {
+  const repositories = createMemoryRepositories()
+  const match = activity({ id: 'match', name: 'Partido', weekday: 5, date: '2026-09-12' })
+  await repositories.activities.save(match)
+
+  // Lo mismo que hace `updateActivity` en el store: aplicar el cambio y guardar.
+  const moved = withActivityChanges(match, { date: '2026-09-13' }, '2026-09-10T18:00:00.000Z')
+  await repositories.activities.save(moved)
+
+  const list = await repositories.activities.list()
+  assert.equal(list.length, 1, 'la misma actividad, no una nueva')
+  assert.equal(list[0].id, 'match')
+  assert.equal(list[0].date, '2026-09-13')
+  assert.equal(list[0].weekday, 6)
+  assert.equal(list[0].createdAt, match.createdAt)
 })
 
 // ---------------------------------------------------------------------------

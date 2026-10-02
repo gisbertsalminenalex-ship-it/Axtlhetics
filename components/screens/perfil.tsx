@@ -17,6 +17,7 @@ import type { ActivityIntensity, UserProfileDraft } from '@/lib/domain/profile/t
 import {
   ACTIVITY_INTENSITY_LABELS,
   EXPERIENCE_LABELS,
+  isDatedActivity,
   isGoalSelectionValid,
   MAX_GOALS,
   normalizeGoals,
@@ -25,7 +26,16 @@ import {
   type ExperienceLevel,
   type TrainingGoal,
 } from '@/lib/domain/profile/types'
-import { formatMinutesOfDay, minutesFromMidnight, WEEKDAY_LABELS, type Weekday } from '@/lib/domain/shared/dates'
+import {
+  addDays,
+  formatMinutesOfDay,
+  formatShortDate,
+  minutesFromMidnight,
+  WEEKDAY_LABELS,
+  weekdayOfKey,
+  type DayKey,
+  type Weekday,
+} from '@/lib/domain/shared/dates'
 import { MUSCLE_GROUP_LABELS } from '@/lib/domain/workouts/types'
 import { useAxtlhetics } from '@/lib/state/store'
 
@@ -62,6 +72,33 @@ const INTENSITY_OPTIONS = Object.entries(ACTIVITY_INTENSITY_LABELS).map(([value,
   label,
 }))
 
+/** Cada semana, o solo un día concreto, como un partido (D-018). */
+type ActivityRecurrence = 'weekly' | 'dated'
+
+const RECURRENCE_OPTIONS: { value: ActivityRecurrence; label: string }[] = [
+  { value: 'weekly', label: 'Cada semana' },
+  { value: 'dated', label: 'Un día concreto' },
+]
+
+/** Cuántos días por delante se pueden elegir para un partido. */
+const DATE_CHOICE_DAYS = 28
+
+/**
+ * Los días que se pueden elegir, en `DayKey` local desde hoy. Si la actividad ya
+ * tiene una fecha fuera de esa ventana —un partido pasado—, se incluye para que
+ * el selector no la cambie sin que el usuario lo pida.
+ */
+function dateChoices(today: DayKey, current: DayKey | null = null): DayKey[] {
+  const days = Array.from({ length: DATE_CHOICE_DAYS }, (_, i) => addDays(today, i))
+  return current && !days.includes(current) ? [current, ...days] : days
+}
+
+function dateLabel(key: DayKey, today: DayKey): string {
+  if (key === today) return 'Hoy'
+  if (key === addDays(today, 1)) return 'Mañana'
+  return formatShortDate(key)
+}
+
 export function PerfilScreen({
   mode,
   onClose,
@@ -69,7 +106,8 @@ export function PerfilScreen({
   mode: 'onboarding' | 'edit'
   onClose?: () => void
 }) {
-  const { profile, activities, saveProfile, addActivity, removeActivity } = useAxtlhetics()
+  const { profile, activities, today, saveProfile, addActivity, updateActivity, removeActivity } =
+    useAxtlhetics()
 
   const [draft, setDraft] = useState<UserProfileDraft>(() =>
     profile
@@ -231,8 +269,8 @@ export function PerfilScreen({
 
       <SectionTitle>Tus deportes</SectionTitle>
       <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
-        Entrenamientos o partidos que tengas entre semana. AXIS los tiene en cuenta para
-        no proponerte una sesión que interfiera.
+        Entrenamientos de cada semana y partidos de un día concreto. AXIS los tiene en
+        cuenta para no proponerte una sesión que interfiera.
       </p>
 
       <ul className="mt-4 space-y-2.5">
@@ -244,12 +282,29 @@ export function PerfilScreen({
             <span className="flex-1">
               <span className="block text-[15px] font-semibold">{activity.name}</span>
               <span className="block text-[12.5px] text-muted-foreground">
-                {WEEKDAY_LABELS[activity.weekday]}
+                {isDatedActivity(activity)
+                  ? `Solo el ${formatShortDate(activity.date).toLowerCase()}`
+                  : `Cada ${WEEKDAY_LABELS[activity.weekday].toLowerCase()}`}
                 {activity.startMinute !== null && activity.endMinute !== null
                   ? ` · ${formatMinutesOfDay(activity.startMinute)}–${formatMinutesOfDay(activity.endMinute)}`
                   : ''}
                 {` · ${ACTIVITY_INTENSITY_LABELS[activity.intensity]}`}
               </span>
+              {/* Un partido cambia de día sin borrarlo ni volver a crearlo. */}
+              {isDatedActivity(activity) && (
+                <select
+                  value={activity.date}
+                  onChange={(event) => void updateActivity(activity.id, { date: event.target.value })}
+                  aria-label={`Fecha de ${activity.name}`}
+                  className="mt-2 h-11 rounded-2xl border border-border bg-background px-3 text-[14px] font-semibold outline-none"
+                >
+                  {dateChoices(today, activity.date).map((day) => (
+                    <option key={day} value={day}>
+                      {dateLabel(day, today)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </span>
             <button
               type="button"
@@ -268,7 +323,7 @@ export function PerfilScreen({
         )}
       </ul>
 
-      <ActivityForm onAdd={addActivity} />
+      <ActivityForm today={today} onAdd={addActivity} />
 
       <div className="mt-9">
         <PrimaryButton onClick={() => void handleSave()} disabled={!canSave || saving}>
@@ -377,13 +432,19 @@ const HOUR_OPTIONS = Array.from({ length: 17 }, (_, i) => 7 + i)
  * partido ya ha pasado, y sin ella lo trata como pendiente, que es lo prudente.
  *
  * Se crea una actividad por cada día marcado, igual que en el onboarding.
+ *
+ * Un partido puede ir en otra forma: **un día concreto** en vez de cada semana
+ * (D-018). Entonces se elige una fecha y se crea una sola actividad con ella.
  */
 function ActivityForm({
+  today,
   onAdd,
 }: {
+  today: DayKey
   onAdd: (draft: {
     name: string
     weekday: Weekday
+    date: DayKey | null
     startMinute: number | null
     endMinute: number | null
     intensity: ActivityIntensity
@@ -392,7 +453,9 @@ function ActivityForm({
 }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [recurrence, setRecurrence] = useState<ActivityRecurrence>('weekly')
   const [weekdays, setWeekdays] = useState<Weekday[]>([])
+  const [date, setDate] = useState<DayKey>(today)
   const [withSchedule, setWithSchedule] = useState(false)
   const [startHour, setStartHour] = useState(20)
   const [durationHours, setDurationHours] = useState(2)
@@ -400,11 +463,14 @@ function ActivityForm({
   const [loadsLegs, setLoadsLegs] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const canSave = name.trim().length > 0 && weekdays.length > 0
+  const canSave =
+    name.trim().length > 0 && (recurrence === 'dated' || weekdays.length > 0)
 
   const reset = () => {
     setName('')
+    setRecurrence('weekly')
     setWeekdays([])
+    setDate(today)
     setWithSchedule(false)
     setStartHour(20)
     setDurationHours(2)
@@ -425,18 +491,24 @@ function ActivityForm({
     if (!canSave) return
     setSaving(true)
 
-    // Una actividad por día, como en el onboarding.
-    for (const weekday of weekdays) {
-      await onAdd({
-        name: name.trim(),
-        weekday,
-        startMinute: withSchedule ? minutesFromMidnight(startHour, 0) : null,
-        endMinute: withSchedule
-          ? minutesFromMidnight(Math.min(startHour + durationHours, 23), 0)
-          : null,
-        intensity,
-        loadsMuscleGroups: loadsLegs ? ['piernas', 'gluteos'] : [],
-      })
+    const common = {
+      name: name.trim(),
+      startMinute: withSchedule ? minutesFromMidnight(startHour, 0) : null,
+      endMinute: withSchedule
+        ? minutesFromMidnight(Math.min(startHour + durationHours, 23), 0)
+        : null,
+      intensity,
+      loadsMuscleGroups: loadsLegs ? ['piernas', 'gluteos'] : [],
+    }
+
+    if (recurrence === 'dated') {
+      // Un solo día: una sola actividad, con su fecha.
+      await onAdd({ ...common, weekday: weekdayOfKey(date), date })
+    } else {
+      // Una actividad por día, como en el onboarding.
+      for (const weekday of weekdays) {
+        await onAdd({ ...common, weekday, date: null })
+      }
     }
 
     setSaving(false)
@@ -460,7 +532,32 @@ function ActivityForm({
     <div className="ax-enter mt-3 rounded-2xl border border-border bg-surface p-4">
       <TextField label="Actividad" value={name} placeholder="Baloncesto" onChange={setName} />
 
-      <WeekdayPicker label="Qué días" value={weekdays} onToggle={toggleWeekday} />
+      <ChoiceGroup
+        label="Cuándo"
+        options={RECURRENCE_OPTIONS}
+        value={recurrence}
+        onChange={setRecurrence}
+      />
+
+      {recurrence === 'weekly' ? (
+        <WeekdayPicker label="Qué días" value={weekdays} onToggle={toggleWeekday} />
+      ) : (
+        <div className="flex items-center justify-between gap-3 py-2">
+          <FieldLabel>Qué día</FieldLabel>
+          <select
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            aria-label="Qué día"
+            className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold outline-none"
+          >
+            {dateChoices(today, date).map((day) => (
+              <option key={day} value={day}>
+                {dateLabel(day, today)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <ChoiceGroup
         label="Exigencia"

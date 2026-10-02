@@ -18,7 +18,7 @@
 
 import type { TrainingGoal } from '../profile/types'
 import type { ScheduledActivity } from '../profile/types'
-import { sportsFromActivities } from '../profile/types'
+import { isDatedActivity, sportsFromActivities } from '../profile/types'
 import type { RecoveryBand } from '../recovery/types'
 import { computeHistoryStats } from '../history/stats'
 import { RECOVERY_FACTOR_LABELS } from '../recovery/types'
@@ -65,6 +65,14 @@ export type BriefingActivity = {
   /** `true` si ocurre hoy y todavía no ha terminado. */
   today: boolean
   minutesUntilStart: number | null
+}
+
+/** Una actividad de un día concreto que todavía no ha llegado (D-018). */
+export type BriefingUpcomingActivity = {
+  name: string
+  /** Día local, `YYYY-MM-DD`. */
+  date: string
+  intensity: string
 }
 
 export type BriefingProposal = {
@@ -132,6 +140,13 @@ export type AxisBriefing = {
   activitiesToday: BriefingActivity[]
   /** Deportes de mañana: influyen en cuánta carga conviene meter hoy. */
   activitiesTomorrow: BriefingActivity[]
+  /**
+   * Partidos y demás actividades de un día concreto posteriores a hoy, por
+   * fecha (D-018). No deciden nada hoy —eso es `activitiesToday` y
+   * `activitiesTomorrow`—; sirven para no decir que no hay deporte registrado
+   * cuando hay un partido el sábado.
+   */
+  upcomingDatedActivities: BriefingUpcomingActivity[]
   daysSinceLastWorkout: number | null
   trainedToday: boolean
   recentMuscleGroups: string[]
@@ -217,6 +232,7 @@ export function buildBriefing(
     activitiesTomorrow: facts.tomorrowActivities.map((activity) =>
       toBriefingActivity(activity, null, context.minuteOfDay),
     ),
+    upcomingDatedActivities: upcomingDated(context.activities, context.dayKey),
     daysSinceLastWorkout: facts.daysSinceLastWorkout,
     trainedToday: facts.trainedToday,
     recentMuscleGroups: [...facts.recentMuscleGroups],
@@ -300,6 +316,23 @@ function briefingSession(session: WorkoutSession): BriefingSession {
     exerciseCount: session.exercises.length,
     modifications: session.modifications.map((modification) => modification.detail),
   }
+}
+
+/**
+ * Las actividades de un día concreto posteriores a `dayKey`, de la más cercana
+ * a la más lejana. Las pasadas no cuentan, y las de hoy ya están en
+ * `activitiesToday`. Los `DayKey` locales se ordenan bien como texto.
+ */
+function upcomingDated(
+  activities: readonly ScheduledActivity[],
+  dayKey: string,
+): BriefingUpcomingActivity[] {
+  return activities
+    .filter((activity): activity is ScheduledActivity & { date: string } =>
+      isDatedActivity(activity) && activity.date > dayKey,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((activity) => ({ name: activity.name, date: activity.date, intensity: activity.intensity }))
 }
 
 /** Traduce una actividad guardada a la vista que usa la conversación. */

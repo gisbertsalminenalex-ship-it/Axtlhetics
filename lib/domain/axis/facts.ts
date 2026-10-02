@@ -5,8 +5,8 @@
  * cada hecho pueda comprobarse por separado en un test.
  */
 
-import { isAvailableOn } from '../profile/types'
-import { daysBetween, weekdayOfKey } from '../shared/dates'
+import { activityOccursOn, isAvailableOn } from '../profile/types'
+import { addDays, daysBetween, weekdayOfKey } from '../shared/dates'
 import type { MuscleGroup } from '../workouts/types'
 import type { ScheduledActivity } from '../profile/types'
 import type { AxisContext, AxisFacts } from './types'
@@ -67,12 +67,13 @@ export function deriveFacts(context: AxisContext): AxisFacts {
   const weekday = weekdayOfKey(dayKey)
   const isAvailableToday = profile ? isAvailableOn(profile, weekday) : true
 
-  // Puede haber más de un deporte el mismo día. Se conservan todos y se destaca
-  // el más exigente, que es el que condiciona la decisión.
-  const todayActivities = vigentes.filter((activity) => activity.weekday === weekday)
-  const tomorrowActivities = vigentes.filter(
-    (activity) => activity.weekday === ((weekday + 1) % 7),
-  )
+  // Puede haber más de un deporte el mismo día —uno recurrente y un partido de
+  // ese día, por ejemplo—. Se conservan todos y se destaca el más exigente, que
+  // es el que condiciona la decisión. Un partido con fecha solo cuenta su día
+  // (D-018).
+  const tomorrowKey = addDays(dayKey, 1)
+  const todayActivities = vigentes.filter((activity) => activityOccursOn(activity, dayKey))
+  const tomorrowActivities = vigentes.filter((activity) => activityOccursOn(activity, tomorrowKey))
 
   const todayActivity = hardest(todayActivities)
   const tomorrowActivity = hardest(tomorrowActivities)
