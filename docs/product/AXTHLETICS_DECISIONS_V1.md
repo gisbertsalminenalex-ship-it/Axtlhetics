@@ -697,6 +697,65 @@ Cancelar por conversación un partido de **mañana**, una regla de recuperación
 
 ---
 
+## D-019 — Flujo de entrenamiento: esfuerzo, objetivo, descanso y cierre
+
+**Fecha:** 2026-10-02 · **Estado:** aprobada · Corrige el uso de `perceivedEffort` por la Carga (D-008).
+
+La auditoría del flujo Entrenamiento → Ejercicio activo → Resumen encontró dos errores de datos que afectaban a lo que AXIS decide, y huecos frente a la Fase 0 (§2 y §3). Durante el entrenamiento manda una pregunta: **qué tengo que hacer ahora**.
+
+### Esfuerzo, no sensación
+
+El resumen preguntaba «¿Cómo te has sentido?» (1 = muy mal, 5 = excelente) y la Carga leía ese número como **esfuerzo** (1 = ×0,7, 5 = ×1,3). Quien acababa hundido bajaba su Carga, y la Carga alta es la que frena `harder` y `longer` (D-017).
+
+- El resumen pregunta **«¿Cuánto te ha costado?»**: 1 Muy fácil … 5 Al límite, con números y no con caras.
+- Se guarda en un campo nuevo, `WorkoutSession.effort`, que es el que lee la Carga.
+- `perceivedEffort` se **conserva** en lo ya guardado, pero no se reinterpreta: la Carga deja de leerlo y las sesiones nuevas lo guardan a `null`. Las sesiones antiguas cuentan como sin valorar (factor 1).
+
+### Objetivo junto a lo hecho
+
+`PerformedExercise` guarda `targetSets` y `targetReps`. La progresión de AXIS solo da un ejercicio por hecho si se completaron **todas las series previstas y ninguna por debajo del objetivo** (`metTarget`). Antes, como toda serie registrada se marca completada, hacer 2 de 3 series o bajar las repeticiones contaba como hecho y AXIS subía la carga la sesión siguiente. Las sesiones sin objetivo (anteriores) se juzgan como antes.
+
+### Descanso
+
+Arranca **solo** al completar una serie, con los segundos del ejercicio. Cuenta atrás en una Circular Metric, lo que viene después, «Saltar descanso» y «+15 s». Al llegar a cero vuelve a la serie. Se guarda con la sesión en curso, así que sobrevive a una recarga. No hay descanso tras la última serie de la sesión. Especificado en el Design System §23 («Rest Timer»).
+
+### Errores de toque
+
+- **Deshacer última serie**: quita la serie recién registrada y vuelve a ella aunque hubiera hecho pasar de ejercicio, con sus reps y su carga. Solo la última: no es un historial.
+- **Saltar ejercicio** pide confirmación en la propia pantalla, como salir.
+
+### La última vez y los récords
+
+- En el ejercicio activo, una línea discreta: «La última vez: 3 × 10 · 5 kg», de la sesión **completada** más reciente que lo tenga. Sin dato no se dice nada.
+- En el resumen, **récords personales** solo frente a algo registrado antes: más peso o, con el mismo peso (o sin carga), más repeticiones. La primera vez no es récord. Las sesiones interrumpidas no fijan marcas ni las baten. Sin insignias.
+- Un récord **cuenta aunque el ejercicio quedara sin completar**, pero se dice claramente: en la lista lleva «Ejercicio sin completar», y AXIS lo anuncia aparte («…también superaste tu mejor marca, aunque sin completar lo previsto»). Superar una marca no se confunde con haber hecho todo lo previsto.
+
+### Estadísticas durante la sesión
+
+Ejercicios, Duración estimada y Volumen **se mantienen**, pero en segundo plano: cifras pequeñas en gris y «Ver detalles» sin azul. El protagonismo es del ejercicio, la serie y «Completar serie». La composición aprobada (D-006) no cambia: solo baja el peso visual de esa fila.
+
+### Resumen
+
+- El texto de AXIS es un **mensaje de cierre determinista** (`closingMessage`), no el motivo con el que se propuso la sesión: veredicto primero, sin cumplidos ni exclamaciones, y solo lo que el sistema hace de verdad.
+- **Abandonar también pasa por el resumen**: se ve lo hecho y se puede valorar el esfuerzo. Sin el check verde de éxito.
+- Cada ejercicio dice sus series reales (`3 × 10 · 5 kg`, o `10, 8, 6` si fueron distintas; segundos en los isométricos). Sin «0 kg» en los de peso corporal.
+
+### Datos
+
+Sin migración: `effort`, `targetSets`, `targetReps`, el descanso y el deshacer son campos **opcionales**. Las sesiones, copias de seguridad y sesiones en curso anteriores se siguen leyendo; un valor imposible descarta solo ese registro.
+
+### Fuera de esta decisión
+
+Previsto para una **versión futura**, decidido por Alex y fuera de D-019:
+
+- vibración o sonido al terminar el descanso;
+- consejos de AXIS durante el descanso;
+- conservar el resumen si se recarga la app en él.
+
+Tampoco existe deshacer tras la última serie de la sesión: la sesión se cierra sola.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

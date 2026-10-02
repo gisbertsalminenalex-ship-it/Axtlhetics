@@ -14,6 +14,15 @@ import { EXERCISE_CATALOG, findExercise, LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG } f
 import type { CompletedSet, Exercise, WorkoutSession } from '../workouts/types'
 import { FOCUS_CATEGORIES, usesLoad } from '../workouts/types'
 import {
+  adjustReps,
+  completeSet,
+  skipExercise,
+  startWorkout,
+  toWorkoutSession,
+  type ActiveWorkout,
+} from '../workouts/active-workout'
+import type { AxisProposal } from './types'
+import {
   adaptDifficulty,
   blendedRepFactor,
   buildSession,
@@ -233,4 +242,73 @@ test('el catálogo entero es alcanzable: cada ejercicio con progresión apunta a
     if (item.progressionId) assert.ok(findExercise(item.progressionId), `${item.id} → ${item.progressionId}`)
     if (item.regressionId) assert.ok(findExercise(item.regressionId), `${item.id} → ${item.regressionId}`)
   }
+})
+
+// ---------------------------------------------------------------------------
+// Regresión D-019: la progresión con datos del flujo real
+//
+// El test de arriba («si no se completaron todas las series…») construye a mano
+// una serie con `completed: false`, algo que el entrenamiento real nunca produce:
+// toda serie registrada es completada. Con el flujo real, un ejercicio hecho a
+// medias se daba por hecho y AXIS subía la carga la sesión siguiente.
+// ---------------------------------------------------------------------------
+
+function realSession(play: (workout: ActiveWorkout) => ActiveWorkout): WorkoutSession {
+  const remo = exercise('remo-unilateral')
+  const proposal: AxisProposal = {
+    id: 'p-1',
+    dayKey: '2026-09-07',
+    createdAt: '2026-09-07T10:00:00.000Z',
+    type: 'TRAINING',
+    headline: 'Entrena tren superior.',
+    reason: 'Tu recuperación es buena.',
+    factors: [],
+    label: 'Recomendada',
+    rule: 'good_recovery',
+    session: {
+      focus: 'tren_superior',
+      title: 'Fuerza · Tren superior',
+      intensity: 'moderada',
+      estimatedMinutes: 30,
+      muscleGroups: ['espalda'],
+      exercises: [
+        {
+          exerciseId: remo.id,
+          name: remo.name,
+          sets: 3,
+          reps: 12,
+          isTimed: false,
+          suggestedWeightKg: 2.5,
+          restSeconds: 60,
+          unilateral: true,
+          tempo: null,
+          imageUrl: null,
+        },
+      ],
+    },
+  }
+  const started = startWorkout(proposal, new Date(2026, 8, 7, 18, 0))!
+  return toWorkoutSession(play(started), { status: 'completed', completedAt: new Date(2026, 8, 7, 18, 30) })
+}
+
+test('con el flujo real, 2 de 3 series no suben la carga: se repite', () => {
+  const half = realSession((w) => skipExercise(completeSet(completeSet(w))))
+  const work = suggestWorkFor(exercise('remo-unilateral'), { ...BASE, history: [half] })
+  assert.equal(work.weightKg, 2.5)
+})
+
+test('con el flujo real, menos reps de las previstas no suben la carga', () => {
+  const low = realSession((w) => {
+    let current = adjustReps(w, -4) // 8 de 12
+    for (let i = 0; i < 3; i += 1) current = completeSet(current)
+    return current
+  })
+  const work = suggestWorkFor(exercise('remo-unilateral'), { ...BASE, history: [low] })
+  assert.equal(work.weightKg, 2.5)
+})
+
+test('con el flujo real, lo previsto entero sí sube la carga', () => {
+  const full = realSession((w) => completeSet(completeSet(completeSet(w))))
+  const work = suggestWorkFor(exercise('remo-unilateral'), { ...BASE, history: [full] })
+  assert.equal(work.weightKg, Math.min(2.5 + LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG))
 })

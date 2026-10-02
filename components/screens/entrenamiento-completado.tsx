@@ -2,30 +2,30 @@
 
 import type { CSSProperties } from 'react'
 import Image from 'next/image'
-import { Angry, ArrowRight, Check, Frown, Laugh, Meh, Smile } from 'lucide-react'
+import { ArrowRight, Check, Pause } from 'lucide-react'
 import { AxisMark } from '@/components/axis-mark'
+import { closingMessage } from '@/lib/domain/axis/closing'
 import { formatVolume } from '@/lib/domain/history/stats'
 import { formatDuration } from '@/lib/domain/shared/dates'
 import { findExercise } from '@/lib/domain/workouts/catalog'
-import { volumeOfExercise } from '@/lib/domain/workouts/types'
+import { formatKg, formatSets, personalRecords } from '@/lib/domain/workouts/history'
+import { EFFORT_LABELS, EFFORT_LEVELS, metTarget, volumeOfExercise } from '@/lib/domain/workouts/types'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
-const FEELINGS = [
-  { icon: Angry, label: 'Muy mal' },
-  { icon: Frown, label: '' },
-  { icon: Meh, label: '' },
-  { icon: Smile, label: '' },
-  { icon: Laugh, label: 'Excelente' },
-]
-
 export function EntrenamientoCompletado() {
-  const { lastCompleted, rateLastSession, dismissSummary } = useAxtlhetics()
+  const { lastCompleted, sessions, rateLastSession, dismissSummary } = useAxtlhetics()
 
   if (!lastCompleted) return null
 
-  const feeling = lastCompleted.perceivedEffort
+  const effort = lastCompleted.effort ?? null
   const abandoned = lastCompleted.status === 'abandoned'
+  // Los récords se miden contra lo completado antes; una sesión interrumpida no bate marcas.
+  const records = abandoned ? [] : personalRecords(lastCompleted, sessions)
+  const completedAsPlanned = (exerciseId: string) => {
+    const exercise = lastCompleted.exercises.find((item) => item.exerciseId === exerciseId)
+    return exercise ? metTarget(exercise) : false
+  }
 
   return (
     <div className="px-6 pb-8">
@@ -38,18 +38,25 @@ export function EntrenamientoCompletado() {
         <span className="h-11 w-11" aria-hidden="true" />
       </header>
 
-      {/* Success */}
+      {/* Cierre. El verde es de éxito: una sesión interrumpida no lo lleva. */}
       <div className="flex flex-col items-center text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success/12">
-          <Check className="h-7 w-7 text-success" strokeWidth={2.5} />
+        <span
+          className={cn(
+            'flex h-14 w-14 items-center justify-center rounded-full',
+            abandoned ? 'bg-surface' : 'bg-success/12',
+          )}
+        >
+          {abandoned ? (
+            <Pause className="h-7 w-7 text-muted-foreground" strokeWidth={2} />
+          ) : (
+            <Check className="h-7 w-7 text-success" strokeWidth={2.5} />
+          )}
         </span>
         <h2 className="mt-4 text-[24px] font-bold tracking-[-0.02em]">
-          {abandoned ? 'Guardado igualmente.' : '¡Buen entrenamiento!'}
+          {abandoned ? 'Guardado igualmente.' : 'Sesión completada.'}
         </h2>
         <p className="mt-1 text-[14px] text-muted-foreground">
-          {abandoned
-            ? 'Hemos guardado lo que llegaste a hacer.'
-            : 'Has completado tu sesión.'}
+          {abandoned ? 'Hemos guardado lo que llegaste a hacer.' : 'Has terminado tu sesión.'}
         </p>
       </div>
 
@@ -60,14 +67,40 @@ export function EntrenamientoCompletado() {
         <SummaryStat index={2} value={formatVolume(lastCompleted.totalVolumeKg)} label="Volumen total" divider />
       </div>
 
-      {/* Lo que AXIS había recomendado para esta sesión */}
-      {lastCompleted.proposal && (
-        <div className="mt-4 flex items-start gap-2">
-          <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-          <p className="text-[13px] leading-relaxed text-muted-foreground text-pretty">
-            {lastCompleted.proposal.reason}
-          </p>
-        </div>
+      {/* Lo que AXIS concluye de la sesión (D-019), no el motivo con el que la propuso. */}
+      <div className="mt-4 flex items-start gap-2">
+        <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <p className="text-[13px] leading-relaxed text-muted-foreground text-pretty">
+          {closingMessage(lastCompleted, records)}
+        </p>
+      </div>
+
+      {/* Récords: solo frente a algo registrado antes, sin insignias. */}
+      {records.length > 0 && (
+        <>
+          <h3 className="mt-7 text-[15px] font-semibold tracking-[-0.01em]">Récords personales</h3>
+          <ul className="mt-3 space-y-2">
+            {records.map((record) => (
+              <li key={`${record.exerciseId}-${record.kind}`} className="flex items-baseline justify-between gap-3">
+                <span>
+                  <span className="block text-[14.5px] font-semibold">{record.name}</span>
+                  {/* La marca cuenta aunque quedara a medias, pero no se confunde con haberlo hecho todo. */}
+                  {!completedAsPlanned(record.exerciseId) && (
+                    <span className="block text-[12px] text-muted-foreground">
+                      Ejercicio sin completar
+                    </span>
+                  )}
+                </span>
+                <span className="text-[13px] tabular-nums text-muted-foreground">
+                  <span className="font-semibold text-primary">
+                    {record.kind === 'weight' ? `${formatKg(record.value)} kg` : `${record.value} ${repsUnit(record.exerciseId)}`}
+                  </span>{' '}
+                  · antes {record.kind === 'weight' ? `${formatKg(record.previous)} kg` : record.previous}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {/* Cambios respecto a la propuesta */}
@@ -89,18 +122,18 @@ export function EntrenamientoCompletado() {
           </h3>
           <ul className="mt-3 space-y-3">
             {lastCompleted.exercises.map((exercise, index) => {
-              const image = findExercise(exercise.exerciseId)?.imageUrl ?? null
-              const reps = exercise.sets[0]?.reps ?? 0
+              const catalog = findExercise(exercise.exerciseId)
+              const volume = volumeOfExercise(exercise)
               return (
                 <li
-                  key={exercise.exerciseId}
+                  key={`${exercise.exerciseId}-${index}`}
                   className="ax-stagger flex items-center gap-3"
                   style={{ '--ax-index': index } as CSSProperties}
                 >
                   <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-surface">
-                    {image && (
+                    {catalog?.imageUrl && (
                       <Image
-                        src={image}
+                        src={catalog.imageUrl}
                         alt={exercise.name}
                         width={48}
                         height={48}
@@ -113,12 +146,15 @@ export function EntrenamientoCompletado() {
                       {index + 1}. {exercise.name}
                     </p>
                     <p className="text-[12.5px] text-muted-foreground tabular-nums">
-                      {exercise.sets.length} × {reps}
+                      {formatSets(exercise.sets, { isTimed: catalog?.work.isTimed ?? false })}
                     </p>
                   </div>
-                  <span className="text-[13.5px] font-medium tabular-nums text-muted-foreground">
-                    {formatVolume(volumeOfExercise(exercise))}
-                  </span>
+                  {/* Sin carga no hay volumen que enseñar: un «0 kg» no dice nada. */}
+                  {volume > 0 && (
+                    <span className="text-[13.5px] font-medium tabular-nums text-muted-foreground">
+                      {formatVolume(volume)}
+                    </span>
+                  )}
                 </li>
               )
             })}
@@ -130,39 +166,41 @@ export function EntrenamientoCompletado() {
         </p>
       )}
 
-      {/* Feeling */}
+      {/* Esfuerzo (D-019): lo que usa la Carga. Números, no caras: no es cómo te sientes. */}
       <h3 className="mt-7 text-[15px] font-semibold tracking-[-0.01em]">
-        ¿Cómo te has sentido?
+        ¿Cuánto te ha costado?
       </h3>
       <div className="mt-4 flex items-start justify-between">
-        {FEELINGS.map(({ icon: Icon, label }, i) => {
-          const level = i + 1
-          const selected = feeling === level
+        {EFFORT_LEVELS.map((level) => {
+          const selected = effort === level
+          const edge = level === 1 || level === EFFORT_LEVELS.length
           return (
             <button
               key={level}
               type="button"
               onClick={() => void rateLastSession(level)}
-              className="ax-press flex flex-col items-center gap-1.5"
-              aria-label={label || `Nivel ${level}`}
+              className="ax-press flex w-14 flex-col items-center gap-1.5"
+              aria-label={`${level} · ${EFFORT_LABELS[level]}`}
               aria-pressed={selected}
             >
               <span
                 className={cn(
-                  'flex h-11 w-11 items-center justify-center rounded-full transition-colors',
-                  selected ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
+                  'flex h-11 w-11 items-center justify-center rounded-full border text-[16px] font-semibold tabular-nums transition-colors',
+                  selected
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border text-muted-foreground',
                 )}
               >
-                <Icon className="h-6 w-6" strokeWidth={1.75} />
+                {level}
               </span>
-              {label && (
+              {edge && (
                 <span
                   className={cn(
                     'text-[10.5px] font-medium',
                     selected ? 'text-primary' : 'text-muted-foreground',
                   )}
                 >
-                  {label}
+                  {EFFORT_LABELS[level]}
                 </span>
               )}
             </button>
@@ -180,6 +218,11 @@ export function EntrenamientoCompletado() {
       </button>
     </div>
   )
+}
+
+/** `reps` o `s`: los isométricos se miden en segundos. */
+function repsUnit(exerciseId: string): string {
+  return findExercise(exerciseId)?.work.isTimed ? 's' : 'reps'
 }
 
 function SummaryStat({

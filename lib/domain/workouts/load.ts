@@ -33,8 +33,12 @@ export const INTENSITY_FACTORS: Record<SessionIntensity, number> = {
 }
 
 /**
- * Cómo se sintió la sesión, 1–5. Sin dato se usa 1: no se supone ni más ni menos
- * esfuerzo del que se registró.
+ * Cuánto costó la sesión, 1–5 (`WorkoutSession.effort`, D-019). Sin dato el
+ * factor es 1: no se supone ni más ni menos esfuerzo del que se registró.
+ *
+ * No se lee `perceivedEffort`: era «cómo te has sentido» (1 = muy mal), lo
+ * contrario de esta escala. Leerlo como esfuerzo bajaba la Carga a quien acababa
+ * hundido y la subía a quien acababa bien.
  */
 export const EFFORT_FACTORS: Record<number, number> = {
   1: 0.7,
@@ -99,16 +103,16 @@ export type TrainingLoad =
       windowDays: number
     }
 
-export function effortFactorFor(perceivedEffort: number | null): number {
-  if (perceivedEffort === null) return DEFAULT_EFFORT_FACTOR
-  return EFFORT_FACTORS[perceivedEffort] ?? DEFAULT_EFFORT_FACTOR
+export function effortFactorFor(effort: number | null | undefined): number {
+  if (effort == null) return DEFAULT_EFFORT_FACTOR
+  return EFFORT_FACTORS[effort] ?? DEFAULT_EFFORT_FACTOR
 }
 
 /** Unidades de carga de una sola sesión. Nunca negativa, nunca `NaN`. */
 export function sessionLoadUnits(session: WorkoutSession): number {
   const minutes = Math.max(0, safeDivide(session.durationSeconds, 60, 0))
   const intensity = INTENSITY_FACTORS[session.intensity] ?? INTENSITY_FACTORS.moderada
-  const effort = effortFactorFor(session.perceivedEffort)
+  const effort = effortFactorFor(session.effort)
 
   const volume = Number.isFinite(session.totalVolumeKg)
     ? Math.max(0, session.totalVolumeKg)

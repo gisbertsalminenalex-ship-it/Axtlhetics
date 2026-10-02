@@ -58,7 +58,21 @@ export type ActiveWorkout = {
   /** Índice del ejercicio en curso. Igual a `entries.length` cuando ya no queda ninguno. */
   exerciseIndex: number
   modifications: SessionModification[]
+  /**
+   * El descanso en curso, si lo hay (D-019). Arranca solo al completar una serie
+   * y se guarda como instantes, no como una cuenta atrás: así, al recargar,
+   * sigue donde iba. Ausente en las sesiones guardadas antes de D-019.
+   */
+  rest?: { startedAt: string; endsAt: string } | null
+  /**
+   * Dónde se registró la última serie, para poder deshacerla (D-019). Solo la
+   * última: deshacer no es un historial, es corregir un toque por error.
+   */
+  lastSet?: { exerciseIndex: number } | null
 }
+
+/** Segundos que añade «+15 s» al descanso. */
+export const REST_EXTENSION_SECONDS = 15
 
 export function snapshotOf(proposal: AxisProposal): ProposalSnapshot {
   return {
@@ -148,8 +162,12 @@ export function adjustReps(workout: ActiveWorkout, delta: number): ActiveWorkout
 /**
  * Registra la serie actual. Cuando se completan todas las series previstas de un
  * ejercicio, avanza al siguiente.
+ *
+ * Si queda algo por hacer, arranca el descanso del ejercicio que se acaba de
+ * trabajar (D-019). Tras la última serie de la sesión no hay descanso: la
+ * sesión termina.
  */
-export function completeSet(workout: ActiveWorkout): ActiveWorkout {
+export function completeSet(workout: ActiveWorkout, now: Date = new Date()): ActiveWorkout {
   const entry = currentEntry(workout)
   if (!entry) return workout
 
@@ -165,9 +183,21 @@ export function completeSet(workout: ActiveWorkout): ActiveWorkout {
   }))
 
   const finishedExercise = entry.sets.length + 1 >= entry.targetSets
-  return finishedExercise
-    ? { ...updated, exerciseIndex: updated.exerciseIndex + 1 }
-    : updated
+  const exerciseIndex = finishedExercise ? updated.exerciseIndex + 1 : updated.exerciseIndex
+  const somethingLeft = exerciseIndex < updated.entries.length
+
+  return {
+    ...updated,
+    exerciseIndex,
+    rest:
+      somethingLeft && entry.restSeconds > 0
+        ? {
+            startedAt: now.toISOString(),
+            endsAt: new Date(now.getTime() + entry.restSeconds * 1000).toISOString(),
+          }
+        : null,
+    lastSet: { exerciseIndex: workout.exerciseIndex },
+  }
 }
 
 /** Pasa al siguiente ejercicio dejando constancia de que se saltó. */
@@ -182,7 +212,83 @@ export function skipExercise(workout: ActiveWorkout): ActiveWorkout {
       ...workout.modifications,
       { kind: 'exercise_skipped', detail: `${entry.name} sin completar.` },
     ],
+    // Saltar cierra lo que hubiera pendiente: ni descanso ni serie que deshacer.
+    rest: null,
+    lastSet: null,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Descanso (D-019)
+// ---------------------------------------------------------------------------
+
+export type RestState = {
+  /** Segundos que quedan, redondeados hacia arriba: «0:01» hasta que acaba. */
+  remainingSeconds: number
+  /** Duración total del descanso, incluidas las ampliaciones. */
+  totalSeconds: number
+}
+
+/** El descanso en curso en el instante `now`, o `null` si no hay ninguno o ya acabó. */
+export function restState(workout: ActiveWorkout, now: Date = new Date()): RestState | null {
+  const rest = workout.rest
+  if (!rest) return null
+  const endsAt = new Date(rest.endsAt).getTime()
+  const startedAt = new Date(rest.startedAt).getTime()
+  const remainingMs = endsAt - now.getTime()
+  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null
+  return {
+    remainingSeconds: Math.ceil(remainingMs / 1000),
+    totalSeconds: Math.max(1, Math.round((endsAt - startedAt) / 1000)),
+  }
+}
+
+/** Termina el descanso ahora. */
+export function skipRest(workout: ActiveWorkout): ActiveWorkout {
+  return workout.rest ? { ...workout, rest: null } : workout
+}
+
+/** Alarga el descanso en curso. Sin descanso, no hace nada. */
+export function extendRest(
+  workout: ActiveWorkout,
+  seconds: number = REST_EXTENSION_SECONDS,
+  now: Date = new Date(),
+): ActiveWorkout {
+  if (!workout.rest || !restState(workout, now)) return workout
+  const endsAt = new Date(new Date(workout.rest.endsAt).getTime() + seconds * 1000)
+  return { ...workout, rest: { ...workout.rest, endsAt: endsAt.toISOString() } }
+}
+
+// ---------------------------------------------------------------------------
+// Deshacer la última serie (D-019)
+// ---------------------------------------------------------------------------
+
+/** `true` si hay una serie recién registrada que se puede deshacer. */
+export function canUndoLastSet(workout: ActiveWorkout): boolean {
+  const index = workout.lastSet?.exerciseIndex
+  if (index === undefined || index === null) return false
+  return (workout.entries[index]?.sets.length ?? 0) > 0
+}
+
+/**
+ * Quita la última serie registrada y vuelve a ella, aunque hubiera hecho pasar
+ * al siguiente ejercicio. Las repeticiones y la carga vuelven a las de esa serie,
+ * para que repetirla sea un solo toque. Se cancela el descanso que había abierto.
+ */
+export function undoLastSet(workout: ActiveWorkout): ActiveWorkout {
+  if (!canUndoLastSet(workout)) return workout
+  const index = workout.lastSet!.exerciseIndex
+  const entry = workout.entries[index]
+  const removed = entry.sets[entry.sets.length - 1]
+
+  const updated = replaceEntry(workout, index, (current) => ({
+    ...current,
+    reps: removed.reps,
+    weightKg: removed.weightKg,
+    sets: current.sets.slice(0, -1),
+  }))
+
+  return { ...updated, exerciseIndex: index, rest: null, lastSet: null }
 }
 
 export function performedExercises(workout: ActiveWorkout): PerformedExercise[] {
@@ -192,6 +298,9 @@ export function performedExercises(workout: ActiveWorkout): PerformedExercise[] 
       exerciseId: entry.exerciseId,
       name: entry.name,
       sets: entry.sets,
+      // El objetivo viaja con lo hecho: es lo que dirá si se completó (D-019).
+      targetSets: entry.targetSets,
+      targetReps: entry.targetReps,
     }))
 }
 
@@ -211,7 +320,8 @@ export function toWorkoutSession(
   workout: ActiveWorkout,
   options: {
     status: WorkoutSessionStatus
-    perceivedEffort?: number | null
+    /** Cuánto costó, 1–5 (D-019). */
+    effort?: number | null
     completedAt?: Date
   },
 ): WorkoutSession {
@@ -246,7 +356,9 @@ export function toWorkoutSession(
     exercises,
     totalVolumeKg: volumeOfSession(exercises),
     status: options.status,
-    perceivedEffort: options.perceivedEffort ?? null,
+    // La sensación ya no se pide (D-019); el campo se conserva para lo guardado antes.
+    perceivedEffort: null,
+    effort: options.effort ?? null,
     proposal: workout.proposal,
     modifications,
     notes: null,
@@ -346,11 +458,35 @@ export function isActiveWorkout(value: unknown): value is ActiveWorkout {
   if (!isProposalSnapshot(value.proposal) || !isPlannedSession(value.plan)) return false
   if (!Array.isArray(value.entries) || !value.entries.every(isActiveEntry)) return false
   if (!Array.isArray(value.modifications)) return false
+  if (!isOptionalRest(value.rest)) return false
+  if (!isOptionalLastSet(value.lastSet, value.entries.length)) return false
   return (
     typeof value.exerciseIndex === 'number' &&
     Number.isInteger(value.exerciseIndex) &&
     value.exerciseIndex >= 0 &&
     value.exerciseIndex <= value.entries.length
+  )
+}
+
+/** Ausente o `null` en lo guardado antes de D-019; si está, dos instantes válidos. */
+function isOptionalRest(value: unknown): boolean {
+  if (value === undefined || value === null) return true
+  return (
+    isRecord(value) &&
+    typeof value.startedAt === 'string' &&
+    typeof value.endsAt === 'string' &&
+    !Number.isNaN(Date.parse(value.startedAt)) &&
+    !Number.isNaN(Date.parse(value.endsAt))
+  )
+}
+
+function isOptionalLastSet(value: unknown, entryCount: number): boolean {
+  if (value === undefined || value === null) return true
+  return (
+    isRecord(value) &&
+    Number.isInteger(value.exerciseIndex) &&
+    (value.exerciseIndex as number) >= 0 &&
+    (value.exerciseIndex as number) < entryCount
   )
 }
 

@@ -1,17 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, Check, ChevronRight, Minus, Plus, SkipForward } from 'lucide-react'
+import { ArrowLeft, Check, ChevronRight, Minus, Plus, SkipForward, Undo2 } from 'lucide-react'
+import { CircularMetric } from '@/components/circular-metric'
 import {
+  canUndoLastSet,
   completedSetsTotal,
   currentEntry,
   currentSetNumber,
   currentVolumeKg,
   hasProgress,
   nextEntry,
+  REST_EXTENSION_SECONDS,
+  restState,
   WEIGHT_STEP_KG,
+  type ActiveExerciseEntry,
+  type RestState,
 } from '@/lib/domain/workouts/active-workout'
+import { formatKg, formatSets, lastPerformedExercise } from '@/lib/domain/workouts/history'
 import { formatDuration } from '@/lib/domain/shared/dates'
 import { formatVolume } from '@/lib/domain/history/stats'
 import { useAxtlhetics } from '@/lib/state/store'
@@ -20,26 +27,28 @@ import { cn } from '@/lib/utils'
 export function EntrenamientoActivo() {
   const {
     activeWorkout,
+    sessions,
     adjustWeight,
     adjustReps,
     completeSet,
+    undoLastSet,
     skipExercise,
+    skipRest,
+    extendRest,
     finishWorkout,
     abandonWorkout,
   } = useAxtlhetics()
 
-  const [elapsed, setElapsed] = useState(0)
+  const [now, setNow] = useState(() => new Date())
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [confirmingExit, setConfirmingExit] = useState(false)
+  const [confirming, setConfirming] = useState<'exit' | 'skip' | null>(null)
 
   const startedAt = activeWorkout?.startedAt
 
+  // Un solo reloj para la pantalla: el tiempo total y la cuenta atrás del descanso.
   useEffect(() => {
     if (!startedAt) return
-    const started = new Date(startedAt).getTime()
-    const tick = () => setElapsed(Math.max(0, Math.round((Date.now() - started) / 1000)))
-    tick()
-    const timer = window.setInterval(tick, 1000)
+    const timer = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [startedAt])
 
@@ -56,21 +65,55 @@ export function EntrenamientoActivo() {
   const upcoming = nextEntry(activeWorkout)
   const totalExercises = activeWorkout.entries.length
   const doneExercises = activeWorkout.exerciseIndex
+  const elapsed = Math.max(0, Math.round((now.getTime() - new Date(activeWorkout.startedAt).getTime()) / 1000))
 
   if (!entry) return null
 
+  const rest = restState(activeWorkout, now)
+  const canUndo = canUndoLastSet(activeWorkout)
+
   /*
-   * La confirmación ocupa la pantalla en vez de superponerse. No hay nada que
+   * Las confirmaciones ocupan la pantalla en vez de superponerse. No hay nada que
    * mirar detrás mientras se decide, y así no se puede tocar «Completar serie»
    * por error con la pregunta abierta. Una pantalla, una pregunta.
    */
-  if (confirmingExit) {
+  if (confirming === 'exit') {
+    const sets = completedSetsTotal(activeWorkout)
     return (
-      <ExitConfirmation
-        completedSets={completedSetsTotal(activeWorkout)}
-        elapsed={elapsed}
-        onStay={() => setConfirmingExit(false)}
+      <Confirmation
+        title="¿Dejas el entrenamiento?"
+        body={
+          <>
+            Llevas{' '}
+            <span className="font-semibold text-foreground tabular-nums">
+              {sets} {sets === 1 ? 'serie' : 'series'}
+            </span>{' '}
+            en {formatDuration(elapsed)}. Se guardará como sesión interrumpida y no podrás
+            retomarla.
+          </>
+        }
+        stayLabel="Seguir entrenando"
+        leaveLabel="Salir y guardar lo hecho"
+        leaveTone="error"
+        onStay={() => setConfirming(null)}
         onLeave={() => void abandonWorkout()}
+      />
+    )
+  }
+
+  if (confirming === 'skip') {
+    return (
+      <Confirmation
+        title={`¿Saltas ${entry.name.toLowerCase()}?`}
+        body="Pasarás al siguiente ejercicio y este quedará registrado como no completado. No se puede deshacer."
+        stayLabel="Seguir con el ejercicio"
+        leaveLabel="Saltar ejercicio"
+        leaveTone="muted"
+        onStay={() => setConfirming(null)}
+        onLeave={() => {
+          skipExercise()
+          setConfirming(null)
+        }}
       />
     )
   }
@@ -87,7 +130,7 @@ export function EntrenamientoActivo() {
            * hecho no hay nada que perder y se sale directo, sin fricción.
            */
           onClick={() => {
-            if (hasProgress(activeWorkout)) setConfirmingExit(true)
+            if (hasProgress(activeWorkout)) setConfirming('exit')
             else void abandonWorkout()
           }}
           aria-label="Salir del entrenamiento"
@@ -100,9 +143,10 @@ export function EntrenamientoActivo() {
         </h1>
         <button
           type="button"
-          onClick={skipExercise}
+          // Saltar no se puede deshacer: se confirma en la propia pantalla (D-019).
+          onClick={() => setConfirming('skip')}
           aria-label="Saltar este ejercicio"
-          className="-mr-2 flex h-11 w-11 items-center justify-center"
+          className="ax-press -mr-2 flex h-11 w-11 items-center justify-center"
         >
           <SkipForward className="h-5 w-5 text-foreground" strokeWidth={1.75} />
         </button>
@@ -127,62 +171,79 @@ export function EntrenamientoActivo() {
         </span>
       </div>
 
-      {/* Current exercise */}
-      <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">
-        EJERCICIO ACTUAL
-      </p>
-      <div key={entry.exerciseId} className="ax-enter mt-3 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-[26px] font-bold tracking-[-0.02em]">{entry.name}</h2>
-          <p
-            key={entry.sets.length}
-            className="ax-fade mt-1 text-[14px] text-muted-foreground tabular-nums"
-          >
-            Serie {currentSetNumber(activeWorkout)} de {entry.targetSets}
-            {entry.unilateral ? ' · por lado' : ''}
+      {rest ? (
+        <RestPanel
+          rest={rest}
+          entry={entry}
+          setNumber={currentSetNumber(activeWorkout)}
+          canUndo={canUndo}
+          onSkip={skipRest}
+          onExtend={extendRest}
+          onUndo={undoLastSet}
+        />
+      ) : (
+        <>
+          {/* Current exercise */}
+          <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">
+            EJERCICIO ACTUAL
           </p>
-        </div>
-        {entry.imageUrl && (
-          <div className="h-24 w-32 overflow-hidden rounded-2xl bg-surface">
-            <Image
-              src={entry.imageUrl}
-              alt={`Ejecución de ${entry.name.toLowerCase()}`}
-              width={160}
-              height={120}
-              className="h-full w-full object-cover"
+          <div key={entry.exerciseId} className="ax-enter mt-3 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[26px] font-bold tracking-[-0.02em]">{entry.name}</h2>
+              <p
+                key={entry.sets.length}
+                className="ax-fade mt-1 text-[14px] text-muted-foreground tabular-nums"
+              >
+                Serie {currentSetNumber(activeWorkout)} de {entry.targetSets}
+                {entry.unilateral ? ' · por lado' : ''}
+              </p>
+              <LastTime entry={entry} sessions={sessions} />
+            </div>
+            {entry.imageUrl && (
+              <div className="h-24 w-32 overflow-hidden rounded-2xl bg-surface">
+                <Image
+                  src={entry.imageUrl}
+                  alt={`Ejecución de ${entry.name.toLowerCase()}`}
+                  width={160}
+                  height={120}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Weight + reps */}
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <ValueStepper
+              value={entry.weightKg === null ? '—' : formatKg(entry.weightKg)}
+              unit="kg"
+              onDecrease={() => adjustWeight(-1)}
+              onIncrease={() => adjustWeight(1)}
+              decreaseLabel={`Reducir carga ${formatKg(WEIGHT_STEP_KG)} kg`}
+              increaseLabel={`Aumentar carga ${formatKg(WEIGHT_STEP_KG)} kg`}
+            />
+            <ValueStepper
+              value={String(entry.reps)}
+              unit={entry.isTimed ? 'seg' : 'reps'}
+              onDecrease={() => adjustReps(-1)}
+              onIncrease={() => adjustReps(1)}
+              decreaseLabel={entry.isTimed ? 'Reducir segundos' : 'Reducir repeticiones'}
+              increaseLabel={entry.isTimed ? 'Aumentar segundos' : 'Aumentar repeticiones'}
             />
           </div>
-        )}
-      </div>
 
-      {/* Weight + reps */}
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <ValueStepper
-          value={entry.weightKg === null ? '—' : String(entry.weightKg)}
-          unit="kg"
-          onDecrease={() => adjustWeight(-1)}
-          onIncrease={() => adjustWeight(1)}
-          decreaseLabel={`Reducir carga ${WEIGHT_STEP_KG} kg`}
-          increaseLabel={`Aumentar carga ${WEIGHT_STEP_KG} kg`}
-        />
-        <ValueStepper
-          value={String(entry.reps)}
-          unit={entry.isTimed ? 'seg' : 'reps'}
-          onDecrease={() => adjustReps(-1)}
-          onIncrease={() => adjustReps(1)}
-          decreaseLabel={entry.isTimed ? 'Reducir segundos' : 'Reducir repeticiones'}
-          increaseLabel={entry.isTimed ? 'Aumentar segundos' : 'Aumentar repeticiones'}
-        />
-      </div>
+          <button
+            type="button"
+            onClick={completeSet}
+            className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+          >
+            Completar serie
+            <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
+          </button>
 
-      <button
-        type="button"
-        onClick={completeSet}
-        className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
-      >
-        Completar serie
-        <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
-      </button>
+          {canUndo && <UndoButton onUndo={undoLastSet} />}
+        </>
+      )}
 
       {/* Next exercise */}
       {upcoming && (
@@ -215,9 +276,13 @@ export function EntrenamientoActivo() {
         </>
       )}
 
-      {/* Stats */}
+      {/*
+        Stats. Se quedan, pero en segundo plano (D-019): durante la sesión manda
+        qué hacer ahora, no cuánto se lleva. Nada aquí compite con el ejercicio,
+        la serie o «Completar serie».
+      */}
       <div className="mt-auto pt-7">
-        <div className="grid grid-cols-3 gap-2 border-t border-border pt-5 text-center">
+        <div className="grid grid-cols-3 gap-2 border-t border-border pt-4 text-center">
           <Stat value={`${doneExercises}/${totalExercises}`} label="Ejercicios" />
           <Stat value={`${activeWorkout.plan.estimatedMinutes} min`} label="Duración estimada" />
           <Stat value={formatVolume(currentVolumeKg(activeWorkout))} label="Volumen" />
@@ -227,7 +292,7 @@ export function EntrenamientoActivo() {
           type="button"
           onClick={() => setDetailsOpen((open) => !open)}
           aria-expanded={detailsOpen}
-          className="mt-5 flex min-h-11 w-full items-center justify-center gap-1 text-[13.5px] font-semibold text-primary"
+          className="mt-3 flex min-h-11 w-full items-center justify-center gap-1 text-[13px] font-medium text-muted-foreground"
         >
           {detailsOpen ? 'Ocultar detalles' : 'Ver detalles del entrenamiento'}
           <ChevronRight
@@ -238,7 +303,7 @@ export function EntrenamientoActivo() {
         {detailsOpen && (
           <ul className="mt-1 divide-y divide-border">
             {activeWorkout.entries.map((item, index) => (
-              <li key={item.exerciseId} className="flex items-center gap-3 py-3">
+              <li key={`${item.exerciseId}-${index}`} className="flex items-center gap-3 py-3">
                 <span
                   className={cn(
                     'w-4 text-[13px] font-semibold tabular-nums',
@@ -264,23 +329,142 @@ export function EntrenamientoActivo() {
 }
 
 /**
- * Confirmación antes de dejar una sesión a medias.
+ * La última vez que se hizo este ejercicio, en una línea discreta (D-019).
+ *
+ * Solo si hay una sesión completada que lo tenga: sin dato no se dice nada, ni
+ * «primera vez», que sería afirmar algo que el historial local no garantiza.
+ */
+function LastTime({
+  entry,
+  sessions,
+}: {
+  entry: ActiveExerciseEntry
+  sessions: Parameters<typeof lastPerformedExercise>[1]
+}) {
+  const last = lastPerformedExercise(entry.exerciseId, sessions)
+  if (!last) return null
+  return (
+    <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
+      La última vez: {formatSets(last.sets, { isTimed: entry.isTimed })}
+    </p>
+  )
+}
+
+/**
+ * Descanso entre series (D-019, Design System «Rest Timer»).
+ *
+ * Arranca solo al completar una serie. La cuenta atrás es la protagonista; debajo,
+ * lo que viene, para llegar preparado. La acción principal es saltarlo; ampliar
+ * y deshacer quedan como texto. Al llegar a cero la pantalla vuelve sola a la
+ * serie: el estado se calcula del reloj, no hay nada que cerrar.
+ */
+function RestPanel({
+  rest,
+  entry,
+  setNumber,
+  canUndo,
+  onSkip,
+  onExtend,
+  onUndo,
+}: {
+  rest: RestState
+  entry: ActiveExerciseEntry
+  setNumber: number
+  canUndo: boolean
+  onSkip: () => void
+  onExtend: () => void
+  onUndo: () => void
+}) {
+  const next = [
+    `Serie ${setNumber} de ${entry.targetSets}`,
+    `${entry.reps} ${entry.isTimed ? 's' : 'reps'}`,
+    entry.weightKg === null ? null : `${formatKg(entry.weightKg)} kg`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  return (
+    <section className="ax-enter" aria-label="Descanso">
+      <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">DESCANSO</p>
+
+      <div className="mt-5 flex justify-center">
+        <CircularMetric
+          value={rest.remainingSeconds}
+          max={rest.totalSeconds}
+          size={200}
+          stroke={8}
+          tone="primary"
+        >
+          <span
+            className="text-[44px] font-bold tracking-[-0.02em] tabular-nums"
+            role="timer"
+            aria-live="off"
+          >
+            {formatDuration(rest.remainingSeconds)}
+          </span>
+        </CircularMetric>
+      </div>
+
+      <p className="mt-6 text-[13px] text-muted-foreground">Después</p>
+      <p className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em]">{entry.name}</p>
+      <p className="mt-0.5 text-[14px] text-muted-foreground tabular-nums">{next}</p>
+
+      <button
+        type="button"
+        onClick={onSkip}
+        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+      >
+        Saltar descanso
+      </button>
+      <button
+        type="button"
+        onClick={onExtend}
+        className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-primary tabular-nums"
+      >
+        + {REST_EXTENSION_SECONDS} s
+      </button>
+
+      {canUndo && <UndoButton onUndo={onUndo} />}
+    </section>
+  )
+}
+
+/** Deshacer la última serie: para el toque por error, sin confirmar (D-019). */
+function UndoButton({ onUndo }: { onUndo: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onUndo}
+      className="ax-press mt-1 flex min-h-11 w-full items-center justify-center gap-1.5 text-[13.5px] font-medium text-muted-foreground"
+    >
+      <Undo2 className="h-4 w-4" strokeWidth={1.75} />
+      Deshacer última serie
+    </button>
+  )
+}
+
+/**
+ * Confirmación de una acción que no se puede deshacer: salir o saltar.
  *
  * Mismo criterio que el borrado de datos en Perfil: la confirmación es parte de
  * la pantalla, no un `confirm()` del navegador, que bloquea la página entera.
- *
- * Dice exactamente qué pasa —se guarda como interrumpida y no se puede volver a
- * ella— porque es lo que el usuario necesita saber para decidir. Solo aparece
- * cuando hay series hechas: si no hay nada que perder, no se pregunta.
+ * Dice exactamente qué pasa, porque es lo que hace falta saber para decidir. La
+ * acción segura es la principal; la otra, texto.
  */
-function ExitConfirmation({
-  completedSets,
-  elapsed,
+function Confirmation({
+  title,
+  body,
+  stayLabel,
+  leaveLabel,
+  leaveTone,
   onStay,
   onLeave,
 }: {
-  completedSets: number
-  elapsed: number
+  title: string
+  body: ReactNode
+  stayLabel: string
+  leaveLabel: string
+  leaveTone: 'error' | 'muted'
   onStay: () => void
   onLeave: () => void
 }) {
@@ -292,15 +476,10 @@ function ExitConfirmation({
     */
     <div className="ax-enter px-6 pt-10 pb-8">
       <h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em] text-balance">
-        ¿Dejas el entrenamiento?
+        {title}
       </h1>
       <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground text-pretty">
-        Llevas{' '}
-        <span className="font-semibold text-foreground tabular-nums">
-          {completedSets} {completedSets === 1 ? 'serie' : 'series'}
-        </span>{' '}
-        en {formatDuration(elapsed)}. Se guardará como sesión interrumpida y no podrás
-        retomarla.
+        {body}
       </p>
 
       <div className="mt-10">
@@ -309,14 +488,17 @@ function ExitConfirmation({
           onClick={onStay}
           className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
         >
-          Seguir entrenando
+          {stayLabel}
         </button>
         <button
           type="button"
           onClick={onLeave}
-          className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-error"
+          className={cn(
+            'ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold',
+            leaveTone === 'error' ? 'text-error' : 'text-muted-foreground',
+          )}
         >
-          Salir y guardar lo hecho
+          {leaveLabel}
         </button>
       </div>
     </div>
@@ -363,7 +545,7 @@ function ValueStepper({
           type="button"
           onClick={onIncrease}
           aria-label={increaseLabel}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background"
+          className="ax-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background"
         >
           <Plus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
         </button>
@@ -372,11 +554,12 @@ function ValueStepper({
   )
 }
 
+/** Dato secundario de la sesión: legible, pero sin peso visual (D-019). */
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div>
-      <p className="text-[17px] font-bold tracking-[-0.01em] tabular-nums">{value}</p>
-      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground text-pretty">
+      <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">{value}</p>
+      <p className="mt-0.5 text-[10.5px] leading-tight text-muted-foreground text-pretty">
         {label}
       </p>
     </div>

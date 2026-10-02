@@ -38,6 +38,7 @@ import type {
   WorkoutSession,
 } from '../workouts/types'
 import { FOCUS_CATEGORIES, FOCUS_MUSCLE_GROUPS, SESSION_FOCUS_LABELS, usesLoad } from '../workouts/types'
+import { lastPerformanceOf, type LastPerformance } from '../workouts/history'
 
 export const DEFAULT_GOAL: TrainingGoal = 'salud_general'
 export const DEFAULT_GOALS: readonly TrainingGoal[] = [DEFAULT_GOAL]
@@ -151,35 +152,13 @@ export function targetDifficultyFor(
 // Historial y progresión
 // ---------------------------------------------------------------------------
 
-export type LastPerformance = {
-  weightKg: number | null
-  reps: number
-  allSetsCompleted: boolean
-  sets: number
-}
-
-export function lastPerformanceOf(
-  exerciseId: string,
-  history: readonly WorkoutSession[],
-): LastPerformance | null {
-  for (const session of history) {
-    if (session.status !== 'completed') continue
-    const performed = session.exercises.find((item) => item.exerciseId === exerciseId)
-    if (!performed || performed.sets.length === 0) continue
-
-    const weights = performed.sets
-      .map((set) => set.weightKg)
-      .filter((weight): weight is number => weight !== null)
-
-    return {
-      weightKg: weights.length > 0 ? Math.max(...weights) : null,
-      reps: Math.max(...performed.sets.map((set) => set.reps)),
-      allSetsCompleted: performed.sets.every((set) => set.completed),
-      sets: performed.sets.length,
-    }
-  }
-  return null
-}
+/*
+ * La última ejecución vive en el dominio de entrenamientos, porque también la
+ * usa la pantalla del ejercicio activo. Se reexporta para quien ya la importaba
+ * de aquí. Compara contra el objetivo guardado (D-019): un ejercicio a medias no
+ * cuenta como hecho y la progresión repite en vez de subir.
+ */
+export { lastPerformanceOf, type LastPerformance }
 
 /** Repeticiones a partir de las cuales el ejercicio se considera dominado. */
 export function repCapFor(exercise: Exercise): number {

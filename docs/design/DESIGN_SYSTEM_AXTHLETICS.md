@@ -610,6 +610,17 @@ Componentes principales previstos:
 
 No crear variantes aisladas sin razón real.
 
+### Rest Timer (D-019)
+
+Descanso entre series dentro del ejercicio activo. Aprobado en D-019.
+
+- **Cuándo:** arranca solo al completar una serie, con los segundos de descanso del ejercicio. No aparece tras la última serie de la sesión.
+- **Dónde:** sustituye al bloque del ejercicio actual (nombre, selectores y «Completar serie»). La cabecera, la barra de progreso, el siguiente ejercicio y las estadísticas no cambian.
+- **Composición:** etiqueta `DESCANSO` con el estilo de `EJERCICIO ACTUAL`; cuenta atrás grande dentro de una **Circular Metric** en tono `primary`, sin otro anillo propio; debajo, «Después» con el nombre del ejercicio y la serie que viene (serie, reps y kg).
+- **Acciones:** «Saltar descanso» es la acción principal (botón primario, 56 px). «+ 15 s» y «Deshacer última serie» son texto (mínimo 44 px de alto).
+- **Fin:** al llegar a cero vuelve sola a la serie. Sin sonido ni vibración en Core v0.1.
+- **Persistencia:** el descanso se guarda con la sesión en curso; al recargar, sigue donde iba.
+
 ---
 
 ## 24. Reglas para Claude Code

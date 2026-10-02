@@ -98,7 +98,7 @@ test('una semana muy exigente llega a carga alta', () => {
       dayKey: `2026-09-0${4 + i}`,
       durationSeconds: 70 * 60,
       intensity: 'alta',
-      perceivedEffort: 5,
+      effort: 5,
     }),
   )
   const load = computeTrainingLoad(hard, TODAY)
@@ -110,7 +110,7 @@ test('una semana muy exigente llega a carga alta', () => {
 
 test('la carga nunca pasa de 100 por muchas sesiones que haya', () => {
   const absurd = Array.from({ length: 20 }, () =>
-    session({ durationSeconds: 180 * 60, intensity: 'alta', perceivedEffort: 5 }),
+    session({ durationSeconds: 180 * 60, intensity: 'alta', effort: 5 }),
   )
   const load = computeTrainingLoad(absurd, TODAY)
   assert.equal(load.status, 'ok')
@@ -219,4 +219,24 @@ test('la escala de referencia es la que convierte unidades en 0-100', () => {
   assert.equal(load.status, 'ok')
   if (load.status !== 'ok') return
   assert.equal(load.value, 100)
+})
+
+// ---------------------------------------------------------------------------
+// D-019: la Carga lee el esfuerzo, no la sensación
+// ---------------------------------------------------------------------------
+
+test('la Carga ignora la sensación antigua: «muy mal» ya no la baja ni «excelente» la sube', () => {
+  const felt1 = sessionLoadUnits(session({ perceivedEffort: 1 }))
+  const felt5 = sessionLoadUnits(session({ perceivedEffort: 5 }))
+  const unrated = sessionLoadUnits(session({ perceivedEffort: null }))
+  assert.equal(felt1, unrated)
+  assert.equal(felt5, unrated)
+})
+
+test('la Carga sube con el esfuerzo: «al límite» suma más que «muy fácil»', () => {
+  const easy = sessionLoadUnits(session({ perceivedEffort: null, effort: 1 }))
+  const hard = sessionLoadUnits(session({ perceivedEffort: null, effort: 5 }))
+  const unrated = sessionLoadUnits(session({ perceivedEffort: null }))
+  assert.ok(easy < unrated)
+  assert.ok(unrated < hard)
 })

@@ -164,6 +164,28 @@ export type PerformedExercise = {
   exerciseId: string
   name: string
   sets: CompletedSet[]
+  /**
+   * Lo que estaba previsto para el ejercicio: series y repeticiones (o segundos).
+   * Sin esto no se puede saber si se hizo entero, y la progresión subiría carga
+   * tras un ejercicio a medias (D-019). Las sesiones anteriores no lo tienen.
+   */
+  targetSets?: number
+  targetReps?: number
+}
+
+/**
+ * `true` si el ejercicio se hizo como estaba previsto: todas las series, ninguna
+ * por debajo del objetivo. Sin objetivo guardado —sesiones anteriores a D-019—
+ * solo se puede mirar si cada serie quedó marcada como completada.
+ */
+export function metTarget(exercise: PerformedExercise): boolean {
+  if (exercise.sets.length === 0) return false
+  if (!exercise.sets.every((set) => set.completed)) return false
+  if (exercise.targetSets !== undefined && exercise.sets.length < exercise.targetSets) return false
+  if (exercise.targetReps !== undefined && exercise.sets.some((set) => set.reps < exercise.targetReps!)) {
+    return false
+  }
+  return true
 }
 
 /**
@@ -199,6 +221,17 @@ export type ProposalSnapshot = {
 
 export type WorkoutSessionStatus = 'completed' | 'abandoned'
 
+/** Escala de esfuerzo (D-019). La Carga la usa: 1 suma menos, 5 suma más. */
+export const EFFORT_LEVELS = [1, 2, 3, 4, 5] as const
+
+export const EFFORT_LABELS: Record<(typeof EFFORT_LEVELS)[number], string> = {
+  1: 'Muy fácil',
+  2: 'Fácil',
+  3: 'Moderado',
+  4: 'Duro',
+  5: 'Al límite',
+}
+
 export type WorkoutSession = {
   id: string
   /** Día local al que pertenece la sesión. La clave de ordenación del historial. */
@@ -214,8 +247,17 @@ export type WorkoutSession = {
   /** Volumen total en kg, precalculado al cerrar la sesión. */
   totalVolumeKg: number
   status: WorkoutSessionStatus
-  /** Cómo se sintió el usuario, 1–5. `null` si no lo indicó. */
+  /**
+   * Cómo se sintió el usuario, 1–5 (1 = muy mal). Es el dato que se pedía antes
+   * de D-019; se conserva tal cual, pero ya no se escribe ni lo lee la Carga: no
+   * es esfuerzo, y leerlo como tal invertía el cálculo.
+   */
   perceivedEffort: number | null
+  /**
+   * Cuánto costó la sesión, 1–5 (1 = muy fácil, 5 = al límite). Es lo que usa
+   * la Carga (D-019). Ausente o `null` si no se indicó.
+   */
+  effort?: number | null
   proposal: ProposalSnapshot | null
   modifications: SessionModification[]
   notes: string | null
@@ -259,13 +301,25 @@ function isCompletedSetValue(value: unknown): value is CompletedSet {
   )
 }
 
+function isOptionalCount(value: unknown): boolean {
+  return value === undefined || (isFiniteNumber(value) && value >= 0)
+}
+
 function isPerformedExercise(value: unknown): value is PerformedExercise {
   return (
     isRecord(value) &&
     typeof value.exerciseId === 'string' &&
     typeof value.name === 'string' &&
-    isArrayOf(value.sets, isCompletedSetValue)
+    isArrayOf(value.sets, isCompletedSetValue) &&
+    isOptionalCount(value.targetSets) &&
+    isOptionalCount(value.targetReps)
   )
+}
+
+/** Esfuerzo 1–5, o ausente o `null` (sesiones anteriores a D-019, o sin valorar). */
+export function isEffortValue(value: unknown): boolean {
+  if (value === undefined || value === null) return true
+  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 5
 }
 
 function isSessionModification(value: unknown): value is SessionModification {
@@ -296,6 +350,7 @@ export function isWorkoutSession(value: unknown): value is WorkoutSession {
   if (!isFiniteNumber(value.totalVolumeKg) || value.totalVolumeKg < 0) return false
   if (!isOneOf(value.status, SESSION_STATUSES)) return false
   if (!isNullableNumber(value.perceivedEffort)) return false
+  if (!isEffortValue(value.effort)) return false
   if (value.proposal !== null && !isProposalSnapshotValue(value.proposal)) return false
   if (!isArrayOf(value.modifications, isSessionModification)) return false
   return isNullableString(value.notes)

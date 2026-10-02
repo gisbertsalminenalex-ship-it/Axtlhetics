@@ -278,3 +278,46 @@ test('una actividad con una fecha que no es un día local se descarta sola', () 
   assert.equal(result.counts.activities, 1)
   assert.equal(result.discarded, 1)
 })
+
+// ---------------------------------------------------------------------------
+// Sesiones con esfuerzo y objetivo (D-019)
+// ---------------------------------------------------------------------------
+
+test('una copia antigua, sin esfuerzo ni objetivos en sus sesiones, se importa entera', () => {
+  const file = roundTrip(fullContents()) as { data: { sessions: Record<string, unknown>[] } }
+  assert.equal('effort' in file.data.sessions[0], false)
+
+  const result = parseBackup(file)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.discarded, 0)
+  assert.equal(result.counts.sessions, 1)
+})
+
+test('una copia nueva conserva el esfuerzo y el objetivo de cada ejercicio', () => {
+  const rated: WorkoutSession = {
+    ...session,
+    id: 'ses-2',
+    effort: 4,
+    exercises: [{ ...session.exercises[0], targetSets: 3, targetReps: 10 }],
+  }
+  const result = parseBackup(roundTrip({ ...fullContents(), sessions: [session, rated] }))
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.deepEqual(result.contents.sessions, [session, rated])
+  assert.equal(result.discarded, 0)
+})
+
+test('un esfuerzo fuera de escala o un objetivo negativo descartan solo esa sesión', () => {
+  const file = roundTrip(fullContents()) as { data: Record<string, unknown> }
+  file.data.sessions = [
+    session,
+    { ...session, id: 'ses-2', effort: 9 },
+    { ...session, id: 'ses-3', exercises: [{ ...session.exercises[0], targetSets: -1 }] },
+  ]
+  const result = parseBackup(file)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.counts.sessions, 1)
+  assert.equal(result.discarded, 2)
+})

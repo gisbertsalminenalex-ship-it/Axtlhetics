@@ -5,20 +5,29 @@ import type { AxisProposal } from '../axis/types'
 import {
   adjustReps,
   adjustWeight,
+  canUndoLastSet,
   completedSetsTotal,
   completeSet,
   currentEntry,
   currentSetNumber,
   currentVolumeKg,
+  extendRest,
+  isActiveWorkout,
   isFinished,
   MAX_REPS,
   MAX_WEIGHT_KG,
+  performedExercises,
+  reconcileStoredWorkout,
+  REST_EXTENSION_SECONDS,
+  restState,
   skipExercise,
+  skipRest,
   startWorkout,
   toWorkoutSession,
+  undoLastSet,
   WEIGHT_STEP_KG,
 } from './active-workout'
-import type { PlannedSession } from './types'
+import { metTarget, type PlannedSession } from './types'
 
 const plan: PlannedSession = {
   focus: 'tren_superior',
@@ -204,7 +213,7 @@ test('la sesión guardada conserva la propuesta que la originó', () => {
 
   const saved = toWorkoutSession(workout, {
     status: 'completed',
-    perceivedEffort: 4,
+    effort: 4,
     completedAt: new Date(2026, 8, 8, 19, 0, 0),
   })
 
@@ -212,7 +221,8 @@ test('la sesión guardada conserva la propuesta que la originó', () => {
   assert.equal(saved.proposal?.headline, proposal.headline)
   assert.equal(saved.status, 'completed')
   assert.equal(saved.durationSeconds, 3600)
-  assert.equal(saved.perceivedEffort, 4)
+  assert.equal(saved.effort, 4)
+  assert.equal(saved.perceivedEffort, null, 'la sensación ya no se escribe (D-019)')
   assert.equal(saved.totalVolumeKg, 2 * 8 * 80)
 })
 
@@ -247,7 +257,7 @@ test('la duración nunca es negativa aunque el reloj vaya hacia atrás', () => {
 // P-014: reanudar una sesión guardada
 // ---------------------------------------------------------------------------
 
-import { hasProgress, isActiveWorkout, reconcileStoredWorkout } from './active-workout'
+import { hasProgress } from './active-workout'
 
 /** Lo que la sesión atraviesa al ir y volver del almacenamiento. */
 function roundTrip<T>(value: T): T {
@@ -384,4 +394,173 @@ test('saltar todos los ejercicios agota la sesión pero no cuenta como progreso'
   assert.equal(currentEntry(workout), null)
   assert.equal(hasProgress(workout), false)
   assert.equal(completedSetsTotal(workout), 0)
+})
+
+// ---------------------------------------------------------------------------
+// Descanso entre series (D-019)
+// ---------------------------------------------------------------------------
+
+/** `START` más unos segundos: el reloj de estos tests no depende del real. */
+function at(seconds: number): Date {
+  return new Date(START.getTime() + seconds * 1000)
+}
+
+test('completar una serie arranca solo el descanso del ejercicio', () => {
+  const workout = completeSet(fresh(), at(0))
+
+  assert.deepEqual(restState(workout, at(0)), { remainingSeconds: 90, totalSeconds: 90 })
+  assert.deepEqual(restState(workout, at(30)), { remainingSeconds: 60, totalSeconds: 90 })
+  // Medio segundo no se redondea a cero: «00:01» hasta que acaba de verdad.
+  assert.equal(restState(workout, new Date(at(89).getTime() + 500))?.remainingSeconds, 1)
+})
+
+test('el descanso termina solo al llegar a cero, sin que haya que cerrarlo', () => {
+  const workout = completeSet(fresh(), at(0))
+  assert.equal(restState(workout, at(90)), null)
+  assert.equal(restState(workout, at(500)), null)
+})
+
+test('también hay descanso al pasar de un ejercicio al siguiente', () => {
+  let workout = completeSet(fresh(), at(0))
+  workout = completeSet(workout, at(100)) // última serie de press banca
+  assert.equal(currentEntry(workout)?.exerciseId, 'remo-barra')
+  assert.equal(restState(workout, at(100))?.remainingSeconds, 90)
+})
+
+test('tras la última serie de la sesión no hay descanso: la sesión termina', () => {
+  let workout = fresh()
+  for (let i = 0; i < 4; i += 1) workout = completeSet(workout, at(i * 100))
+  assert.equal(isFinished(workout), true)
+  assert.equal(workout.rest, null)
+})
+
+test('saltar el descanso lo termina en el acto', () => {
+  const workout = skipRest(completeSet(fresh(), at(0)))
+  assert.equal(restState(workout, at(1)), null)
+})
+
+test('«+15 s» alarga el descanso en curso y el total lo refleja', () => {
+  const workout = extendRest(completeSet(fresh(), at(0)), REST_EXTENSION_SECONDS, at(30))
+  assert.deepEqual(restState(workout, at(30)), { remainingSeconds: 75, totalSeconds: 105 })
+})
+
+test('sin descanso en curso, «+15 s» no inventa uno', () => {
+  const idle = fresh()
+  assert.equal(extendRest(idle, REST_EXTENSION_SECONDS, at(0)), idle)
+
+  const over = completeSet(fresh(), at(0))
+  assert.equal(extendRest(over, REST_EXTENSION_SECONDS, at(200)), over, 'uno ya acabado tampoco se resucita')
+})
+
+test('saltar un ejercicio cancela el descanso', () => {
+  const workout = skipExercise(completeSet(fresh(), at(0)))
+  assert.equal(restState(workout, at(1)), null)
+})
+
+test('el descanso sobrevive al almacenamiento: al recargar sigue donde iba', () => {
+  const workout = completeSet(fresh(), at(0))
+  const stored = JSON.parse(JSON.stringify(workout))
+
+  assert.equal(isActiveWorkout(stored), true)
+  const outcome = reconcileStoredWorkout(stored, { today: workout.dayKey, savedAt: at(0).toISOString() })
+  assert.equal(outcome.kind, 'resume')
+  if (outcome.kind !== 'resume') return
+  assert.equal(restState(outcome.workout, at(40))?.remainingSeconds, 50)
+})
+
+test('una sesión guardada antes de D-019, sin descanso ni deshacer, sigue reanudándose', () => {
+  const legacy = JSON.parse(JSON.stringify(completeSet(fresh(), at(0))))
+  delete legacy.rest
+  delete legacy.lastSet
+
+  assert.equal(isActiveWorkout(legacy), true)
+  assert.equal(restState(legacy, at(1)), null)
+  assert.equal(canUndoLastSet(legacy), false)
+})
+
+test('un descanso o un deshacer con forma rota invalidan el registro guardado', () => {
+  const base = JSON.parse(JSON.stringify(completeSet(fresh(), at(0))))
+  assert.equal(isActiveWorkout({ ...base, rest: { startedAt: 'ayer', endsAt: 'luego' } }), false)
+  assert.equal(isActiveWorkout({ ...base, lastSet: { exerciseIndex: 7 } }), false)
+})
+
+// ---------------------------------------------------------------------------
+// Deshacer la última serie (D-019)
+// ---------------------------------------------------------------------------
+
+test('deshacer quita la última serie y cancela su descanso', () => {
+  const done = completeSet(fresh(), at(0))
+  assert.equal(canUndoLastSet(done), true)
+
+  const undone = undoLastSet(done)
+  assert.equal(currentEntry(undone)?.sets.length, 0)
+  assert.equal(currentSetNumber(undone), 1)
+  assert.equal(undone.rest, null)
+})
+
+test('deshacer la serie que cerró un ejercicio vuelve a ese ejercicio', () => {
+  let workout = completeSet(fresh(), at(0))
+  workout = completeSet(workout, at(100))
+  assert.equal(currentEntry(workout)?.exerciseId, 'remo-barra')
+
+  workout = undoLastSet(workout)
+  assert.equal(currentEntry(workout)?.exerciseId, 'press-banca')
+  assert.equal(currentEntry(workout)?.sets.length, 1)
+  assert.equal(currentSetNumber(workout), 2)
+})
+
+test('deshacer devuelve la carga y las reps de la serie, para repetirla de un toque', () => {
+  let workout = adjustReps(fresh(), -2) // 6 reps
+  workout = completeSet(workout, at(0))
+  workout = adjustReps(workout, 3) // se toca algo antes de deshacer
+  workout = undoLastSet(workout)
+
+  assert.equal(currentEntry(workout)?.reps, 6)
+  assert.equal(currentEntry(workout)?.weightKg, 80)
+})
+
+test('solo se deshace la última serie: no es un historial', () => {
+  let workout = completeSet(fresh(), at(0))
+  workout = undoLastSet(workout)
+  assert.equal(canUndoLastSet(workout), false)
+  assert.equal(undoLastSet(workout), workout)
+})
+
+test('saltar un ejercicio no se puede deshacer, ni deja deshacer la serie anterior', () => {
+  const workout = skipExercise(completeSet(fresh(), at(0)))
+  assert.equal(canUndoLastSet(workout), false)
+})
+
+test('sin ninguna serie no hay nada que deshacer', () => {
+  const workout = fresh()
+  assert.equal(canUndoLastSet(workout), false)
+  assert.equal(undoLastSet(workout), workout)
+})
+
+// ---------------------------------------------------------------------------
+// El objetivo viaja con lo hecho (D-019)
+// ---------------------------------------------------------------------------
+
+test('cada ejercicio hecho guarda lo que estaba previsto', () => {
+  const workout = completeSet(fresh(), at(0))
+  const [press] = performedExercises(workout)
+  assert.equal(press.targetSets, 2)
+  assert.equal(press.targetReps, 8)
+})
+
+test('un ejercicio a medias no cuenta como hecho, aunque cada serie se registrara', () => {
+  // 1 de 2 series y se salta.
+  const half = skipExercise(completeSet(fresh(), at(0)))
+  assert.equal(metTarget(performedExercises(half)[0]), false)
+
+  // Todas las series, pero por debajo de las reps previstas.
+  let low = adjustReps(fresh(), -3)
+  low = completeSet(low, at(0))
+  low = completeSet(low, at(100))
+  assert.equal(metTarget(performedExercises(low)[0]), false)
+
+  // Lo previsto, entero.
+  let full = completeSet(fresh(), at(0))
+  full = completeSet(full, at(100))
+  assert.equal(metTarget(performedExercises(full)[0]), true)
 })

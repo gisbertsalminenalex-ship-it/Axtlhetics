@@ -440,7 +440,7 @@ test('entrenar una sesión cambiada deja constancia de la propuesta original', (
   // Es lo que hace la aplicación al empezar: si lo que se entrena no es lo que
   // AXIS recomendaba, se registra de qué se cambió.
   const marked = markProposalChanged(started, w.decision.primary.headline)
-  const guardada = toWorkoutSession(marked, { status: 'abandoned', perceivedEffort: null })
+  const guardada = toWorkoutSession(marked, { status: 'abandoned', effort: null })
 
   const cambio = guardada.modifications.find((m) => m.kind === 'proposal_changed')
   assert.ok(cambio, 'debe quedar registrada la modificación')
