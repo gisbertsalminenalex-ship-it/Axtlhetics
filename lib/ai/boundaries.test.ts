@@ -45,8 +45,14 @@ const ALL = sourceFiles()
  * No es nombrarlo en un comentario: explicar por qué una decisión está tomada es
  * justo lo contrario de acoplarse a ella.
  */
-/** Rastro del proveedor actual (Groq) y del anterior (Gemini): ninguno puede salir de la función. */
-const PROVIDER_DEPENDENCY = /api\.groq\.com|groq-sdk|from 'groq|@google\/genai|GoogleGenAI|generativelanguage\.googleapis\.com/
+/**
+ * Rastro de los proveedores actuales (Cloudflare Workers AI y Groq) y del
+ * anterior (Gemini): ninguno puede salir del proxy de servidor.
+ */
+const PROVIDER_DEPENDENCY = /api\.cloudflare\.com|@cf\/|cloudflare\/ai|api\.groq\.com|groq-sdk|from 'groq|@google\/genai|GoogleGenAI|generativelanguage\.googleapis\.com/
+
+/** Las credenciales de los proveedores, por su nombre de variable. */
+const CREDENTIAL_NAMES = /GROQ_API_KEY|GEMINI_API_KEY|CF_API_TOKEN|CF_ACCOUNT_ID/
 
 /**
  * Herramientas que se ejecutan a mano en desarrollo (`scripts/`). No se
@@ -77,7 +83,7 @@ test('ningún archivo del cliente menciona la clave del proveedor', () => {
   for (const path of CLIENT) {
     assert.doesNotMatch(
       read(path),
-      /GROQ_API_KEY|GEMINI_API_KEY/,
+      CREDENTIAL_NAMES,
       `${path} menciona la credencial y acaba en el navegador`,
     )
   }
@@ -87,7 +93,7 @@ test('no existe ninguna variable pública con la clave', () => {
   for (const path of ALL) {
     assert.doesNotMatch(
       read(path),
-      /NEXT_PUBLIC_[A-Z_]*(GROQ|GEMINI|API_KEY|GENAI)/,
+      /NEXT_PUBLIC_[A-Z_]*(GROQ|GEMINI|API_KEY|GENAI|CF_|CLOUDFLARE|TOKEN|ACCOUNT)/,
       `${path}: NEXT_PUBLIC_* acaba dentro del bundle, a la vista de cualquiera`,
     )
   }
@@ -107,7 +113,7 @@ test('solo la función de servidor lee la credencial', () => {
     (path) =>
       !path.endsWith('.test.ts') &&
       !DEV_TOOLS(path) &&
-      /process\.env\.(GROQ|GEMINI)_API_KEY/.test(read(path)),
+      /process\.env\.((GROQ|GEMINI)_API_KEY|CF_API_TOKEN|CF_ACCOUNT_ID)/.test(read(path)),
   )
 
   assert.deepEqual(
@@ -130,30 +136,33 @@ test('el proveedor no se toca desde el cliente', () => {
   }
 })
 
-test('solo el proxy de servidor —contrato y función— conoce al proveedor', () => {
+test('solo los proveedores del proxy de servidor conocen a los proveedores', () => {
   const emisores = ALL.filter(
     (path) => !path.endsWith('.test.ts') && PROVIDER_DEPENDENCY.test(read(path)),
   )
 
-  // El contrato es el único sitio donde está escrita la URL del proveedor; la
-  // función la usa a través de él y es la única que llama. Nadie más.
+  // Cada proveedor es el único sitio donde está escrita su URL y su modelo.
+  // Nadie más.
   assert.deepEqual(
-    emisores.map((path) => path.split('/').slice(-2).join('/')),
-    ['ai/provider-contract.ts'],
+    emisores.map((path) => path.split('/').slice(-3).join('/')),
+    ['ai/providers/cloudflare.ts', 'ai/providers/groq.ts'],
   )
+
+  // La única llamada de red a un proveedor la hace la cadena, con la petición
+  // que construye cada proveedor. La ruta la usa y no llama a nadie por su cuenta.
+  const cadena = read(ALL.find((path) => path.endsWith('ai/provider-chain.ts'))!)
+  assert.match(cadena, /fetchImpl\(url/)
 
   const funcion = read(ALL.find((path) => path.endsWith('api/axis-ai/route.ts'))!)
-  assert.match(funcion, /PROVIDER_ENDPOINT/)
-  assert.match(funcion, /fetch\(PROVIDER_ENDPOINT/)
+  assert.match(funcion, /askWithFallback\(/)
 
-  const otrosConFetch = ALL.filter(
+  const servidorConFetch = ALL.filter(
     (path) =>
       !path.endsWith('.test.ts') &&
-      !path.endsWith('api/axis-ai/route.ts') &&
-      /fetch\(PROVIDER_ENDPOINT|api\.groq\.com\/openai/.test(read(path)) &&
-      !path.endsWith('ai/provider-contract.ts'),
+      (path.includes('/lib/ai/') || path.includes('/app/api/')) &&
+      /\bfetch\(/.test(read(path)),
   )
-  assert.deepEqual(otrosConFetch, [], 'nadie más llama al proveedor')
+  assert.deepEqual(servidorConFetch, [], 'nadie más llama a un proveedor')
 })
 
 test('la ruta de servidor no arrastra dependencias que haya que empaquetar', () => {
@@ -185,7 +194,8 @@ test('la credencial y el proveedor no aparecen en el bundle del navegador', () =
   }
 
   for (const chunk of chunks) {
-    assert.doesNotMatch(read(chunk), /GROQ_API_KEY|GEMINI_API_KEY|api\.groq\.com/, `${chunk} lleva la credencial o el proveedor`)
+    assert.doesNotMatch(read(chunk), CREDENTIAL_NAMES, `${chunk} lleva la credencial`)
+    assert.doesNotMatch(read(chunk), /api\.groq\.com|api\.cloudflare\.com|@cf\//, `${chunk} lleva el proveedor`)
   }
 })
 
@@ -257,7 +267,9 @@ test('la ruta no persiste conversaciones ni añade analítica', () => {
 test('el ejemplo de entorno no contiene una clave real', () => {
   const ejemplo = readFileSync(new URL('.env.example', ROOT), 'utf8')
 
-  assert.match(ejemplo, /GROQ_API_KEY=\s*$/m, 'debe quedar vacía')
+  for (const name of ['GROQ_API_KEY', 'CF_ACCOUNT_ID', 'CF_API_TOKEN']) {
+    assert.match(ejemplo, new RegExp(`^${name}=\\s*$`, 'm'), `${name} debe quedar vacía`)
+  }
   assert.doesNotMatch(ejemplo, /gsk_|AIza/)
 })
 
@@ -267,7 +279,7 @@ test('.env.local está ignorado por git', () => {
 })
 
 // ---------------------------------------------------------------------------
-// El proveedor es Groq, y solo lo sabe la función
+// Los proveedores son Cloudflare y Groq, y solo lo sabe el proxy
 // ---------------------------------------------------------------------------
 
 test('el proveedor anterior ya no se utiliza en ningún sitio', () => {
@@ -285,7 +297,7 @@ test('lib/domain/axis no importa nada del proveedor', () => {
   assert.ok(dominioAxis.length >= 15)
   for (const path of dominioAxis) {
     const imports = read(path).match(/^import .*$/gm)?.join('\n') ?? ''
-    assert.doesNotMatch(imports, /groq|lib\/ai\/|provider-contract|netlify|vercel|app\/api/i, `${path} importa al proveedor`)
-    assert.doesNotMatch(read(path), /api\.groq\.com|GROQ_API_KEY|gpt-oss/i, `${path} conoce al proveedor`)
+    assert.doesNotMatch(imports, /groq|cloudflare|lib\/ai\/|provider-contract|provider-chain|netlify|vercel|app\/api/i, `${path} importa al proveedor`)
+    assert.doesNotMatch(read(path), /api\.groq\.com|GROQ_API_KEY|gpt-oss|api\.cloudflare\.com|CF_API_TOKEN|CF_ACCOUNT_ID|gemma|@cf\//i, `${path} conoce al proveedor`)
   }
 })

@@ -284,6 +284,53 @@ test('un texto inválido del modelo no se enseña: responde el determinista', as
   }
 })
 
+test('el caso de producción: el modelo afirma que la zona no se ha tocado y responde el determinista', async () => {
+  // Sin historial: el dominio acepta el cambio y dice que no hay nada registrado.
+  const context = buildAxisContext({ profile: profile(), recoveryInputs: recovery(), recentSessions: [], activities: [], now: MONDAY })
+  const briefing = buildBriefing(context, decide(context), [])
+  const message = 'quiero hacer piernas'
+  const local = answerFromBriefing(message, briefing, CHANGE_MODE)
+  assert.equal(local.verdict, 'accept')
+  assert.match(local.text, /^No tengo registrada ninguna sesión estos días/)
+
+  const { transport } = fakeTransport(() => ({
+    text: 'Se puede: esa zona no la has tocado estos días. Cambio a «Tren inferior».',
+    action: { type: 'change_training', target: local.proposedTarget },
+  }))
+  const result = await createAxisConversation({ transport }).ask(message, briefing, CHANGE_MODE)
+
+  assert.equal(result.usedFallback, true)
+  assert.equal(result.rejectedReason, 'unsupported_claim')
+  assert.equal(result.modelDisagreed, false, 'la acción coincidía: el problema es el texto')
+  assert.equal(result.text, local.text)
+  assert.deepEqual(result.proposedTarget, local.proposedTarget, 'el destino sigue siendo el del dominio')
+})
+
+test('afirmaciones sin respaldo de cualquier familia caen al determinista', async () => {
+  const { briefing } = setup()
+  const question = '¿Por qué me propones esto hoy?'
+  const local = answerFromBriefing(question, briefing)
+
+  for (const text of [
+    'Hoy toca esto porque no has entrenado piernas esta semana.',
+    'Hoy toca esto porque estás cansado.',
+    'Hoy toca esto porque te duele la espalda.',
+    'Hoy toca esto porque es lo que prefieres.',
+  ]) {
+    const { transport } = fakeTransport(() => ({ text }))
+    const result = await createAxisConversation({ transport }).ask(question, briefing)
+    assert.equal(result.usedFallback, true, text)
+    assert.equal(result.rejectedReason, 'unsupported_claim', text)
+    assert.equal(result.text, local.text)
+  }
+})
+
+test('el prompt pide no convertir la ausencia de datos en un hecho', () => {
+  const prompt = aiSystemPrompt()
+  assert.match(prompt, /No afirmes nada del usuario/)
+  assert.match(prompt, /no está registrado/)
+})
+
 // ---------------------------------------------------------------------------
 // 6. `modelDisagreed` queda registrado
 // ---------------------------------------------------------------------------

@@ -4,14 +4,15 @@ import test from 'node:test'
 /**
  * El route handler de `/api/axis-ai`, invocado igual que lo invocará Vercel.
  *
- * Solo se prueban los caminos que no salen a la red: sin credencial, método
- * equivocado y cuerpos inválidos. Lo que ocurre al otro lado —cuota, 500,
- * timeout, respuesta ininteligible— se prueba en `provider-contract.test.ts`, que
- * es donde vive esa lógica precisamente para poder probarla sin llamar a nadie.
+ * La red se sustituye por un `fetch` falso. El detalle de la cadena —cada
+ * motivo de fallback, el plazo, el registro— se prueba en
+ * `provider-chain.test.ts`; aquí, que la ruta la usa y que su contrato con el
+ * navegador (`{text, action}` o un código) no cambia.
  */
 
 import { POST as handler, maxDuration, runtime } from '../../app/api/axis-ai/route'
-import { AXIS_AI_MODEL, PROVIDER_ENDPOINT, PROVIDER_TIMEOUT_MS } from './provider-contract'
+import { CHAIN_DEADLINE_MS } from './provider-chain'
+import { GROQ_DEFAULT_MODEL, GROQ_ENDPOINT } from './providers/groq'
 
 const SITE = 'https://axthletics.vercel.app'
 const ENDPOINT = `${SITE}/api/axis-ai`
@@ -34,13 +35,37 @@ async function call(init: RequestInit): Promise<{ status: number; body: Record<s
   return { status: response.status, body: await response.json() }
 }
 
-/** Se restaura al final para no contaminar otros tests del mismo proceso. */
-const originalKey = process.env.GROQ_API_KEY
+/** Se restauran al final para no contaminar otros tests del mismo proceso. */
+const ENV_KEYS = ['GROQ_API_KEY', 'GROQ_MODEL', 'CF_ACCOUNT_ID', 'CF_API_TOKEN', 'CF_MODEL'] as const
+const originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]))
+const originalInfo = console.info
+
+test.before(() => {
+  // Cada test decide qué proveedores hay; se empieza sin ninguno.
+  for (const key of ENV_KEYS) delete process.env[key]
+  // La cadena registra cada intento; en los tests no hace falta verlo.
+  console.info = () => {}
+})
 
 test.after(() => {
-  if (originalKey === undefined) delete process.env.GROQ_API_KEY
-  else process.env.GROQ_API_KEY = originalKey
+  for (const key of ENV_KEYS) {
+    if (originalEnv[key] === undefined) delete process.env[key]
+    else process.env[key] = originalEnv[key]
+  }
+  console.info = originalInfo
 })
+
+const CF_ACCOUNT = '0123456789abcdef0123456789abcdef'
+
+function useCloudflare(on: boolean) {
+  if (on) {
+    process.env.CF_ACCOUNT_ID = CF_ACCOUNT
+    process.env.CF_API_TOKEN = 'cf-token-de-prueba'
+  } else {
+    delete process.env.CF_ACCOUNT_ID
+    delete process.env.CF_API_TOKEN
+  }
+}
 
 // ---------------------------------------------------------------------------
 
@@ -159,7 +184,7 @@ test('la propia aplicación pasa el filtro de origen aunque el entorno no diga n
 test('la ruta corre en Node.js y se corta después de nuestro propio timeout, nunca antes', async () => {
   assert.equal(runtime, 'nodejs')
   assert.equal(maxDuration, 10)
-  assert.ok(maxDuration * 1000 > PROVIDER_TIMEOUT_MS, 'el corte lo da nuestro código, con código propio')
+  assert.ok(maxDuration * 1000 > CHAIN_DEADLINE_MS, 'el corte lo da nuestro código, con código propio')
   // Un `config` de Netlify aquí rompería el build de Next.
   const route = await import('../../app/api/axis-ai/route')
   assert.equal('config' in route, false)
@@ -199,7 +224,7 @@ async function withProvider(
 
 function providerReply(content: string): Response {
   return new Response(
-    JSON.stringify({ id: 'chatcmpl-1', object: 'chat.completion', model: AXIS_AI_MODEL, choices: [{ index: 0, message: { role: 'assistant', content, reasoning: 'pensando…' }, finish_reason: 'stop' }], usage: { total_tokens: 10 } }),
+    JSON.stringify({ id: 'chatcmpl-1', object: 'chat.completion', model: GROQ_DEFAULT_MODEL, choices: [{ index: 0, message: { role: 'assistant', content, reasoning: 'pensando…' }, finish_reason: 'stop' }], usage: { total_tokens: 10 } }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   )
 }
@@ -216,7 +241,7 @@ test('llama a Groq con el modelo, la credencial en cabecera y el formato de chat
 
       assert.equal(captured.length, 1)
       const [request] = captured
-      assert.equal(request.url, PROVIDER_ENDPOINT)
+      assert.equal(request.url, GROQ_ENDPOINT)
       assert.equal(request.init.method, 'POST')
       const headers = new Headers(request.init.headers)
       assert.equal(headers.get('authorization'), 'Bearer clave-de-prueba')
@@ -224,7 +249,7 @@ test('llama a Groq con el modelo, la credencial en cabecera y el formato de chat
       assert.equal(request.url.includes('clave-de-prueba'), false, 'la clave nunca va en la URL')
 
       const sent = JSON.parse(String(request.init.body))
-      assert.equal(sent.model, AXIS_AI_MODEL)
+      assert.equal(sent.model, GROQ_DEFAULT_MODEL)
       assert.equal(sent.messages[0].role, 'system')
       assert.equal(sent.messages[0].content, 'Eres AXIS.')
       assert.equal(sent.messages[1].role, 'user')
@@ -308,4 +333,86 @@ test('sin credencial no se llama al proveedor', async () => {
       assert.equal(captured.length, 0)
     },
   )
+})
+
+// ---------------------------------------------------------------------------
+// La cadena Cloudflare → Groq, vista desde la ruta
+// ---------------------------------------------------------------------------
+
+test('con Cloudflare configurado responde Cloudflare y el contrato no cambia', async () => {
+  process.env.GROQ_API_KEY = 'clave-de-prueba'
+  useCloudflare(true)
+  try {
+    await withProvider(
+      () => providerReply('{"message":"Hoy toca tren superior.","action":null}'),
+      async (captured) => {
+        const { status, body } = await call({ method: 'POST', body: validBody() })
+        assert.equal(status, 200)
+        assert.deepEqual(body, { text: 'Hoy toca tren superior.', action: null })
+        assert.equal(captured.length, 1)
+        assert.match(captured[0].url, /^https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/[0-9a-f]{32}\/ai\/v1\/chat\/completions$/)
+        assert.equal(new Headers(captured[0].init.headers).get('authorization'), 'Bearer cf-token-de-prueba')
+      },
+    )
+  } finally {
+    useCloudflare(false)
+  }
+})
+
+test('si Cloudflare falla responde Groq, y el navegador no sabe cuál contestó', async () => {
+  process.env.GROQ_API_KEY = 'clave-de-prueba'
+  useCloudflare(true)
+  try {
+    await withProvider(
+      (request) =>
+        request.url.includes('api.cloudflare.com')
+          ? new Response(JSON.stringify({ errors: [{ message: 'neurons exceeded' }] }), { status: 429 })
+          : providerReply('{"message":"Respondo yo.","action":null}'),
+      async (captured) => {
+        const { status, body } = await call({ method: 'POST', body: validBody() })
+        assert.equal(status, 200)
+        assert.deepEqual(body, { text: 'Respondo yo.', action: null })
+        assert.equal(captured.length, 2)
+        assert.equal(captured[1].url, GROQ_ENDPOINT)
+        assert.doesNotMatch(JSON.stringify(body), /cloudflare|groq|neurons/i)
+      },
+    )
+  } finally {
+    useCloudflare(false)
+  }
+})
+
+test('si fallan los dos, un código propio sin detalles: el navegador responde con el determinista', async () => {
+  process.env.GROQ_API_KEY = 'clave-de-prueba'
+  useCloudflare(true)
+  try {
+    await withProvider(
+      () => new Response(JSON.stringify({ error: 'account 999 over quota' }), { status: 503 }),
+      async (captured) => {
+        const { status, body } = await call({ method: 'POST', body: validBody() })
+        assert.equal(status, 502)
+        assert.deepEqual(body, { ok: false, code: 'AI_UNAVAILABLE' })
+        assert.equal(captured.length, 2)
+      },
+    )
+  } finally {
+    useCloudflare(false)
+  }
+})
+
+test('solo con Cloudflare configurado la IA está disponible', async () => {
+  delete process.env.GROQ_API_KEY
+  useCloudflare(true)
+  try {
+    await withProvider(
+      () => providerReply('{"message":"Hola.","action":null}'),
+      async (captured) => {
+        const { status } = await call({ method: 'POST', body: validBody() })
+        assert.equal(status, 200)
+        assert.equal(captured.length, 1)
+      },
+    )
+  } finally {
+    useCloudflare(false)
+  }
 })

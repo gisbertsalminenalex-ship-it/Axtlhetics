@@ -25,6 +25,7 @@
 
 import { listNames } from '../../shared/text'
 import type { AxisActionTarget } from '../actions'
+import { RECENT_HISTORY_DAYS } from '../facts'
 import type { AxisBriefing, BriefingAlternative } from '../briefing'
 import { describeFocus, FOCUS_MUSCLE_GROUPS, type SessionFocus } from '../knowledge/focus'
 import type { ReportedLoad } from '../memory'
@@ -572,21 +573,50 @@ function evaluateWant(
     }
   }
 
+  /*
+   * Que no haya sesiones de esa zona registradas no significa que no se haya
+   * trabajado: puede no haber historial, o el usuario puede haber contado algo
+   * que no está registrado. El texto dice lo que registran los datos, nunca
+   * convierte su ausencia en un hecho (D-016).
+   */
+  const reported = request.reportedLoad
+  const reportedHitsFocus =
+    reported !== null && reported.muscleGroups.some((group) => groups.includes(group))
+  const basis = `${recordedAbsenceOfFocus(briefing)}${reportedHitsFocus ? UNRECORDED_REPORT_CLAUSE : ''}`
+
   const match = alternativeWithFocus(alternatives, focus)
   if (match) {
     return {
       outcome: 'accept',
-      text: `Se puede: esa zona no la has tocado estos días. Cambio a ${nameOf(match)}.`,
+      text: `${basis}. Cambio a ${nameOf(match)}.`,
       proposedTarget: asTarget(match),
     }
   }
 
   return {
     outcome: 'compromise',
-    text: `Esa zona está libre, pero hoy no tengo preparada una sesión de ${label} entre las alternativas. La de hoy sigue teniendo sentido; mañana entra sola si la dejas descansada.`,
+    text: `${basis}, pero hoy no tengo preparada una sesión de ${label} entre las alternativas. La de hoy sigue teniendo sentido; mañana entra sola si la dejas descansada.`,
     proposedTarget: null,
   }
 }
+
+/**
+ * Lo que los datos dicen de una zona que no aparece en las sesiones recientes.
+ *
+ * Con sesiones registradas en la ventana, se puede afirmar que ninguna la tocó.
+ * Sin ellas, solo que no hay nada registrado: no que la zona esté libre.
+ */
+function recordedAbsenceOfFocus(briefing: AxisBriefing): string {
+  const hasRecentSessions =
+    briefing.daysSinceLastWorkout !== null && briefing.daysSinceLastWorkout <= RECENT_HISTORY_DAYS
+  return hasRecentSessions
+    ? `En tus sesiones registradas de los últimos ${RECENT_HISTORY_DAYS} días no aparece esa zona`
+    : 'No tengo registrada ninguna sesión estos días que haya cargado esa zona'
+}
+
+/** Lo que el usuario contó y afecta a esa zona: se reconoce, pero no se da por comprobado. */
+const UNRECORDED_REPORT_CLAUSE =
+  '; lo que me cuentas que hiciste no está registrado, así que decido solo con lo que tengo'
 
 /** Menos tiempo. Es una restricción real, no una preferencia: se acomoda. */
 function evaluateShorter(

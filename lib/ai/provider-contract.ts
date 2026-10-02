@@ -5,39 +5,14 @@
  * SDK ni se toca la red, así que todo esto se puede probar con `node:test` sin
  * credenciales y sin salir a internet.
  *
- * La ruta del servidor se queda con lo que no se puede probar así: leer la
- * variable de entorno y hablar con el proveedor.
+ * Es lo común a cualquier proveedor: qué se acepta del navegador, qué se le
+ * manda al modelo, cómo se lee lo que contesta y quién puede llamar. Lo que es
+ * de cada proveedor —URL, credencial, parámetros— vive en `providers/`, y el
+ * orden en que se prueban en `provider-chain.ts`.
  */
-
-/**
- * El proveedor es Groq, por su API compatible con OpenAI y por su plan gratuito.
- * Es lo único que sabe de él el sistema: esta constante, la forma de la
- * petición y dónde viene el texto en la respuesta. El dominio no lo conoce.
- */
-export const PROVIDER_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
-
-/**
- * Modelo que usa AXIS. Un único sitio, y cambiable sin tocar código.
- *
- * `openai/gpt-oss-120b`: modelo de producción incluido en el plan gratuito de
- * Groq, con buen español y respuesta rápida. `GROQ_MODEL` permite cambiarlo
- * desde el entorno si un día se limita o se retira, sin desplegar código.
- * `globalThis.process` y no `process` a secas: este módulo solo corre en el
- * servidor, pero así no explota si algún día se importa desde otro sitio.
- */
-export const AXIS_AI_MODEL = globalThis.process?.env?.GROQ_MODEL ?? 'openai/gpt-oss-120b'
 
 /** Techo de lo que se acepta del cliente. Un briefing normal ronda los 4 KB. */
 export const MAX_REQUEST_BYTES = 64 * 1024
-
-/** Cuánto se espera al proveedor dentro de la función. Menor que el del navegador. */
-export const PROVIDER_TIMEOUT_MS = 7000
-
-/**
- * Tokens de salida como máximo. AXIS responde en tres frases, no en tres
- * párrafos; el margen es para el JSON que las envuelve.
- */
-export const MAX_COMPLETION_TOKENS = 600
 
 /**
  * Errores que la función puede devolver.
@@ -113,46 +88,74 @@ export function buildUserPayload(request: ProxyRequest): string {
 }
 
 /**
- * El cuerpo de la petición al proveedor, en el formato de chat compatible con
- * OpenAI que usa Groq.
- *
- * La personalidad va como mensaje de sistema y el briefing con la pregunta como
- * mensaje de usuario. Se pide JSON (`response_format`) porque lo que se espera
- * es `{"message", "action"}`, y temperatura baja: se le pide redactar, no crear.
- * Los modelos `gpt-oss` razonan antes de contestar; `reasoning_effort: low`
- * mantiene la latencia y el gasto de tokens al mínimo y solo se envía a ellos.
+ * Los mensajes de chat, iguales para cualquier proveedor compatible con OpenAI:
+ * la personalidad como sistema y el briefing con la pregunta como usuario.
  */
-export function buildProviderRequest(
-  request: ProxyRequest,
-  model: string = AXIS_AI_MODEL,
-): Record<string, unknown> {
-  const body: Record<string, unknown> = {
-    model,
-    messages: [
-      { role: 'system', content: request.system },
-      { role: 'user', content: buildUserPayload(request) },
-    ],
-    temperature: 0.4,
-    max_completion_tokens: MAX_COMPLETION_TOKENS,
-    response_format: { type: 'json_object' },
-  }
-  if (model.startsWith('openai/gpt-oss')) body.reasoning_effort = 'low'
-  return body
+export function buildChatMessages(request: ProxyRequest): { role: string; content: string }[] {
+  return [
+    { role: 'system', content: request.system },
+    { role: 'user', content: buildUserPayload(request) },
+  ]
 }
 
 /**
- * El texto del modelo dentro de la respuesta del proveedor.
+ * Consumo que declara el proveedor. Solo números: nada del contenido.
  *
- * Está en `choices[0].message.content`. Lo que haya en cualquier otro campo
- * —razonamiento, uso de tokens, ids— no se mira. Si no hay texto, cadena vacía:
- * quien llama lo tratará como respuesta que no se entiende.
+ * `neurons` es la unidad de facturación de Cloudflare; queda en `null` cuando
+ * la respuesta no la trae.
  */
-export function readProviderText(payload: unknown): string {
-  if (typeof payload !== 'object' || payload === null) return ''
-  const choices = (payload as { choices?: unknown }).choices
-  if (!Array.isArray(choices) || choices.length === 0) return ''
-  const message = (choices[0] as { message?: { content?: unknown } })?.message
-  return typeof message?.content === 'string' ? message.content : ''
+export type ProviderUsage = {
+  promptTokens: number | null
+  completionTokens: number | null
+  totalTokens: number | null
+  neurons: number | null
+}
+
+/** Lo que interesa de una respuesta de chat: el texto, por qué terminó y cuánto costó. */
+export type ChatCompletionReply = {
+  text: string
+  finishReason: string | null
+  usage: ProviderUsage | null
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function readUsage(value: unknown): ProviderUsage | null {
+  if (typeof value !== 'object' || value === null) return null
+  const raw = value as Record<string, unknown>
+  return {
+    promptTokens: numberOrNull(raw.prompt_tokens),
+    completionTokens: numberOrNull(raw.completion_tokens),
+    totalTokens: numberOrNull(raw.total_tokens),
+    neurons: numberOrNull(raw.neurons),
+  }
+}
+
+/**
+ * Lee una respuesta de chat compatible con OpenAI.
+ *
+ * El texto está en `choices[0].message.content`. Lo que haya en cualquier otro
+ * campo —razonamiento, ids— no se mira. Si no hay texto, cadena vacía: quien
+ * llama lo tratará como respuesta vacía.
+ */
+export function readChatCompletion(payload: unknown): ChatCompletionReply {
+  if (typeof payload !== 'object' || payload === null) {
+    return { text: '', finishReason: null, usage: null }
+  }
+  const raw = payload as { choices?: unknown; usage?: unknown }
+  const usage = readUsage(raw.usage)
+  if (!Array.isArray(raw.choices) || raw.choices.length === 0) {
+    return { text: '', finishReason: null, usage }
+  }
+  const choice = raw.choices[0] as { message?: { content?: unknown }; finish_reason?: unknown }
+  const content = choice?.message?.content
+  return {
+    text: typeof content === 'string' ? content : '',
+    finishReason: typeof choice?.finish_reason === 'string' ? choice.finish_reason : null,
+    usage,
+  }
 }
 
 /**
@@ -199,22 +202,6 @@ function extractJsonObject(text: string): string | null {
   if (start === -1 || end === -1 || end <= start) return null
 
   return withoutFence.slice(start, end + 1)
-}
-
-/**
- * Traduce un fallo del proveedor a un código propio.
- *
- * Cualquier fallo al llamar al proveedor —cuota agotada, 500, timeout, red caída—
- * acaba en el mismo sitio: `AI_UNAVAILABLE`. No se distinguen porque para el
- * cliente no cambian nada, hace exactamente lo mismo en todos los casos: caer al
- * motor determinista. Distinguirlos aquí solo serviría para filtrar información
- * del proveedor a través de un código de error.
- *
- * Lo único que sí se distingue, y se hace en la función, es haber hablado con
- * el proveedor y no entender lo que ha contestado: eso es `AI_BAD_RESPONSE`.
- */
-export function errorCodeFor(_cause: unknown): AxisAiErrorCode {
-  return 'AI_UNAVAILABLE'
 }
 
 /** Cabeceras de la respuesta del proxy. No se cachea: cada respuesta es distinta. */

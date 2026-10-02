@@ -468,7 +468,7 @@ Sigue habiendo un único tipo de acción, `change_training`. Añadir otro exige 
 
 ## D-013 — Proveedor de lenguaje de AXIS: Groq, a coste cero
 
-**Fecha:** 2026-09-19 · **Estado:** aprobada
+**Fecha:** 2026-09-19 · **Estado:** aprobada · **superada en parte por D-016**: Groq deja de ser el proveedor principal y pasa a ser el respaldo de Cloudflare Workers AI. El resto (coste objetivo 0 €, credencial solo en servidor, dominio independiente del proveedor, fallback determinista) sigue vigente.
 
 La capa de lenguaje de AXIS (`lib/domain/axis/conversation/ai.ts` + el endpoint de servidor, hoy `app/api/axis-ai/route.ts` por D-014) usa **Groq** como proveedor, con el modelo `openai/gpt-oss-120b` (plan gratuito, producción). Sustituye a Gemini. Es un cambio de proveedor, no de arquitectura: el modelo sigue redactando y nada más; AXIS decide, `reconcileTarget` y `safety.ts` validan, `AxisActionEngine` ejecuta, el usuario confirma.
 
@@ -548,6 +548,72 @@ En **Perfil → Copia de seguridad**, encima del borrado de datos, y además en 
 ### Privacidad
 
 El archivo contiene datos personales y las conversaciones con AXIS. La interfaz lo dice donde se descarga: es para el usuario, no para compartir. No se envía a ningún sitio: la descarga la hace el navegador y la lectura es local.
+
+---
+
+## D-016 — Proveedores de lenguaje de AXIS: Cloudflare Workers AI, con Groq de respaldo
+
+**Fecha:** 2026-09-29 · **Estado:** aprobada · Supera en parte a D-013.
+
+La capa de lenguaje de AXIS pasa a usar **Cloudflare Workers AI** como proveedor principal, con el modelo `@cf/google/gemma-4-26b-a4b-it`. **Groq** (`openai/gpt-oss-120b`) queda como respaldo, y el **motor determinista** sigue siendo el último escalón. Es un cambio de proveedor, no de arquitectura: el modelo sigue redactando y nada más.
+
+```
+AXIS (motor determinista) → /api/axis-ai → Cloudflare Workers AI
+                                         ↓ si falla
+                                         Groq
+                                         ↓ si falla
+                                         el navegador responde con el determinista
+```
+
+### Qué no cambia
+
+- El motor determinista es la autoridad sobre el estado del usuario, el entrenamiento, la recuperación, las recomendaciones, los cambios, las acciones, las confirmaciones, las cifras, la memoria y la seguridad. La IA solo redacta, explica y conversa sobre lo que el dominio ya ha decidido.
+- El contrato del endpoint: `{ system, question, briefing, domain }` → `{ text, action }` o un código propio. El navegador no sabe qué proveedor ha contestado.
+- `reconcileTarget`, `safety.ts`, `validateAction`, `AxisActionEngine` y la confirmación del usuario. El modelo no tiene herramientas, no ejecuta acciones y no modifica datos.
+- El dominio (`lib/domain`) no importa ni nombra a ningún proveedor; un test lo vigila.
+- Coste objetivo **0 €**: la cuenta de Cloudflare debe estar en el **plan gratuito de Workers**, donde agotar la asignación diaria de neurons produce un error (y responde Groq) en lugar de una factura.
+
+### Nuevo destino de datos
+
+Cloudflare pasa a ser un **destino aprobado** de datos personales, igual que Groq. Recibe lo mismo: el briefing recortado **sin el nombre** del usuario, la pregunta y la respuesta del dominio. Groq solo los recibe si Cloudflare falla. Ninguno de los dos se guarda en el servidor de AXTHLETICS.
+
+### Cuándo se pasa de Cloudflare a Groq
+
+Con cualquier fallo del proveedor: 429 (cuota o neurons), 5xx, 401/403 (credencial), otro 4xx, timeout, red caída, respuesta vacía, `finish_reason` distinto de `stop`, o texto que no es el JSON `{"message", "action"}`. Las mismas condiciones hacen que Groq caiga al determinista. Un proveedor sin configurar se salta sin contar como fallo.
+
+**No** provocan fallback, porque se cortan antes de llamar a nadie o no son fallos del proveedor:
+
+- una petición inválida del navegador (400/413) o de otro origen (403);
+- un texto que la puerta de `safety.ts` rechaza, o una acción que `reconcileTarget` descarta: responde directamente el determinista, sin gastar una segunda llamada;
+- que el navegador cierre la petición: se deja de gastar.
+
+### Tiempo
+
+Toda la cadena cabe en **7 s** (el navegador espera 8 s y la función corta a 10 s). Cloudflare tiene como mucho **4 s**; Groq, lo que quede, y no se le llama con menos de 1 s.
+
+### Parámetros de Cloudflare
+
+Endpoint compatible con OpenAI (`/client/v4/accounts/{account_id}/ai/v1/chat/completions`), `temperature: 0.3`, `max_completion_tokens: 400`, `response_format: json_object` y `chat_template_kwargs: { enable_thinking: false }`. `CF_MODEL` permite cambiar de modelo desde el entorno, como `GROQ_MODEL`.
+
+### Credenciales
+
+`CF_ACCOUNT_ID` y `CF_API_TOKEN` (un token personalizado limitado a Workers AI y a esa cuenta), junto a `GROQ_API_KEY`: solo en `.env.local` (ignorado por git) y en las variables de entorno de Vercel marcadas como Sensitive. Nunca con prefijo `NEXT_PUBLIC_`. Solo las lee la ruta `app/api/axis-ai/route.ts`, y los tests de límites fallan si otro archivo lo hace, si aparecen en el bundle del navegador o si el dominio las nombra. El token va siempre en la cabecera, nunca en la URL.
+
+### Registro de uso
+
+Para controlar consumo y rendimiento, la ruta deja **una línea de log por intento** en Vercel con metadatos: proveedor, modelo, estado HTTP, resultado, `finish_reason`, duración y `usage` (tokens y neurons, si la respuesta los trae). **Nunca** se registran prompts, briefing, preguntas, respuestas del modelo, cabeceras, credenciales, URLs completas ni cuerpos de error. Un test lo comprueba.
+
+### Cifras inventadas
+
+`safety.ts` añade la comprobación `invented_number`: **toda cifra del texto del modelo tiene que estar respaldada por la respuesta del dominio o por el briefing** que recibió. Si no, la respuesta se rechaza y contesta el determinista. Solo se admiten equivalencias explicables: un decimal redondeado a entero, una duración en segundos dicha en minutos, el signo de un porcentaje y la coma decimal. Las referencias de escala «/100» y «/8 vasos» (o «de 100», «de 8 vasos») no cuentan como dato; un 100 o un 8 sueltos, sí. Los ids y las marcas de tiempo del briefing no respaldan cifras.
+
+### Afirmaciones sobre el usuario (añadido 2026-09-29)
+
+**La ausencia de datos nunca se presenta como un hecho.** Revisando producción, AXIS dijo «esa zona no la has tocado estos días» sin historial registrado: la frase era del propio motor determinista (`evaluateWant`), que deducía de una lista vacía que la zona estaba libre.
+
+- **Motor determinista:** al pedir una zona, el texto dice lo que registran los datos. Con sesiones registradas en los últimos 3 días: «En tus sesiones registradas de los últimos 3 días no aparece esa zona». Sin ellas: «No tengo registrada ninguna sesión estos días que haya cargado esa zona». Si el usuario ha contado una carga que afecta a esa zona, se reconoce sin darla por comprobada («lo que me cuentas que hiciste no está registrado, así que decido solo con lo que tengo»). **El veredicto y el destino de la acción no cambian**: lo contado por el usuario todavía no es motivo de rechazo al pedir una zona.
+- **Modelo:** `safety.ts` añade `unsupported_claim`. Una afirmación sobre el usuario —historial, sueño, estado de recuperación, molestias o preferencias— solo se admite si la respuesta del dominio ya afirma algo de esa familia; el sueño, la última sesión y la comparación semanal también si el briefing los tiene registrados. Las afirmaciones de que algo **no** ha ocurrido («no la has tocado», «no has entrenado», «está libre») solo las puede hacer el dominio. Si no, responde el determinista. El prompt lo pide además explícitamente.
+- Es una lista literal y explicable, no comprensión del texto: una paráfrasis fuera de la lista pasaría.
 
 ---
 

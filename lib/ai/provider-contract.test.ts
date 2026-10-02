@@ -2,18 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  AXIS_AI_MODEL,
-  MAX_COMPLETION_TOKENS,
-  PROVIDER_ENDPOINT,
-  PROVIDER_TIMEOUT_MS,
-  buildProviderRequest,
-  readProviderText,
   MAX_REQUEST_BYTES,
   PROXY_HEADERS,
+  buildChatMessages,
   buildUserPayload,
-  errorCodeFor,
   parseModelText,
   parseProxyRequest,
+  readChatCompletion,
 } from './provider-contract'
 
 function validBody(overrides: Record<string, unknown> = {}) {
@@ -130,47 +125,11 @@ test('la acción del modelo se transporta tal cual para que la valide el dominio
 })
 
 // ---------------------------------------------------------------------------
-// Errores
-// ---------------------------------------------------------------------------
-
-test('cualquier fallo del proveedor se convierte en un único código propio', () => {
-  // 429, 500, timeout o red caída: para el cliente son lo mismo, cae al
-  // determinista. Distinguirlos solo filtraría información de Google.
-  const causas: unknown[] = [
-    { status: 429 },
-    { status: 500 },
-    { status: 400, message: 'API key not valid' },
-    new Error('fetch failed'),
-    { name: 'AbortError' },
-    null,
-    undefined,
-  ]
-
-  for (const causa of causas) {
-    assert.equal(errorCodeFor(causa), 'AI_UNAVAILABLE')
-  }
-})
-
-test('ningún código de error filtra detalles del proveedor', () => {
-  for (const causa of [{ status: 429, message: 'Quota exceeded for project 12345' }]) {
-    const code = errorCodeFor(causa)
-    assert.doesNotMatch(code, /quota|project|12345|groq|google|gemini/i)
-  }
-})
-
-// ---------------------------------------------------------------------------
 // Configuración
 // ---------------------------------------------------------------------------
 
-test('el modelo está definido en un único sitio y es de producción en el plan gratuito de Groq', () => {
-  assert.match(AXIS_AI_MODEL, /^openai\/gpt-oss-(120b|20b)$/, 'esta fase se mantiene en el nivel gratuito')
-  assert.equal(PROVIDER_ENDPOINT, 'https://api.groq.com/openai/v1/chat/completions')
-})
-
-test('hay límites de tamaño y de tiempo', () => {
+test('hay un límite de tamaño para lo que llega del navegador', () => {
   assert.ok(MAX_REQUEST_BYTES > 0 && MAX_REQUEST_BYTES <= 256 * 1024)
-  assert.ok(PROVIDER_TIMEOUT_MS > 0 && PROVIDER_TIMEOUT_MS <= 15000)
-  assert.ok(MAX_COMPLETION_TOKENS >= 200 && MAX_COMPLETION_TOKENS <= 2000)
 })
 
 test('la respuesta del proxy nunca se cachea', () => {
@@ -276,39 +235,41 @@ test('el límite de tasa de referencia es razonable y cabe en lo que admite el f
 // La petición al proveedor y su respuesta
 // ---------------------------------------------------------------------------
 
-test('la petición al proveedor lleva la personalidad como sistema y el briefing como usuario, en JSON', () => {
+test('los mensajes llevan la personalidad como sistema y el briefing como usuario, en JSON', () => {
   const request = parseProxyRequest({
     system: 'Eres AXIS.',
     question: '¿Por qué no piernas?',
     briefing: { dayKey: '2026-09-19' },
     domain: { text: 'Porque sí.', intent: 'why_not', proposedTarget: null },
   })!
-  const body = buildProviderRequest(request, 'openai/gpt-oss-120b')
 
-  assert.equal(body.model, 'openai/gpt-oss-120b')
-  assert.deepEqual(body.messages, [
+  assert.deepEqual(buildChatMessages(request), [
     { role: 'system', content: 'Eres AXIS.' },
     { role: 'user', content: buildUserPayload(request) },
   ])
-  assert.deepEqual(body.response_format, { type: 'json_object' })
-  assert.equal(body.temperature, 0.4)
-  assert.equal(body.max_completion_tokens, MAX_COMPLETION_TOKENS)
-  assert.equal(body.reasoning_effort, 'low', 'los gpt-oss razonan: se pide el mínimo')
-  assert.equal('tools' in body, false, 'AXIS no usa herramientas')
-})
-
-test('el esfuerzo de razonamiento solo se pide a los modelos que lo admiten', () => {
-  const request = parseProxyRequest({ system: 's', question: 'q', briefing: {}, domain: { text: 't', intent: 'why' } })!
-  assert.equal('reasoning_effort' in buildProviderRequest(request, 'llama-3.1-8b-instant'), false)
-  assert.equal(buildProviderRequest(request, 'openai/gpt-oss-20b').reasoning_effort, 'low')
 })
 
 test('el texto del modelo se lee de choices[0].message.content y nada más', () => {
-  assert.equal(readProviderText({ choices: [{ message: { content: '{"message":"Hola."}', reasoning: 'x' } }] }), '{"message":"Hola."}')
-  assert.equal(readProviderText({ choices: [] }), '')
-  assert.equal(readProviderText({ choices: [{ message: { content: null } }] }), '')
-  assert.equal(readProviderText({ choices: [{ message: {} }] }), '')
-  assert.equal(readProviderText(null), '')
-  assert.equal(readProviderText('texto'), '')
-  assert.equal(readProviderText({ reasoning: 'solo razonamiento' }), '')
+  const text = (payload: unknown) => readChatCompletion(payload).text
+  assert.equal(text({ choices: [{ message: { content: '{"message":"Hola."}', reasoning: 'x' } }] }), '{"message":"Hola."}')
+  assert.equal(text({ choices: [] }), '')
+  assert.equal(text({ choices: [{ message: { content: null } }] }), '')
+  assert.equal(text({ choices: [{ message: {} }] }), '')
+  assert.equal(text(null), '')
+  assert.equal(text('texto'), '')
+  assert.equal(text({ reasoning: 'solo razonamiento' }), '')
+})
+
+test('se leen el finish_reason y el consumo, solo como números', () => {
+  const reply = readChatCompletion({
+    choices: [{ message: { content: 'x' }, finish_reason: 'length' }],
+    usage: { prompt_tokens: 900, completion_tokens: 120, total_tokens: 1020, neurons: 37.5, secreto: 'no' },
+  })
+  assert.equal(reply.finishReason, 'length')
+  assert.deepEqual(reply.usage, { promptTokens: 900, completionTokens: 120, totalTokens: 1020, neurons: 37.5 })
+
+  const sinDatos = readChatCompletion({ choices: [{ message: { content: 'x' } }], usage: { total_tokens: '10' } })
+  assert.equal(sinDatos.finishReason, null)
+  assert.deepEqual(sinDatos.usage, { promptTokens: null, completionTokens: null, totalTokens: null, neurons: null })
+  assert.equal(readChatCompletion({ choices: [] }).usage, null)
 })

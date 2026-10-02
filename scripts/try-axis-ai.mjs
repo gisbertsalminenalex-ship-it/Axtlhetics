@@ -1,13 +1,22 @@
 /**
- * Prueba en vivo de la capa de lenguaje de AXIS contra el proveedor real.
+ * Prueba en vivo de la capa de lenguaje de AXIS contra los proveedores reales.
  *
- *   node --import ./scripts/ts-resolver.mjs scripts/try-axis-ai.mjs
+ *   node --import ./scripts/ts-resolver.mjs scripts/try-axis-ai.mjs [modo]
  *
- * Lee GROQ_API_KEY del entorno o de `.env.local` (que está en .gitignore).
- * Construye un día real con el motor determinista, pide una redacción a la
- * ruta `/api/axis-ai` exactamente como lo haría el navegador, y pasa la respuesta
- * por las mismas puertas que la aplicación: `reconcileTarget` y `checkModelText`.
- * La ruta se invoca igual que lo haría Vercel, sin levantar ningún servidor.
+ * Modos (D-016):
+ *   chain       (por defecto) la cadena tal cual: Cloudflare → Groq
+ *   cloudflare  solo Cloudflare
+ *   groq        solo Groq
+ *   fallback    Cloudflare con un token inválido: debe responder Groq
+ *   none        los dos con credenciales inválidas: debe responder el determinista
+ *
+ * Lee CF_ACCOUNT_ID, CF_API_TOKEN y GROQ_API_KEY del entorno o de `.env.local`
+ * (que está en .gitignore). Construye un día real con el motor determinista,
+ * pide una redacción a la ruta `/api/axis-ai` exactamente como lo haría el
+ * navegador, y pasa la respuesta por las mismas puertas que la aplicación:
+ * `reconcileTarget` y `checkModelText`. La ruta se invoca igual que lo haría
+ * Vercel, sin levantar ningún servidor; las líneas `[axis-ai]` son el registro
+ * de metadatos de la cadena, el mismo que queda en Vercel.
  *
  * No escribe nada en ningún sitio. No forma parte del build ni de los tests.
  */
@@ -21,20 +30,43 @@ import { answerFromBriefing } from '../lib/domain/axis/conversation/deterministi
 import { aiSystemPrompt, parseAiResponse, reconcileTarget, toAiBriefing } from '../lib/domain/axis/conversation/ai.ts'
 import { decide } from '../lib/domain/axis/engine.ts'
 import { checkModelText } from '../lib/domain/axis/safety.ts'
-import { AXIS_AI_MODEL } from '../lib/ai/provider-contract.ts'
 
-// --- credencial --------------------------------------------------------------
-if (!process.env.GROQ_API_KEY) {
-  try {
-    const env = readFileSync(new URL('../.env.local', import.meta.url), 'utf8')
-    const match = env.match(/^GROQ_API_KEY=(.+)$/m)
-    if (match) process.env.GROQ_API_KEY = match[1].trim()
-  } catch {
-    // sin .env.local
+// --- credenciales -------------------------------------------------------------
+const KEYS = ['CF_ACCOUNT_ID', 'CF_API_TOKEN', 'CF_MODEL', 'GROQ_API_KEY', 'GROQ_MODEL']
+try {
+  const env = readFileSync(new URL('../.env.local', import.meta.url), 'utf8')
+  for (const key of KEYS) {
+    const match = env.match(new RegExp(`^${key}=(.+)$`, 'm'))
+    if (!process.env[key] && match) process.env[key] = match[1].trim()
   }
+} catch {
+  // sin .env.local
 }
-if (!process.env.GROQ_API_KEY) {
-  console.error('Falta GROQ_API_KEY: exporta la variable o escríbela en .env.local (ver .env.example).')
+
+const MODE = process.argv[2] ?? 'chain'
+if (MODE === 'groq') {
+  delete process.env.CF_ACCOUNT_ID
+  delete process.env.CF_API_TOKEN
+} else if (MODE === 'cloudflare') {
+  delete process.env.GROQ_API_KEY
+} else if (MODE === 'fallback') {
+  process.env.CF_API_TOKEN = 'token-invalido-a-proposito'
+} else if (MODE === 'none') {
+  process.env.CF_API_TOKEN = 'token-invalido-a-proposito'
+  process.env.GROQ_API_KEY = 'clave-invalida-a-proposito'
+} else if (MODE !== 'chain') {
+  console.error(`Modo desconocido: ${MODE}. Usa chain, cloudflare, groq, fallback o none.`)
+  process.exit(2)
+}
+
+const needsCloudflare = MODE !== 'groq'
+const needsGroq = MODE !== 'cloudflare'
+if (needsCloudflare && !(process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN)) {
+  console.error('Faltan CF_ACCOUNT_ID y CF_API_TOKEN: escríbelas en .env.local (ver .env.example).')
+  process.exit(2)
+}
+if (needsGroq && !process.env.GROQ_API_KEY) {
+  console.error('Falta GROQ_API_KEY: escríbela en .env.local (ver .env.example).')
   process.exit(2)
 }
 
@@ -88,14 +120,14 @@ async function ask(question, memory) {
     return
   }
   const parsed = parseAiResponse(payload)
-  console.log(`  modelo (${AXIS_AI_MODEL}): ${parsed.text}`)
+  console.log(`  modelo: ${parsed.text}`)
   const reconciliation = reconcileTarget(parsed.action, domain.proposedTarget ?? null)
   console.log(`  acción del modelo: ${JSON.stringify(parsed.action)} → destino final: ${JSON.stringify(reconciliation.target)}${reconciliation.modelDisagreed ? '  (DISCREPA → fallback)' : ''}`)
-  const check = checkModelText(parsed.text, domain)
+  const check = checkModelText(parsed.text, domain, { briefing: toAiBriefing(briefing) })
   console.log(`  safety: ${check.ok ? 'pasa' : `RECHAZA (${check.reason}: ${check.detail}) → fallback`}`)
 }
 
-console.log(`Modelo: ${AXIS_AI_MODEL}`)
+console.log(`Modo: ${MODE}`)
 console.log(`Propuesta del día: ${decision.primary.headline}`)
 await ask('¿Por qué me recomiendas este entrenamiento?')
 await ask('cambia la sesión, no quiero hacer piernas', { lastIntent: 'change', changeMode: true })

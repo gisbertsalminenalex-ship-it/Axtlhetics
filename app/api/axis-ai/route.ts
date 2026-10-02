@@ -1,50 +1,64 @@
 /**
- * Proxy entre AXTHLETICS y el proveedor de IA (Groq).
+ * Proxy entre AXTHLETICS y los proveedores de lenguaje de AXIS.
  *
- * Es el **único** punto del sistema que conoce la credencial y el único que habla
- * con el proveedor. El navegador llama aquí, del mismo origen, y nunca ve la
- * clave: por eso existe esta ruta y no una llamada directa desde React.
+ * Es el **único** punto del sistema que lee las credenciales y el único que
+ * habla con los proveedores. El navegador llama aquí, del mismo origen, y nunca
+ * ve una clave: por eso existe esta ruta y no una llamada directa desde React.
  *
- *   Navegador → /api/axis-ai (route handler de Next, función de Vercel) → Groq
+ *   Navegador → /api/axis-ai (route handler de Next, función de Vercel)
+ *             → Cloudflare Workers AI → si falla, Groq (D-016)
  *
- * Se llama a la API REST con `fetch` en lugar de usar un SDK: sin dependencias
- * no hay nada que empaquetar, y un test lo vigila.
+ * Si los dos fallan, la ruta devuelve un código y el navegador responde con el
+ * motor determinista. Se llama a las APIs REST con `fetch` en lugar de usar un
+ * SDK: sin dependencias no hay nada que empaquetar, y un test lo vigila.
  *
  * Lo que no hace, y no debe hacer nunca:
  *
  * - No decide nada. La recomendación viene ya decidida en el cuerpo de la
  *   petición; aquí solo se le pide al modelo que la escriba mejor.
- * - No escribe en ningún sitio. No hay base de datos, ni registro de
- *   conversaciones, ni analítica de prompts.
+ * - No guarda nada. No hay base de datos ni registro de conversaciones. Lo
+ *   único que deja son líneas de log con metadatos de cada intento (ver
+ *   `provider-chain.ts`), sin contenido.
  * - No deja salir nada del proveedor. Ni mensajes de error, ni trazas, ni
- *   cuotas: solo un código propio que el cliente sabe interpretar.
+ *   cuotas, ni cuál respondió: solo `{text, action}` o un código propio.
  */
 
+import { PROVIDER_CHAIN, askWithFallback } from '../../../lib/ai/provider-chain'
 import {
   MAX_REQUEST_BYTES,
-  PROVIDER_ENDPOINT,
-  PROVIDER_TIMEOUT_MS,
   PROXY_HEADERS,
-  buildProviderRequest,
   checkRequestOrigin,
-  errorCodeFor,
-  parseModelText,
   parseProxyRequest,
-  readProviderText,
   trustedOriginsFromEnv,
   type AxisAiErrorCode,
-  type ProxyRequest,
 } from '../../../lib/ai/provider-contract'
+import type { ProviderEnv } from '../../../lib/ai/providers/types'
 
 /**
  * Configuración del route handler (Vercel Functions, runtime Node.js).
  *
- * `maxDuration` va por encima del timeout interno hacia el proveedor (7 s) para
- * que quien corte sea siempre nuestro código, con un código propio, y no la
- * plataforma con un 504 vacío.
+ * `maxDuration` va por encima del plazo de la cadena (7 s) para que quien corte
+ * sea siempre nuestro código, con un código propio, y no la plataforma con un
+ * 504 vacío.
  */
 export const runtime = 'nodejs'
 export const maxDuration = 10
+
+/**
+ * Las credenciales y modelos, leídos del entorno del servidor.
+ *
+ * Una lista cerrada: solo se copian estas variables, y este es el único sitio
+ * del código desplegado que las lee.
+ */
+function providerEnv(): ProviderEnv {
+  return {
+    CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
+    CF_API_TOKEN: process.env.CF_API_TOKEN,
+    CF_MODEL: process.env.CF_MODEL,
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    GROQ_MODEL: process.env.GROQ_MODEL,
+  }
+}
 
 /** El host donde está sirviendo la ruta. Una petición del mismo sitio siempre cuadra con él. */
 function hostOfRequest(request: Request): string | null {
@@ -62,36 +76,10 @@ function fail(code: AxisAiErrorCode, status: number): Response {
   })
 }
 
-/**
- * Llama al proveedor y devuelve el texto del modelo.
- *
- * La credencial va en la cabecera, nunca en la URL: una query string acaba en
- * los registros de cualquier intermediario. El cuerpo lo construye el contrato,
- * que es donde se puede probar sin red.
- */
-async function askProvider(request: ProxyRequest, apiKey: string): Promise<string> {
-  const response = await fetch(PROVIDER_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(buildProviderRequest(request)),
-    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-  })
-
-  if (!response.ok) {
-    // El cuerpo del error del proveedor no se lee ni se propaga.
-    throw Object.assign(new Error('provider'), { status: response.status })
-  }
-
-  return readProviderText(await response.json())
-}
-
 export async function POST(request: Request): Promise<Response> {
   /*
-   * Solo la propia aplicación. Se comprueba antes que nada, incluida la
-   * credencial: quien no debería llamar no se entera ni de si hay IA.
+   * Solo la propia aplicación. Se comprueba antes que nada, incluidas las
+   * credenciales: quien no debería llamar no se entera ni de si hay IA.
    *
    * No es autenticación —`Origin` se puede escribir a mano— sino la defensa que
    * corta lo fácil. Contra lo demás está el límite de tasa del firewall de
@@ -102,9 +90,8 @@ export async function POST(request: Request): Promise<Response> {
     return fail('FORBIDDEN', 403)
   }
 
-  // La credencial vive solo aquí, en el entorno del servidor.
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) {
+  const env = providerEnv()
+  if (!PROVIDER_CHAIN.some((provider) => provider.configured(env))) {
     return fail('AI_NOT_CONFIGURED', 503)
   }
 
@@ -125,21 +112,13 @@ export async function POST(request: Request): Promise<Response> {
     return fail('BAD_REQUEST', 400)
   }
 
-  let modelText: string
-  try {
-    modelText = await askProvider(parsed, apiKey)
-  } catch (cause) {
-    return fail(errorCodeFor(cause), 502)
-  }
-
-  const parsedModel = parseModelText(modelText)
-  if (!parsedModel) {
-    // Hemos hablado con el proveedor y no se le entiende. Es distinto de que no esté.
-    return fail('AI_BAD_RESPONSE', 502)
+  const result = await askWithFallback(parsed, env, { signal: request.signal })
+  if (!result.ok) {
+    return fail(result.code, result.code === 'AI_NOT_CONFIGURED' ? 503 : 502)
   }
 
   return new Response(
-    JSON.stringify({ text: parsedModel.message, action: parsedModel.action }),
+    JSON.stringify({ text: result.message, action: result.action }),
     { status: 200, headers: PROXY_HEADERS },
   )
 }

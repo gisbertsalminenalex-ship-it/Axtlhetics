@@ -50,6 +50,7 @@ export function aiSystemPrompt(): string {
     'Recibes un JSON con `briefing` (los datos reales del usuario), `question` (lo que ha escrito) y `domain` (lo que el motor determinista ya ha concluido).',
     '`domain.text` es la respuesta correcta en cuanto al fondo. Tu trabajo es decirla mejor: más natural, más clara, sin perder ni un dato y sin añadir ninguno.',
     'No contradigas `domain`. Si el motor ha dicho que no, tú dices que no.',
+    'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text` o en `briefing`. Que un dato no aparezca no significa que no haya ocurrido: di que no está registrado, nunca lo conviertas en un hecho.',
     `Responde en ${AXIS_PERSONALITY.limits.targetSentences}. Nunca más de ${AXIS_PERSONALITY.limits.maxSentences}.`,
     'Devuelve SOLO un objeto JSON con esta forma:',
     '{"message": "tu respuesta", "action": null}',
@@ -321,11 +322,12 @@ export function createAiConversation(
     },
     async answer(question, briefing, memory): Promise<AxisAnswer> {
       const domain = resolveDomain(question, briefing, memory)
+      const sentBriefing = toAiBriefing(briefing)
 
       const response = await transport.send({
         system: aiSystemPrompt(),
         question,
-        briefing: toAiBriefing(briefing),
+        briefing: sentBriefing,
         domain: {
           text: domain.text,
           intent: domain.intent,
@@ -342,8 +344,9 @@ export function createAiConversation(
        * que el modelo discrepó.
        *
        * El texto: `checkModelText` comprueba que la redacción no contradiga el
-       * veredicto ni la propuesta, y que respete la personalidad. Lo que no
-       * pasa no se enseña.
+       * veredicto ni la propuesta, que no dé cifras que no estén en lo que el
+       * modelo recibió, y que respete la personalidad. Lo que no pasa no se
+       * enseña.
        */
       const reconciliation = reconcileTarget(response.action, domain.proposedTarget ?? null)
       if (reconciliation.modelDisagreed) {
@@ -354,7 +357,7 @@ export function createAiConversation(
         )
       }
 
-      const check = checkModelText(response.text, domain)
+      const check = checkModelText(response.text, domain, { briefing: sentBriefing })
       if (!check.ok) {
         throw new AxisAiRejection(check.reason, check.detail)
       }

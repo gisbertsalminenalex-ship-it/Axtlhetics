@@ -479,6 +479,81 @@ test('cuando acepta, señala una alternativa que el motor ya había preparado', 
   }
 })
 
+// ---------------------------------------------------------------------------
+// Pedir una zona: lo que se afirma sale de los datos registrados (D-016)
+// ---------------------------------------------------------------------------
+
+/** Afirmaciones que convierten la ausencia de datos en un hecho. */
+const UNTOUCHED_AS_FACT = /no la has tocado|no has (tocado|entrenado|trabajado|hecho)|est[aá] libre/i
+
+test('sin historial, pedir otra zona se acepta sin afirmar que esa zona no se ha tocado', () => {
+  const briefing = briefingWith({}, [])
+  assert.equal(briefing.proposal!.session!.focus, 'tren_superior')
+
+  const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
+  assert.equal(verdict.outcome, 'accept')
+  assert.deepEqual(verdict.proposedTarget, { type: 'MODIFIED_TRAINING', focus: 'tren_inferior' })
+  assert.equal(verdict.text, 'No tengo registrada ninguna sesión estos días que haya cargado esa zona. Cambio a «Tren inferior».')
+  assert.doesNotMatch(verdict.text, UNTOUCHED_AS_FACT)
+})
+
+test('con sesiones recientes de otra zona, se afirma solo lo que registran esas sesiones', () => {
+  const briefing = briefingWith({}, [session({ dayKey: '2026-09-05', focus: 'cuerpo_completo', muscleGroups: ['core'] })])
+  assert.equal(briefing.daysSinceLastWorkout, 2)
+
+  const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
+  assert.equal(verdict.outcome, 'accept')
+  assert.deepEqual(verdict.proposedTarget, { type: 'MODIFIED_TRAINING', focus: 'tren_inferior' })
+  assert.equal(verdict.text, 'En tus sesiones registradas de los últimos 3 días no aparece esa zona. Cambio a «Tren inferior».')
+  assert.doesNotMatch(verdict.text, UNTOUCHED_AS_FACT)
+})
+
+test('una sesión fuera de la ventana no cuenta como historial reciente', () => {
+  const briefing = briefingWith({}, [session({ dayKey: '2026-09-01' })])
+  const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
+  assert.match(verdict.text, /^No tengo registrada ninguna sesión estos días/)
+})
+
+test('lo que el usuario cuenta de esa zona se reconoce sin darlo por comprobado, y el veredicto no cambia', () => {
+  const briefing = briefingWith({}, [])
+  const sinContar = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
+  const contando = evaluateChange(parseChangeRequest('ayer hice 20 km de bici, quiero hacer piernas'), briefing)
+
+  // 2(a): mismo veredicto y mismo destino; solo cambia el texto.
+  assert.equal(contando.outcome, sinContar.outcome)
+  assert.deepEqual(contando.proposedTarget, sinContar.proposedTarget)
+  assert.equal(
+    contando.text,
+    'No tengo registrada ninguna sesión estos días que haya cargado esa zona; lo que me cuentas que hiciste no está registrado, así que decido solo con lo que tengo. Cambio a «Tren inferior».',
+  )
+  assert.doesNotMatch(contando.text, UNTOUCHED_AS_FACT, 'no puede decir que no ha hecho piernas')
+})
+
+test('una carga contada antes en el día también se reconoce al pedir la zona después', () => {
+  const briefing = briefingWith({}, [])
+  const load = detectReportedLoad('ayer hice 20 km de bici')!
+  const withMemory: AxisBriefing = { ...briefing, reportedLoads: [{ ...load, reportedAt: '2026-09-07T09:00:00.000Z', messageId: 'm1' }] }
+
+  const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), withMemory)
+  assert.match(verdict.text, /lo que me cuentas que hiciste no está registrado/)
+  assert.doesNotMatch(verdict.text, UNTOUCHED_AS_FACT)
+})
+
+test('ninguna respuesta de pedir una zona convierte la ausencia de datos en un hecho', () => {
+  const escenarios = [
+    briefingWith({}, []),
+    briefingWith({}, [session()]),
+    briefingWith({}, [session({ dayKey: '2026-09-05', muscleGroups: ['core'] })]),
+    briefingWith({}, [session({ dayKey: '2026-09-01' })]),
+  ]
+  for (const briefing of escenarios) {
+    for (const message of ['quiero hacer piernas', 'quiero hacer tren superior', 'ayer hice 20 km de bici, quiero hacer piernas']) {
+      const { text } = evaluateChange(parseChangeRequest(message), briefing)
+      assert.doesNotMatch(text, UNTOUCHED_AS_FACT, `«${message}» → ${text}`)
+    }
+  }
+})
+
 test('pedir la zona que ya está prevista no cambia nada', () => {
   const briefing = briefingWith({}, [session()])
   const focus = briefing.proposal!.session!.focus
