@@ -662,7 +662,7 @@ function answerOutOfScope(): AxisAnswer {
   )
 }
 
-const CATEGORY_LABELS = { empuje: 'empuje', tiron: 'tirón', piernas: 'piernas', core: 'core' } as const
+const CATEGORY_LABELS = { empuje: 'empuje', tiron: 'tirón', piernas: 'piernas', core: 'core', movilidad: 'movilidad' } as const
 
 /**
  * «¿Para qué sirven las flexiones?»

@@ -14,10 +14,11 @@
  */
 
 import type { ExperienceLevel, TrainingGoal } from '../profile/types'
+import type { DayKey } from '../shared/dates'
 import { clamp } from '../shared/ids'
 import {
   AVAILABLE_EQUIPMENT,
-  closestToDifficulty,
+  EXERCISE_CATALOG,
   exercisesAvoidingGroups,
   exercisesForFocus,
   isAvailable,
@@ -38,7 +39,7 @@ import type {
   WorkoutSession,
 } from '../workouts/types'
 import { FOCUS_CATEGORIES, FOCUS_MUSCLE_GROUPS, SESSION_FOCUS_LABELS, usesLoad } from '../workouts/types'
-import { lastPerformanceOf, type LastPerformance } from '../workouts/history'
+import { exerciseUsage, lastPerformanceOf, type ExerciseUsage, type LastPerformance } from '../workouts/history'
 
 export const DEFAULT_GOAL: TrainingGoal = 'salud_general'
 export const DEFAULT_GOALS: readonly TrainingGoal[] = [DEFAULT_GOAL]
@@ -133,6 +134,11 @@ export type SessionBuildOptions = {
   equipment?: readonly Equipment[]
   /** Historial reciente, de la sesión más nueva a la más antigua. */
   history?: readonly WorkoutSession[]
+  /**
+   * Hoy. Solo lo usa la rotación para que la señal de un ejercicio saltado
+   * caduque (D-020). Sin él, la señal no caduca.
+   */
+  today?: DayKey
 }
 
 export function exerciseCountFor(availableMinutes: number): number {
@@ -279,12 +285,73 @@ export function adaptDifficulty(
 }
 
 /**
+ * Margen de dificultad dentro del cual dos ejercicios son equivalentes para la
+ * rotación (D-020): a ±1 del objetivo, gana el que lleva más tiempo sin usarse.
+ * Más lejos solo entran si no queda nada dentro.
+ */
+export const ROTATION_DIFFICULTY_BAND = 1
+
+/** Sin uso registrado: más antiguo que cualquier día, así que va primero. */
+const NEVER_USED = ''
+
+/**
+ * Orden de los candidatos de una categoría (D-020). Determinista, por este orden:
+ *
+ * 1. Dentro del margen de dificultad antes que fuera.
+ * 2. El que lleva más tiempo sin usarse (nunca usado, el primero). Se mira la
+ *    variante que de verdad se hará, tras ajustar la dificultad.
+ * 3. A igual antigüedad, el que se ha usado menos veces: si no, el primero del
+ *    catálogo ganaría siempre los empates del mismo día.
+ * 4. El más cercano a la dificultad objetivo.
+ * 5. El orden del catálogo.
+ *
+ * Sin historial, 2 y 3 empatan siempre y el orden es exactamente el de antes.
+ */
+function rotationOrder(
+  candidates: readonly Exercise[],
+  target: Difficulty,
+  adapt: (exercise: Exercise) => Exercise,
+  usage: ReadonlyMap<string, ExerciseUsage>,
+): Exercise[] {
+  const keyed = candidates.map((exercise, index) => {
+    const distance = Math.abs(exercise.difficulty - target)
+    const used = usage.get(adapt(exercise).id)
+    return {
+      exercise,
+      outOfBand: distance > ROTATION_DIFFICULTY_BAND ? 1 : 0,
+      lastUse: used?.lastUse ?? NEVER_USED,
+      uses: used?.uses ?? 0,
+      distance,
+      index,
+    }
+  })
+  keyed.sort(
+    (a, b) =>
+      a.outOfBand - b.outOfBand ||
+      compareDays(a.lastUse, b.lastUse) ||
+      a.uses - b.uses ||
+      a.distance - b.distance ||
+      a.index - b.index,
+  )
+  return keyed.map((item) => item.exercise)
+}
+
+/** `DayKey` locales: se ordenan bien como texto, y «nunca» (`''`) va primero. */
+function compareDays(a: DayKey, b: DayKey): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
+/**
  * Reparte los ejercicios entre las categorías del foco, alternando, para que una
  * sesión de tren superior no acabe siendo cuatro empujes seguidos.
  *
  * Cada candidato se ajusta a la dificultad objetivo **antes** de aceptarlo. Dos
  * candidatos distintos pueden acabar en la misma variante, así que los duplicados
  * se descartan y se sigue tirando del pool hasta completar la sesión.
+ *
+ * Rotación (D-020): dentro de cada categoría, el que lleva más tiempo sin usarse
+ * (`rotationOrder`); y empieza la categoría que lleva más tiempo sin usarse, para
+ * que en una sesión corta de cuerpo completo no se quede siempre fuera la misma.
  */
 function selectExercises(
   pool: readonly Exercise[],
@@ -292,14 +359,29 @@ function selectExercises(
   count: number,
   adapt: (exercise: Exercise) => Exercise,
   target: Difficulty,
+  usage: ReadonlyMap<string, ExerciseUsage>,
 ): Exercise[] {
-  const categories = FOCUS_CATEGORIES[focus]
   const byCategory = new Map<ExerciseCategory, Exercise[]>()
+  const categoryLastUse = new Map<ExerciseCategory, DayKey>()
 
-  for (const category of categories) {
+  for (const category of FOCUS_CATEGORIES[focus]) {
     const candidates = pool.filter((exercise) => exercise.category === category)
-    byCategory.set(category, closestToDifficulty(candidates, target))
+    byCategory.set(category, rotationOrder(candidates, target, adapt, usage))
+
+    let latest = NEVER_USED
+    for (const exercise of candidates) {
+      for (const id of [exercise.id, adapt(exercise).id]) {
+        const used = usage.get(id)?.lastUse ?? NEVER_USED
+        if (used > latest) latest = used
+      }
+    }
+    categoryLastUse.set(category, latest)
   }
+
+  // Orden estable: sin historial, el del foco, como antes.
+  const categories = [...FOCUS_CATEGORIES[focus]].sort((a, b) =>
+    compareDays(categoryLastUse.get(a) ?? NEVER_USED, categoryLastUse.get(b) ?? NEVER_USED),
+  )
 
   const selected: Exercise[] = []
   const taken = new Set<string>()
@@ -339,7 +421,11 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     catalog,
     equipment = AVAILABLE_EQUIPMENT,
     history = [],
+    today,
   } = options
+
+  // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
+  const usage = exerciseUsage(history, { catalog: catalog ?? EXERCISE_CATALOG, today })
 
   const forFocus = exercisesForFocus(focus, catalog)
   // Filtro innegociable: nada que necesite material inexistente.
@@ -359,6 +445,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     count,
     (exercise) => adaptDifficulty(exercise, target, { history, catalog, equipment }),
     target,
+    usage,
   )
 
   const exercises: PlannedExercise[] = selected.map((exercise) => {
@@ -387,9 +474,15 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   }
 }
 
+/**
+ * Los grupos que la sesión carga. La movilidad no cuenta (D-020): un estiramiento
+ * de cadera no es haber trabajado piernas, y contarlo haría que AXIS evitara
+ * piernas al día siguiente por algo que no las cargó.
+ */
 function dedupeGroups(exercises: readonly Exercise[], focus: SessionFocus): MuscleGroup[] {
   const groups: MuscleGroup[] = []
   for (const exercise of exercises) {
+    if (exercise.category === 'movilidad') continue
     for (const group of [...exercise.primaryMuscles, ...exercise.secondaryMuscles]) {
       if (!groups.includes(group)) groups.push(group)
     }

@@ -6,14 +6,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import type { AxisProposal } from '../axis/types'
+import { skipExercise, startWorkout, toWorkoutSession } from './active-workout'
 import {
+  exerciseUsage,
   formatKg,
   formatSets,
   lastPerformanceOf,
   lastPerformedExercise,
   personalRecords,
+  SKIP_PENALTY_DAYS,
+  skippedExerciseNames,
 } from './history'
-import type { CompletedSet, PerformedExercise, WorkoutSession } from './types'
+import type { CompletedSet, Exercise, PerformedExercise, WorkoutSession } from './types'
 
 let nextId = 0
 
@@ -165,4 +170,127 @@ test('una sesión interrumpida no fija la marca a batir', () => {
     personalRecords(today, [abandoned, completed]).map((record) => record.previous),
     [4],
   )
+})
+
+// ---------------------------------------------------------------------------
+// Uso de cada ejercicio para la rotación (D-020)
+// ---------------------------------------------------------------------------
+
+const CATALOG = [
+  { id: 'remo', name: 'Remo unilateral' },
+  { id: 'flexiones', name: 'Flexiones' },
+] as unknown as readonly Exercise[]
+
+function skippedIn(dayKey: string, names: string[], partial: Partial<WorkoutSession> = {}): WorkoutSession {
+  return session([], {
+    dayKey,
+    modifications: names.map((name) => ({ kind: 'exercise_skipped', detail: `${name} sin completar.` })),
+    ...partial,
+  })
+}
+
+test('contrato: se lee el nombre del saltado tal y como lo escribe `skipExercise`', () => {
+  const proposal: AxisProposal = {
+    id: 'p',
+    dayKey: '2026-09-07',
+    createdAt: '2026-09-07T10:00:00.000Z',
+    type: 'TRAINING',
+    headline: 'Entrena.',
+    reason: 'Bien.',
+    factors: [],
+    label: 'Recomendada',
+    rule: 'good_recovery',
+    session: {
+      focus: 'tren_superior',
+      title: 'Fuerza · Tren superior',
+      intensity: 'moderada',
+      estimatedMinutes: 30,
+      muscleGroups: ['espalda'],
+      exercises: [
+        {
+          exerciseId: 'remo',
+          name: 'Remo unilateral',
+          sets: 3,
+          reps: 10,
+          isTimed: false,
+          suggestedWeightKg: 5,
+          restSeconds: 60,
+          unilateral: true,
+          tempo: null,
+          imageUrl: null,
+        },
+      ],
+    },
+  }
+  const started = startWorkout(proposal, new Date(2026, 8, 7, 18, 0))!
+  const saved = toWorkoutSession(skipExercise(started), { status: 'abandoned' })
+  assert.deepEqual(skippedExerciseNames(saved), ['Remo unilateral'])
+})
+
+test('un ejercicio hecho cuenta como usado ese día, también en una sesión interrumpida', () => {
+  const usage = exerciseUsage(
+    [
+      session([exercise('remo', [set(10, 5)])], { dayKey: '2026-09-10' }),
+      session([exercise('flexiones', [set(10)])], { dayKey: '2026-09-12', status: 'abandoned' }),
+    ],
+    { catalog: CATALOG },
+  )
+  assert.deepEqual(usage.get('remo'), { lastUse: '2026-09-10', uses: 1 })
+  assert.deepEqual(usage.get('flexiones'), { lastUse: '2026-09-12', uses: 1 })
+})
+
+test('un ejercicio que aparece sin ninguna serie no cuenta como usado', () => {
+  const usage = exerciseUsage([session([exercise('remo', [])])], { catalog: CATALOG })
+  assert.equal(usage.has('remo'), false)
+})
+
+test('la última vez es el día más reciente, sin depender del orden del historial', () => {
+  const older = session([exercise('remo', [set(10, 5)])], { dayKey: '2026-09-01' })
+  const newer = session([exercise('remo', [set(10, 5)])], { dayKey: '2026-09-15' })
+  for (const history of [[older, newer], [newer, older]]) {
+    assert.deepEqual(exerciseUsage(history, { catalog: CATALOG }).get('remo'), {
+      lastUse: '2026-09-15',
+      uses: 2,
+    })
+  }
+})
+
+test('un salto reciente cuenta como uso para la rotación', () => {
+  const usage = exerciseUsage([skippedIn('2026-09-19', ['Flexiones'])], {
+    catalog: CATALOG,
+    today: '2026-09-20',
+  })
+  assert.deepEqual(usage.get('flexiones'), { lastUse: '2026-09-19', uses: 1 })
+})
+
+test('un salto de hace más de SKIP_PENALTY_DAYS caduca', () => {
+  const today = '2026-09-30'
+  const limit = skippedIn('2026-09-16', ['Flexiones']) // justo 14 días: aún cuenta
+  const expired = skippedIn('2026-09-15', ['Remo unilateral']) // 15 días: ya no
+  const usage = exerciseUsage([limit, expired], { catalog: CATALOG, today })
+  assert.equal(SKIP_PENALTY_DAYS, 14)
+  assert.equal(usage.has('flexiones'), true)
+  assert.equal(usage.has('remo'), false)
+})
+
+test('hecho y saltado en la misma sesión cuenta una sola vez', () => {
+  const both = skippedIn('2026-09-19', ['Remo unilateral'], {
+    exercises: [exercise('remo', [set(10, 5)])],
+  })
+  assert.deepEqual(exerciseUsage([both], { catalog: CATALOG }).get('remo'), {
+    lastUse: '2026-09-19',
+    uses: 1,
+  })
+})
+
+test('un salto de un ejercicio que no está en el catálogo se ignora', () => {
+  const usage = exerciseUsage([skippedIn('2026-09-19', ['Ejercicio retirado'])], { catalog: CATALOG })
+  assert.equal(usage.size, 0)
+})
+
+test('saltar no cambia los récords: solo cuentan las series hechas', () => {
+  const before = session([exercise('remo', [set(10, 4.5)])], { dayKey: '2026-09-01' })
+  const skip = skippedIn('2026-09-10', ['Remo unilateral'])
+  const today = session([exercise('remo', [set(8, 5)])], { dayKey: '2026-09-20' })
+  assert.deepEqual(personalRecords(today, [skip, before]), personalRecords(today, [before]))
 })

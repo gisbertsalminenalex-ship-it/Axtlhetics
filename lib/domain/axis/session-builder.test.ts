@@ -30,10 +30,12 @@ import {
   hasMastered,
   lastPerformanceOf,
   repCapFor,
+  ROTATION_DIFFICULTY_BAND,
   suggestWorkFor,
   targetDifficultyFor,
   titleFor,
 } from './session-builder'
+import { SKIP_PENALTY_DAYS } from '../workouts/history'
 
 function exercise(id: string): Exercise {
   const found = findExercise(id)
@@ -311,4 +313,178 @@ test('con el flujo real, lo previsto entero sí sube la carga', () => {
   const full = realSession((w) => completeSet(completeSet(completeSet(w))))
   const work = suggestWorkFor(exercise('remo-unilateral'), { ...BASE, history: [full] })
   assert.equal(work.weightKg, Math.min(2.5 + LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG))
+})
+
+// ---------------------------------------------------------------------------
+// Rotación de ejercicios (D-020)
+//
+// Entre candidatos válidos y de dificultad equivalente, gana el que lleva más
+// tiempo sin usarse. Determinista: mismo historial, misma sesión.
+// ---------------------------------------------------------------------------
+
+const ROTATION = { ...BASE, availableMinutes: 45 }
+const TODAY = '2026-09-20'
+
+/** Una sesión con estos ejercicios hechos y estos saltados, como la guarda la app. */
+function day(
+  dayKey: string,
+  done: readonly string[],
+  options: { skipped?: readonly string[]; status?: WorkoutSession['status'] } = {},
+): WorkoutSession {
+  return {
+    ...performed('x', [], { dayKey, status: options.status ?? 'completed' }),
+    id: `day-${dayKey}-${done.join('+')}`,
+    exercises: done.map((id) => ({
+      exerciseId: id,
+      name: exercise(id).name,
+      sets: [{ reps: 10, weightKg: null, completed: true }],
+    })),
+    // El texto exacto que deja `skipExercise` (un test de history vigila el contrato).
+    modifications: (options.skipped ?? []).map((id) => ({
+      kind: 'exercise_skipped' as const,
+      detail: `${exercise(id).name} sin completar.`,
+    })),
+  }
+}
+
+function ids(session: { exercises: readonly { exerciseId: string }[] }): string[] {
+  return session.exercises.map((item) => item.exerciseId)
+}
+
+/** Varias sesiones seguidas del mismo foco, cada una hecha entera y añadida al historial. */
+function weeks(
+  focus: Parameters<typeof buildSession>[0]['focus'],
+  count: number,
+  extra: Partial<Parameters<typeof buildSession>[0]> = {},
+): string[][] {
+  let history: WorkoutSession[] = []
+  const result: string[][] = []
+  for (let week = 0; week < count; week += 1) {
+    const dayKey = `2026-08-${String(week + 1).padStart(2, '0')}`
+    const session = buildSession({ ...ROTATION, focus, history, today: dayKey, ...extra })
+    result.push(ids(session))
+    history = [day(dayKey, ids(session)), ...history]
+  }
+  return result
+}
+
+test('sin historial la selección es la de siempre: sin uso registrado, manda la dificultad', () => {
+  const session = buildSession({ ...ROTATION, focus: 'tren_superior' })
+  assert.deepEqual(ids(session), [
+    'flexiones-negativas', 'remo-unilateral', 'press-hombro-unilateral', 'pullover-con-pesa',
+  ])
+})
+
+test('con el mismo historial sale siempre la misma sesión', () => {
+  const history = [day('2026-09-19', ['flexiones-negativas', 'remo-unilateral'])]
+  const a = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
+  const b = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
+  assert.deepEqual(ids(a), ids(b))
+})
+
+test('dos sesiones seguidas del mismo foco no son iguales', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'core_movilidad'] as const) {
+    const [first, second] = weeks(focus, 2)
+    assert.notDeepEqual(first, second, focus)
+  }
+})
+
+test('con el tiempo salen todos los ejercicios de dificultad equivalente: ninguno queda fuera', () => {
+  const target = targetDifficultyFor(ROTATION.experience, ROTATION.intensity)
+  const seen = new Set(weeks('tren_superior', 8).flat())
+
+  const expected = EXERCISE_CATALOG.filter(
+    (item) =>
+      (item.category === 'empuje' || item.category === 'tiron') &&
+      Math.abs(item.difficulty - target) <= ROTATION_DIFFICULTY_BAND &&
+      adaptDifficulty(item, target).id === item.id,
+  )
+  assert.ok(expected.length > 4, 'hay más candidatos que huecos en una sesión')
+  for (const item of expected) {
+    assert.ok(seen.has(item.id), `${item.name} no ha salido en 8 sesiones`)
+  }
+})
+
+test('en cuerpo completo corto, el core ya no se queda siempre fuera', () => {
+  const sessions = weeks('cuerpo_completo', 4, { availableMinutes: 25 })
+  assert.equal(sessions[0].length, 3, 'tres ejercicios para cuatro categorías')
+  const core = sessions.flat().filter((id) => exercise(id).category === 'core')
+  assert.ok(core.length > 0, `ninguna de ${sessions.length} sesiones tuvo core`)
+})
+
+test('la rotación respeta los grupos que hay que evitar', () => {
+  const history = [day('2026-09-19', ['sentadilla', 'zancadas'])]
+  const session = buildSession({
+    ...ROTATION,
+    focus: 'cuerpo_completo',
+    avoidMuscleGroups: ['piernas'],
+    history,
+    today: TODAY,
+  })
+  for (const id of ids(session)) {
+    const item = exercise(id)
+    assert.ok(
+      !item.primaryMuscles.includes('piernas') && !item.secondaryMuscles.includes('piernas'),
+      `${item.name} carga piernas`,
+    )
+  }
+})
+
+test('una sesión interrumpida con series también cuenta como uso', () => {
+  const history = [day('2026-09-19', ['flexiones-negativas'], { status: 'abandoned' })]
+  const session = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
+  assert.ok(!ids(session).includes('flexiones-negativas'))
+})
+
+test('la movilidad no cuenta como grupo cargado de la sesión', () => {
+  const session = buildSession({ ...ROTATION, focus: 'core_movilidad' })
+  const loaded = new Set(
+    session.exercises
+      .map((item) => exercise(item.exerciseId))
+      .filter((item) => item.category !== 'movilidad')
+      .flatMap((item) => [...item.primaryMuscles, ...item.secondaryMuscles]),
+  )
+  assert.ok(session.exercises.some((item) => exercise(item.exerciseId).category === 'movilidad'))
+  assert.deepEqual([...new Set(session.muscleGroups)].sort(), [...loaded].sort())
+})
+
+// ---------------------------------------------------------------------------
+// Ejercicios saltados (D-020)
+// ---------------------------------------------------------------------------
+
+test('un ejercicio nunca usado puede aparecer', () => {
+  // Sin historial, «Flexiones negativas» abre la sesión.
+  const session = buildSession({ ...ROTATION, focus: 'tren_superior', history: [], today: TODAY })
+  assert.equal(ids(session)[0], 'flexiones-negativas')
+})
+
+test('un ejercicio saltado hace poco pierde prioridad frente a uno nunca usado', () => {
+  const history = [day('2026-09-19', [], { skipped: ['flexiones-negativas'] })]
+  const session = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
+  assert.ok(!ids(session).includes('flexiones-negativas'), 'AXIS no lo vuelve a proponer de inmediato')
+})
+
+test('un ejercicio saltado hace suficiente tiempo vuelve a competir normalmente', () => {
+  // 19 días antes de TODAY: más que SKIP_PENALTY_DAYS.
+  const history = [day('2026-09-01', [], { skipped: ['flexiones-negativas'] })]
+  assert.ok(19 > SKIP_PENALTY_DAYS)
+  const session = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
+  assert.equal(ids(session)[0], 'flexiones-negativas', 'la señal caducó: como si nunca se hubiera usado')
+})
+
+test('saltar un ejercicio no cambia su progresión: solo cuentan las series hechas', () => {
+  const remo = exercise('remo-unilateral')
+  const done = performed('remo-unilateral', [{ reps: 12, weightKg: 2.5, completed: true }], {
+    dayKey: '2026-09-10',
+  })
+  const skipped = day('2026-09-19', [], { skipped: ['remo-unilateral'] })
+
+  assert.deepEqual(
+    lastPerformanceOf('remo-unilateral', [skipped, done]),
+    lastPerformanceOf('remo-unilateral', [done]),
+  )
+  assert.deepEqual(
+    suggestWorkFor(remo, { ...BASE, history: [skipped, done] }),
+    suggestWorkFor(remo, { ...BASE, history: [done] }),
+  )
 })

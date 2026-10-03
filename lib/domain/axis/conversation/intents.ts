@@ -228,6 +228,10 @@ export function asksForMoreTime(question: string): boolean {
  * Primero el nombre completo (el más largo gana: «flexiones diamante» antes que
  * «flexiones»), después la raíz de la primera palabra, para que «sentadillas»
  * encuentre «Sentadilla» y «flexion» encuentre «Flexiones».
+ *
+ * Por la raíz gana el nombre **más corto**: varios ejercicios comparten la
+ * primera palabra («Puente de glúteos», «Puente con talones en silla»), y quien
+ * dice solo «el puente» habla del básico, no de su variante (D-020).
  */
 export function detectExercise(question: string, catalog: readonly Exercise[] = EXERCISE_CATALOG): Exercise | null {
   const text = normalizeQuestion(question)
@@ -237,7 +241,7 @@ export function detectExercise(question: string, catalog: readonly Exercise[] = 
     if (includesWord(text, normalizeQuestion(exercise.name))) return exercise
   }
 
-  for (const exercise of byLength) {
+  for (const exercise of [...byLength].reverse()) {
     const first = normalizeQuestion(exercise.name).split(' ')[0]
     const stem = first.replace(/(es|s)$/, '')
     if (stem.length >= 5 && includesWord(text, stem)) return exercise

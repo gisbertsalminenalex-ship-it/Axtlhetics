@@ -9,7 +9,7 @@ import { buildAxisContext } from './context'
 import { deriveFacts } from './facts'
 import { decide } from './engine'
 import { isTrainingRecommendation } from './types'
-import { findExercise, isAvailable, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
+import { EXERCISE_CATALOG, findExercise, isAvailable, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
 import { usesLoad } from '../workouts/types'
 
 // 2026-09-08 es lunes. Todos los tests fijan la hora para ser deterministas.
@@ -267,6 +267,17 @@ test('la duración disponible reduce el número de ejercicios', () => {
 // Progresión
 // ---------------------------------------------------------------------------
 
+/**
+ * El catálogo con el remo como único tirón.
+ *
+ * Estos tests miran la **progresión** del remo, no qué ejercicio elige el motor.
+ * Desde D-020 la rotación prefiere el tirón que lleva más tiempo sin hacerse, y
+ * el remo se hizo ayer; sin esto, el lunes saldría otro y el test no vería nada.
+ */
+const ONLY_REMO_PULL = EXERCISE_CATALOG.filter(
+  (exercise) => exercise.category !== 'tiron' || exercise.id === 'remo-unilateral',
+)
+
 function performed(exerciseId: string, weightKg: number, allCompleted: boolean): PerformedExercise {
   return {
     exerciseId,
@@ -281,6 +292,7 @@ function performed(exerciseId: string, weightKg: number, allCompleted: boolean):
 test('si completaste todas las series con margen de carga, sube el peso', () => {
   const decision = decide(
     contextWith({
+      catalog: ONLY_REMO_PULL,
       recentSessions: [
         session({
           dayKey: SUNDAY_KEY,
@@ -299,6 +311,7 @@ test('si completaste todas las series con margen de carga, sube el peso', () => 
 test('con la única pesa ya al máximo, la progresión pasa a repeticiones', () => {
   const withHistory = decide(
     contextWith({
+      catalog: ONLY_REMO_PULL,
       recentSessions: [
         session({
           dayKey: SUNDAY_KEY,
@@ -340,6 +353,7 @@ test('nunca se sugiere más carga de la que existe', () => {
 test('si no completaste todas las series, mantiene la carga', () => {
   const decision = decide(
     contextWith({
+      catalog: ONLY_REMO_PULL,
       recentSessions: [
         session({
           dayKey: SUNDAY_KEY,

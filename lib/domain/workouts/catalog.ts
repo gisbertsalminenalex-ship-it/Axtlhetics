@@ -33,6 +33,20 @@ export const MAX_AVAILABLE_LOAD_KG = 5
 /** Escalón de carga. Con una sola pesa, en la práctica solo hay un salto: 0 → 5. */
 export const LOAD_STEP_KG = 2.5
 
+/**
+ * Los únicos ejercicios que usan la pesa con las dos manos (D-008, D-020).
+ *
+ * Con una sola pesa, todo lo que carga peso es unilateral. Estos son las
+ * excepciones razonables: la pesa se sujeta entera con las dos manos, no se
+ * reparte entre dos mancuernas. Es una lista cerrada, no una regla: añadir uno
+ * es una decisión, y un test lo vigila.
+ */
+export const SINGLE_WEIGHT_BILATERAL_IDS: readonly string[] = [
+  'sentadilla-con-pesa',
+  'pullover-con-pesa',
+  'hip-thrust-con-pesa',
+]
+
 export const EXERCISE_CATALOG: readonly Exercise[] = [
   // ---------------------------------------------------------------------------
   // EMPUJE
@@ -134,6 +148,78 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: null },
     imageUrl: null,
   },
+  {
+    // D-020. El único empuje de pecho con carga. El suelo limita el recorrido del hombro.
+    id: 'press-suelo-unilateral',
+    name: 'Press de suelo unilateral con pesa',
+    category: 'empuje',
+    primaryMuscles: ['pecho'],
+    secondaryMuscles: ['brazos', 'hombros'],
+    equipment: ['pesa'],
+    unilateral: true,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Tumbado boca arriba con las rodillas dobladas, empuja la pesa hacia el techo desde el pecho. Baja hasta que el codo toque el suelo, no más. Alterna los lados.',
+    work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Pecho más exigente que la flexión. La silla, contra la pared.
+    id: 'flexiones-declinadas',
+    name: 'Flexiones declinadas',
+    category: 'empuje',
+    primaryMuscles: ['pecho'],
+    secondaryMuscles: ['hombros', 'brazos', 'core'],
+    equipment: ['superficie_elevada'],
+    unilateral: false,
+    difficulty: 4,
+    progressionId: null,
+    regressionId: 'flexiones',
+    stimulus: 'fuerza',
+    instructions:
+      'Pies sobre una silla apoyada contra la pared y manos en el suelo. Cuerpo en línea; baja controlando y empuja arriba.',
+    work: { sets: 3, reps: 8, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Hombro sin material.
+    id: 'flexion-pica',
+    name: 'Flexión pica',
+    category: 'empuje',
+    primaryMuscles: ['hombros'],
+    secondaryMuscles: ['brazos', 'core'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Cadera alta, formando una V invertida. Baja la cabeza despacio hacia el suelo entre las manos y empuja arriba.',
+    work: { sets: 3, reps: 8, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Tríceps sin llevar el hombro a extensión con carga (sustituye a los fondos en silla).
+    id: 'patada-triceps-unilateral',
+    name: 'Patada de tríceps unilateral',
+    category: 'empuje',
+    primaryMuscles: ['brazos'],
+    secondaryMuscles: ['hombros'],
+    equipment: ['pesa'],
+    unilateral: true,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Tronco inclinado con la mano libre apoyada. Codo pegado al cuerpo; extiende el brazo hacia atrás sin mover el codo. Alterna los lados.',
+    work: { sets: 3, reps: 10, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
 
   // ---------------------------------------------------------------------------
   // TIRÓN
@@ -199,6 +285,60 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     regressionId: null,
     stimulus: 'fuerza',
     instructions: 'Codo pegado al cuerpo, sube la pesa sin balanceo y baja controlando. Alterna los lados.',
+    work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: '1-1-2' },
+    imageUrl: null,
+  },
+  {
+    // D-020. Espalda alta y postura sin material: hasta ahora solo había Superman.
+    id: 'ytw-boca-abajo',
+    name: 'Y-T-W boca abajo',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['hombros'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'resistencia',
+    instructions:
+      'Boca abajo, eleva los brazos formando una Y, luego una T y luego una W, sin dar tirones con el cuello. Cada secuencia es una repetición.',
+    work: { sets: 3, reps: 8, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Tirón con carga distinto del remo. Pesa a dos manos: excepción de D-008.
+    id: 'pullover-con-pesa',
+    name: 'Pullover con pesa',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['pecho', 'core'],
+    equipment: ['pesa'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Tumbado en el suelo con las rodillas dobladas y la zona lumbar apoyada. Sujeta la pesa con las dos manos sobre el pecho y llévala atrás solo hasta donde la espalda no se arquee.',
+    work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Agarre neutro: la variante de agarre es un ejercicio propio, sin campo nuevo.
+    id: 'curl-martillo-unilateral',
+    name: 'Curl martillo unilateral',
+    category: 'tiron',
+    primaryMuscles: ['brazos'],
+    secondaryMuscles: [],
+    equipment: ['pesa'],
+    unilateral: true,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Palma mirando hacia el cuerpo (agarre neutro) y codo pegado. Sube sin balanceo y baja controlando. Alterna los lados.',
     work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: '1-1-2' },
     imageUrl: null,
   },
@@ -327,11 +467,102 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     equipment: ['ninguno'],
     unilateral: false,
     difficulty: 1,
-    progressionId: null,
+    // D-020: ya tiene a dónde progresar cuando se domina.
+    progressionId: 'elevacion-gemelos-una-pierna',
     regressionId: null,
     stimulus: 'resistencia',
     instructions: 'De pie, sube sobre las puntas de los pies y baja despacio.',
     work: { sets: 3, reps: 20, restSeconds: 45, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Progresión de gemelos sin material.
+    id: 'elevacion-gemelos-una-pierna',
+    name: 'Elevación de gemelos a una pierna',
+    category: 'piernas',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: [],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: 'elevacion-gemelos',
+    stimulus: 'resistencia',
+    instructions:
+      'Sobre una pierna, con una mano en la pared para el equilibrio. Sube sobre la punta y baja despacio. Alterna las piernas.',
+    work: { sets: 3, reps: 12, restSeconds: 45, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Cuádriceps sin impacto. Base de 30 s: su techo de progresión cabe en el selector.
+    id: 'sentadilla-isometrica-pared',
+    name: 'Sentadilla isométrica en pared',
+    category: 'piernas',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: ['gluteos'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: 'sentadilla',
+    stimulus: 'resistencia',
+    instructions:
+      'Espalda apoyada en la pared. Baja hasta que los muslos queden como mucho paralelos al suelo y mantén la posición.',
+    work: { sets: 3, reps: 30, restSeconds: 60, isTimed: true, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Pierna unilateral entre la zancada y la búlgara. Solo superficie firme.
+    id: 'subida-escalon',
+    name: 'Subida al escalón',
+    category: 'piernas',
+    primaryMuscles: ['piernas', 'gluteos'],
+    secondaryMuscles: ['core'],
+    equipment: ['superficie_elevada'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: 'zancada-bulgara',
+    regressionId: 'sentadilla',
+    stimulus: 'fuerza',
+    instructions:
+      'Usa un escalón o una superficie firme a la altura de la rodilla o más baja; nunca un sofá. Sube empujando con la pierna de arriba y baja controlando. Alterna las piernas.',
+    work: { sets: 3, reps: 10, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Isquios: hasta ahora solo el peso muerto unilateral (sustituye al puente a una pierna).
+    id: 'puente-talones-silla',
+    name: 'Puente con talones en silla',
+    category: 'piernas',
+    primaryMuscles: ['piernas', 'gluteos'],
+    secondaryMuscles: ['core'],
+    equipment: ['superficie_elevada'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: 'puente-gluteos',
+    stimulus: 'fuerza',
+    instructions:
+      'Tumbado boca arriba con los talones apoyados en una silla estable. Eleva la cadera apretando la parte de atrás de los muslos y baja despacio.',
+    work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Glúteo con carga. Pesa a dos manos sobre la cadera: excepción de D-008.
+    id: 'hip-thrust-con-pesa',
+    name: 'Hip thrust con pesa',
+    category: 'piernas',
+    primaryMuscles: ['gluteos'],
+    secondaryMuscles: ['piernas', 'core'],
+    equipment: ['superficie_elevada', 'pesa'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: 'puente-gluteos',
+    stimulus: 'fuerza',
+    instructions:
+      'Parte alta de la espalda apoyada en un sofá o en una silla contra la pared, y la pesa sujeta con las dos manos sobre la cadera. Sube hasta alinear la cadera con el tronco y aprieta arriba.',
+    work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
     imageUrl: null,
   },
 
@@ -416,6 +647,83 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     stimulus: 'estabilidad',
     instructions: 'Boca arriba, zona lumbar pegada al suelo, brazos y piernas estirados y elevados.',
     work: { sets: 3, reps: 20, restSeconds: 60, isTimed: true, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020. Antirrotación.
+    id: 'plancha-toque-hombro',
+    name: 'Plancha con toque de hombro',
+    category: 'core',
+    primaryMuscles: ['core'],
+    secondaryMuscles: ['hombros'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'plancha',
+    stimulus: 'estabilidad',
+    instructions:
+      'En plancha alta con los pies algo separados, toca el hombro contrario con una mano sin mover la cadera. Alterna las manos.',
+    work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+
+  // ---------------------------------------------------------------------------
+  // MOVILIDAD (D-020)
+  //
+  // Movilizan, no cargan: dificultad 2, en el centro de la escala, para quedar a
+  // la menor distancia posible de cualquier nivel. Sus músculos dicen dónde se
+  // nota el trabajo, pero no cuentan como grupos cargados de la sesión.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'gato-camello',
+    name: 'Gato-camello',
+    category: 'movilidad',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['core'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'A cuatro patas, redondea la espalda llevando el ombligo hacia dentro y después arquéala suave mirando al frente. Lento y sin forzar.',
+    work: { sets: 2, reps: 10, restSeconds: 30, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'rotacion-toracica',
+    name: 'Rotación torácica a cuatro patas',
+    category: 'movilidad',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['hombros'],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'A cuatro patas con una mano en la nuca, gira el codo hacia el techo siguiendo con la mirada y vuelve. Haz todas las de un lado y cambia.',
+    work: { sets: 2, reps: 8, restSeconds: 30, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'estiramiento-flexor-cadera',
+    name: 'Estiramiento de flexor de cadera',
+    category: 'movilidad',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: ['gluteos'],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'Rodilla de atrás apoyada en el suelo. Adelanta la cadera hasta notar el estiramiento en la parte delantera del muslo de atrás, sin rebotes. Un lado cada vez.',
+    work: { sets: 2, reps: 30, restSeconds: 30, isTimed: true, tempo: null },
     imageUrl: null,
   },
 ]

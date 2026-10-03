@@ -70,14 +70,19 @@ export type SessionIntensity = 'ligera' | 'moderada' | 'alta'
  */
 export type Equipment = 'ninguno' | 'pesa' | 'superficie_elevada'
 
-/** Patrón de movimiento. Es lo que AXIS usa para equilibrar una sesión. */
-export type ExerciseCategory = 'empuje' | 'tiron' | 'piernas' | 'core'
+/**
+ * Patrón de movimiento. Es lo que AXIS usa para equilibrar una sesión.
+ *
+ * `movilidad` (D-020) no carga: moviliza. Existía el objetivo «Mejorar
+ * movilidad» y el foco «Core y movilidad», pero ningún ejercicio que lo fuera.
+ */
+export type ExerciseCategory = 'empuje' | 'tiron' | 'piernas' | 'core' | 'movilidad'
 
 export const FOCUS_CATEGORIES: Record<SessionFocus, ExerciseCategory[]> = {
   tren_superior: ['empuje', 'tiron'],
   tren_inferior: ['piernas'],
   cuerpo_completo: ['empuje', 'tiron', 'piernas', 'core'],
-  core_movilidad: ['core'],
+  core_movilidad: ['core', 'movilidad'],
 }
 
 /** 1 = muy accesible, 5 = exigente. Ordena progresiones y regresiones. */

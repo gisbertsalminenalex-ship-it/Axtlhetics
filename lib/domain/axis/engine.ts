@@ -107,6 +107,8 @@ function planSession(
     avoidMuscleGroups: muscleGroupsToAvoid(facts),
     catalog: context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG,
     history: context.recentSessions,
+    // Para que la señal de un ejercicio saltado caduque en la rotación (D-020).
+    today: context.dayKey,
   })
 }
 

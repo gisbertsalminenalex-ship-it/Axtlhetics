@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-02.
+**Última actualización:** 2026-10-03.
 
 ## Qué es este documento
 
@@ -282,14 +282,14 @@ El equipamiento real es **peso corporal y una única pesa de 5 kg**. No hay gimn
 Consecuencias, todas obligatorias:
 
 - **No se proponen ejercicios que necesiten material inexistente.** Es un filtro, no una preferencia.
-- Todo ejercicio que carga peso se modela como **unilateral**, porque solo hay una pesa. La única excepción razonable es la sentadilla sujetando la pesa con las dos manos.
+- Todo ejercicio que carga peso se modela como **unilateral**, porque solo hay una pesa. La única excepción razonable es la sentadilla sujetando la pesa con las dos manos. *(Ampliado por D-020: la excepción es una lista cerrada y testeada, `SINGLE_WEIGHT_BILATERAL_IDS`, con la sentadilla con pesa, el pullover con pesa y el hip thrust con pesa.)*
 - La carga **no puede subir indefinidamente**: `MAX_AVAILABLE_LOAD_KG = 5`. Una vez ahí, la progresión pasa a repeticiones y, cuando el ejercicio se domina, a una **variante más exigente**.
 
 El equipamiento vive en una constante (`AVAILABLE_EQUIPMENT`): cambiarla cambia lo que AXIS puede proponer sin tocar el motor.
 
 ### Catálogo
 
-Cierra `P-004`. Son 23 ejercicios con metadatos completos: categoría (empuje / tirón / piernas / core), músculos principales y secundarios, equipamiento, unilateral o no, dificultad 1–5, progresión, regresión, tipo de estímulo, instrucciones y parámetros de trabajo.
+Cierra `P-004`. Son 23 ejercicios con metadatos completos: categoría (empuje / tirón / piernas / core), músculos principales y secundarios, equipamiento, unilateral o no, dificultad 1–5, progresión, regresión, tipo de estímulo, instrucciones y parámetros de trabajo. *(Ampliado por D-020: 39 ejercicios y una quinta categoría, movilidad.)*
 
 Sigue siendo **dato reemplazable**: añadir o quitar ejercicios no obliga a tocar la lógica, solo a rellenar los metadatos.
 
@@ -753,6 +753,83 @@ Previsto para una **versión futura**, decidido por Alex y fuera de D-019:
 - conservar el resumen si se recarga la app en él.
 
 Tampoco existe deshacer tras la última serie de la sesión: la sesión se cierra sola.
+
+---
+
+## D-020 — Catálogo ampliado y rotación de ejercicios
+
+**Fecha:** 2026-10-03 · **Estado:** aprobada · Amplía D-008 (catálogo y excepción bilateral).
+
+La app se sentía limitada por dos motivos, y los dos se corrigen aquí: el catálogo era corto (23 ejercicios, cero de movilidad) y, sobre todo, **la selección no rotaba**: con el mismo foco y la misma dificultad salían siempre los mismos ejercicios, y algunos (curl, extensión de tríceps, peso muerto, puente, gemelos) no salían nunca.
+
+### Equipamiento
+
+**Exactamente el de D-008**: peso corporal, una única pesa de 5 kg y una silla o superficie elevada cuando corresponda. No se añade barra, poleas, máquinas, bandas, kettlebells, barra de dominadas, dos mancuernas ni ningún otro material.
+
+### Catálogo: 39 ejercicios
+
+Se conservan los 23 de D-008 **con sus ids**: el historial, la progresión y los récords dependen de ellos. Se añaden 16:
+
+| Ejercicio | Grupo | Material | Nota |
+|---|---|---|---|
+| Press de suelo unilateral con pesa | pecho | pesa | Único pecho con carga; el suelo limita el recorrido del hombro |
+| Flexiones declinadas | pecho | silla | Silla contra la pared; dificultad 4 |
+| Flexión pica | hombros | — | Hombro sin material |
+| Patada de tríceps unilateral | brazos (tríceps) | pesa | Sustituye a los fondos en silla |
+| Y-T-W boca abajo | espalda | — | Espalda sin material |
+| Pullover con pesa | espalda | pesa (dos manos) | En el suelo, zona lumbar apoyada |
+| Curl martillo unilateral | brazos (bíceps) | pesa | Agarre neutro |
+| Elevación de gemelos a una pierna | piernas (gemelos) | — | Progresión de la elevación de gemelos |
+| Sentadilla isométrica en pared | piernas (cuádriceps) | — | Isométrico, 30 s de base |
+| Subida al escalón | piernas | escalón firme | Nunca un sofá |
+| Puente con talones en silla | piernas (isquios) | silla | Sustituye al puente a una pierna |
+| Hip thrust con pesa | glúteos | silla + pesa (dos manos) | Espalda en sofá o silla contra la pared |
+| Plancha con toque de hombro | core | — | Antirrotación |
+| Gato-camello | movilidad | — | |
+| Rotación torácica a cuatro patas | movilidad | — | |
+| Estiramiento de flexor de cadera | movilidad | — | Isométrico, 30 s de base |
+
+Sustituciones de la propuesta inicial: **los fondos en silla**, por la carga del hombro en extensión y el riesgo de que la silla vuelque; **el puente de glúteos a una pierna**, porque con el hip thrust habría tres variantes del mismo puente e isquios seguía con un solo ejercicio. Pospuestas: la elevación lateral (5 kg fijos son demasiado para un principiante), el remo invertido bajo una mesa (seguridad), el cardio (burpees, mountain climbers) y el russian twist.
+
+No hay campo de agarre: una variante de agarre es un ejercicio propio con su id, como ya pasaba con las flexiones.
+
+### Movilidad
+
+Quinta categoría, `movilidad`, con exactamente esos tres ejercicios. El foco «Core y movilidad» toma de `core` y de `movilidad`. Dificultad 2, en el centro de la escala. **No cuentan como grupos cargados** de la sesión: un estiramiento de cadera no es haber trabajado piernas, y AXIS no debe evitar piernas al día siguiente por él.
+
+### Bilateral con una sola pesa
+
+Lista **cerrada y testeada** (`SINGLE_WEIGHT_BILATERAL_IDS`): sentadilla con pesa, pullover con pesa e hip thrust con pesa. Todo lo demás que carga peso sigue siendo unilateral. No es una regla general: añadir uno es una decisión.
+
+### Rotación
+
+Determinista, sin IA, con el historial que el motor ya recibe (`recentSessions`). Dentro de cada categoría, los candidatos se ordenan por:
+
+1. dificultad a ±1 del objetivo antes que más lejos;
+2. **el que lleva más tiempo sin usarse** (nunca usado, el primero), mirando la variante que de verdad se hará;
+3. a igual antigüedad, el usado menos veces;
+4. el más cercano a la dificultad objetivo;
+5. el orden del catálogo.
+
+Las categorías también rotan: empieza la que lleva más tiempo sin usarse, para que en una sesión corta de cuerpo completo no se quede fuera siempre la misma (antes, el core). **Sin historial, la selección es exactamente la de antes.** Un ejercicio fuera del margen de dificultad no está excluido para siempre: no toca para el nivel actual y entra cuando el nivel cambia.
+
+«Usado» es tener al menos una serie en cualquier sesión, completada o interrumpida. Los grupos que hay que evitar se filtran antes de rotar, como siempre.
+
+### Ejercicios saltados
+
+Saltar un ejercicio (confirmado) es una señal de rechazo, no de que se hizo:
+
+- Para la rotación cuenta como usado ese día durante **14 días** (`SKIP_PENALTY_DAYS`). AXIS no lo vuelve a proponer de inmediato; pasado ese tiempo, la señal caduca y compite como cualquier otro.
+- **No toca la progresión ni los récords**, que solo miran series hechas.
+- La sesión no guarda el id del saltado, solo la frase «<nombre> sin completar.» que ya escribía la app; los nombres del catálogo son únicos (test), así que el nombre identifica al ejercicio. Un test de contrato usa el texto real de `skipExercise`. Funciona también con las sesiones guardadas antes de D-020. Si un día se renombra un ejercicio, sus saltos antiguos dejan de reconocerse (solo afecta a la rotación, y caducan en 14 días de todos modos).
+
+### Conversación
+
+Al preguntar por la primera palabra de un ejercicio («¿cómo hago el puente?»), AXIS responde por el **básico** y no por su variante más larga: con el catálogo ampliado, varios comparten la primera palabra.
+
+### Lo que no cambia
+
+Training, ejercicio activo, resumen, persistencia, copias de seguridad, D-016, D-017 y D-018. La progresión por `exerciseId` es la misma. Consecuencia aceptada, no corregida aquí: como cada ejercicio aparece menos a menudo, su progresión es más lenta.
 
 ---
 
