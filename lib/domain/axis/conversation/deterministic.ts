@@ -23,7 +23,15 @@ import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { describeFocus, type SessionFocus } from '../knowledge/focus'
 import { muscleGroupLabel } from '../knowledge/muscles'
 import type { AxisBriefing, BriefingActivity } from '../briefing'
-import { asksForMoreTime, detectExercise, looksLikeQuestion, looksLikeRequest, matchIntent, type IntentMatch } from './intents'
+import {
+  asksForMoreTime,
+  looksLikeQuestion,
+  looksLikeRequest,
+  matchIntent,
+  resolveExercise,
+  type ExerciseResolution,
+  type IntentMatch,
+} from './intents'
 import { evaluateChange, parseChangeRequest, type ChangeRequest } from './negotiation'
 import type {
   AxisAnswer,
@@ -161,7 +169,7 @@ export function answerFromBriefing(
     case 'shorten':
       return answerShorten(briefing)
     case 'exercise':
-      return answerExercise(briefing, question)
+      return answerExercise(briefing, match.exercise ?? resolveExercise(question))
     case 'medical':
       return answerMedical()
     case 'out_of_scope':
@@ -671,10 +679,26 @@ const CATEGORY_LABELS = { empuje: 'empuje', tiron: 'tirón', piernas: 'piernas',
  * instrucciones. Nada más: AXIS no es una enciclopedia de fisiología, y lo que
  * no está en el catálogo no se inventa.
  */
-function answerExercise(briefing: AxisBriefing, question: string): AxisAnswer {
-  const exercise = detectExercise(question)
-  if (!exercise) return answerUnknown()
+/**
+ * Responde por un ejercicio con la resolución que ya hizo `matchIntent`: no se
+ * vuelve a buscar (D-020).
+ *
+ * Las dudas y los que no existen se responden con intent `unknown`, que no pasa
+ * por la capa de lenguaje: un modelo no debe elegir por el usuario entre dos
+ * ejercicios ni inventar uno que no está en el catálogo.
+ */
+function answerExercise(briefing: AxisBriefing, resolution: ExerciseResolution): AxisAnswer {
+  if (resolution.kind === 'ambiguous') {
+    const names = resolution.options.map((option) => `«${option.name}»`)
+    return unknown('unknown', `¿Te refieres a ${names.slice(0, -1).join(', a ')} o a ${names[names.length - 1]}?`)
+  }
+  if (resolution.kind === 'not_found') {
+    return resolution.query === null
+      ? answerUnknown()
+      : unknown('unknown', 'No tengo ese ejercicio en tu catálogo.')
+  }
 
+  const exercise = resolution.exercise
   const primary = listNames(exercise.primaryMuscles.map(muscleGroupLabel))
   const secondary = exercise.secondaryMuscles.map(muscleGroupLabel)
   const parts = [

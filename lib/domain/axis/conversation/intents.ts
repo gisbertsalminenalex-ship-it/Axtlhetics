@@ -102,7 +102,27 @@ export type IntentMatch = {
   focus: SessionFocus | null
   /** `true` si la pregunta se apoya en lo dicho justo antes. */
   isFollowUp: boolean
+  /**
+   * El ejercicio por el que se pregunta, resuelto una sola vez. Solo cuando el
+   * intent es `exercise`: la respuesta lo reutiliza en vez de volver a buscarlo.
+   */
+  exercise?: ExerciseResolution
 }
+
+/**
+ * Qué ejercicio del catálogo nombra una pregunta.
+ *
+ * - `found`: uno, sin dudas.
+ * - `ambiguous`: varios con la misma evidencia y ninguno es la base de los
+ *   demás. AXIS pregunta cuál, no adivina.
+ * - `not_found`: ninguno. `query` es lo que se preguntaba si la pregunta tenía
+ *   forma de preguntar por un ejercicio («¿cómo hago el press banca?»), o `null`
+ *   si no la tenía: entonces no es una pregunta de ejercicios.
+ */
+export type ExerciseResolution =
+  | { kind: 'found'; exercise: Exercise }
+  | { kind: 'ambiguous'; options: Exercise[] }
+  | { kind: 'not_found'; query: string | null }
 
 /**
  * `true` si `term` aparece como palabra (o principio de palabra) en `text`.
@@ -222,31 +242,150 @@ export function asksForMoreTime(question: string): boolean {
   })
 }
 
+// ---------------------------------------------------------------------------
+// Resolución de ejercicios (D-020)
+//
+// Determinista y sacada solo del catálogo: sin alias, sin excepciones por
+// ejercicio y sin modelo de lenguaje. Que el catálogo crezca no obliga a tocarla.
+// ---------------------------------------------------------------------------
+
+/** Palabras que no identifican nada: artículos, preposiciones, conjunciones. */
+const NAME_STOPWORDS: ReadonlySet<string> = new Set([
+  'a', 'al', 'con', 'de', 'del', 'el', 'en', 'la', 'las', 'lo', 'los', 'o', 'para', 'por',
+  'sin', 'sobre', 'u', 'un', 'una', 'unas', 'uno', 'unos', 'y',
+])
+
+/** Con más candidatos igual de probables, la pregunta es demasiado vaga para preguntar «¿cuál?». */
+const MAX_AMBIGUOUS_OPTIONS = 3
+
 /**
- * El ejercicio del catálogo que nombra el mensaje, si nombra alguno.
+ * Las palabras significativas de un texto, en la forma en que se comparan.
  *
- * Primero el nombre completo (el más largo gana: «flexiones diamante» antes que
- * «flexiones»), después la raíz de la primera palabra, para que «sentadillas»
- * encuentre «Sentadilla» y «flexion» encuentre «Flexiones».
- *
- * Por la raíz gana el nombre **más corto**: varios ejercicios comparten la
- * primera palabra («Puente de glúteos», «Puente con talones en silla»), y quien
- * dice solo «el puente» habla del básico, no de su variante (D-020).
+ * Sin acentos ni mayúsculas. Los guiones entre letras sueltas se unen («y-t-w»
+ * → «ytw»); los demás separan («gato-camello» → «gato camello»). Los plurales
+ * sencillos se quitan para que «gemelos» encuentre «gemelo» y «talones»,
+ * «talón». Se aplica igual a la pregunta y a los nombres: lo que importa es que
+ * los dos lados queden iguales, no que la palabra sea correcta.
  */
-export function detectExercise(question: string, catalog: readonly Exercise[] = EXERCISE_CATALOG): Exercise | null {
+export function exerciseWords(text: string): string[] {
+  const normalized = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\b[a-z](?:-[a-z]\b)+/g, (letters) => letters.replace(/-/g, ''))
+  return normalized
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 0 && !NAME_STOPWORDS.has(word))
+    .map((word) => (word.length >= 4 ? word.replace(/(es|s)$/, '') : word))
+}
+
+/** `true` si `variant` llega a `base` bajando por su cadena de regresiones. */
+function regressesTo(variant: Exercise, base: Exercise, catalog: readonly Exercise[]): boolean {
+  let current: Exercise | undefined = variant
+  for (let step = 0; step < catalog.length && current; step += 1) {
+    if (current.regressionId === null) return false
+    if (current.regressionId === base.id) return true
+    current = catalog.find((exercise) => exercise.id === current!.regressionId)
+  }
+  return false
+}
+
+/**
+ * Qué se pregunta cuando la pregunta tiene forma de preguntar por un ejercicio:
+ * «cómo hago / cómo se hace / qué trabaja / para qué sirve» + artículo + algo.
+ * El artículo es lo que separa «¿cómo hago el press banca?» de «¿cómo hago para
+ * dormir mejor?».
+ */
+const EXERCISE_QUESTION =
+  /^(?:como (?:se )?(?:hago|hace|hacen|hacer|realizo|realiza|ejecuto|ejecuta)|que (?:musculos )?trabajan?|para que sirven?|en que consisten?) (?:el|la|los|las|un|una|unos|unas) (.+)$/
+
+function exerciseQuestionQuery(question: string): string | null {
+  const text = normalizeQuestion(question).replace(/[?!.]+$/, '').trim()
+  return EXERCISE_QUESTION.exec(text)?.[1]?.trim() ?? null
+}
+
+/**
+ * El ejercicio que nombra una pregunta (D-020).
+ *
+ * 1. **Nombre completo** en la pregunta: gana, y si hay varios, el más largo
+ *    («flexiones diamante» antes que «flexiones»).
+ * 2. **Por palabras**: es candidato quien tenga en la pregunta su primera
+ *    palabra significativa (el núcleo: «press», «puente», «hip») o al menos dos
+ *    de sus palabras. Una palabra secundaria suelta («hombro», «pared») no basta.
+ * 3. Gana quien más palabras suyas tenga en la pregunta. Si empatan varios:
+ *    - el único que la pregunta nombra entero («flexión» → «Flexiones»);
+ *    - si no, la base de la familia: el ejercicio al que regresan todos los
+ *      demás según el catálogo («puente» → «Puente de glúteos», del que regresa
+ *      «Puente con talones en silla»);
+ *    - si no, es ambiguo y se pregunta («press» → ¿de hombro o de suelo?).
+ *
+ * Todas las palabras del nombre cuentan, también «unilateral» o «pesa»: son lo
+ * que distingue «Curl de bíceps» de «Curl de bíceps unilateral».
+ */
+export function resolveExercise(
+  question: string,
+  catalog: readonly Exercise[] = EXERCISE_CATALOG,
+): ExerciseResolution {
   const text = normalizeQuestion(question)
   const byLength = [...catalog].sort((a, b) => b.name.length - a.name.length)
+  const fullName = byLength.find((exercise) => includesWord(text, normalizeQuestion(exercise.name))) ?? null
 
-  for (const exercise of byLength) {
-    if (includesWord(text, normalizeQuestion(exercise.name))) return exercise
+  const asked = new Set(exerciseWords(question))
+  const scored = catalog
+    .map((exercise) => {
+      const words = [...new Set(exerciseWords(exercise.name))]
+      const matched = words.filter((word) => asked.has(word))
+      return { exercise, words, matched }
+    })
+    .filter(({ words, matched }) => words.length > 0 && (matched.includes(words[0]) || matched.length >= 2))
+
+  // Sin ejercicio: `query` dice si al menos se preguntaba por uno.
+  const query = exerciseQuestionQuery(question)
+  const notFound = (): ExerciseResolution => ({ kind: 'not_found', query })
+
+  if (scored.length === 0) return fullName ? { kind: 'found', exercise: fullName } : notFound()
+
+  const best = Math.max(...scored.map((item) => item.matched.length))
+
+  /*
+   * El nombre completo manda, salvo que otro ejercicio coincida con más
+   * palabras de las que tiene ese nombre: en «sentadilla isométrica» está el
+   * nombre «Sentadilla», pero lo que se nombra es «Sentadilla isométrica en
+   * pared». En «flexiones diamante» o «elevación de gemelos» nadie lo supera.
+   */
+  if (fullName && best <= exerciseWords(fullName.name).length) return { kind: 'found', exercise: fullName }
+
+  const top = scored.filter((item) => item.matched.length === best)
+  if (top.length === 1) return { kind: 'found', exercise: top[0].exercise }
+
+  const named = top.filter((item) => item.matched.length === item.words.length)
+  if (named.length === 1) return { kind: 'found', exercise: named[0].exercise }
+
+  const base = top.find((candidate) =>
+    top.every((other) => other === candidate || regressesTo(other.exercise, candidate.exercise, catalog)),
+  )
+  if (base) return { kind: 'found', exercise: base.exercise }
+
+  /*
+   * Antes de preguntar «¿cuál?»: si se preguntaba por un ejercicio y nombra
+   * algo que ninguna de las opciones tiene («press banca»), no es una duda
+   * entre ellas, es uno que no está en el catálogo.
+   */
+  if (query !== null) {
+    const offered = new Set(top.flatMap((item) => item.words))
+    if (exerciseWords(query).some((word) => !offered.has(word))) return notFound()
   }
 
-  for (const exercise of [...byLength].reverse()) {
-    const first = normalizeQuestion(exercise.name).split(' ')[0]
-    const stem = first.replace(/(es|s)$/, '')
-    if (stem.length >= 5 && includesWord(text, stem)) return exercise
+  if (top.length <= MAX_AMBIGUOUS_OPTIONS) {
+    return { kind: 'ambiguous', options: top.map((item) => item.exercise) }
   }
-  return null
+  return notFound()
+}
+
+/** El ejercicio que nombra el mensaje, solo si no hay dudas. */
+export function detectExercise(question: string, catalog: readonly Exercise[] = EXERCISE_CATALOG): Exercise | null {
+  const resolution = resolveExercise(question, catalog)
+  return resolution.kind === 'found' ? resolution.exercise : null
 }
 
 export function detectIntent(question: string, previous: AxisIntent | null = null): AxisIntent {
@@ -278,9 +417,16 @@ export function matchIntent(
     return { intent: rule.intent, focus, isFollowUp }
   }
 
-  // Preguntar por un ejercicio concreto se responde con el catálogo.
-  if (detectExercise(question)) {
-    return { intent: 'exercise', focus, isFollowUp }
+  /*
+   * Preguntar por un ejercicio se responde con el catálogo. Va después de las
+   * reglas: «me duele el hombro» es médico aunque «hombro» esté en un nombre.
+   * Se resuelve aquí una sola vez y la respuesta reutiliza el resultado. Es
+   * pregunta de ejercicio si hay ejercicio, si hay dudas sobre cuál, o si tiene
+   * la forma de una y no está en el catálogo.
+   */
+  const exercise = resolveExercise(question)
+  if (exercise.kind !== 'not_found' || exercise.query !== null) {
+    return { intent: 'exercise', focus, isFollowUp, exercise }
   }
 
   // Nada ha encajado. Si es un seguimiento corto, se hereda el tema anterior.
