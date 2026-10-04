@@ -883,6 +883,103 @@ Training, la progresión, las regresiones, la persistencia, las copias de seguri
 
 ---
 
+## D-021 — Test de evolución
+
+**Fecha:** 2026-10-04 · **Estado:** aprobada · **diseño UX/UI aprobado** (2026-10-04): lista para implementar.
+
+El usuario mide periódicamente su rendimiento en cuatro pruebas fijas y lo compara **consigo mismo**. No mide «la forma física»: registra cómo rindió en estas pruebas respecto a su test anterior. Forma parte de Core v0.1 como **flujo interno de Entrenamiento**, sin pestaña nueva ni pantalla de progreso.
+
+Ningún documento anterior lo definía; el Documento Maestro solo pide «comparar la evolución» y que AXIS detecte «mejoras o estancamientos». Los retos mensuales del Documento Maestro son gamificación y siguen fuera.
+
+### Principios
+
+Medir, no puntuar. Compararse con uno mismo. Sin métrica global, sin gamificación, sin métricas corporales, sin percentiles ni comparación con población, sin carga inventada. No altera la progresión ni los récords del entrenamiento. Técnica antes que agotamiento. La interfaz transmite *medir → registrar → comparar → entender*, no *competir → superar → ganar*: el usuario objetivo es adolescente.
+
+### Protocolo v1
+
+Orden fijo, `protocolVersion = 1`:
+
+| # | Prueba | `exerciseId` | Medida | Carga |
+|---|---|---|---|---|
+| 1 | Flexiones (variante del usuario) | familia `flexion` | repeticiones | — |
+| 2 | Plancha | `plancha` | segundos | — |
+| 3 | Sentadilla isométrica en pared | `sentadilla-isometrica-pared` | segundos | — |
+| 4 | Remo unilateral con pesa | `remo-unilateral` | repeticiones, izquierdo y derecho | 5 kg |
+
+«Máximo» es **rendimiento con técnica válida**, no agotamiento: «haz tantas como puedas manteniendo una técnica correcta; para cuando ya no puedas» y «mantén la posición mientras la técnica sea válida».
+
+**Variante de flexiones.** En el primer test AXIS recomienda una según el nivel y el usuario puede elegir otra («Para tu primer test recomendamos flexiones inclinadas. Si prefieres, puedes elegir otra variante»). Una vez elegida queda **fijada** para los tests siguientes; AXIS no la cambia. Si el usuario cambia de variante, empieza una **línea base nueva** para ella: no se calcula una diferencia entre variantes.
+
+### Disponibilidad y quién lo inicia
+
+Disponible solo si se cumplen todas:
+
+- han pasado **28 días o más desde el último test completado** (un test interrumpido no cuenta);
+- el usuario **no ha entrenado hoy** ni ha hecho o interrumpido un test hoy;
+- la recuperación de hoy es **conocida y no está en la banda baja** (0–49). Con «datos insuficientes» **no** está disponible: es un esfuerzo máximo y sin datos no se sabe si la recuperación es baja;
+- **no hay un deporte de intensidad alta hoy ni mañana**. El de hoy cuenta aunque ya haya terminado;
+- el veredicto de AXIS para hoy **no es descansar**: ofrecer un esfuerzo máximo el día que AXIS recomienda descanso contradice su recomendación.
+
+Antes de los 28 días no se muestra; sin contador.
+
+**Lo inicia el usuario.** El motor no sustituye la sesión del día por el test. AXIS avisa de que está disponible en la **tarjeta de Entrenamiento** (opción secundaria, «Hacer test», sin competir con el entrenamiento del día) y en la **conversación** cuando tenga sentido. Inicio no cambia.
+
+### Flujo
+
+Introducción (4 pruebas, 10–15 min, qué se mide, fecha del test anterior) → prueba activa (solo la prueba y su resultado) → resultado → descanso (temporizador de D-019, saltable) → siguiente prueba → resumen.
+
+- **Resultados**: control propio, **sin el límite de 50** del selector de entrenamiento. Las pruebas de segundos usan un **cronómetro integrado** (empezar / parar) y el resultado se puede **editar** al terminar. El remo registra izquierdo y derecho por separado; se muestra «12 / 11 reps» y no se promedia.
+- **Variantes de flexiones elegibles**: inclinadas, estándar, declinadas y diamante. Las **negativas quedan fuera**: son solo la bajada controlada y sus repeticiones no son comparables con las de repeticiones máximas.
+- **Descanso entre pruebas**: **2 minutos**, con el temporizador de D-019: «+15 s» y «Saltar descanso». Sin «−15 s»: para eso está saltar.
+- **Recarga o cierre**: se reanuda el mismo día; al cambiar de día se descarta.
+- **Salir a mitad**: pide confirmación, como abandonar un entrenamiento. Si se confirma, el test queda **interrumpido**.
+- **Interrupción**: un test sin las cuatro pruebas **no está completado** y no entra en ninguna comparación ni marca. Sí cuenta como actividad del día para AXIS: hubo esfuerzo real.
+
+### Comparación y lenguaje
+
+Solo con el **test completado anterior compatible** (mismo protocolo, ejercicio, variante, medida y carga).
+
+- «+3 reps», «−8 s»: la diferencia exacta. Signo menos siempre «−».
+- «Sin cambio» solo con el resultado **exactamente** igual. No hay margen de tolerancia.
+- «Línea base» si no hay anterior compatible.
+- Remo: cuenta como mejora solo si mejoran **los dos lados** y ninguno empeora; si uno mejora y otro empeora es **mixto**, con los dos datos («+2 / −1»).
+- Nunca porcentajes de forma física, «más fuerte», niveles ni interpretaciones más allá de los datos.
+
+**AXIS al terminar**: mensaje determinista que resume los datos («Has mejorado en 3 de 4 pruebas respecto a tu test anterior»; «Este es tu primer test. A partir de ahora tendremos una línea base para comparar tu evolución»). No afirma que el usuario esté más en forma, más fuerte en general, ni atribuye causas.
+
+### Mejores marcas del test
+
+Cada test guarda sus propias mejores marcas por prueba y variante («Mejor resultado en test: 17 flexiones»), visibles en el **resumen** y en el **detalle del historial**. Son independientes de los récords de entrenamiento: un test nunca modifica `personalRecords`, la progresión, `lastPerformanceOf`, los objetivos de series ni la rotación.
+
+### Historial
+
+Sección «Tests de evolución» dentro de Historial, sin pantalla nueva: cada test con su fecha; al abrirlo, los cuatro resultados, la comparación con el anterior compatible, las mejores marcas y el protocolo. Sin gráficas, curvas, puntuación, ranking ni medallas.
+
+### Relación con AXIS y Training
+
+El test **no** es una sesión de entrenamiento: no consume rotación, no modifica la progresión, no genera Carga, no cambia objetivos ni genera récords de entrenamiento.
+
+Un test completado **o interrumpido** genera un hecho de AXIS: ya hubo actividad física relevante hoy. AXIS lo trata como la regla existente de «ya has entrenado hoy», con su propia explicación («Has completado un test de evolución hoy, así que no necesitas otro entrenamiento»). Es el único cambio en el motor.
+
+Los resultados no se envían a la capa de lenguaje en v1.
+
+### Datos
+
+- Entidad propia `Assessment`, separada de `WorkoutSession`, para no contaminar a sus consumidores. Guarda `protocolVersion` y, por prueba, ejercicio, variante, medida, valor, carga y lado cuando corresponda, y la fecha.
+- Estados: disponible, no disponible, en progreso, completado, interrumpido. Solo **completado** entra en comparaciones y marcas.
+- Almacén `assessments` con **IndexedDB v7 → v8**. La migración solo crea el almacén; no toca datos existentes.
+- Copia de seguridad **schema 2**, que incluye los tests y sigue aceptando las copias de schema 1 (sin tests).
+
+### Fuera de D-021 v1
+
+Test de movilidad, otros protocolos, composición corporal, estimaciones fisiológicas, puntuación global, comparación con población, objetivos automáticos, el test como sesión elegida por el motor, una fórmula de carga del test, análisis avanzado con IA y cambios en Inicio.
+
+### Diseño
+
+Diseño aprobado el 2026-10-04 (bocetos: https://claude.ai/artifact/LqMXoZQMQ39y9G4RwvWMPM): entrada desde Entrenamiento, introducción con elección de variante, prueba de repeticiones, prueba con cronómetro, remo por lados, confirmación de salida, descanso, resumen, Historial → Tests de evolución y detalle de un test. Las diferencias se muestran en texto neutro, no en colores de estado, y durante la prueba no se muestra el resultado anterior.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
