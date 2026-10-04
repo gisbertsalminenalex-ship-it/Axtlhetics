@@ -225,8 +225,9 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 39 ejercicios: los 23 de D-008 y los 16 de D-020', () => {
-  assert.equal(EXERCISE_CATALOG.length, 39)
+test('el catálogo tiene 43 ejercicios: 23 de D-008, 16 de D-020 y 4 de D-020.1', () => {
+  // D-020.1 amplía el catálogo a propósito; antes este test fijaba 39.
+  assert.equal(EXERCISE_CATALOG.length, 43)
 })
 
 test('los ejercicios de D-008 conservan su id: el historial y la progresión dependen de ellos', () => {
@@ -260,11 +261,15 @@ test('ningún objetivo ni techo de progresión pasa del límite del selector de 
   }
 })
 
-test('hay exactamente tres ejercicios de movilidad, de peso corporal', () => {
+test('la movilidad son exactamente los seis aprobados, de peso corporal', () => {
+  // D-020 empezó con tres; D-020.1 añade isquiotibiales, tobillo y hombro.
   const mobility = EXERCISE_CATALOG.filter((item) => item.category === 'movilidad')
   assert.deepEqual(
     mobility.map((item) => item.id).sort(),
-    ['estiramiento-flexor-cadera', 'gato-camello', 'rotacion-toracica'],
+    [
+      'angeles-pared', 'estiramiento-flexor-cadera', 'estiramiento-isquiotibiales',
+      'gato-camello', 'rotacion-toracica', 'tobillo-pared',
+    ],
   )
   for (const exercise of mobility) {
     assert.equal(exercise.stimulus, 'movilidad')
@@ -289,5 +294,114 @@ test('cada grupo muscular tiene variedad, también sin la pesa', () => {
     assert.ok(all.length >= count, `${group}: ${all.length} ejercicios`)
     const noWeight = withoutWeight.filter((item) => item.primaryMuscles.includes(group))
     assert.ok(noWeight.length >= 1, `${group}: ninguno sin la pesa`)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// D-020.1: cuatro ejercicios y familias
+// ---------------------------------------------------------------------------
+
+test('los cuatro ejercicios de D-020.1 existen con su categoría, dificultad, material y relaciones', () => {
+  const expected: [string, string, ExerciseCategory, string | null][] = [
+    ['zancada-lateral', 'Zancada lateral', 'piernas', 'sentadilla'],
+    ['estiramiento-isquiotibiales', 'Estiramiento de isquiotibiales', 'movilidad', null],
+    ['tobillo-pared', 'Tobillo a la pared', 'movilidad', null],
+    ['angeles-pared', 'Ángeles en la pared', 'movilidad', null],
+  ]
+  for (const [id, name, category, regressionId] of expected) {
+    const exercise = findExercise(id)
+    assert.ok(exercise, `${id} no existe`)
+    assert.equal(exercise!.name, name)
+    assert.equal(exercise!.category, category)
+    assert.equal(exercise!.difficulty, 2)
+    assert.deepEqual(exercise!.equipment, ['ninguno'])
+    assert.equal(exercise!.regressionId, regressionId)
+    assert.equal(exercise!.progressionId, null)
+  }
+  // Isquiotibiales: unos 30 s, como el resto de estiramientos.
+  assert.equal(findExercise('estiramiento-isquiotibiales')!.work.isTimed, true)
+  assert.equal(findExercise('estiramiento-isquiotibiales')!.work.reps, 30)
+})
+
+test('las relaciones de los 39 ejercicios anteriores no cambian', () => {
+  // [dificultad, regresión, progresión] tal y como estaban en d719b81.
+  const before: Record<string, [number, string | null, string | null]> = {
+    'flexiones-inclinadas': [1, null, 'flexiones-negativas'],
+    'flexiones-negativas': [2, 'flexiones-inclinadas', 'flexiones'],
+    'flexiones': [3, 'flexiones-negativas', 'flexiones-diamante'],
+    'flexiones-diamante': [4, 'flexiones', null],
+    'press-hombro-unilateral': [2, null, null],
+    'extension-triceps-unilateral': [2, null, null],
+    'press-suelo-unilateral': [1, null, null],
+    'flexiones-declinadas': [4, 'flexiones', null],
+    'flexion-pica': [3, null, null],
+    'patada-triceps-unilateral': [1, null, null],
+    'superman': [1, null, 'remo-unilateral'],
+    'remo-unilateral': [2, 'superman', 'remo-renegado'],
+    'remo-renegado': [4, 'remo-unilateral', null],
+    'curl-biceps-unilateral': [1, null, null],
+    'ytw-boca-abajo': [1, null, null],
+    'pullover-con-pesa': [2, null, null],
+    'curl-martillo-unilateral': [1, null, null],
+    'sentadilla': [1, null, 'sentadilla-con-pesa'],
+    'sentadilla-con-pesa': [2, 'sentadilla', 'zancada-bulgara'],
+    'zancadas': [2, 'sentadilla', 'zancada-bulgara'],
+    'zancada-atras': [2, 'sentadilla', 'zancada-bulgara'],
+    'zancada-bulgara': [4, 'zancadas', null],
+    'peso-muerto-unilateral': [3, 'puente-gluteos', null],
+    'puente-gluteos': [1, null, 'peso-muerto-unilateral'],
+    'elevacion-gemelos': [1, null, 'elevacion-gemelos-una-pierna'],
+    'elevacion-gemelos-una-pierna': [2, 'elevacion-gemelos', null],
+    'sentadilla-isometrica-pared': [2, 'sentadilla', null],
+    'subida-escalon': [2, 'sentadilla', 'zancada-bulgara'],
+    'puente-talones-silla': [2, 'puente-gluteos', null],
+    'hip-thrust-con-pesa': [2, 'puente-gluteos', null],
+    'dead-bug': [1, null, 'plancha'],
+    'bird-dog': [1, null, 'plancha-lateral'],
+    'plancha': [2, 'dead-bug', 'hollow-hold'],
+    'plancha-lateral': [2, 'bird-dog', 'hollow-hold'],
+    'hollow-hold': [3, 'plancha', null],
+    'plancha-toque-hombro': [3, 'plancha', null],
+    'gato-camello': [2, null, null],
+    'rotacion-toracica': [2, null, null],
+    'estiramiento-flexor-cadera': [2, null, null],
+  }
+  for (const [id, [difficulty, regressionId, progressionId]] of Object.entries(before)) {
+    const exercise = findExercise(id)
+    assert.ok(exercise, `${id} ha desaparecido`)
+    assert.deepEqual(
+      [exercise!.difficulty, exercise!.regressionId, exercise!.progressionId],
+      [difficulty, regressionId, progressionId],
+      id,
+    )
+  }
+})
+
+test('las familias son pocas, semánticas y solo agrupan variantes del mismo patrón', () => {
+  const families = new Map<string, string[]>()
+  for (const exercise of EXERCISE_CATALOG) {
+    if (!exercise.family) continue
+    families.set(exercise.family, [...(families.get(exercise.family) ?? []), exercise.id])
+  }
+  assert.deepEqual(
+    [...families.keys()].sort(),
+    ['curl', 'flexion', 'gemelos', 'plancha', 'puente', 'remo', 'sentadilla', 'triceps', 'zancada'],
+  )
+  for (const [family, ids] of families) {
+    assert.ok(ids.length >= 2, `${family} con un solo ejercicio no separa nada`)
+    const categories = new Set(ids.map((id) => findExercise(id)!.category))
+    assert.equal(categories.size, 1, `${family} mezcla categorías`)
+  }
+})
+
+test('lo que se diferencia de verdad no comparte familia', () => {
+  // Otro plano, otro patrón, o movilidad: pueden ir juntos en una sesión.
+  for (const id of [
+    'zancada-lateral', 'flexion-pica', 'press-hombro-unilateral', 'press-suelo-unilateral',
+    'plancha-lateral', 'subida-escalon', 'ytw-boca-abajo',
+    'gato-camello', 'rotacion-toracica', 'estiramiento-flexor-cadera',
+    'estiramiento-isquiotibiales', 'tobillo-pared', 'angeles-pared',
+  ]) {
+    assert.equal(findExercise(id)!.family, undefined, id)
   }
 })

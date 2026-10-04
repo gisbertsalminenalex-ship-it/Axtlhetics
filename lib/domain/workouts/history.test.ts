@@ -19,6 +19,7 @@ import {
   skippedExerciseNames,
 } from './history'
 import type { CompletedSet, Exercise, PerformedExercise, WorkoutSession } from './types'
+import { isWorkoutSession } from './types'
 
 let nextId = 0
 
@@ -293,4 +294,12 @@ test('saltar no cambia los récords: solo cuentan las series hechas', () => {
   const skip = skippedIn('2026-09-10', ['Remo unilateral'])
   const today = session([exercise('remo', [set(8, 5)])], { dayKey: '2026-09-20' })
   assert.deepEqual(personalRecords(today, [skip, before]), personalRecords(today, [before]))
+})
+
+test('D-020.1: una sesión guardada antes de las familias sigue cargando y contando para la rotación', () => {
+  // Las sesiones nunca han guardado la familia: es solo del catálogo.
+  const stored = JSON.parse(JSON.stringify(session([exercise('remo', [set(10, 5)])], { dayKey: '2026-09-01' })))
+  assert.equal(isWorkoutSession(stored), true)
+  assert.equal('family' in stored.exercises[0], false)
+  assert.deepEqual(exerciseUsage([stored], { catalog: CATALOG }).get('remo'), { lastUse: '2026-09-01', uses: 1 })
 })

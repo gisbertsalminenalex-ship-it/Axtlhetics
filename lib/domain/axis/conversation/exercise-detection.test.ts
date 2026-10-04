@@ -202,3 +202,25 @@ test('las palabras se comparan igual en la pregunta y en los nombres', () => {
   assert.deepEqual(exerciseWords('Y-T-W boca abajo'), ['ytw', 'boca', 'abajo'])
   assert.deepEqual(exerciseWords('Gato-camello'), ['gato', 'camello'])
 })
+
+test('D-020.1: los cuatro ejercicios nuevos se reconocen sin chocar con los que ya había', () => {
+  const cases: [string, string][] = [
+    ['¿Cómo hago la zancada lateral?', 'zancada-lateral'],
+    ['¿Cómo hago la zancada?', 'zancadas'], // sigue llevando al básico
+    ['¿Cómo hago el tobillo a la pared?', 'tobillo-pared'],
+    ['¿Cómo hago el tobillo?', 'tobillo-pared'],
+    ['¿Cómo hago los ángeles en la pared?', 'angeles-pared'],
+    ['¿Cómo hago los ángeles?', 'angeles-pared'],
+    ['¿Cómo hago el estiramiento de isquiotibiales?', 'estiramiento-isquiotibiales'],
+    ['¿Cómo hago el estiramiento de flexor de cadera?', 'estiramiento-flexor-cadera'],
+  ]
+  for (const [question, id] of cases) assert.equal(resolved(question), id, question)
+
+  // «pared» sola sigue sin inventar nada, aunque ahora la llevan tres nombres.
+  assert.equal(resolved('pared'), 'ninguno')
+  // Dos estiramientos sin relación: se pregunta cuál.
+  assert.equal(
+    resolved('¿Cómo hago el estiramiento?'),
+    'ambiguo:estiramiento-flexor-cadera|estiramiento-isquiotibiales',
+  )
+})

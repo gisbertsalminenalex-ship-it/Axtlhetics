@@ -488,3 +488,79 @@ test('saltar un ejercicio no cambia su progresión: solo cuentan las series hech
     suggestWorkFor(remo, { ...BASE, history: [done] }),
   )
 })
+
+// ---------------------------------------------------------------------------
+// Familias (D-020.1)
+//
+// Variedad preferida, no restricción: dos variantes de la misma familia no van
+// juntas si hay alternativas; si no las hay, se repite familia antes que dejar
+// la sesión corta.
+// ---------------------------------------------------------------------------
+
+/** El catálogo real sin ninguna familia: el comportamiento de antes de D-020.1. */
+const WITHOUT_FAMILIES: Exercise[] = EXERCISE_CATALOG.map(({ family: _family, ...rest }) => rest)
+
+function families(sessionIds: readonly string[]): string[] {
+  return sessionIds.map((id) => exercise(id).family).filter((family): family is string => Boolean(family))
+}
+
+test('con alternativas, ninguna sesión junta dos variantes de la misma familia', () => {
+  const levels = [
+    ['principiante', 'ligera'], ['principiante', 'moderada'], ['intermedio', 'moderada'],
+    ['intermedio', 'alta'], ['avanzado', 'alta'],
+  ] as const
+  for (const [experience, intensity] of levels) {
+    for (const focus of ['tren_superior', 'tren_inferior', 'core_movilidad', 'cuerpo_completo'] as const) {
+      for (const sessionIds of weeks(focus, 8, { experience, intensity })) {
+        const used = families(sessionIds)
+        assert.equal(new Set(used).size, used.length, `${experience}/${intensity}/${focus}: ${sessionIds.join(', ')}`)
+      }
+    }
+  }
+})
+
+test('nunca se repite el mismo ejercicio dentro de una sesión', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'core_movilidad', 'cuerpo_completo'] as const) {
+    for (const sessionIds of weeks(focus, 8)) {
+      assert.equal(new Set(sessionIds).size, sessionIds.length, sessionIds.join(', '))
+    }
+  }
+})
+
+test('la familia es lo único que separa: sin familias, la misma sesión juntaba dos zancadas', () => {
+  const withFamilies = ids(buildSession({ ...ROTATION, focus: 'tren_inferior' }))
+  const withoutFamilies = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', catalog: WITHOUT_FAMILIES }))
+
+  assert.ok(withoutFamilies.includes('zancadas') && withoutFamilies.includes('zancada-atras'), withoutFamilies.join(', '))
+  assert.ok(!(withFamilies.includes('zancadas') && withFamilies.includes('zancada-atras')), withFamilies.join(', '))
+  assert.equal(withFamilies.length, withoutFamilies.length, 'la sesión no sale más corta')
+})
+
+test('los ejercicios sin familia se eligen exactamente como antes', () => {
+  // Sin conflicto de familia, las dos selecciones coinciden: tren superior y core, sin historial.
+  for (const focus of ['tren_superior', 'core_movilidad'] as const) {
+    assert.deepEqual(
+      ids(buildSession({ ...ROTATION, focus })),
+      ids(buildSession({ ...ROTATION, focus, catalog: WITHOUT_FAMILIES })),
+      focus,
+    )
+  }
+})
+
+test('si no hay familias suficientes, se repite familia antes que dejar la sesión corta', () => {
+  // Solo zancadas: tres ejercicios de la misma familia y nada más en piernas.
+  const onlyLunges = EXERCISE_CATALOG.filter(
+    (item) => item.category !== 'piernas' || ['zancadas', 'zancada-atras', 'zancada-bulgara'].includes(item.id),
+  )
+  const session = ids(buildSession({ ...ROTATION, experience: 'avanzado', intensity: 'alta', focus: 'tren_inferior', catalog: onlyLunges }))
+
+  assert.deepEqual(session.sort(), ['zancada-atras', 'zancada-bulgara', 'zancadas'])
+  assert.equal(new Set(families(session)).size, 1, 'repite familia: no había otra cosa')
+})
+
+test('con familias la selección sigue siendo determinista', () => {
+  const history = [day('2026-09-19', ['sentadilla', 'puente-gluteos'])]
+  const a = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', history, today: TODAY }))
+  const b = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', history, today: TODAY }))
+  assert.deepEqual(a, b)
+})

@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-03.
+**Última actualización:** 2026-10-04.
 
 ## Qué es este documento
 
@@ -830,6 +830,56 @@ Al preguntar por la primera palabra de un ejercicio («¿cómo hago el puente?»
 ### Lo que no cambia
 
 Training, ejercicio activo, resumen, persistencia, copias de seguridad, D-016, D-017 y D-018. La progresión por `exerciseId` es la misma. Consecuencia aceptada, no corregida aquí: como cada ejercicio aparece menos a menudo, su progresión es más lenta.
+
+---
+
+## D-020.1 — Catálogo / variedad y familias
+
+**Fecha:** 2026-10-04 · **Estado:** aprobada · Extiende D-020. (D-021 sigue reservado al test mensual de evolución física.)
+
+La auditoría posterior a D-020 concluyó que **el catálogo ya no es el cuello de botella**: con la rotación, los 39 ejercicios aparecen (entre 9 y 45 veces en 240 sesiones simuladas, ninguno excluido). Quedaban tres huecos reales y un problema de variedad dentro de la sesión. Se resuelven con lo mínimo.
+
+### Cuatro ejercicios, no más (39 → 43)
+
+| Ejercicio | Categoría | Hueco que cubre |
+|---|---|---|
+| Zancada lateral | piernas, dificultad 2, regresión: Sentadilla | Todo el trabajo de piernas era adelante-atrás; faltaba el plano frontal (aductores, glúteo medio) |
+| Estiramiento de isquiotibiales | movilidad, ~30 s | Movilidad de la cadena posterior, que no existía |
+| Tobillo a la pared | movilidad | Dorsiflexión de tobillo, útil para sentadillas y zancadas |
+| Ángeles en la pared | movilidad | Movilidad de hombro y torácica, de pie. No equivale a Y-T-W, que es fuerza boca abajo |
+
+La movilidad era el grupo más concentrado: el foco «Core y movilidad» toma 2 de sus 4 ejercicios de movilidad, y con solo 3 opciones cada una salía 2 de cada 3 sesiones. Con 6, sale 1 de cada 3.
+
+Los nombres evitan una primera palabra genérica («Tobillo a la pared», no «Movilidad de tobillo…»), para que la resolución de ejercicios no confunda «¿qué hago de movilidad?» con un ejercicio.
+
+**No se añade la sentadilla a una pierna a la silla**: es válida, pero para Core v0.1 no compensa su complejidad frente a lo que ya cubren la zancada búlgara, la subida al escalón y el peso muerto unilateral. Se reconsiderará si el nivel avanzado de piernas demuestra un hueco real. No se añade nada más: ni variantes casi idénticas, ni material fuera de D-008.
+
+### Familias
+
+La rotación evitaba repetir el **mismo ejercicio**, pero no dos variantes casi equivalentes en la **misma sesión**: en la simulación, 30 de 240 sesiones (12,5 %) juntaban, por ejemplo, Zancadas y Zancada atrás, dos flexiones o dos puentes.
+
+`Exercise.family` es un campo **opcional** del catálogo, solo donde agrupa variantes del mismo patrón. Nueve familias: `flexion`, `triceps`, `remo`, `curl`, `sentadilla`, `zancada`, `puente`, `gemelos`, `plancha`. Se quedan **sin familia** los que se diferencian de verdad: la flexión pica (empuje vertical), los dos press (vertical y horizontal), la plancha lateral, la zancada lateral (otro plano), la subida al escalón y toda la movilidad. Un ejercicio sin familia no comparte nada con nadie y se comporta exactamente como antes.
+
+La familia **no se guarda** en las sesiones: el historial, las copias de seguridad y la progresión no cambian.
+
+### Prioridad de selección
+
+1. **No repetir ejercicio**: la rotación de D-020 (el que lleva más tiempo sin usarse) y nunca el mismo id dos veces en una sesión.
+2. **No repetir familia en la sesión** si hay alternativas válidas.
+3. **Fallback**: si evitando familias no se completa la sesión, una segunda pasada por el mismo orden permite repetir familia. Variedad preferida, no restricción: la sesión nunca sale más corta que antes.
+
+La primera pasada es la selección de siempre, solo que aparta un candidato cuya familia ya está; sin conflictos de familia, el resultado es idéntico al de D-020. Sigue siendo determinista.
+
+### Resultado (240 sesiones simuladas: 5 niveles × 4 focos × 12 semanas)
+
+- Sesiones con familia repetida: **30 → 0**.
+- Sesiones incompletas: 0 antes y después; 4 ejercicios por sesión.
+- Ningún ejercicio excluido. Los cuatro nuevos aparecen (zancada lateral 12; movilidad 20 cada uno).
+- Cada ejercicio de movilidad: de 40 apariciones a 20.
+
+### Lo que no cambia
+
+Training, la progresión, las regresiones, la persistencia, las copias de seguridad, la resolución de ejercicios, D-016, D-017 y D-018. No se renombra ni se elimina ningún ejercicio.
 
 ---
 

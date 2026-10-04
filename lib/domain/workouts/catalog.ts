@@ -54,6 +54,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'flexiones-inclinadas',
     name: 'Flexiones inclinadas',
+    family: 'flexion',
     category: 'empuje',
     primaryMuscles: ['pecho'],
     secondaryMuscles: ['hombros', 'brazos'],
@@ -71,6 +72,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'flexiones-negativas',
     name: 'Flexiones negativas',
+    family: 'flexion',
     category: 'empuje',
     primaryMuscles: ['pecho'],
     secondaryMuscles: ['hombros', 'brazos'],
@@ -87,6 +89,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'flexiones',
     name: 'Flexiones',
+    family: 'flexion',
     category: 'empuje',
     primaryMuscles: ['pecho'],
     secondaryMuscles: ['hombros', 'brazos', 'core'],
@@ -103,6 +106,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'flexiones-diamante',
     name: 'Flexiones diamante',
+    family: 'flexion',
     category: 'empuje',
     primaryMuscles: ['pecho', 'brazos'],
     secondaryMuscles: ['hombros'],
@@ -135,6 +139,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'extension-triceps-unilateral',
     name: 'Extensión de tríceps unilateral',
+    family: 'triceps',
     category: 'empuje',
     primaryMuscles: ['brazos'],
     secondaryMuscles: ['hombros'],
@@ -170,6 +175,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Pecho más exigente que la flexión. La silla, contra la pared.
     id: 'flexiones-declinadas',
     name: 'Flexiones declinadas',
+    family: 'flexion',
     category: 'empuje',
     primaryMuscles: ['pecho'],
     secondaryMuscles: ['hombros', 'brazos', 'core'],
@@ -206,6 +212,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Tríceps sin llevar el hombro a extensión con carga (sustituye a los fondos en silla).
     id: 'patada-triceps-unilateral',
     name: 'Patada de tríceps unilateral',
+    family: 'triceps',
     category: 'empuje',
     primaryMuscles: ['brazos'],
     secondaryMuscles: ['hombros'],
@@ -243,6 +250,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'remo-unilateral',
     name: 'Remo unilateral con pesa',
+    family: 'remo',
     category: 'tiron',
     primaryMuscles: ['espalda'],
     secondaryMuscles: ['brazos', 'core'],
@@ -259,6 +267,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'remo-renegado',
     name: 'Remo renegado',
+    family: 'remo',
     category: 'tiron',
     primaryMuscles: ['espalda', 'core'],
     secondaryMuscles: ['brazos', 'hombros'],
@@ -275,6 +284,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'curl-biceps-unilateral',
     name: 'Curl de bíceps unilateral',
+    family: 'curl',
     category: 'tiron',
     primaryMuscles: ['brazos'],
     secondaryMuscles: [],
@@ -328,6 +338,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Agarre neutro: la variante de agarre es un ejercicio propio, sin campo nuevo.
     id: 'curl-martillo-unilateral',
     name: 'Curl martillo unilateral',
+    family: 'curl',
     category: 'tiron',
     primaryMuscles: ['brazos'],
     secondaryMuscles: [],
@@ -349,6 +360,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'sentadilla',
     name: 'Sentadilla',
+    family: 'sentadilla',
     category: 'piernas',
     primaryMuscles: ['piernas'],
     secondaryMuscles: ['gluteos', 'core'],
@@ -365,6 +377,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'sentadilla-con-pesa',
     name: 'Sentadilla con pesa',
+    family: 'sentadilla',
     category: 'piernas',
     primaryMuscles: ['piernas'],
     secondaryMuscles: ['gluteos', 'core'],
@@ -381,6 +394,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'zancadas',
     name: 'Zancadas',
+    family: 'zancada',
     category: 'piernas',
     primaryMuscles: ['piernas', 'gluteos'],
     secondaryMuscles: ['core'],
@@ -397,6 +411,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'zancada-atras',
     name: 'Zancada atrás',
+    family: 'zancada',
     category: 'piernas',
     primaryMuscles: ['piernas', 'gluteos'],
     secondaryMuscles: ['core'],
@@ -413,6 +428,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'zancada-bulgara',
     name: 'Zancada búlgara',
+    family: 'zancada',
     category: 'piernas',
     primaryMuscles: ['piernas', 'gluteos'],
     secondaryMuscles: ['core'],
@@ -445,6 +461,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'puente-gluteos',
     name: 'Puente de glúteos',
+    family: 'puente',
     category: 'piernas',
     primaryMuscles: ['gluteos'],
     secondaryMuscles: ['piernas', 'core'],
@@ -461,6 +478,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'elevacion-gemelos',
     name: 'Elevación de gemelos',
+    family: 'gemelos',
     category: 'piernas',
     primaryMuscles: ['piernas'],
     secondaryMuscles: [],
@@ -479,6 +497,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Progresión de gemelos sin material.
     id: 'elevacion-gemelos-una-pierna',
     name: 'Elevación de gemelos a una pierna',
+    family: 'gemelos',
     category: 'piernas',
     primaryMuscles: ['piernas'],
     secondaryMuscles: [],
@@ -497,6 +516,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Cuádriceps sin impacto. Base de 30 s: su techo de progresión cabe en el selector.
     id: 'sentadilla-isometrica-pared',
     name: 'Sentadilla isométrica en pared',
+    family: 'sentadilla',
     category: 'piernas',
     primaryMuscles: ['piernas'],
     secondaryMuscles: ['gluteos'],
@@ -533,6 +553,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Isquios: hasta ahora solo el peso muerto unilateral (sustituye al puente a una pierna).
     id: 'puente-talones-silla',
     name: 'Puente con talones en silla',
+    family: 'puente',
     category: 'piernas',
     primaryMuscles: ['piernas', 'gluteos'],
     secondaryMuscles: ['core'],
@@ -551,6 +572,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Glúteo con carga. Pesa a dos manos sobre la cadera: excepción de D-008.
     id: 'hip-thrust-con-pesa',
     name: 'Hip thrust con pesa',
+    family: 'puente',
     category: 'piernas',
     primaryMuscles: ['gluteos'],
     secondaryMuscles: ['piernas', 'core'],
@@ -563,6 +585,25 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions:
       'Parte alta de la espalda apoyada en un sofá o en una silla contra la pared, y la pesa sujeta con las dos manos sobre la cadera. Sube hasta alinear la cadera con el tronco y aprieta arriba.',
     work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020.1. El único movimiento lateral de piernas: aductores, glúteo medio y
+    // cuádriceps. Sin familia a propósito: es otro plano, puede ir con una zancada.
+    id: 'zancada-lateral',
+    name: 'Zancada lateral',
+    category: 'piernas',
+    primaryMuscles: ['piernas', 'gluteos'],
+    secondaryMuscles: ['core'],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: 'sentadilla',
+    stimulus: 'fuerza',
+    instructions:
+      'Da un paso amplio hacia un lado y baja la cadera atrás sobre esa pierna, con la otra estirada. La rodilla sigue la dirección del pie, sin irse hacia dentro; baja solo hasta donde controles. Alterna los lados.',
+    work: { sets: 3, reps: 10, restSeconds: 75, isTimed: false, tempo: null },
     imageUrl: null,
   },
 
@@ -604,6 +645,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'plancha',
     name: 'Plancha',
+    family: 'plancha',
     category: 'core',
     primaryMuscles: ['core'],
     secondaryMuscles: ['hombros'],
@@ -653,6 +695,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     // D-020. Antirrotación.
     id: 'plancha-toque-hombro',
     name: 'Plancha con toque de hombro',
+    family: 'plancha',
     category: 'core',
     primaryMuscles: ['core'],
     secondaryMuscles: ['hombros'],
@@ -724,6 +767,62 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions:
       'Rodilla de atrás apoyada en el suelo. Adelanta la cadera hasta notar el estiramiento en la parte delantera del muslo de atrás, sin rebotes. Un lado cada vez.',
     work: { sets: 2, reps: 30, restSeconds: 30, isTimed: true, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020.1. Cadena posterior. Base de 30 s: su techo cabe en el selector.
+    id: 'estiramiento-isquiotibiales',
+    name: 'Estiramiento de isquiotibiales',
+    category: 'movilidad',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: ['gluteos'],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'De pie, con un talón adelantado y apoyado, inclina el tronco desde la cadera con la espalda recta hasta notar el estiramiento detrás del muslo. Sin rebotes y sin forzar el rango. Un lado cada vez.',
+    work: { sets: 2, reps: 30, restSeconds: 30, isTimed: true, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020.1. Dorsiflexión de tobillo: da profundidad a sentadillas y zancadas.
+    // «Tobillo» y no «Movilidad de…»: la primera palabra identifica el ejercicio.
+    id: 'tobillo-pared',
+    name: 'Tobillo a la pared',
+    category: 'movilidad',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: [],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'Frente a una pared, con el pie a un palmo de ella. Lleva la rodilla hacia la pared sin levantar el talón; si llegas sin esfuerzo, aleja un poco el pie. Un lado cada vez.',
+    work: { sets: 2, reps: 10, restSeconds: 30, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-020.1. Movilidad de hombro y torácica, de pie. No es Y-T-W: aquel es
+    // fuerza boca abajo; este moviliza.
+    id: 'angeles-pared',
+    name: 'Ángeles en la pared',
+    category: 'movilidad',
+    primaryMuscles: ['hombros'],
+    secondaryMuscles: ['espalda'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'De pie con la espalda, la cabeza y los brazos apoyados en la pared, desliza los brazos arriba y abajo sin despegarlos. Solo hasta donde llegues sin dolor; no fuerces el rango.',
+    work: { sets: 2, reps: 10, restSeconds: 30, isTimed: false, tempo: null },
     imageUrl: null,
   },
 ]

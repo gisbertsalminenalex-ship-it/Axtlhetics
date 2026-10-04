@@ -385,26 +385,42 @@ function selectExercises(
 
   const selected: Exercise[] = []
   const taken = new Set<string>()
+  const takenFamilies = new Set<string>()
 
-  const remaining = () =>
-    categories.reduce((total, category) => total + (byCategory.get(category)?.length ?? 0), 0)
+  /*
+   * Dos pasadas (D-020.1). La primera es la selección de siempre, pero deja para
+   * después un candidato cuya familia ya está en la sesión: dos variantes de lo
+   * mismo («Zancadas» y «Zancada atrás») no van juntas si hay otra cosa. Solo si
+   * así no se llena la sesión, la segunda recorre el mismo orden permitiendo
+   * repetir familia. Variedad preferida, no restricción: la sesión nunca sale
+   * más corta que antes, y un ejercicio sin familia no se aparta nunca.
+   */
+  for (const allowFamilyRepeat of [false, true]) {
+    // Cada pasada parte del orden de rotación entero: lo que la primera apartó
+    // por la familia sigue disponible para la segunda.
+    const queues = new Map(categories.map((category) => [category, [...(byCategory.get(category) ?? [])]]))
 
-  while (selected.length < count && remaining() > 0) {
-    for (const category of categories) {
-      if (selected.length >= count) break
-      const candidates = byCategory.get(category)
-      if (!candidates) continue
+    let progressed = true
+    while (selected.length < count && progressed) {
+      progressed = false
+      for (const category of categories) {
+        if (selected.length >= count) break
+        const queue = queues.get(category)!
 
-      // Se sigue sacando de esta categoría hasta encontrar una variante nueva.
-      while (candidates.length > 0) {
-        const candidate = candidates.shift() as Exercise
-        const adapted = adapt(candidate)
-        if (taken.has(adapted.id)) continue
-        taken.add(adapted.id)
-        selected.push(adapted)
-        break
+        // Se sigue sacando de esta categoría hasta encontrar una variante nueva.
+        while (queue.length > 0) {
+          const adapted = adapt(queue.shift() as Exercise)
+          if (taken.has(adapted.id)) continue
+          if (!allowFamilyRepeat && adapted.family && takenFamilies.has(adapted.family)) continue
+          taken.add(adapted.id)
+          if (adapted.family) takenFamilies.add(adapted.family)
+          selected.push(adapted)
+          progressed = true
+          break
+        }
       }
     }
+    if (selected.length >= count) break
   }
 
   return selected

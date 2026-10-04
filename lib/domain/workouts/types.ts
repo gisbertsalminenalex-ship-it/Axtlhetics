@@ -121,6 +121,13 @@ export type Exercise = {
   instructions: string
   work: WorkParams
   imageUrl: string | null
+  /**
+   * Variantes del mismo patrón: dos ejercicios con la misma familia son casi lo
+   * mismo («Zancadas» y «Zancada atrás») y AXIS evita juntarlos en una sesión si
+   * hay alternativas (D-020.1). Sin familia, el ejercicio no comparte nada con
+   * nadie. Es solo del catálogo: las sesiones guardadas no la llevan.
+   */
+  family?: string
 }
 
 /** `true` si el ejercicio admite progresión por carga externa. */
