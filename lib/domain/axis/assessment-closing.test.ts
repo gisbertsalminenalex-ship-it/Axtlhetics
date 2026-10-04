@@ -56,10 +56,16 @@ test('ninguna mejora: se dice sin dramatizar', () => {
   )
 })
 
-test('un lado que sube con el otro igual no cuenta como mejora', () => {
+test('un lado que sube con el otro igual es mixto y no cuenta como mejora', () => {
   const text = message({ ...SEPT, pull: [11, 12] })
   assert.ok(text.startsWith('Respecto a tu test anterior, ninguna de las 4 pruebas mejora.'))
   assert.ok(text.includes('En remo unilateral, un lado sube y el otro se mantiene.'))
+})
+
+test('un lado que baja con el otro igual también es mixto', () => {
+  const text = message({ ...SEPT, pull: [9, 12] })
+  assert.ok(text.includes('En remo unilateral, un lado baja y el otro se mantiene.'), text)
+  assert.ok(!text.includes('Remo unilateral baja'), text)
 })
 
 test('un cambio de variante de flexiones se anuncia como línea base nueva y no cuenta', () => {

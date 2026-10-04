@@ -13,11 +13,11 @@ import type { Assessment, AssessmentResult, AssessmentValue } from './types'
 /**
  * - `up` / `down` / `same`: en una prueba de un valor, el signo de la diferencia.
  *   Por lados, `up` exige que suban los dos y `down` que bajen los dos.
- * - `mixed`: un lado sube y el otro baja.
- * - `partial_up` / `partial_down`: un lado cambia y el otro se queda igual. No
- *   cuenta como mejora: mejorar exige que mejoren los dos lados.
+ * - `mixed`: por lados, cualquier otra combinación: uno sube y el otro baja, o
+ *   uno cambia y el otro se queda igual. No cuenta como mejora: mejorar exige que
+ *   mejoren los dos lados.
  */
-export type AssessmentTrend = 'up' | 'down' | 'same' | 'mixed' | 'partial_up' | 'partial_down'
+export type AssessmentTrend = 'up' | 'down' | 'same' | 'mixed'
 
 export type AssessmentDelta =
   | { kind: 'baseline' }
@@ -46,8 +46,7 @@ function sidesTrend(left: number, right: number): AssessmentTrend {
   if (left > 0 && right > 0) return 'up'
   if (left < 0 && right < 0) return 'down'
   if (left === 0 && right === 0) return 'same'
-  if ((left > 0 && right < 0) || (left < 0 && right > 0)) return 'mixed'
-  return left > 0 || right > 0 ? 'partial_up' : 'partial_down'
+  return 'mixed'
 }
 
 function deltaOf(current: AssessmentValue, previous: AssessmentValue): AssessmentDelta {

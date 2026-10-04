@@ -16,6 +16,19 @@ function nameOf(comparison: TestComparison): string {
   return comparison.test.name.toLowerCase()
 }
 
+/** Qué hace cada lado en un resultado mixto, sin cifras. */
+function describeSides(comparison: TestComparison): string {
+  const delta = comparison.delta
+  if (delta.kind !== 'sides') return 'el resultado es mixto'
+  const verb = (diff: number) => (diff > 0 ? 'sube' : diff < 0 ? 'baja' : 'se mantiene')
+  const [first, second] = [verb(delta.left), verb(delta.right)].sort((x, y) => order(x) - order(y))
+  return `un lado ${first} y el otro ${second}`
+}
+
+function order(verb: string): number {
+  return verb === 'sube' ? 0 : verb === 'baja' ? 1 : 2
+}
+
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
@@ -35,9 +48,7 @@ export function assessmentClosingMessage(comparisons: readonly TestComparison[])
   const improved = names('up')
   const same = names('same')
   const worse = names('down')
-  const mixed = names('mixed')
-  const partialUp = names('partial_up')
-  const partialDown = names('partial_down')
+  const mixed = compared.filter((c) => trendOf(c) === 'mixed')
 
   const parts: string[] = []
   const total = compared.length
@@ -62,9 +73,7 @@ export function assessmentClosingMessage(comparisons: readonly TestComparison[])
 
   if (same.length > 0) parts.push(`${capitalize(listNames(same))} sin cambio.`)
   if (worse.length > 0) parts.push(`${capitalize(listNames(worse))} ${worse.length === 1 ? 'baja' : 'bajan'}.`)
-  for (const name of mixed) parts.push(`En ${name}, un lado sube y el otro baja.`)
-  for (const name of partialUp) parts.push(`En ${name}, un lado sube y el otro se mantiene.`)
-  for (const name of partialDown) parts.push(`En ${name}, un lado baja y el otro se mantiene.`)
+  for (const comparison of mixed) parts.push(`En ${nameOf(comparison)}, ${describeSides(comparison)}.`)
 
   if (baseline.length > 0) {
     const variantNames = listNames(baseline.map(nameOf))

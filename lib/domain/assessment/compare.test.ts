@@ -47,7 +47,7 @@ test('«sin cambio» solo con el resultado exactamente igual: un segundo ya es d
   assert.deepEqual(c.pull.delta, { kind: 'sides', left: 0, right: 0, trend: 'same' })
 })
 
-test('el remo solo mejora si mejoran los dos lados', () => {
+test('el remo solo mejora si mejoran los dos lados; un lado igual lo hace mixto (D-021)', () => {
   const sept = completed('2026-09-05', SEPT)
   const trend = (pull: [number, number]) => {
     const oct = completed('2026-10-04', { ...SEPT, pull })
@@ -56,8 +56,9 @@ test('el remo solo mejora si mejoran los dos lados', () => {
   assert.equal((trend([11, 13]) as { trend: string }).trend, 'up')
   assert.equal((trend([9, 11]) as { trend: string }).trend, 'down')
   assert.equal((trend([12, 11]) as { trend: string }).trend, 'mixed')
-  assert.equal((trend([12, 12]) as { trend: string }).trend, 'partial_up')
-  assert.equal((trend([10, 11]) as { trend: string }).trend, 'partial_down')
+  assert.equal((trend([12, 12]) as { trend: string }).trend, 'mixed', '+2 / 0 es mixto')
+  assert.equal((trend([10, 11]) as { trend: string }).trend, 'mixed', '0 / −1 es mixto')
+  assert.equal((trend([9, 12]) as { trend: string }).trend, 'mixed', '−1 / 0 es mixto')
 })
 
 test('se compara con el test completado más reciente anterior, no con el primero', () => {
@@ -135,7 +136,8 @@ test('valores y diferencias se escriben como en el diseño, con el signo menos r
   assert.equal(formatAssessmentDelta({ kind: 'single', diff: 0, trend: 'same' }, 'reps'), 'Sin cambio')
   assert.equal(formatAssessmentDelta({ kind: 'sides', left: 2, right: -1, trend: 'mixed' }, 'reps'), 'Mixto · +2 / −1')
   assert.equal(formatAssessmentDelta({ kind: 'sides', left: 2, right: 1, trend: 'up' }, 'reps'), '+2 / +1')
-  assert.equal(formatAssessmentDelta({ kind: 'sides', left: 2, right: 0, trend: 'partial_up' }, 'reps'), '+2 / 0')
+  assert.equal(formatAssessmentDelta({ kind: 'sides', left: 2, right: 0, trend: 'mixed' }, 'reps'), 'Mixto · +2 / 0')
+  assert.equal(formatAssessmentDelta({ kind: 'sides', left: -1, right: 0, trend: 'mixed' }, 'reps'), 'Mixto · −1 / 0')
   assert.equal(formatAssessmentDelta({ kind: 'sides', left: 0, right: 0, trend: 'same' }, 'reps'), 'Sin cambio')
   assert.ok(!formatAssessmentDelta({ kind: 'single', diff: -8, trend: 'down' }, 'seconds').includes('-'))
 })

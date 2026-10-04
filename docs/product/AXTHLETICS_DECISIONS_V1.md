@@ -978,6 +978,16 @@ Test de movilidad, otros protocolos, composición corporal, estimaciones fisiol�
 
 Diseño aprobado el 2026-10-04 (bocetos: https://claude.ai/artifact/LqMXoZQMQ39y9G4RwvWMPM): entrada desde Entrenamiento, introducción con elección de variante, prueba de repeticiones, prueba con cronómetro, remo por lados, confirmación de salida, descanso, resumen, Historial → Tests de evolución y detalle de un test. Las diferencias se muestran en texto neutro, no en colores de estado, y durante la prueba no se muestra el resultado anterior.
 
+### Decisiones de implementación aprobadas
+
+Aprobadas por Alex el 2026-10-04, después del dominio (`1c49337`):
+
+1. **Remo con un lado que mejora y el otro igual** (por ejemplo «+2 / 0»): el resultado es **mixto**, no mejora.
+2. **Salir antes de registrar ningún resultado** no deja rastro y no cuenta como actividad del día.
+3. **Un test a medias que se intenta continuar otro día** se considera **interrumpido**: no se reanuda y no entra en ninguna comparación oficial.
+4. **Límites de entrada**: máximo **500 repeticiones** y **3600 segundos**. No son métricas: solo impiden guardar un valor imposible.
+5. Si hay un **test en curso del mismo día**, la tarjeta de Entrenamiento muestra **«Continuar test»** en lugar de «Hacer test».
+
 ---
 
 ## Decisiones pendientes
