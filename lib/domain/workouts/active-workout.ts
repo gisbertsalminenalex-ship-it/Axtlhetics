@@ -13,6 +13,14 @@
 import type { AxisProposal } from '../axis/types'
 import { todayKey, type DayKey } from '../shared/dates'
 import { createId, clamp } from '../shared/ids'
+import {
+  extendRestWindow,
+  REST_EXTENSION_SECONDS,
+  restRemaining,
+  startRestWindow,
+  type RestState,
+  type RestWindow,
+} from '../shared/rest'
 import type {
   CompletedSet,
   PerformedExercise,
@@ -63,16 +71,13 @@ export type ActiveWorkout = {
    * y se guarda como instantes, no como una cuenta atrás: así, al recargar,
    * sigue donde iba. Ausente en las sesiones guardadas antes de D-019.
    */
-  rest?: { startedAt: string; endsAt: string } | null
+  rest?: RestWindow | null
   /**
    * Dónde se registró la última serie, para poder deshacerla (D-019). Solo la
    * última: deshacer no es un historial, es corregir un toque por error.
    */
   lastSet?: { exerciseIndex: number } | null
 }
-
-/** Segundos que añade «+15 s» al descanso. */
-export const REST_EXTENSION_SECONDS = 15
 
 export function snapshotOf(proposal: AxisProposal): ProposalSnapshot {
   return {
@@ -190,12 +195,7 @@ export function completeSet(workout: ActiveWorkout, now: Date = new Date()): Act
     ...updated,
     exerciseIndex,
     rest:
-      somethingLeft && entry.restSeconds > 0
-        ? {
-            startedAt: now.toISOString(),
-            endsAt: new Date(now.getTime() + entry.restSeconds * 1000).toISOString(),
-          }
-        : null,
+      somethingLeft && entry.restSeconds > 0 ? startRestWindow(entry.restSeconds, now) : null,
     lastSet: { exerciseIndex: workout.exerciseIndex },
   }
 }
@@ -222,25 +222,12 @@ export function skipExercise(workout: ActiveWorkout): ActiveWorkout {
 // Descanso (D-019)
 // ---------------------------------------------------------------------------
 
-export type RestState = {
-  /** Segundos que quedan, redondeados hacia arriba: «0:01» hasta que acaba. */
-  remainingSeconds: number
-  /** Duración total del descanso, incluidas las ampliaciones. */
-  totalSeconds: number
-}
+export { REST_EXTENSION_SECONDS }
+export type { RestState }
 
 /** El descanso en curso en el instante `now`, o `null` si no hay ninguno o ya acabó. */
 export function restState(workout: ActiveWorkout, now: Date = new Date()): RestState | null {
-  const rest = workout.rest
-  if (!rest) return null
-  const endsAt = new Date(rest.endsAt).getTime()
-  const startedAt = new Date(rest.startedAt).getTime()
-  const remainingMs = endsAt - now.getTime()
-  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null
-  return {
-    remainingSeconds: Math.ceil(remainingMs / 1000),
-    totalSeconds: Math.max(1, Math.round((endsAt - startedAt) / 1000)),
-  }
+  return restRemaining(workout.rest, now)
 }
 
 /** Termina el descanso ahora. */
@@ -254,9 +241,8 @@ export function extendRest(
   seconds: number = REST_EXTENSION_SECONDS,
   now: Date = new Date(),
 ): ActiveWorkout {
-  if (!workout.rest || !restState(workout, now)) return workout
-  const endsAt = new Date(new Date(workout.rest.endsAt).getTime() + seconds * 1000)
-  return { ...workout, rest: { ...workout.rest, endsAt: endsAt.toISOString() } }
+  const rest = workout.rest ? extendRestWindow(workout.rest, seconds, now) : null
+  return rest ? { ...workout, rest } : workout
 }
 
 // ---------------------------------------------------------------------------

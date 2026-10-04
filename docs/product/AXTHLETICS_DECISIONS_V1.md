@@ -908,7 +908,7 @@ Orden fijo, `protocolVersion = 1`:
 
 «Máximo» es **rendimiento con técnica válida**, no agotamiento: «haz tantas como puedas manteniendo una técnica correcta; para cuando ya no puedas» y «mantén la posición mientras la técnica sea válida».
 
-**Variante de flexiones.** En el primer test AXIS recomienda una según el nivel y el usuario puede elegir otra («Para tu primer test recomendamos flexiones inclinadas. Si prefieres, puedes elegir otra variante»). Una vez elegida queda **fijada** para los tests siguientes; AXIS no la cambia. Si el usuario cambia de variante, empieza una **línea base nueva** para ella: no se calcula una diferencia entre variantes.
+**Variante de flexiones.** En el primer test AXIS recomienda una según el nivel —**principiante → inclinadas; intermedio y avanzado → estándar**— y el usuario puede elegir otra («Para tu primer test recomendamos flexiones inclinadas. Si prefieres, puedes elegir otra variante»). Una vez elegida queda **fijada** para los tests siguientes; AXIS no la cambia. Si el usuario cambia de variante, empieza una **línea base nueva** para ella: no se calcula una diferencia entre variantes.
 
 ### Disponibilidad y quién lo inicia
 
