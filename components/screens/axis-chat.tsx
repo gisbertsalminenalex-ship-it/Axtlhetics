@@ -190,16 +190,45 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
  * ejecutarse dos veces.
  */
 function ActionCard({ action }: { action: AxisActionProposal }) {
-  const { axisActionStatuses, confirmAxisAction, cancelAxisAction } = useAxtlhetics()
+  const { axisActionStatuses, confirmAxisAction, cancelAxisAction, canUndoAxisAction, undoAxisAction } =
+    useAxtlhetics()
   const [working, setWorking] = useState(false)
+  const [undoError, setUndoError] = useState<string | null>(null)
 
   const status = axisActionStatuses[action.id] ?? { state: 'pending' as const }
 
   if (status.state === 'applied') {
+    // Solo la última acción del día, y solo antes de empezar a entrenar (D-022).
+    const undoable = canUndoAxisAction(action.id)
     return (
-      <p className="ax-enter mt-2 flex min-h-11 items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 text-[14px] font-semibold text-success">
-        <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-        Cambio aplicado
+      <div className="ax-enter mt-2">
+        <p className="flex min-h-11 items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 text-[14px] font-semibold text-success">
+          <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+          Cambio aplicado
+        </p>
+        {undoable && (
+          <button
+            type="button"
+            disabled={working}
+            onClick={async () => {
+              setWorking(true)
+              setUndoError(await undoAxisAction(action))
+              setWorking(false)
+            }}
+            className="ax-press mt-1 min-h-11 px-1 text-[13.5px] font-semibold text-muted-foreground disabled:opacity-50"
+          >
+            {working ? 'Deshaciendo…' : 'Deshacer cambio'}
+          </button>
+        )}
+        {undoError && <p className="ax-enter px-1 text-[13px] text-error">{undoError}</p>}
+      </div>
+    )
+  }
+
+  if (status.state === 'undone') {
+    return (
+      <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+        Cambio deshecho: todo vuelve a como estaba.
       </p>
     )
   }

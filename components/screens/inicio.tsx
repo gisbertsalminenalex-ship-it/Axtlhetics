@@ -64,6 +64,7 @@ export function InicioScreen({
     recoveryInputs,
     trainingLoad,
     weeklyActivity,
+    movedToTomorrow,
   } = useAxtlhetics()
 
   const copy = proposal ? DAY_TITLES[proposal.type] : DAY_TITLES.LIGHT_TRAINING
@@ -121,6 +122,9 @@ export function InicioScreen({
             {proposal.headline}
           </h2>
           <p className="mt-2 text-[13.5px] leading-relaxed text-white/60">{proposal.reason}</p>
+          {movedToTomorrow && !proposal.session && (
+            <p className="mt-3 text-[12.5px] text-white/45">Tu entrenamiento se ha movido a mañana.</p>
+          )}
 
           {proposal.session && (
             <p className="mt-3 text-[12.5px] text-white/45 tabular-nums">

@@ -577,7 +577,7 @@ export function buildAddDatedActivityAction(params: {
     ...baseOf(context, origin, reason),
     type: 'add_dated_activity',
     label: 'Registrar',
-    summary: `Registrar ${activity.name.toLowerCase()} ${formatDayInSentence(activity.date)}`,
+    summary: `Registrar ${activity.name.toLowerCase()} para el ${formatDayInSentence(activity.date)}`,
     activity,
   }
 }

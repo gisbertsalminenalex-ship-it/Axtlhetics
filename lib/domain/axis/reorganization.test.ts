@@ -395,6 +395,7 @@ test('con un único deporte habitual, el partido es de ese deporte y carga lo mi
   const action = proposeAction(day, answer)!
   assert.equal(action.type, 'add_dated_activity')
   if (action.type !== 'add_dated_activity') return
+  assert.equal(action.summary, 'Registrar partido de baloncesto para el martes 8 de septiembre')
   assert.deepEqual(action.activity, {
     name: 'Partido de baloncesto',
     date: TOMORROW,

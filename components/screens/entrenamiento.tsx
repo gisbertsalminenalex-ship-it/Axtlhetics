@@ -20,7 +20,7 @@ export function EntrenamientoScreen({
   onGoHistorial: () => void
   onOpenAxis: () => void
 }) {
-  const { proposal, openChangeConversation, sessions, weeklyActivity, today } =
+  const { proposal, openChangeConversation, sessions, weeklyActivity, today, movedToTomorrow } =
     useAxtlhetics()
 
   const trains = proposal ? isTrainingRecommendation(proposal.type) : false
@@ -47,6 +47,10 @@ export function EntrenamientoScreen({
             <h2 className="text-[20px] font-semibold tracking-[-0.01em]">
               {session ? session.title : 'Hoy toca recuperar'}
             </h2>
+            {/* D-022: el entrenamiento de hoy se movió a mañana. Solo contexto. */}
+            {movedToTomorrow && !session && (
+              <p className="mt-1.5 text-[13px] font-medium text-muted-foreground">Movido a mañana</p>
+            )}
             {session && (
               <div className="mt-2.5 flex items-center gap-4 text-[13px] text-muted-foreground">
                 <span className="flex items-center gap-1.5 tabular-nums">

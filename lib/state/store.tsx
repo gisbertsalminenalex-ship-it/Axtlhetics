@@ -32,11 +32,14 @@ import {
 import { deleteDatabase } from '../data/indexeddb/db'
 import {
   applyAction,
+  canUndoAction,
   dismissAction,
   executeAction,
   proposeAction,
   sanitizeActions,
+  undoAction,
   type AxisDay,
+  type AxisMemoryPort,
 } from '../domain/axis/action-engine'
 import {
   resolveOverride,
@@ -58,7 +61,7 @@ import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
 import { computeRecoveryScore } from '../domain/recovery/score'
 import type { RecoveryInputs, RecoveryScore } from '../domain/recovery/types'
 import { emptyRecoveryInputs, HYDRATION_GLASS_COUNT } from '../domain/recovery/types'
-import { todayKey, type DayKey } from '../domain/shared/dates'
+import { addDays, todayKey, type DayKey } from '../domain/shared/dates'
 import { clamp, createId, nowIso } from '../domain/shared/ids'
 import type { ActiveWorkout } from '../domain/workouts/active-workout'
 import {
@@ -83,9 +86,11 @@ import {
   conversationMemoryOf,
   emptyDayMemory,
   markActionError,
+  movedFromDayBefore,
   openChangeThread,
   rememberAnswer,
   rememberQuestion,
+  undoLastApplied,
   type AxisDayMemory,
 } from '../domain/axis/memory'
 import { createAxisConversation, suggestionsFor } from '../domain/axis/conversation'
@@ -221,6 +226,15 @@ type AxtlheticsStore = {
    */
   confirmAxisAction(action: AxisActionProposal): Promise<void>
   cancelAxisAction(action: AxisActionProposal): void
+  /**
+   * `true` si esa acción es la última aplicada hoy y el entrenamiento de hoy no
+   * ha empezado ni terminado (D-022).
+   */
+  canUndoAxisAction(actionId: string): boolean
+  /** Deshace la última acción aplicada. Devuelve el motivo si no se pudo. */
+  undoAxisAction(action: AxisActionProposal): Promise<string | null>
+  /** El entrenamiento de hoy se movió a mañana (D-022). */
+  movedToTomorrow: boolean
 
   beginWorkout(): void
   adjustWeight(delta: number): void
@@ -295,6 +309,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   // Lo efímero de la conversación: cómo está ahora mismo, no qué se ha dicho.
   const [axisStatus, setAxisStatus] = useState<AxisChatStatus>('idle')
   const [axisError, setAxisError] = useState<string | null>(null)
+  /** El entrenamiento de ayer se movió a hoy (D-022). Lo único que se lee de ayer. */
+  const [movedFromYesterday, setMovedFromYesterday] = useState(false)
   const [axisUsedFallback, setAxisUsedFallback] = useState(false)
 
   /** Día con el que se cargaron los datos. Permite detectar que ha cambiado la fecha. */
@@ -319,6 +335,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           storedSessions,
           storedMemory,
           storedWorkout,
+          storedYesterday,
         ] = await Promise.all([
           repositories.profile.get(),
           repositories.activities.list(),
@@ -326,6 +343,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           repositories.workouts.list(SESSION_HISTORY_LIMIT),
           repositories.axisMemory.getByDay(dayKey),
           repositories.activeWorkout.get(),
+          // De ayer solo se mira si movió el entrenamiento a hoy (D-022, D-011).
+          repositories.axisMemory.getByDay(addDays(dayKey, -1)),
         ])
 
         if (cancelled) return
@@ -377,6 +396,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             ? sanitizeActions(storedMemory)
             : emptyDayMemory(dayKey),
         )
+        setMovedFromYesterday(movedFromDayBefore(storedYesterday, dayKey))
         setStatus(storedProfile ? 'ready' : 'onboarding')
       } catch (cause) {
         if (cancelled) return
@@ -437,8 +457,20 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       recentSessions: sessions,
       activities,
       cancelledToday: memory.cancelledActivities,
+      availableMinutesToday: memory.availableMinutes ?? null,
+      movedFromYesterday,
     })
-  }, [status, profile, recoveryInputs, recoveryScore, sessions, activities, memory.cancelledActivities])
+  }, [
+    status,
+    profile,
+    recoveryInputs,
+    recoveryScore,
+    sessions,
+    activities,
+    memory.cancelledActivities,
+    memory.availableMinutes,
+    movedFromYesterday,
+  ])
 
   const decision = useMemo(
     () => (axisContext ? engine.decide(axisContext) : null),
@@ -480,8 +512,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       proposal,
       memory.override,
       memory.reportedLoads,
+      memory.movedTo ?? null,
     )
-  }, [axisContext, decision, proposal, sessions, memory.override, memory.reportedLoads])
+  }, [axisContext, decision, proposal, sessions, memory.override, memory.reportedLoads, memory.movedTo])
 
   const axisSuggestions = useMemo(
     () => (briefing ? suggestionsFor(briefing) : []),
@@ -869,6 +902,32 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const inFlightRef = useRef<Set<string>>(new Set())
 
   /**
+   * Dónde guarda una acción: la memoria del día y, para el partido de mañana,
+   * el calendario (D-022). Cada escritura lanza si falla: qué deshacer lo
+   * decide el dominio, no la pantalla.
+   */
+  const actionPort = useMemo<AxisMemoryPort>(
+    () => ({
+      save: (next) => getRepositories().axisMemory.save(next),
+      async addActivity(activity) {
+        await getRepositories().activities.save(activity)
+        setActivities((current) =>
+          sortActivities([...current.filter((item) => item.id !== activity.id), activity]),
+        )
+      },
+      async removeActivity(id) {
+        await getRepositories().activities.remove(id)
+        setActivities((current) => current.filter((item) => item.id !== id))
+      },
+    }),
+    [],
+  )
+
+  /** El entrenamiento de hoy ha empezado o ha terminado: ya no se deshace nada (D-022). */
+  const workoutStartedToday =
+    activeWorkout?.dayKey === today || sessions.some((session) => session.dayKey === today)
+
+  /**
    * Aplica una propuesta de acción, y solo cuando el usuario pulsa el botón.
    *
    * Este es el único camino por el que la conversación puede cambiar el estado
@@ -889,7 +948,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           return
         }
         const snapshot = memoryRef.current
-        const result = await executeAction(action, day, snapshot, getRepositories().axisMemory)
+        const result = await executeAction(action, day, snapshot, actionPort)
         commitMemory((current) => {
           if (current === snapshot) return result.memory
           // Llegó algo al hilo mientras se guardaba: se vuelve a aplicar sobre lo
@@ -902,8 +961,41 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         inFlightRef.current.delete(action.id)
       }
     },
-    [day, commitMemory],
+    [day, commitMemory, actionPort],
   )
+
+  const canUndoAxisAction = useCallback(
+    (actionId: string) => canUndoAction(memory, actionId, { workoutStarted: workoutStartedToday }),
+    [memory, workoutStartedToday],
+  )
+
+  /**
+   * Deshace la última acción aplicada (D-022). El ciclo —comprobar, retirar lo
+   * creado, guardar— vive en el dominio; aquí se le da la memoria y el sitio
+   * donde guardar, y se refleja lo que devuelve.
+   */
+  const undoAxisAction = useCallback(
+    async (action: AxisActionProposal): Promise<string | null> => {
+      if (inFlightRef.current.has(action.id)) return null
+      inFlightRef.current.add(action.id)
+      try {
+        const snapshot = memoryRef.current
+        const result = await undoAction(action.id, snapshot, actionPort, {
+          workoutStarted: workoutStartedToday,
+        })
+        if (!result.ok) return result.message
+        commitMemory((current) =>
+          current === snapshot ? result.memory : undoLastApplied(current, action.id),
+        )
+        return null
+      } finally {
+        inFlightRef.current.delete(action.id)
+      }
+    },
+    [commitMemory, actionPort, workoutStartedToday],
+  )
+
+  const movedToTomorrow = memory.movedTo != null && memory.movedTo === addDays(today, 1)
 
   /** El usuario descarta la propuesta. No se toca nada más; la negociación termina. */
   const cancelAxisAction = useCallback(
@@ -1072,6 +1164,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       axisActionStatuses: memory.actionStatuses,
       confirmAxisAction,
       cancelAxisAction,
+      canUndoAxisAction,
+      undoAxisAction,
+      movedToTomorrow,
       beginWorkout,
       adjustWeight,
       adjustReps,
@@ -1124,6 +1219,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       memory.actionStatuses,
       confirmAxisAction,
       cancelAxisAction,
+      canUndoAxisAction,
+      undoAxisAction,
+      movedToTomorrow,
       beginWorkout,
       adjustWeight,
       adjustReps,
