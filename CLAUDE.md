@@ -118,7 +118,7 @@ Claude should surface problems and propose improvements rather than silently cha
 - Tailwind CSS
 - shadcn/ui
 - Lucide React
-- IndexedDB for local persistence in Core v0.1 (schema v7, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
+- IndexedDB for local persistence in Core v0.1 (schema v8, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
 - Vercel for web hosting/deployment (D-014) — the page is prerendered as static HTML and served as an installable PWA with offline support; no static export (`output: 'export'`), because the route below needs a server
 - A single Next.js route handler as the only server-side piece: `app/api/axis-ai/route.ts` (Node.js runtime, `maxDuration = 10`), the AXIS language layer, deployed by Vercel as a function
 - AXIS language providers behind that route (D-016), both OpenAI-compatible REST via `fetch`, no SDK, free plans: **Cloudflare Workers AI** as primary (`@cf/google/gemma-4-26b-a4b-it`, `lib/ai/providers/cloudflare.ts`) and **Groq** as fallback (`openai/gpt-oss-120b`, `lib/ai/providers/groq.ts`), chained in `lib/ai/provider-chain.ts`
@@ -162,7 +162,7 @@ Core v0.1 is local-first.
 
 The application must work without an account and without a backend.
 
-IndexedDB is the current persistence layer, at schema **v7**. Stores: `profile`, `activities`, `recovery`, `sessions`, `axisMemory`, `activeWorkout`. Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser.
+IndexedDB is the current persistence layer, at schema **v8**. Stores: `profile`, `activities`, `recovery`, `sessions`, `axisMemory`, `activeWorkout`, `assessments` (D-021 evolution tests, kept apart from `sessions` on purpose). Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser. The v8 migration is forward-only: there is no going back to a build that opens v7. Backups are schema 2 (they carry the evolution tests) and schema-1 files still import.
 
 What persists locally today: the profile and calendar activities, daily recovery inputs, completed and abandoned workout sessions, the workout in progress (a single row, resumed on the next start) and the AXIS memory, one record per day (`AxisDayMemory`): the confirmed session choice, the activities cancelled today, the loads the user reported, the conversation thread with the state of its action proposals, and where the conversation was (last intent, change mode, last change request), plus the D-022 reorganization of the day (minutes the user said they have, whether today's training moved to tomorrow, and what the last applied action changed, for undo). Records of previous days are kept; the only thing read from yesterday is its `movedTo` (D-022 amendment to D-011).
 
@@ -187,7 +187,7 @@ Claude Design is the preferred tool for the generative/visual design phase. Clau
 Current project phase: **FUNCTIONAL CORE v0.1**. The visual prototype was reviewed and approved (D-006) and the application is now real and deployed:
 
 - PWA on Vercel, installable and usable offline.
-- Local persistence in IndexedDB v7 through repositories.
+- Local persistence in IndexedDB v8 through repositories.
 - Recovery Score (D-002, D-009) and Training Load (D-008) computed from real data.
 - AXIS deterministic engine deciding the day, with explained recommendations.
 - AXIS conversation: negotiation of the day's session, typed action proposals that the user confirms, conversation persisted locally per day.

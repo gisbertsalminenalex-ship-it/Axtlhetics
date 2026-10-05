@@ -8,6 +8,8 @@ import {
   dropLegacySports,
   extractLegacySports,
   FALLBACK_GOAL,
+  LEGACY_STORE_NAMES,
+  legacyCleanupFor,
   mergeIntoAxisMemory,
   needsDayPlanUpgrade,
   needsProfileUpgrade,
@@ -35,8 +37,8 @@ function legacyProfile(goal: string | null = 'fuerza'): StoredProfile {
   return goal === null ? base : { ...base, goal }
 }
 
-test('la versión del esquema es la que guarda la memoria de AXIS', () => {
-  assert.equal(DB_VERSION, 7)
+test('la versión del esquema es la que añade los tests de evolución (D-021)', () => {
+  assert.equal(DB_VERSION, 8)
 })
 
 // ---------------------------------------------------------------------------
@@ -329,4 +331,49 @@ test('un registro antiguo con campos rotos no rompe la fusión', () => {
   assert.deepEqual(memory.cancelledActivities, [])
   assert.deepEqual(memory.messages, [])
   assert.deepEqual(memory.actionStatuses, {})
+})
+
+// ---------------------------------------------------------------------------
+// v8: limpieza de los almacenes antiguos (D-021)
+// ---------------------------------------------------------------------------
+
+/** Lo que hay en la base cuando se ejecuta el bloque v8, según de dónde se viene. */
+const AFTER_V7_BLOCKS = [
+  'profile', 'activities', 'recovery', 'sessions', 'activeWorkout', 'axisMemory', 'assessments',
+  'dayPlan', 'conversation',
+]
+
+test('instalación nueva: los dos almacenes antiguos se crearon vacíos y se borran ya', () => {
+  assert.deepEqual(legacyCleanupFor(0, AFTER_V7_BLOCKS), { dropNow: ['dayPlan', 'conversation'], dropIfEmpty: [] })
+})
+
+test('desde la v1 a la v3: igual que una instalación nueva', () => {
+  for (const version of [1, 2, 3]) {
+    assert.deepEqual(legacyCleanupFor(version, AFTER_V7_BLOCKS).dropNow, ['dayPlan', 'conversation'])
+  }
+})
+
+test('desde la v4: solo `conversation`, que se creó vacío; `dayPlan` lo funde y borra la v7', () => {
+  assert.deepEqual(legacyCleanupFor(4, AFTER_V7_BLOCKS), { dropNow: ['conversation'], dropIfEmpty: [] })
+})
+
+test('desde la v5 y la v6 no se toca nada: la v7 aún está leyéndolos para fundirlos', () => {
+  for (const version of [5, 6]) {
+    assert.deepEqual(legacyCleanupFor(version, AFTER_V7_BLOCKS), { dropNow: [], dropIfEmpty: [] })
+  }
+})
+
+test('desde la v7: los que queden se borran solo si están vacíos', () => {
+  assert.deepEqual(legacyCleanupFor(7, AFTER_V7_BLOCKS), { dropNow: [], dropIfEmpty: ['dayPlan', 'conversation'] })
+  assert.deepEqual(legacyCleanupFor(7, ['profile', 'axisMemory']), { dropNow: [], dropIfEmpty: [] })
+})
+
+test('nunca se propone borrar un almacén que no existe ni uno en uso', () => {
+  for (const version of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+    const { dropNow, dropIfEmpty } = legacyCleanupFor(version, ['profile', 'sessions', 'axisMemory'])
+    assert.deepEqual([...dropNow, ...dropIfEmpty], [], `v${version}`)
+    for (const name of [...legacyCleanupFor(version, AFTER_V7_BLOCKS).dropNow, ...legacyCleanupFor(version, AFTER_V7_BLOCKS).dropIfEmpty]) {
+      assert.ok((LEGACY_STORE_NAMES as readonly string[]).includes(name), name)
+    }
+  }
 })

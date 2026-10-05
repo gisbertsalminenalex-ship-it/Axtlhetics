@@ -5,6 +5,8 @@
  * negocio vive aquí: esta capa solo guarda y recupera.
  */
 
+import { sortAssessments } from '../../domain/assessment/assessment'
+import { isAssessment, type Assessment } from '../../domain/assessment/types'
 import { isAxisDayMemory, type AxisDayMemory } from '../../domain/axis/memory'
 import type { ScheduledActivity, UserProfile } from '../../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../../domain/profile/types'
@@ -13,6 +15,7 @@ import type { DayKey } from '../../domain/shared/dates'
 import type { WorkoutSession } from '../../domain/workouts/types'
 import type {
   ActiveWorkoutRepository,
+  AssessmentRepository,
   BackupRepository,
   ActivityRepository,
   AxisMemoryRepository,
@@ -162,6 +165,24 @@ const activeWorkoutRepository: ActiveWorkoutRepository = {
   },
 }
 
+const assessmentRepository: AssessmentRepository = {
+  async list() {
+    const stored = await read<unknown[]>(STORES.assessments, (store) => store.getAll())
+    // Un test que ya no se entiende no se compara con nada: se queda fuera.
+    return sortAssessments(stored.filter(isAssessment))
+  },
+  async save(assessment: Assessment) {
+    await write(STORES.assessments, (store) => {
+      store.put(assessment)
+    })
+  },
+  async remove(id) {
+    await write(STORES.assessments, (store) => {
+      store.delete(id)
+    })
+  },
+}
+
 /**
  * Copia de seguridad: leer todo y sustituirlo todo.
  *
@@ -171,12 +192,13 @@ const activeWorkoutRepository: ActiveWorkoutRepository = {
  */
 const backupRepository: BackupRepository = {
   async readAll() {
-    const [profile, activities, recovery, sessions, axisMemory] = await Promise.all([
+    const [profile, activities, recovery, sessions, axisMemory, assessments] = await Promise.all([
       profileRepository.get(),
       activityRepository.list(),
       read<RecoveryInputs[]>(STORES.recovery, (store) => store.getAll()),
       read<WorkoutSession[]>(STORES.sessions, (store) => store.getAll()),
       read<unknown[]>(STORES.axisMemory, (store) => store.getAll()),
+      assessmentRepository.list(),
     ])
 
     return {
@@ -186,6 +208,8 @@ const backupRepository: BackupRepository = {
       sessions,
       // Un registro de memoria que ya no se entiende no viaja a la copia.
       axisMemory: axisMemory.filter(isAxisDayMemory),
+      // Como la sesión en curso, un test a medias no viaja: es de ese día.
+      assessments: assessments.filter((assessment) => assessment.status !== 'in_progress'),
     }
   },
 
@@ -197,6 +221,7 @@ const backupRepository: BackupRepository = {
       STORES.sessions,
       STORES.axisMemory,
       STORES.activeWorkout,
+      STORES.assessments,
     ] as const
 
     await writeAcross(stores, (get) => {
@@ -207,6 +232,8 @@ const backupRepository: BackupRepository = {
       for (const inputs of contents.recovery) get(STORES.recovery).put(inputs)
       for (const session of contents.sessions) get(STORES.sessions).put(session)
       for (const memory of contents.axisMemory) get(STORES.axisMemory).put(memory)
+      // Importar reemplaza (D-015): una copia de schema 1 deja el dispositivo sin tests.
+      for (const assessment of contents.assessments) get(STORES.assessments).put(assessment)
       /*
        * La sesión en curso no viaja en la copia y tampoco sobrevive a una: lo
        * que hubiera a medias pertenecía a los datos que se acaban de sustituir.
@@ -223,6 +250,7 @@ export function createIndexedDbRepositories(): Repositories {
     workouts: workoutRepository,
     axisMemory: axisMemoryRepository,
     activeWorkout: activeWorkoutRepository,
+    assessments: assessmentRepository,
     backup: backupRepository,
   }
 }

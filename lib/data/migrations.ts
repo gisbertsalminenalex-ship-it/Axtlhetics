@@ -182,3 +182,48 @@ export function mergeIntoAxisMemory(
     actionStatuses,
   }
 }
+
+// ---------------------------------------------------------------------------
+// v8: limpieza de los almacenes antiguos (D-021)
+// ---------------------------------------------------------------------------
+
+/** Almacenes que existieron y ya no se usan desde la v7. */
+export const LEGACY_STORE_NAMES = ['dayPlan', 'conversation'] as const
+
+export type LegacyCleanup = {
+  /** Creados vacíos en esta misma subida y que nadie va a leer: se borran ya. */
+  dropNow: string[]
+  /** De una base que ya estaba en v7: se borran solo si de verdad están vacíos. */
+  dropIfEmpty: string[]
+}
+
+/**
+ * Qué almacenes antiguos se pueden borrar al subir a la v8.
+ *
+ * La v7 fundía `dayPlan` y `conversation` en la memoria de AXIS y los borraba,
+ * pero solo en las bases que venían de la v4 o posterior. En una instalación
+ * nueva —o en una que subía desde antes de la v4— los creaba vacíos los bloques
+ * v4 y v5 y nadie los borraba. Y desde la v4 justa, `conversation` se creaba
+ * vacío y tampoco se borraba.
+ *
+ * Lo que sí borra la v7 lo hace leyendo con cursores, de forma asíncrona: la v8
+ * no debe tocar esos almacenes en la misma subida, o borraría uno que aún se
+ * está leyendo. Por eso la decisión depende de la versión de partida:
+ *
+ * - **antes de la v4**: los dos se acaban de crear vacíos → se borran ya.
+ * - **v4**: `conversation` se acaba de crear vacío → se borra ya; `dayPlan` lo
+ *   borra la v7.
+ * - **v5 y v6**: los borra la v7 → nada.
+ * - **v7**: pueden quedar de una instalación anterior. Nadie escribe en ellos,
+ *   así que deberían estar vacíos, pero se comprueba antes de borrar: un almacén
+ *   con datos no se toca.
+ */
+export function legacyCleanupFor(oldVersion: number, present: readonly string[]): LegacyCleanup {
+  const existing = (names: readonly string[]) => names.filter((name) => present.includes(name))
+
+  if (oldVersion < 4) return { dropNow: existing(LEGACY_STORE_NAMES), dropIfEmpty: [] }
+  if (oldVersion === 4) return { dropNow: existing(['conversation']), dropIfEmpty: [] }
+  if (oldVersion < 7) return { dropNow: [], dropIfEmpty: [] }
+  if (oldVersion === 7) return { dropNow: [], dropIfEmpty: existing(LEGACY_STORE_NAMES) }
+  return { dropNow: [], dropIfEmpty: [] }
+}

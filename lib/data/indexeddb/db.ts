@@ -7,6 +7,7 @@
  */
 
 import {
+  legacyCleanupFor,
   mergeIntoAxisMemory,
   needsDayPlanUpgrade,
   needsProfileUpgrade,
@@ -23,7 +24,7 @@ export const DB_NAME = 'axtlhetics'
  * anteriores intactos: `onupgradeneeded` los ejecuta en orden para quien venga de
  * una versión antigua.
  */
-export const DB_VERSION = 7
+export const DB_VERSION = 8
 
 export const STORES = {
   profile: 'profile',
@@ -32,6 +33,8 @@ export const STORES = {
   sessions: 'sessions',
   axisMemory: 'axisMemory',
   activeWorkout: 'activeWorkout',
+  /** Tests de evolución (D-021). Separados de `sessions` a propósito. */
+  assessments: 'assessments',
 } as const
 
 /**
@@ -154,50 +157,88 @@ function migrate(
   if (oldVersion < 7) {
     const memory = db.createObjectStore(STORES.axisMemory, { keyPath: 'dayKey' })
 
-    // Una instalación nueva no tiene nada que fundir.
-    if (!transaction || oldVersion < 4) return
+    // Una instalación nueva no tiene nada que fundir. No se sale de `migrate`:
+    // los bloques siguientes también tienen que ejecutarse.
+    if (transaction && oldVersion >= 4) mergeLegacyStores(db, transaction, memory, oldVersion)
+  }
 
-    const plans = new Map<string, StoredDayPlan>()
-    const conversations = new Map<string, StoredConversationRecord>()
+  /*
+   * v8: los tests de evolución (D-021), en su propio almacén para que ningún
+   * consumidor de `sessions` —progresión, rotación, récords, Carga— los lea por
+   * descuido. Solo crea: no toca ningún registro existente.
+   *
+   * De paso retira los almacenes antiguos que la v7 dejaba vacíos en las
+   * instalaciones nuevas (`legacyCleanupFor` decide cuáles y cuándo). Solo hacia
+   * delante: no hay vuelta a la v7.
+   */
+  if (oldVersion < 8) {
+    db.createObjectStore(STORES.assessments, { keyPath: 'id' })
 
-    const finish = () => {
-      const days = new Set([...plans.keys(), ...conversations.keys()])
-      for (const dayKey of days) {
-        memory.put(mergeIntoAxisMemory(dayKey, plans.get(dayKey) ?? null, conversations.get(dayKey) ?? null))
+    const cleanup = legacyCleanupFor(oldVersion, Array.from(db.objectStoreNames))
+    for (const name of cleanup.dropNow) db.deleteObjectStore(name)
+
+    if (transaction) {
+      for (const name of cleanup.dropIfEmpty) {
+        // Nadie escribe en ellos y deberían estar vacíos, pero uno con datos no se borra.
+        const counting = transaction.objectStore(name).count()
+        counting.onsuccess = () => {
+          if (counting.result === 0) db.deleteObjectStore(name)
+        }
       }
-      db.deleteObjectStore(LEGACY_STORES.dayPlan)
-      if (oldVersion >= 5) db.deleteObjectStore(LEGACY_STORES.conversation)
     }
+  }
+}
 
-    const readConversations = () => {
-      if (oldVersion < 5) {
+/**
+ * v7: funde el plan del día y la conversación en la memoria de AXIS y borra
+ * los almacenes antiguos, todo dentro de la transacción de subida de versión.
+ */
+function mergeLegacyStores(
+  db: IDBDatabase,
+  transaction: IDBTransaction,
+  memory: IDBObjectStore,
+  oldVersion: number,
+): void {
+  const plans = new Map<string, StoredDayPlan>()
+  const conversations = new Map<string, StoredConversationRecord>()
+
+  const finish = () => {
+    const days = new Set([...plans.keys(), ...conversations.keys()])
+    for (const dayKey of days) {
+      memory.put(mergeIntoAxisMemory(dayKey, plans.get(dayKey) ?? null, conversations.get(dayKey) ?? null))
+    }
+    db.deleteObjectStore(LEGACY_STORES.dayPlan)
+    if (oldVersion >= 5) db.deleteObjectStore(LEGACY_STORES.conversation)
+  }
+
+  const readConversations = () => {
+    if (oldVersion < 5) {
+      finish()
+      return
+    }
+    const cursorRequest = transaction.objectStore(LEGACY_STORES.conversation).openCursor()
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result
+      if (!cursor) {
         finish()
         return
       }
-      const cursorRequest = transaction.objectStore(LEGACY_STORES.conversation).openCursor()
-      cursorRequest.onsuccess = () => {
-        const cursor = cursorRequest.result
-        if (!cursor) {
-          finish()
-          return
-        }
-        const stored = cursor.value as StoredConversationRecord
-        if (typeof stored.dayKey === 'string') conversations.set(stored.dayKey, stored)
-        cursor.continue()
-      }
-    }
-
-    const readPlans = transaction.objectStore(LEGACY_STORES.dayPlan).openCursor()
-    readPlans.onsuccess = () => {
-      const cursor = readPlans.result
-      if (!cursor) {
-        readConversations()
-        return
-      }
-      const stored = cursor.value as StoredDayPlan
-      if (typeof stored.dayKey === 'string') plans.set(stored.dayKey, stored)
+      const stored = cursor.value as StoredConversationRecord
+      if (typeof stored.dayKey === 'string') conversations.set(stored.dayKey, stored)
       cursor.continue()
     }
+  }
+
+  const readPlans = transaction.objectStore(LEGACY_STORES.dayPlan).openCursor()
+  readPlans.onsuccess = () => {
+    const cursor = readPlans.result
+    if (!cursor) {
+      readConversations()
+      return
+    }
+    const stored = cursor.value as StoredDayPlan
+    if (typeof stored.dayKey === 'string') plans.set(stored.dayKey, stored)
+    cursor.continue()
   }
 }
 

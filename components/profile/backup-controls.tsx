@@ -291,6 +291,12 @@ function describe(counts: BackupCounts): string {
   if (counts.activities > 0) {
     parts.push(counts.activities === 1 ? '1 actividad' : `${counts.activities} actividades`)
   }
+  // Tests de evolución (D-021). Las copias de schema 1 no traen ninguno.
+  if (counts.assessments > 0) {
+    parts.push(
+      counts.assessments === 1 ? '1 test de evolución' : `${counts.assessments} tests de evolución`,
+    )
+  }
   if (counts.profile) parts.push('tu perfil')
 
   if (parts.length === 0) return 'nada'

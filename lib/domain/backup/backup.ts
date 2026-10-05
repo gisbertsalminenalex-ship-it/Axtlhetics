@@ -13,6 +13,7 @@
  * datos y la interfaz. Así se puede probar entero sin navegador.
  */
 
+import { isAssessment, type Assessment } from '../assessment/types'
 import { isAxisDayMemory, type AxisDayMemory } from '../axis/memory'
 import {
   isScheduledActivity,
@@ -37,8 +38,12 @@ export const BACKUP_KIND = 'axtlhetics.backup'
  * No es la versión de IndexedDB: son cosas independientes. El esquema de la base
  * puede subir sin que el archivo cambie de forma, y al revés. Cuando este número
  * suba, importar tendrá que saber leer también los anteriores.
+ *
+ * - **1** (D-015): perfil, actividades, recuperación, sesiones y memoria de AXIS.
+ * - **2** (D-021): además, los tests de evolución. Una copia de schema 1 se sigue
+ *   leyendo: simplemente no trae tests.
  */
-export const BACKUP_SCHEMA = 1
+export const BACKUP_SCHEMA = 2
 
 export type BackupContents = {
   profile: UserProfile | null
@@ -46,6 +51,8 @@ export type BackupContents = {
   recovery: RecoveryInputs[]
   sessions: WorkoutSession[]
   axisMemory: AxisDayMemory[]
+  /** Tests de evolución (D-021). Vacío en las copias de schema 1. */
+  assessments: Assessment[]
 }
 
 export type AxtlheticsBackup = {
@@ -65,6 +72,7 @@ export type BackupCounts = {
   recovery: number
   sessions: number
   axisMemory: number
+  assessments: number
 }
 
 export function countsOf(contents: BackupContents): BackupCounts {
@@ -74,6 +82,7 @@ export function countsOf(contents: BackupContents): BackupCounts {
     recovery: contents.recovery.length,
     sessions: contents.sessions.length,
     axisMemory: contents.axisMemory.length,
+    assessments: contents.assessments.length,
   }
 }
 
@@ -84,7 +93,8 @@ export function isEmptyBackup(counts: BackupCounts): boolean {
     counts.activities === 0 &&
     counts.recovery === 0 &&
     counts.sessions === 0 &&
-    counts.axisMemory === 0
+    counts.axisMemory === 0 &&
+    counts.assessments === 0
   )
 }
 
@@ -180,6 +190,8 @@ export function parseBackup(value: unknown): BackupParseResult {
   const recovery = keepValid(data.recovery, isRecoveryInputs)
   const sessions = keepValid(data.sessions, isWorkoutSession)
   const axisMemory = keepValid(data.axisMemory, isAxisDayMemory)
+  // Una copia de schema 1 no tiene `assessments`: se lee como ninguno, sin descartar nada.
+  const assessments = keepValid(data.assessments, isAssessment)
 
   const contents: BackupContents = {
     profile,
@@ -187,6 +199,7 @@ export function parseBackup(value: unknown): BackupParseResult {
     recovery: recovery.items,
     sessions: sessions.items,
     axisMemory: axisMemory.items,
+    assessments: assessments.items,
   }
 
   const counts = countsOf(contents)
@@ -202,6 +215,7 @@ export function parseBackup(value: unknown): BackupParseResult {
       activities.discarded +
       recovery.discarded +
       sessions.discarded +
-      axisMemory.discarded,
+      axisMemory.discarded +
+      assessments.discarded,
   }
 }

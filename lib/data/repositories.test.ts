@@ -6,6 +6,8 @@ import { PRIMARY_PROFILE_ID, withActivityChanges } from '../domain/profile/types
 import type { RecoveryInputs } from '../domain/recovery/types'
 import { emptyRecoveryInputs } from '../domain/recovery/types'
 import { minutesFromMidnight } from '../domain/shared/dates'
+import { recordResult } from '../domain/assessment/assessment'
+import { at, completed, started } from '../domain/assessment/test-fixtures'
 import { emptyDayMemory, type AxisDayMemory } from '../domain/axis/memory'
 import type { ActiveWorkout } from '../domain/workouts/active-workout'
 import type { WorkoutSession } from '../domain/workouts/types'
@@ -463,6 +465,7 @@ test('los almacenes esperados están declarados', () => {
   assert.deepEqual(Object.values(STORES).sort(), [
     'activeWorkout',
     'activities',
+    'assessments',
     'axisMemory',
     'profile',
     'recovery',
@@ -502,6 +505,7 @@ test('restaurar sustituye lo que había, no lo suma', async () => {
     recovery: [],
     sessions: [session({ id: 'nueva' })],
     axisMemory: [],
+    assessments: [],
   })
 
   assert.equal((await repositories.profile.get())?.name, 'Restaurado')
@@ -528,7 +532,76 @@ test('restaurar descarta la sesión que estuviera en curso', async () => {
     recovery: [],
     sessions: [],
     axisMemory: [],
+    assessments: [],
   })
 
   assert.equal(await repositories.activeWorkout.get(), null)
+})
+
+// ---------------------------------------------------------------------------
+// Tests de evolución (D-021)
+// ---------------------------------------------------------------------------
+
+test('los tests de evolución se guardan, se listan del más reciente al más antiguo y se retiran', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.assessments.save(completed('2026-08-01'))
+  await repositories.assessments.save(completed('2026-09-05'))
+  await repositories.assessments.save(started('2026-10-04'))
+
+  assert.deepEqual((await repositories.assessments.list()).map((item) => item.dayKey), [
+    '2026-10-04',
+    '2026-09-05',
+    '2026-08-01',
+  ])
+
+  await repositories.assessments.remove('test-2026-10-04')
+  assert.equal((await repositories.assessments.list()).length, 2)
+})
+
+test('guardar el mismo test dos veces lo sustituye: el test en curso avanza sin duplicarse', async () => {
+  const repositories = createMemoryRepositories()
+  const ongoing = started('2026-10-04')
+  await repositories.assessments.save(ongoing)
+  await repositories.assessments.save(recordResult(ongoing, 14, at('2026-10-04')))
+  const list = await repositories.assessments.list()
+  assert.equal(list.length, 1)
+  assert.equal(list[0].results.length, 1)
+})
+
+test('los tests no aparecen entre las sesiones de entrenamiento', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.assessments.save(completed('2026-09-05'))
+  assert.deepEqual(await repositories.workouts.list(), [])
+})
+
+test('la copia de seguridad lleva los tests terminados, pero no uno a medias', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.assessments.save(completed('2026-09-05'))
+  await repositories.assessments.save(started('2026-10-04'))
+  const all = await repositories.backup.readAll()
+  assert.deepEqual(all.assessments.map((item) => item.status), ['completed'])
+})
+
+test('restaurar sustituye los tests: una copia sin tests deja el dispositivo sin tests', async () => {
+  const repositories = createMemoryRepositories()
+  await repositories.assessments.save(completed('2026-09-05'))
+  await repositories.backup.replaceAll({
+    profile: profile(),
+    activities: [],
+    recovery: [],
+    sessions: [],
+    axisMemory: [],
+    assessments: [],
+  })
+  assert.deepEqual(await repositories.assessments.list(), [])
+
+  await repositories.backup.replaceAll({
+    profile: profile(),
+    activities: [],
+    recovery: [],
+    sessions: [],
+    axisMemory: [],
+    assessments: [completed('2026-08-01')],
+  })
+  assert.deepEqual((await repositories.assessments.list()).map((item) => item.dayKey), ['2026-08-01'])
 })

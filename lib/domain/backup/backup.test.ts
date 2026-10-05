@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { completed, started } from '../assessment/test-fixtures'
 import { emptyDayMemory } from '../axis/memory'
 import { PRIMARY_PROFILE_ID, type ScheduledActivity, type UserProfile } from '../profile/types'
 import type { RecoveryInputs } from '../recovery/types'
@@ -82,6 +83,7 @@ function fullContents(): BackupContents {
     recovery: [recovery],
     sessions: [session],
     axisMemory: [emptyDayMemory('2026-09-22', NOW)],
+    assessments: [completed('2026-09-20')],
   }
 }
 
@@ -125,6 +127,7 @@ test('una copia sin absolutamente nada se reconoce como vacía', () => {
     recovery: [],
     sessions: [],
     axisMemory: [],
+    assessments: [],
   }
   assert.equal(isEmptyBackup(countsOf(empty)), true)
   assert.equal(isEmptyBackup(countsOf(fullContents())), false)
@@ -148,6 +151,7 @@ test('lo exportado se vuelve a leer igual', () => {
     recovery: 1,
     sessions: 1,
     axisMemory: 1,
+    assessments: 1,
   })
 })
 
@@ -320,4 +324,68 @@ test('un esfuerzo fuera de escala o un objetivo negativo descartan solo esa sesi
   if (!result.ok) return
   assert.equal(result.counts.sessions, 1)
   assert.equal(result.discarded, 2)
+})
+
+// ---------------------------------------------------------------------------
+// Schema 2: tests de evolución (D-021)
+// ---------------------------------------------------------------------------
+
+/** Una copia exportada por la versión anterior: schema 1 y sin `assessments`. */
+function schemaOneFile(): Record<string, unknown> {
+  const file = roundTrip(fullContents()) as { schema: number; data: Record<string, unknown> }
+  delete file.data.assessments
+  return { ...file, schema: 1 }
+}
+
+test('las copias nuevas son de schema 2', () => {
+  assert.equal(BACKUP_SCHEMA, 2)
+  assert.equal(buildBackup(fullContents(), { exportedAt: NOW, appSchema: 8 }).schema, 2)
+})
+
+test('una copia de schema 1 se sigue importando entera, sin tests', () => {
+  const result = parseBackup(schemaOneFile())
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.deepEqual(result.contents.assessments, [])
+  assert.equal(result.discarded, 0, 'que falte la lista no es descartar nada')
+  assert.deepEqual(result.contents.sessions, fullContents().sessions)
+  assert.deepEqual(result.contents.axisMemory, fullContents().axisMemory)
+  assert.equal(result.counts.assessments, 0)
+})
+
+test('los tests de evolución hacen el viaje completo: completados, interrumpidos y en curso', () => {
+  const interrupted = { ...started('2026-09-25'), status: 'interrupted' as const, endedAt: '2026-09-25T18:30:00.000Z' }
+  const contents = { ...fullContents(), assessments: [completed('2026-09-20'), interrupted, started('2026-09-26')] }
+  const result = parseBackup(roundTrip(contents))
+  assert.equal(result.ok, true)
+  if (result.ok) assert.deepEqual(result.contents.assessments, contents.assessments)
+})
+
+test('un test roto se descarta y se cuenta; los demás datos entran', () => {
+  const file = roundTrip(fullContents()) as { data: { assessments: unknown[] } }
+  file.data.assessments.push({ id: 'roto', status: 'completed', results: [] })
+  const result = parseBackup(file)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.discarded, 1)
+  assert.equal(result.contents.assessments.length, 1)
+  assert.equal(result.contents.sessions.length, 1)
+})
+
+test('una copia con solo tests de evolución no cuenta como vacía', () => {
+  const onlyTests: BackupContents = {
+    profile: null,
+    activities: [],
+    recovery: [],
+    sessions: [],
+    axisMemory: [],
+    assessments: [completed('2026-09-20')],
+  }
+  assert.equal(isEmptyBackup(countsOf(onlyTests)), false)
+})
+
+test('una copia de schema 3 no se interpreta a medias', () => {
+  const result = parseBackup({ ...(roundTrip(fullContents()) as object), schema: 3 })
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.reason, 'version_desconocida')
 })

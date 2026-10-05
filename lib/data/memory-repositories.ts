@@ -6,6 +6,8 @@
  * lo único que se pierde es la persistencia entre sesiones.
  */
 
+import { sortAssessments } from '../domain/assessment/assessment'
+import type { Assessment } from '../domain/assessment/types'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
 import type { AxisDayMemory } from '../domain/axis/memory'
 import type { RecoveryInputs } from '../domain/recovery/types'
@@ -20,6 +22,7 @@ export function createMemoryRepositories(): Repositories {
   const sessions = new Map<string, WorkoutSession>()
   const axisMemory = new Map<DayKey, AxisDayMemory>()
   let activeWorkout: StoredActiveWorkout | null = null
+  const assessments = new Map<string, Assessment>()
 
   return {
     profile: {
@@ -103,6 +106,17 @@ export function createMemoryRepositories(): Repositories {
      * pueden fallar a mitad. Exportar sigue teniendo sentido —permite sacar los
      * datos de una sesión que, sin IndexedDB, se perdería igualmente al cerrar.
      */
+    assessments: {
+      async list() {
+        return sortAssessments([...assessments.values()])
+      },
+      async save(assessment) {
+        assessments.set(assessment.id, assessment)
+      },
+      async remove(id) {
+        assessments.delete(id)
+      },
+    },
     backup: {
       async readAll() {
         return {
@@ -111,6 +125,8 @@ export function createMemoryRepositories(): Repositories {
           recovery: [...recovery.values()],
           sessions: [...sessions.values()],
           axisMemory: [...axisMemory.values()],
+          // Como la sesión en curso, un test a medias no viaja: es de ese día.
+          assessments: [...assessments.values()].filter((item) => item.status !== 'in_progress'),
         }
       },
       async replaceAll(contents) {
@@ -118,12 +134,14 @@ export function createMemoryRepositories(): Repositories {
         recovery.clear()
         sessions.clear()
         axisMemory.clear()
+        assessments.clear()
 
         profile = contents.profile
         for (const activity of contents.activities) activities.set(activity.id, activity)
         for (const inputs of contents.recovery) recovery.set(inputs.dayKey, inputs)
         for (const session of contents.sessions) sessions.set(session.id, session)
         for (const memory of contents.axisMemory) axisMemory.set(memory.dayKey, memory)
+        for (const assessment of contents.assessments) assessments.set(assessment.id, assessment)
         activeWorkout = null
       },
     },

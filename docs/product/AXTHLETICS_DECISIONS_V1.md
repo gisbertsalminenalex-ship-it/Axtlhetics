@@ -988,6 +988,13 @@ Aprobadas por Alex el 2026-10-04, después del dominio (`1c49337`):
 4. **Límites de entrada**: máximo **500 repeticiones** y **3600 segundos**. No son métricas: solo impiden guardar un valor imposible.
 5. Si hay un **test en curso del mismo día**, la tarjeta de Entrenamiento muestra **«Continuar test»** en lugar de «Hacer test».
 
+Aprobadas por Alex el 2026-10-05, antes de conectar el test a la aplicación:
+
+6. **«AXIS recomienda descansar»** es la **decisión del motor**, no la elección manual del usuario: si el usuario eligió descansar sobre una propuesta de entrenar, esa condición no bloquea el test.
+7. AXIS **solo menciona el test en la conversación cuando el usuario pregunta por él**. No lo anuncia por su cuenta.
+8. La migración de **IndexedDB v7 → v8 es solo hacia delante**: no se vuelve a una versión con v7. Antes de publicarla se hace una copia de seguridad real y cualquier problema se corrige con una versión nueva. La migración solo crea el almacén `assessments` y elimina, si están vacíos, los almacenes antiguos `dayPlan` y `conversation` que la v7 dejaba en las instalaciones nuevas.
+9. **Copia de seguridad schema 2**: incluye los tests. Una copia de schema 1 se sigue importando, sin tests; como importar reemplaza (D-015), importar una copia antigua deja el dispositivo sin tests.
+
 ---
 
 ## D-022 — Reorganización flexible del entrenamiento

@@ -6,6 +6,7 @@
  * sin reescribir la aplicación.
  */
 
+import type { Assessment } from '../domain/assessment/types'
 import type { AxisDayMemory } from '../domain/axis/memory'
 import type { BackupContents } from '../domain/backup/backup'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
@@ -74,6 +75,21 @@ export type ActiveWorkoutRepository = {
   clear(): Promise<void>
 }
 
+/**
+ * Los tests de evolución (D-021), en su propio almacén.
+ *
+ * Separados de las sesiones de entrenamiento a propósito: nada de lo que lee
+ * `WorkoutRepository` —progresión, rotación, récords, Carga— debe ver un test.
+ * Guarda tanto el test en curso como los terminados: el estado lo distingue.
+ */
+export type AssessmentRepository = {
+  /** Todos los tests válidos, del más reciente al más antiguo. */
+  list(): Promise<Assessment[]>
+  save(assessment: Assessment): Promise<void>
+  /** Retira un test que no llegó a tener nada registrado. */
+  remove(id: string): Promise<void>
+}
+
 export type Repositories = {
   profile: UserProfileRepository
   activities: ActivityRepository
@@ -81,6 +97,7 @@ export type Repositories = {
   workouts: WorkoutRepository
   axisMemory: AxisMemoryRepository
   activeWorkout: ActiveWorkoutRepository
+  assessments: AssessmentRepository
   backup: BackupRepository
 }
 
