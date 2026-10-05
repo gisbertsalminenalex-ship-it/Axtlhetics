@@ -46,7 +46,7 @@ const RULES: readonly IntentRule[] = [
   { intent: 'change', any: ['cambiar', 'cambia', 'otra sesion', 'otra sesión', 'otro entrenamiento', 'algo distinto', 'algo diferente'] },
   { intent: 'shorten', any: ['20 minutos', '15 minutos', '10 minutos', 'media hora', 'mas corto', 'más corto', 'menos tiempo', 'poco tiempo', 'solo hago', 'solo tengo'] },
 
-  { intent: 'tired', any: ['cansado', 'cansada', 'agotado', 'agotada', 'reventado', 'sin fuerzas', 'hecho polvo', 'no puedo mas', 'no puedo más'] },
+  { intent: 'tired', any: ['cansado', 'cansada', 'fatigado', 'fatigada', 'agotado', 'agotada', 'reventado', 'sin fuerzas', 'hecho polvo', 'no puedo mas', 'no puedo más'] },
 
   { intent: 'factors', any: ['tienes en cuenta', 'has tenido en cuenta', 'como decides', 'cómo decides', 'en que te basas', 'en qué te basas', 'que miras', 'qué miras'] },
 

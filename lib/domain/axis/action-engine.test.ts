@@ -16,7 +16,7 @@ import type { ScheduledActivity, UserProfile } from '../profile/types'
 import type { RecoveryInputs } from '../recovery/types'
 import { minutesFromMidnight } from '../shared/dates'
 import type { Exercise, WorkoutSession } from '../workouts/types'
-import { buildChangeTrainingAction, findProposal, resolveOverride, type AxisActionProposal } from './actions'
+import { buildChangeTrainingAction, findProposal, resolveOverride, type AxisActionProposal, type ChangeTrainingAction } from './actions'
 import {
   actionStatus,
   applyAction,
@@ -129,7 +129,7 @@ function alternative(day: AxisDay, index = 0): AxisProposal {
   return item
 }
 
-function actionFor(day: AxisDay, target = alternative(day)): AxisActionProposal {
+function actionFor(day: AxisDay, target = alternative(day)): ChangeTrainingAction {
   return buildChangeTrainingAction({ context: day.context, origin: day.selected, target, reason: 'Prueba' })
 }
 
@@ -336,9 +336,9 @@ test('aplicar fija el override, marca applied y cierra la negociación; es puro'
   const result = applyAction(action, day, memory, NOW)
   assert.equal(result.ok, true)
   if (!result.ok) return
-  assert.equal(result.override.type, target.type)
-  assert.equal(result.override.focus, target.session?.focus ?? null)
-  assert.equal(result.override.source, 'axis_conversation')
+  assert.equal(result.override?.type, target.type)
+  assert.equal(result.override?.focus, target.session?.focus ?? null)
+  assert.equal(result.override?.source, 'axis_conversation')
   assert.deepEqual(result.memory.override, result.override)
   assert.equal(actionStatus(result.memory, action.id).state, 'applied')
   assert.equal(result.memory.thread.changeMode, false)

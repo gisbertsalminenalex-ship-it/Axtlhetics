@@ -20,7 +20,9 @@
  * Todo son funciones puras. Nada aquí conoce React, IndexedDB ni el motor.
  */
 
-import { todayKey, type DayKey } from '../shared/dates'
+import { isScheduledActivity, type ScheduledActivity } from '../profile/types'
+import { addDays, todayKey, type DayKey } from '../shared/dates'
+import { isDayKey } from '../shared/guards'
 import { nowIso } from '../shared/ids'
 import type { AxisActionStatus, DayPlanOverride } from './actions'
 import type { AxisConversationMemory, AxisIntent, AxisMessage } from './conversation/types'
@@ -71,7 +73,46 @@ export type AxisDayMemory = {
 
   thread: AxisThreadState
 
+  /**
+   * Minutos que el usuario dijo tener hoy y confirmó (D-022). Entran en el
+   * contexto del motor. Ausente en los registros anteriores a D-022.
+   */
+  availableMinutes?: number | null
+  /**
+   * El entrenamiento de hoy se movió a ese día (D-022). Mañana se lee del
+   * registro de ayer para saber que el día está disponible; es lo único de un
+   * día anterior que se aplica.
+   */
+  movedTo?: DayKey | null
+  /** Lo necesario para deshacer la última acción aplicada hoy (D-022). */
+  lastApplied?: LastApplied | null
+
   updatedAt: string
+}
+
+/** Lo que una acción puede cambiar en la memoria del día (D-022). */
+export type DayChanges = {
+  override?: DayPlanOverride | null
+  availableMinutes?: number | null
+  movedTo?: DayKey | null
+}
+
+/**
+ * La última acción aplicada y cómo estaba todo antes de aplicarla.
+ *
+ * Solo la última: deshacer no es un historial, es volver un paso atrás. Guarda
+ * los valores anteriores de **todo** lo que una acción puede tocar, no solo de
+ * lo que tocó, para que restaurar sea copiar y no reconstruir.
+ */
+export type LastApplied = {
+  actionId: string
+  previous: {
+    override: DayPlanOverride | null
+    availableMinutes: number | null
+    movedTo: DayKey | null
+  }
+  /** La actividad que creó la acción, si creó una: deshacer la retira. */
+  createdActivity: ScheduledActivity | null
 }
 
 export const EMPTY_THREAD: AxisThreadState = {
@@ -119,8 +160,32 @@ function isThreadState(value: unknown): value is AxisThreadState {
  * un registro a medias, se descarta y el día empieza vacío; los datos que sí
  * importan —el historial de sesiones— viven en otro almacén.
  */
+function isOptionalMinutes(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === 'number' && Number.isInteger(value) && value > 0)
+}
+
+function isOptionalDay(value: unknown): boolean {
+  return value === undefined || value === null || isDayKey(value)
+}
+
+function isLastAppliedShape(value: unknown): boolean {
+  if (value === undefined || value === null) return true
+  if (!isRecord(value) || typeof value.actionId !== 'string') return false
+  const previous = value.previous
+  return (
+    isRecord(previous) &&
+    (previous.override === null || isRecord(previous.override)) &&
+    isOptionalMinutes(previous.availableMinutes) &&
+    isOptionalDay(previous.movedTo) &&
+    (value.createdActivity === null || isScheduledActivity(value.createdActivity))
+  )
+}
+
 export function isAxisDayMemory(value: unknown): value is AxisDayMemory {
   if (!isRecord(value)) return false
+  if (!isOptionalMinutes(value.availableMinutes)) return false
+  if (!isOptionalDay(value.movedTo)) return false
+  if (!isLastAppliedShape(value.lastApplied)) return false
   if (typeof value.dayKey !== 'string' || value.schema !== AXIS_MEMORY_SCHEMA) return false
   if (value.override !== null && !isRecord(value.override)) return false
   if (!Array.isArray(value.cancelledActivities)) return false
@@ -313,13 +378,75 @@ export function applyOverride(
   actionId: string,
   now: string = nowIso(),
 ): AxisDayMemory {
-  if (isActionApplied(memory, actionId)) return memory
+  return applyDayChanges(memory, actionId, { override }, null, now)
+}
+
+/**
+ * Aplica lo que cambia una acción confirmada (D-022) y deja preparado el
+ * deshacer: la acción queda aplicada, la negociación termina y se recuerda cómo
+ * estaba todo antes.
+ *
+ * Una acción ya aplicada, o ya deshecha, no se aplica otra vez (D-012).
+ */
+export function applyDayChanges(
+  memory: AxisDayMemory,
+  actionId: string,
+  changes: DayChanges,
+  createdActivity: ScheduledActivity | null,
+  now: string = nowIso(),
+): AxisDayMemory {
+  const state = memory.actionStatuses[actionId]?.state
+  if (state === 'applied' || state === 'undone') return memory
+
+  const lastApplied: LastApplied = {
+    actionId,
+    previous: {
+      override: memory.override,
+      availableMinutes: memory.availableMinutes ?? null,
+      movedTo: memory.movedTo ?? null,
+    },
+    createdActivity,
+  }
+
   return touch(
     {
       ...memory,
-      override,
+      ...changes,
+      lastApplied,
       actionStatuses: { ...memory.actionStatuses, [actionId]: { state: 'applied' } },
       thread: { ...memory.thread, changeMode: false, lastChangeRequest: null },
+    },
+    now,
+  )
+}
+
+/** `true` si esa acción es la última aplicada hoy y por tanto se puede deshacer. */
+export function isLastApplied(memory: AxisDayMemory, actionId: string): boolean {
+  return memory.lastApplied?.actionId === actionId && isActionApplied(memory, actionId)
+}
+
+/**
+ * Deshace la última acción aplicada (D-022): restaura exactamente lo que había
+ * antes y la deja como deshecha, para que no vuelva a ejecutarse. Cualquier otra
+ * acción no cambia nada: solo se deshace la última.
+ *
+ * La actividad que hubiera creado no se toca aquí; la retira quien persiste.
+ */
+export function undoLastApplied(
+  memory: AxisDayMemory,
+  actionId: string,
+  now: string = nowIso(),
+): AxisDayMemory {
+  if (!isLastApplied(memory, actionId) || !memory.lastApplied) return memory
+  const { previous } = memory.lastApplied
+  return touch(
+    {
+      ...memory,
+      override: previous.override,
+      availableMinutes: previous.availableMinutes,
+      movedTo: previous.movedTo,
+      lastApplied: null,
+      actionStatuses: { ...memory.actionStatuses, [actionId]: { state: 'undone' } },
     },
     now,
   )
@@ -373,4 +500,19 @@ export function memoryForToday(
   const dayKey = todayKey(now)
   if (isAxisDayMemory(stored) && isMemoryForDay(stored, dayKey)) return stored
   return emptyDayMemory(dayKey, now.toISOString())
+}
+
+/**
+ * `true` si el entrenamiento de ayer se movió a hoy (D-022).
+ *
+ * Es lo único que se lee de un día anterior (enmienda a D-011): ni la elección,
+ * ni el hilo, ni nada más de ayer se aplica hoy. Un registro roto, de otro día o
+ * que movió a otra fecha no cuenta.
+ */
+export function movedFromDayBefore(yesterday: unknown, today: DayKey): boolean {
+  return (
+    isAxisDayMemory(yesterday) &&
+    yesterday.dayKey === addDays(today, -1) &&
+    yesterday.movedTo === today
+  )
 }

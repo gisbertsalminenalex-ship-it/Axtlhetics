@@ -21,6 +21,10 @@ export type AxisContextInput = {
   activities: readonly ScheduledActivity[]
   /** Actividades que hoy no ocurren. Por defecto, ninguna. */
   cancelledToday?: readonly string[]
+  /** Minutos que el usuario ha dicho tener hoy (D-022). Por defecto, ninguno. */
+  availableMinutesToday?: number | null
+  /** El entrenamiento de ayer se movió a hoy (D-022). */
+  movedFromYesterday?: boolean
   catalog?: readonly Exercise[]
   /** Momento de la decisión. Inyectable para que los tests sean deterministas. */
   now?: Date
@@ -48,6 +52,8 @@ export function buildAxisContext(input: AxisContextInput): AxisContext {
     recentSessions: input.recentSessions,
     activities: input.activities,
     cancelledToday: input.cancelledToday ?? [],
+    availableMinutesToday: input.availableMinutesToday ?? null,
+    movedFromYesterday: input.movedFromYesterday ?? false,
     catalog: input.catalog ?? EXERCISE_CATALOG,
   }
 }

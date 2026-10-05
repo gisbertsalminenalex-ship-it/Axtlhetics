@@ -14,7 +14,7 @@
  * 3. **AXIS no es médico** y no opina sobre el cuerpo del usuario.
  */
 
-import { TRAINING_GOAL_LABELS } from '../../profile/types'
+import { ACTIVITY_INTENSITY_LABELS, TRAINING_GOAL_LABELS, type ActivityIntensity } from '../../profile/types'
 import { RECOVERY_BAND_LABELS } from '../../recovery/types'
 import { formatTotalTime, formatVolume } from '../../history/stats'
 import { addDays, formatDayInSentence, formatDuration, formatRelativeDay, WEEKDAY_LABELS } from '../../shared/dates'
@@ -32,7 +32,25 @@ import {
   type ExerciseResolution,
   type IntentMatch,
 } from './intents'
-import { evaluateChange, parseChangeRequest, type ChangeRequest } from './negotiation'
+import { matchName } from '../actions'
+import {
+  evaluateBlockReason,
+  evaluateChange,
+  FATIGUE_NOT_REGISTERED,
+  parseChangeRequest,
+  type ChangeRequest,
+  type ChangeVerdict,
+} from './negotiation'
+import {
+  asksToMoveToTomorrow,
+  detectBlockReason,
+  detectIntensity,
+  saysCannotDoPlanned,
+  saysCannotTrainToday,
+  saysMatchTomorrow,
+  saysMissedYesterday,
+  statedMinutes,
+} from './reorganization'
 import type {
   AxisAnswer,
   AxisConversationEngine,
@@ -65,6 +83,17 @@ export function answerFromBriefing(
 ): AxisAnswer {
   const match = matchIntent(question, memory?.lastIntent ?? null)
 
+  /*
+   * Lo que se cuenta, no se pide (D-022): «ayer no pude entrenar» y «mañana
+   * tengo partido». Se responde igual se esté negociando o no: leído como
+   * petición, «ayer no pude entrenar» sería pedir descanso. Una molestia o algo
+   * ajeno siguen yendo antes.
+   */
+  if (match.intent !== 'medical' && match.intent !== 'out_of_scope') {
+    const statement = answerStatement(question, briefing, memory)
+    if (statement) return statement
+  }
+
   if (memory?.changeMode) {
     /*
      * En modo cambio la conversación está acotada a la sesión de hoy, pero no
@@ -81,6 +110,25 @@ export function answerFromBriefing(
       question,
       briefing.activitiesToday.map((activity) => activity.name),
     )
+
+    /*
+     * AXIS preguntó por qué no puede hacer lo previsto (D-022). La respuesta es
+     * un motivo, no una petición: «no tengo material para entrenar» lleva un
+     * «no» y «entrenar», y leído como petición sería descansar.
+     */
+    if (
+      !isMedicalOrForeign &&
+      memory.lastChangeRequest?.kind === 'cannot_planned' &&
+      (request.kind === 'unclear' || request.kind === 'rest')
+    ) {
+      const reason = detectBlockReason(question)
+      if (reason) {
+        return answerVerdict(evaluateBlockReason(reason, request, briefing), {
+          ...request,
+          kind: 'cannot_planned',
+        })
+      }
+    }
     /*
      * Una pregunta no es una petición. «¿Qué músculos trabajan las
      * sentadillas?» nombra piernas y «¿por qué necesito descansar?» contiene
@@ -119,6 +167,7 @@ export function answerFromBriefing(
           focus: previous.focus as ChangeRequest['focus'],
           reportedLoad: request.reportedLoad,
           cancelledActivities: request.cancelledActivities,
+          minutes: request.minutes,
         }
         return negotiate(pending, briefing, request.reportedLoad === null)
       }
@@ -148,6 +197,10 @@ export function answerFromBriefing(
       return answerRecovery(briefing)
     case 'last_session':
       return answerLastSession(briefing)
+    case 'missed_yesterday':
+      return answerMissedYesterday(briefing)
+    case 'match_tomorrow':
+      return answerMatchTomorrow(briefing, detectIntensity(question))
     case 'week':
       return answerWeek(briefing)
     case 'load':
@@ -395,6 +448,7 @@ function answerTired(briefing: AxisBriefing): AxisAnswer {
   } else {
     parts.push('No tengo tu recuperación de hoy registrada, así que no puedo medirlo.')
   }
+  if (briefing.fatigueLevel === null) parts.push(FATIGUE_NOT_REGISTERED)
 
   const softer = briefing.proposal?.alternatives.find(
     (alternative) =>
@@ -431,6 +485,10 @@ const EXPLICIT_CHANGE_KINDS: ReadonlySet<ChangeRequest['kind']> = new Set([
   'harder',
   'rest',
   'avoid_focus',
+  // Límites reales (D-022): se dicen sin pedir, y son inequívocos.
+  'cannot_today',
+  'move_tomorrow',
+  'cannot_planned',
 ])
 
 /**
@@ -457,7 +515,18 @@ function explicitChangeRequest(
   if (match.intent === 'medical' || match.intent === 'out_of_scope') return null
   if (match.isFollowUp) return null
   const statesMoreTime = asksForMoreTime(question) && !looksLikeQuestion(question)
-  if (!looksLikeRequest(question) && !statesMoreTime) return null
+  /*
+   * Un límite contado tampoco necesita verbo de pedir (D-022): «solo tengo 20
+   * minutos», «hoy no puedo entrenar», «muévelo a mañana». Preguntado
+   * («¿y si solo tengo 20 minutos?») sigue siendo una pregunta.
+   */
+  const statesLimit =
+    !looksLikeQuestion(question) &&
+    (statedMinutes(question) !== null ||
+      saysCannotTrainToday(question) ||
+      asksToMoveToTomorrow(question) ||
+      saysCannotDoPlanned(question))
+  if (!looksLikeRequest(question) && !statesMoreTime && !statesLimit) return null
 
   const request = parseChangeRequest(
     question,
@@ -500,6 +569,11 @@ function negotiate(
     }
   }
 
+  return answerVerdict(verdict, request)
+}
+
+/** La respuesta a una petición ya juzgada. Se propone, no se aplica. */
+function answerVerdict(verdict: ChangeVerdict, request: ChangeRequest): AxisAnswer {
   return {
     text: verdict.text,
     intent: 'change',
@@ -507,10 +581,99 @@ function negotiate(
     verdict: verdict.outcome,
     // Se propone, no se aplica: hace falta que el usuario pulse el botón.
     proposedTarget: verdict.proposedTarget,
+    proposedEffect: verdict.proposedEffect ?? null,
     proposedReason: verdict.text,
     changeRequest: { kind: request.kind, focus: request.focus },
     cancelledActivities: request.cancelledActivities,
     reportedLoad: request.reportedLoad,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lo que se cuenta (D-022)
+// ---------------------------------------------------------------------------
+
+/** Una intensidad dicha sola, como respuesta a la pregunta por el partido. */
+const SHORT_REPLY_WORDS = 6
+
+function answerStatement(
+  question: string,
+  briefing: AxisBriefing,
+  memory?: AxisConversationMemory,
+): AxisAnswer | null {
+  if (saysMissedYesterday(question)) return answerMissedYesterday(briefing)
+
+  // «Hoy no puedo porque mañana tengo partido» pide algo para hoy: eso negocia.
+  const asksForToday = asksToMoveToTomorrow(question) || saysCannotTrainToday(question)
+  if (!asksForToday && saysMatchTomorrow(question)) {
+    return answerMatchTomorrow(briefing, detectIntensity(question))
+  }
+
+  // La respuesta a «¿cómo de exigente es?»: una intensidad, en pocas palabras.
+  if (memory?.lastIntent === 'match_tomorrow' && !looksLikeQuestion(question)) {
+    const intensity = detectIntensity(question)
+    const short = question.trim().split(/\s+/).length <= SHORT_REPLY_WORDS
+    if (intensity && short) return answerMatchTomorrow(briefing, intensity)
+  }
+  return null
+}
+
+/**
+ * «Ayer no pude entrenar.» No se recupera acumulando: hoy no hay sesión doble,
+ * y el foco ya mira lo que más tiempo lleva sin trabajarse. No cambia nada.
+ */
+function answerMissedYesterday(briefing: AxisBriefing): AxisAnswer {
+  const parts: string[] = []
+  if (briefing.daysSinceLastWorkout === 1) {
+    parts.push('En tu historial sí consta un entrenamiento ayer.')
+  }
+  parts.push('Un día sin entrenar no se recupera acumulando: hoy no hay sesión doble.')
+
+  const proposal = briefing.proposal
+  if (proposal?.session) {
+    parts.push(`Hoy sigue lo previsto. ${proposal.headline}`)
+    parts.push('El foco ya prioriza lo que más tiempo lleva sin trabajarse.')
+  } else if (proposal) {
+    parts.push(proposal.headline)
+  }
+  return say('missed_yesterday', parts)
+}
+
+/**
+ * «Mañana tengo un partido.» Registrado, AXIS lo confirma. Si no, propone
+ * registrarlo, y antes pregunta la intensidad si no la sabe: sin ella no sabe
+ * qué hacer con el día de hoy.
+ */
+function answerMatchTomorrow(briefing: AxisBriefing, intensity: ActivityIntensity | null): AxisAnswer {
+  const registered = briefing.activitiesTomorrow
+  if (registered.length > 0) {
+    const names = listNames(registered.map((activity) => activity.name.toLowerCase()))
+    const parts = [`Lo tengo: mañana tienes ${names}.`]
+    if (briefing.proposal) parts.push(`Ya lo he tenido en cuenta para hoy. ${briefing.proposal.headline}`)
+    return say('match_tomorrow', parts)
+  }
+
+  if (!intensity) {
+    return {
+      text: 'No tengo ningún partido registrado para mañana. ¿Cómo de exigente es: suave, normal o exigente? Con eso lo registro y replanteo el día de hoy.',
+      intent: 'match_tomorrow',
+      unknown: false,
+      verdict: 'need_info',
+      proposedTarget: null,
+    }
+  }
+
+  const name = matchName(briefing.profile?.sports.map((sport) => sport.name) ?? []).toLowerCase()
+  const label = ACTIVITY_INTENSITY_LABELS[intensity].toLowerCase()
+  const text = `Lo registro como ${name} mañana, de intensidad ${label}. Al confirmarlo, vuelvo a decidir el día de hoy contando con él.`
+  return {
+    text,
+    intent: 'match_tomorrow',
+    unknown: false,
+    verdict: 'accept',
+    proposedTarget: null,
+    proposedReason: text,
+    proposedEffect: { kind: 'add_dated_activity', intensity },
   }
 }
 

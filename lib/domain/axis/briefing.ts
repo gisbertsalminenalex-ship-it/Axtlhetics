@@ -157,6 +157,19 @@ export type AxisBriefing = {
    * motor no las mira: no son datos, son lo que el usuario dice.
    */
   reportedLoads: ReportedLoadMemory[]
+  /** Fatiga muscular registrada hoy (1–5), o `null` si no está registrada. */
+  fatigueLevel: number | null
+  /** Lo reorganizado hoy (D-022). Lo usa la conversación; no decide nada. */
+  reorganization: BriefingReorganization
+}
+
+export type BriefingReorganization = {
+  /** El entrenamiento de hoy se movió a ese día. */
+  movedTo: DayKey | null
+  /** El de ayer se movió a hoy: no se puede volver a aplazar. */
+  movedFromYesterday: boolean
+  /** Minutos que el usuario dijo tener hoy y confirmó. */
+  statedMinutes: number | null
 }
 
 /**
@@ -179,6 +192,8 @@ export function buildBriefing(
   override?: { originHeadline: string; reason: string } | null,
   /** Lo que el usuario ha contado hoy. Por defecto, nada. */
   reportedLoads: readonly ReportedLoadMemory[] = [],
+  /** A qué día se movió hoy el entrenamiento, si se movió (D-022). */
+  movedTo: DayKey | null = null,
 ): AxisBriefing {
   const facts = deriveFacts(context)
   const load = computeTrainingLoad(sessions, context.dayKey)
@@ -237,6 +252,12 @@ export function buildBriefing(
     trainedToday: facts.trainedToday,
     recentMuscleGroups: [...facts.recentMuscleGroups],
     reportedLoads: [...reportedLoads],
+    fatigueLevel: facts.fatigueLevel,
+    reorganization: {
+      movedTo,
+      movedFromYesterday: context.movedFromYesterday === true,
+      statedMinutes: context.availableMinutesToday ?? null,
+    },
   }
 }
 

@@ -65,7 +65,9 @@ export function deriveFacts(context: AxisContext): AxisFacts {
   }
 
   const weekday = weekdayOfKey(dayKey)
-  const isAvailableToday = profile ? isAvailableOn(profile, weekday) : true
+  // Un entrenamiento movido desde ayer hace de hoy un día disponible (D-022).
+  const isAvailableToday =
+    (profile ? isAvailableOn(profile, weekday) : true) || context.movedFromYesterday === true
 
   // Puede haber más de un deporte el mismo día —uno recurrente y un partido de
   // ese día, por ejemplo—. Se conservan todos y se destaca el más exigente, que
@@ -86,7 +88,11 @@ export function deriveFacts(context: AxisContext): AxisFacts {
       : null
 
   const typicalMinutes = profile?.typicalSessionMinutes ?? DEFAULT_SESSION_MINUTES
-  const availableMinutes = computeAvailableMinutes(typicalMinutes, minutesUntilActivity)
+  // Los minutos que el usuario dijo tener hoy solo bajan el tiempo, nunca lo
+  // suben (D-022). Por debajo del mínimo no se llega aquí: no se confirman.
+  const computedMinutes = computeAvailableMinutes(typicalMinutes, minutesUntilActivity)
+  const stated = context.availableMinutesToday ?? null
+  const availableMinutes = stated !== null ? Math.min(computedMinutes, stated) : computedMinutes
 
   return {
     recoveryValue,

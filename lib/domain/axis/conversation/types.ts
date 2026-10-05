@@ -6,7 +6,7 @@
  * segundo sistema de decisión.
  */
 
-import type { AxisActionProposal, AxisActionTarget } from '../actions'
+import type { AxisActionEffect, AxisActionProposal, AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
 import type { ReportedLoad } from '../memory'
 
@@ -18,6 +18,10 @@ export type AxisIntent =
   | 'factors'
   | 'recovery'
   | 'last_session'
+  /** «Ayer no pude entrenar» (D-022). Informativa: no cambia nada. */
+  | 'missed_yesterday'
+  /** «Mañana tengo un partido» (D-022). */
+  | 'match_tomorrow'
   | 'week'
   | 'load'
   | 'goals'
@@ -100,6 +104,12 @@ export type AxisAnswer = {
   proposedTarget?: AxisActionTarget | null
   /** El motivo con el que AXIS defiende esa propuesta. Queda registrado. */
   proposedReason?: string
+  /**
+   * Una reorganización del día (D-022): fijar minutos, mover a mañana o
+   * registrar el partido de mañana. Como `proposedTarget`, no se aplica sola:
+   * la aplicación la convierte en una acción con botón.
+   */
+  proposedEffect?: AxisActionEffect | null
   /** La petición que se acaba de juzgar, para reconocer que insiste con la misma. */
   changeRequest?: { kind: string; focus: string | null } | null
   /**

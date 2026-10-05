@@ -24,8 +24,8 @@
  */
 
 import { listNames } from '../../shared/text'
-import type { AxisActionTarget } from '../actions'
-import { RECENT_HISTORY_DAYS } from '../facts'
+import type { AxisActionEffect, AxisActionTarget } from '../actions'
+import { MIN_SESSION_MINUTES, RECENT_HISTORY_DAYS } from '../facts'
 import type { AxisBriefing, BriefingAlternative } from '../briefing'
 import { describeFocus, FOCUS_MUSCLE_GROUPS, type SessionFocus } from '../knowledge/focus'
 import type { ReportedLoad } from '../memory'
@@ -37,6 +37,14 @@ import {
 } from '../knowledge/sports'
 import { isTrainingRecommendation } from '../types'
 import { asksForMoreTime, detectFocus, normalizeQuestion } from './intents'
+import {
+  asksToMoveToTomorrow,
+  saysCannotDoPlanned,
+  saysCannotTrainToday,
+  saysTooTired,
+  statedMinutes,
+  type BlockReason,
+} from './reorganization'
 import type { AxisVerdict } from './types'
 
 // ---------------------------------------------------------------------------
@@ -54,6 +62,14 @@ export type ChangeRequestKind =
   | 'rest'
   /** Quiere entrenar cuando AXIS había recomendado no hacerlo, o hacer más. */
   | 'train_anyway'
+  /** «Hoy no puedo entrenar»: un límite, no una preferencia (D-022). */
+  | 'cannot_today'
+  /** «Muévelo a mañana» (D-022). */
+  | 'move_tomorrow'
+  /** «No puedo hacer el entrenamiento previsto»: falta saber por qué (D-022). */
+  | 'cannot_planned'
+  /** Cansancio contado en la conversación (D-022). */
+  | 'tired'
   | 'unclear'
 
 /**
@@ -74,6 +90,8 @@ export type ChangeRequest = {
    * no sería firmeza: sería no escuchar.
    */
   cancelledActivities: string[]
+  /** Minutos que el usuario dice tener hoy, si los dice (D-022). */
+  minutes: number | null
 }
 
 const AVOID_TERMS = [
@@ -191,7 +209,17 @@ export function parseChangeRequest(
   const reportedLoad = detectReportedLoad(message)
   const cancelledActivities = detectCancelledActivities(message, todayActivityNames)
 
-  const base = { focus, reportedLoad, cancelledActivities }
+  const minutes = statedMinutes(message)
+  const base = { focus, reportedLoad, cancelledActivities, minutes }
+
+  /*
+   * Los límites reales van antes que nada (D-022): «hoy no puedo, muévelo a
+   * mañana» es mover; «no puedo hacer el entrenamiento» pide un motivo; «hoy no
+   * puedo entrenar» es no poder, que no es lo mismo que no querer.
+   */
+  if (asksToMoveToTomorrow(message)) return { kind: 'move_tomorrow', ...base }
+  if (saysCannotDoPlanned(message) && focus === null) return { kind: 'cannot_planned', ...base }
+  if (saysCannotTrainToday(message) && focus === null) return { kind: 'cannot_today', ...base }
 
   /*
    * Primero lo que se pide de forma explícita. Que un partido se haya cancelado
@@ -212,9 +240,11 @@ export function parseChangeRequest(
   }
   // Antes que acortar: «15 minutos más» contiene «15 minutos» y pide lo contrario.
   if (asksForMoreTime(message)) return { kind: 'longer', ...base }
-  if (includesAny(text, SHORTER_TERMS)) return { kind: 'shorter', ...base }
+  // Decir cuántos minutos se tienen es acortar a esos minutos (D-022).
+  if (minutes !== null || includesAny(text, SHORTER_TERMS)) return { kind: 'shorter', ...base }
   if (includesAny(text, HARDER_TERMS)) return { kind: 'harder', ...base }
   if (includesAny(text, EASIER_TERMS)) return { kind: 'easier', ...base }
+  if (saysTooTired(message)) return { kind: 'tired', ...base }
   if (focus !== null) return { kind: 'want_focus', ...base }
 
   /*
@@ -266,6 +296,8 @@ export type ChangeVerdict = {
    * pulsa el botón de confirmar.
    */
   proposedTarget: AxisActionTarget | null
+  /** Una reorganización del día (D-022). Tampoco se aplica sola. */
+  proposedEffect?: AxisActionEffect | null
 }
 
 /** La carga contada más reciente del día. */
@@ -421,7 +453,9 @@ export function evaluateChange(
     case 'want_focus':
       return evaluateWant(request, briefing, currentFocus, alternatives)
     case 'shorter':
-      return evaluateShorter(alternatives, currentMinutes)
+      return request.minutes !== null
+        ? evaluateMinutes(request.minutes, briefing, alternatives, currentMinutes)
+        : evaluateShorter(alternatives, currentMinutes)
     case 'longer':
       return evaluateLonger(briefing, alternatives, currentMinutes)
     case 'easier':
@@ -432,6 +466,14 @@ export function evaluateChange(
       return evaluateRest(briefing, alternatives)
     case 'train_anyway':
       return evaluateTrainAnyway(request, briefing, alternatives)
+    case 'cannot_today':
+      return evaluateCannotToday(briefing, alternatives)
+    case 'move_tomorrow':
+      return evaluateMoveTomorrow(briefing, alternatives)
+    case 'cannot_planned':
+      return askBlockReason(briefing)
+    case 'tired':
+      return evaluateTired(request, briefing, alternatives)
     default:
       return {
         outcome: 'need_info',
@@ -953,3 +995,213 @@ export function changeOpeningMessage(briefing: AxisBriefing): string {
 
   return `${what} ${proposal.reason} ¿Qué quieres cambiar, y por qué? Cuéntame lo que no tenga registrado y lo tendré en cuenta.`
 }
+
+
+// ---------------------------------------------------------------------------
+// Reorganizaciones (D-022)
+//
+// Un límite real se acomoda; no se juzga como una preferencia. Pero nunca se
+// acumula una sesión, nunca se copia de un día a otro y nunca se reorganiza un
+// día ya entrenado.
+// ---------------------------------------------------------------------------
+
+const ALREADY_TRAINED: ChangeVerdict = {
+  outcome: 'accept',
+  text: 'Hoy ya has entrenado, así que no hay nada que reorganizar.',
+  proposedTarget: null,
+}
+
+function isTrainingDay(briefing: AxisBriefing): boolean {
+  return briefing.proposal !== null && isTrainingRecommendation(briefing.proposal.type)
+}
+
+const NOT_A_TRAINING_DAY: ChangeVerdict = {
+  outcome: 'accept',
+  text: 'Hoy ya no tocaba entrenar, así que no cambia nada.',
+  proposedTarget: null,
+}
+
+/** «Hoy no puedo entrenar». No poder es un límite: se acepta y hoy se recupera. */
+function evaluateCannotToday(
+  briefing: AxisBriefing,
+  alternatives: readonly BriefingAlternative[],
+): ChangeVerdict {
+  if (briefing.trainedToday) return ALREADY_TRAINED
+  if (!isTrainingDay(briefing)) return NOT_A_TRAINING_DAY
+
+  const rest = restAlternative(alternatives)
+  if (!rest) {
+    return {
+      outcome: 'compromise',
+      text: 'Si hoy no puedes, no entrenes. No acumulo la sesión: mañana vuelvo a decidir con tus datos.',
+      proposedTarget: null,
+    }
+  }
+  return {
+    outcome: 'accept',
+    text: 'Si no puedes, no puedes: hoy no entrenamos. No voy a acumular la sesión en otro día; mañana vuelvo a decidir con tus datos. Si prefieres, puedo moverla a mañana.',
+    proposedTarget: asTarget(rest),
+  }
+}
+
+/**
+ * «Muévelo a mañana». Hoy recuperación y mañana disponible, sin copiar la
+ * sesión: mañana decide el motor con lo que haya mañana. Un solo aplazamiento.
+ */
+function evaluateMoveTomorrow(
+  briefing: AxisBriefing,
+  alternatives: readonly BriefingAlternative[],
+): ChangeVerdict {
+  if (briefing.trainedToday) {
+    return { outcome: 'decline', text: 'Hoy ya has entrenado: no hay nada que mover a mañana.', proposedTarget: null }
+  }
+  if (!isTrainingDay(briefing)) {
+    return { outcome: 'decline', text: 'Hoy no toca entrenar, así que no hay nada que mover a mañana.', proposedTarget: null }
+  }
+  if (briefing.reorganization.movedFromYesterday) {
+    return {
+      outcome: 'decline',
+      text: 'Este entrenamiento ya viene movido de ayer y no lo aplazo otra vez: de aplazamiento en aplazamiento se pierde la semana. Si hoy no puedes, dímelo y lo dejamos; mañana decido de nuevo.',
+      proposedTarget: null,
+    }
+  }
+  const demanding = briefing.activitiesTomorrow.find((activity) => activity.intensity === 'alta')
+  if (demanding) {
+    return {
+      outcome: 'decline',
+      text: `Mañana tienes ${demanding.name.toLowerCase()}, y llegar con un entrenamiento encima no compensa. Si hoy vas justo, dime cuántos minutos tienes y la ajusto.`,
+      proposedTarget: null,
+    }
+  }
+  if (briefing.reorganization.movedTo !== null) {
+    return { outcome: 'accept', text: 'Ya está movido a mañana.', proposedTarget: null }
+  }
+
+  const rest = restAlternative(alternatives)
+  if (!rest) {
+    return {
+      outcome: 'compromise',
+      text: 'No puedo dejar hoy como descanso con lo que tengo preparado. Si hoy no puedes, dímelo y lo replanteo.',
+      proposedTarget: null,
+    }
+  }
+  return {
+    outcome: 'accept',
+    text: 'Lo muevo a mañana: hoy descansas y mañana queda como día de entrenamiento. No copio la sesión de hoy; mañana decido con tus datos de mañana.',
+    proposedTarget: asTarget(rest),
+    proposedEffect: { kind: 'move_to_tomorrow' },
+  }
+}
+
+/**
+ * Minutos concretos. El número se usa de verdad: el motor vuelve a decidir con
+ * ese tiempo. Por debajo del mínimo no hay sesión estructurada.
+ */
+function evaluateMinutes(
+  minutes: number,
+  briefing: AxisBriefing,
+  alternatives: readonly BriefingAlternative[],
+  currentMinutes: number | null,
+): ChangeVerdict {
+  if (briefing.trainedToday) return ALREADY_TRAINED
+  if (!isTrainingDay(briefing)) return NOT_A_TRAINING_DAY
+
+  if (minutes < MIN_SESSION_MINUTES) {
+    const rest = restAlternative(alternatives)
+    return {
+      outcome: 'compromise',
+      text: `Con ${minutes} minutos no preparo una sesión estructurada: no da para hacerla bien. O descansas hoy, o haces movilidad libre a tu aire, que no cuenta como entrenamiento.`,
+      proposedTarget: asTarget(rest),
+    }
+  }
+  if (briefing.reorganization.statedMinutes === minutes) {
+    return { outcome: 'accept', text: `Ya tengo en cuenta que hoy tienes ${minutes} minutos.`, proposedTarget: null }
+  }
+  if (currentMinutes !== null && minutes >= currentMinutes) {
+    return {
+      outcome: 'accept',
+      text: `Tu sesión de hoy ya cabe en ${minutes} minutos: dura unos ${currentMinutes}.`,
+      proposedTarget: null,
+    }
+  }
+  return {
+    outcome: 'accept',
+    text: `Ajusto la sesión de hoy a tus ${minutes} minutos. El tiempo es un límite real: prefiero una sesión corta hecha que una larga a medias.`,
+    proposedTarget: null,
+    proposedEffect: { kind: 'set_available_minutes', minutes },
+  }
+}
+
+/** «No puedo hacer el entrenamiento previsto»: antes de decidir, el motivo. */
+function askBlockReason(briefing: AxisBriefing): ChangeVerdict {
+  if (briefing.trainedToday) return ALREADY_TRAINED
+  return {
+    outcome: 'need_info',
+    text: '¿Qué te lo impide: el tiempo, la zona que toca, el material o el sitio, u otro motivo? Con eso decido.',
+    proposedTarget: null,
+  }
+}
+
+/**
+ * La respuesta al motivo (D-022). El tiempo se trata como minutos; la zona,
+ * como evitar una zona; el material o el sitio no tienen filtro en v1 y se dice.
+ */
+export function evaluateBlockReason(
+  reason: BlockReason,
+  request: ChangeRequest,
+  briefing: AxisBriefing,
+): ChangeVerdict {
+  const proposal = briefing.proposal
+  const alternatives = proposal?.alternatives ?? []
+  const currentMinutes = proposal?.session?.estimatedMinutes ?? null
+
+  switch (reason) {
+    case 'time':
+      return request.minutes !== null
+        ? evaluateMinutes(request.minutes, briefing, alternatives, currentMinutes)
+        : evaluateShorter(alternatives, currentMinutes)
+    case 'zone':
+      if (request.focus !== null) return evaluateChange({ ...request, kind: 'avoid_focus' }, briefing)
+      return {
+        outcome: 'need_info',
+        text: '¿Qué zona prefieres no trabajar hoy? Dímelo así: «hoy piernas no».',
+        proposedTarget: null,
+      }
+    case 'material':
+      return {
+        outcome: 'compromise',
+        text: 'No rehago la sesión por el material. Haz los ejercicios que puedas con lo que tengas y salta los demás: lo saltado queda registrado y la próxima propuesta parte de ahí. Si no tienes sitio para entrenar, dime «hoy no puedo» y lo dejamos.',
+        proposedTarget: null,
+      }
+    case 'other':
+      return {
+        outcome: 'need_info',
+        text: 'Cuéntame qué te lo impide y lo miro.',
+        proposedTarget: null,
+      }
+  }
+}
+
+/**
+ * Cansancio contado. Sin la fatiga registrada AXIS no decide con una frase:
+ * pide registrarla y no la anota él. Registrada, ya cuenta en la decisión y se
+ * juzga como pedir algo más suave.
+ */
+function evaluateTired(
+  request: ChangeRequest,
+  briefing: AxisBriefing,
+  alternatives: readonly BriefingAlternative[],
+): ChangeVerdict {
+  if (briefing.fatigueLevel === null) {
+    return {
+      outcome: 'need_info',
+      text: FATIGUE_NOT_REGISTERED,
+      proposedTarget: null,
+    }
+  }
+  return evaluateEasier(request, briefing, alternatives)
+}
+
+/** Lo que AXIS dice cuando el cansancio no está registrado. Lo comparten las dos vías. */
+export const FATIGUE_NOT_REGISTERED =
+  'No tengo tu fatiga registrada hoy. Regístrala en Recuperación y decido con ese dato; desde aquí no la anoto.'

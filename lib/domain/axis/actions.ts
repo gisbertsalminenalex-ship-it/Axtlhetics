@@ -27,19 +27,37 @@
  *    pasar por `validateAction` como cualquier otra.
  */
 
+import {
+  activityOccursOn,
+  sportsFromActivities,
+  type ActivityIntensity,
+  type ScheduledActivity,
+} from '../profile/types'
 import { EXERCISE_CATALOG, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
 import type { Exercise, SessionFocus } from '../workouts/types'
-import type { DayKey } from '../shared/dates'
+import { addDays, formatDayInSentence, weekdayOfKey, type DayKey } from '../shared/dates'
 import { createId, nowIso } from '../shared/ids'
+import { MIN_SESSION_MINUTES } from './facts'
+import type { DayChanges } from './memory'
 import type { AxisContext, AxisDecision, AxisProposal, AxisRecommendationType } from './types'
 
 /**
  * Qué sabe hacer AXIS.
  *
- * Deliberadamente corto. Acortar una sesión es cambiarla por una más corta, así
- * que no hay un tipo aparte para eso: sería el mismo modelo con otro nombre.
+ * Deliberadamente corto. Acortar una sesión eligiendo una alternativa más corta
+ * es `change_training`. Los otros tres son reorganizaciones (D-022) que no
+ * eligen una alternativa, sino que cambian algo del día y dejan que el motor
+ * vuelva a decidir:
+ *
+ * - `set_available_minutes`: los minutos que el usuario dice tener hoy.
+ * - `move_to_tomorrow`: hoy recuperación, mañana disponible. No copia la sesión.
+ * - `add_dated_activity`: registrar el partido de mañana.
  */
-export type AxisActionType = 'change_training'
+export type AxisActionType =
+  | 'change_training'
+  | 'set_available_minutes'
+  | 'move_to_tomorrow'
+  | 'add_dated_activity'
 
 /** La opción concreta a la que se quiere cambiar, en términos estables. */
 export type AxisActionTarget = {
@@ -56,9 +74,8 @@ export type AxisActionOrigin = {
   focus: SessionFocus | null
 }
 
-export type AxisActionProposal = {
+type AxisActionBase = {
   id: string
-  type: AxisActionType
   dayKey: DayKey
   createdAt: string
   /** Lo que se lee en el botón. Corto y sin jerga: «Confirmar cambio». */
@@ -67,9 +84,47 @@ export type AxisActionProposal = {
   summary: string
   /** Por qué AXIS lo propone. Es lo que queda registrado como motivo. */
   reason: string
-  target: AxisActionTarget
   origin: AxisActionOrigin
 }
+
+/** El partido que se registraría, ya resuelto: nombre, día e intensidad (D-022). */
+export type DatedActivityDraft = {
+  name: string
+  date: DayKey
+  intensity: ActivityIntensity
+  loadsMuscleGroups: string[]
+}
+
+export type ChangeTrainingAction = AxisActionBase & { type: 'change_training'; target: AxisActionTarget }
+export type MoveToTomorrowAction = AxisActionBase & {
+  type: 'move_to_tomorrow'
+  target: AxisActionTarget
+  tomorrow: DayKey
+}
+export type SetMinutesAction = AxisActionBase & { type: 'set_available_minutes'; minutes: number }
+export type AddDatedActivityAction = AxisActionBase & {
+  type: 'add_dated_activity'
+  activity: DatedActivityDraft
+}
+
+export type AxisActionProposal =
+  | ChangeTrainingAction
+  | MoveToTomorrowAction
+  | SetMinutesAction
+  | AddDatedActivityAction
+
+/** Las acciones que eligen una alternativa del motor: siempre tienen destino. */
+export type TargetedAction = ChangeTrainingAction | MoveToTomorrowAction
+
+/**
+ * Lo que una respuesta de AXIS propone además de (o en vez de) elegir otra
+ * alternativa (D-022). La aplicación lo convierte en una acción con botón; no se
+ * aplica solo.
+ */
+export type AxisActionEffect =
+  | { kind: 'set_available_minutes'; minutes: number }
+  | { kind: 'move_to_tomorrow' }
+  | { kind: 'add_dated_activity'; intensity: ActivityIntensity }
 
 /**
  * Estado de una acción dentro de la conversación. Vive en la memoria del día.
@@ -83,6 +138,8 @@ export type AxisActionStatus =
   | { state: 'applied' }
   | { state: 'cancelled' }
   | { state: 'superseded' }
+  /** Aplicada y después deshecha (D-022). No vuelve a ejecutarse. */
+  | { state: 'undone' }
   | { state: 'error'; message: string }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +181,7 @@ export function buildChangeTrainingAction(params: {
   origin: AxisProposal
   target: AxisProposal
   reason: string
-}): AxisActionProposal {
+}): ChangeTrainingAction {
   const { context, origin, target, reason } = params
 
   return {
@@ -163,8 +220,16 @@ export type AxisActionRejection =
   | 'sesion_invalida'
   /** Aplicarla no cambiaría nada. */
   | 'sin_efecto'
+  /** El contexto ya no la permite: entrenó, ya se movió, hay partido mañana… (D-022). */
+  | 'no_permitida'
 
 export type AxisActionValidation =
+  /** `target` es la alternativa elegida, o `null` si la acción no elige ninguna. */
+  | { ok: true; target: AxisProposal | null }
+  | { ok: false; reason: AxisActionRejection; message: string }
+
+/** La validación de una acción con destino: si pasa, el destino existe. */
+export type TargetedValidation =
   | { ok: true; target: AxisProposal }
   | { ok: false; reason: AxisActionRejection; message: string }
 
@@ -180,19 +245,24 @@ export type AxisActionValidation =
  * ya lo decidió el motor al generar las alternativas.
  */
 export function validateAction(
+  action: TargetedAction,
+  decision: AxisDecision,
+  context: AxisContext,
+  selected: AxisProposal,
+): TargetedValidation
+export function validateAction(
+  action: AxisActionProposal,
+  decision: AxisDecision,
+  context: AxisContext,
+  selected: AxisProposal,
+): AxisActionValidation
+export function validateAction(
   action: AxisActionProposal,
   decision: AxisDecision,
   context: AxisContext,
   /** La propuesta que el usuario tiene seleccionada ahora mismo. */
   selected: AxisProposal,
 ): AxisActionValidation {
-  // Unión discriminada: un tipo desconocido no llega hasta aquí, y si el día de
-  // mañana se añade otro, TypeScript obliga a tratarlo.
-  switch (action.type) {
-    case 'change_training':
-      break
-  }
-
   if (action.dayKey !== context.dayKey) {
     return {
       ok: false,
@@ -201,7 +271,116 @@ export function validateAction(
     }
   }
 
+  // Unión discriminada: si mañana se añade otro tipo, TypeScript obliga a tratarlo.
+  switch (action.type) {
+    case 'change_training':
+      return validateChangeTraining(action.target, decision, context, selected)
+    case 'move_to_tomorrow':
+      return validateMoveToTomorrow(action, decision, context)
+    case 'set_available_minutes':
+      return validateMinutes(action.minutes, context)
+    case 'add_dated_activity':
+      return validateDatedActivity(action.activity, context)
+  }
+}
+
+function trainedOn(context: AxisContext): boolean {
+  return context.recentSessions.some(
+    (session) => session.status === 'completed' && session.dayKey === context.dayKey,
+  )
+}
+
+const TRAINED_TODAY: AxisActionValidation = {
+  ok: false,
+  reason: 'no_permitida',
+  message: 'Hoy ya has entrenado: no hay nada que reorganizar.',
+}
+
+/** Hoy recuperación, mañana disponible. Solo un aplazamiento, y no contra un partido. */
+function validateMoveToTomorrow(
+  action: Extract<AxisActionProposal, { type: 'move_to_tomorrow' }>,
+  decision: AxisDecision,
+  context: AxisContext,
+): AxisActionValidation {
+  if (trainedOn(context)) return TRAINED_TODAY
+  if (context.movedFromYesterday) {
+    return {
+      ok: false,
+      reason: 'no_permitida',
+      message: 'Este entrenamiento ya venía movido de ayer: no lo aplazo otra vez.',
+    }
+  }
+  if (action.tomorrow !== addDays(context.dayKey, 1)) {
+    return { ok: false, reason: 'otro_dia', message: 'Esa propuesta era para otro día. Vuelve a pedírmelo.' }
+  }
+  const demanding = context.activities.find(
+    (activity) => activity.intensity === 'alta' && activityOccursOn(activity, action.tomorrow),
+  )
+  if (demanding) {
+    return {
+      ok: false,
+      reason: 'no_permitida',
+      message: `Mañana tienes ${demanding.name.toLowerCase()}: no muevo el entrenamiento encima.`,
+    }
+  }
   const target = findProposal(decision, action.target)
+  if (!target) {
+    return {
+      ok: false,
+      reason: 'ya_no_disponible',
+      message: 'Esa opción ya no está sobre la mesa con tus datos de ahora. Dime qué quieres y lo replanteo.',
+    }
+  }
+  return { ok: true, target }
+}
+
+/** Minutos de hoy: solo por encima del mínimo de sesión y solo si cambian algo. */
+function validateMinutes(minutes: number, context: AxisContext): AxisActionValidation {
+  if (trainedOn(context)) return TRAINED_TODAY
+  if (!Number.isInteger(minutes) || minutes < MIN_SESSION_MINUTES) {
+    return {
+      ok: false,
+      reason: 'no_permitida',
+      message: `Por debajo de ${MIN_SESSION_MINUTES} minutos no preparo una sesión estructurada.`,
+    }
+  }
+  if (context.availableMinutesToday === minutes) {
+    return { ok: false, reason: 'sin_efecto', message: `Ya tengo en cuenta que hoy tienes ${minutes} minutos.` }
+  }
+  return { ok: true, target: null }
+}
+
+const INTENSITIES: readonly ActivityIntensity[] = ['baja', 'media', 'alta']
+
+/** El partido de mañana: solo para mañana y solo si no está ya registrado. */
+function validateDatedActivity(activity: DatedActivityDraft, context: AxisContext): AxisActionValidation {
+  if (activity.date !== addDays(context.dayKey, 1)) {
+    return { ok: false, reason: 'otro_dia', message: 'Esa propuesta era para otro día. Vuelve a pedírmelo.' }
+  }
+  if (!INTENSITIES.includes(activity.intensity)) {
+    return { ok: false, reason: 'no_permitida', message: 'Necesito saber cómo de exigente es para registrarlo.' }
+  }
+  const already = context.activities.some(
+    (existing) =>
+      existing.date === activity.date && existing.name.toLowerCase() === activity.name.toLowerCase(),
+  )
+  if (already) {
+    return {
+      ok: false,
+      reason: 'sin_efecto',
+      message: `Ya tengo registrado ${activity.name.toLowerCase()} para mañana.`,
+    }
+  }
+  return { ok: true, target: null }
+}
+
+function validateChangeTraining(
+  actionTarget: AxisActionTarget,
+  decision: AxisDecision,
+  context: AxisContext,
+  selected: AxisProposal,
+): AxisActionValidation {
+  const target = findProposal(decision, actionTarget)
 
   if (!target) {
     return {
@@ -302,7 +481,7 @@ export type DayPlanOverride = {
  * cambiado de sesión, y al revés.
  */
 export function overrideFrom(
-  action: AxisActionProposal,
+  action: Pick<AxisActionProposal, 'dayKey' | 'origin' | 'reason'>,
   target: AxisProposal,
   /** El mismo reloj que el resto de la aplicación de la acción. */
   now: string = nowIso(),
@@ -328,4 +507,150 @@ export function resolveOverride(
   if (override.dayKey !== dayKey) return null
 
   return findProposal(decision, { type: override.type, focus: override.focus })
+}
+
+
+// ---------------------------------------------------------------------------
+// Reorganizaciones (D-022)
+// ---------------------------------------------------------------------------
+
+function originOf(origin: AxisProposal): AxisActionOrigin {
+  return {
+    proposalId: origin.id,
+    headline: origin.headline,
+    type: origin.type,
+    focus: origin.session?.focus ?? null,
+  }
+}
+
+function baseOf(context: AxisContext, origin: AxisProposal, reason: string) {
+  return {
+    id: createId(),
+    dayKey: context.dayKey,
+    createdAt: nowIso(),
+    label: 'Confirmar cambio',
+    reason,
+    origin: originOf(origin),
+  }
+}
+
+/** Hoy pasa a `target` (recuperación) y mañana queda disponible. */
+export function buildMoveToTomorrowAction(params: {
+  context: AxisContext
+  origin: AxisProposal
+  target: AxisProposal
+  reason: string
+}): MoveToTomorrowAction {
+  const { context, origin, target, reason } = params
+  return {
+    ...baseOf(context, origin, reason),
+    type: 'move_to_tomorrow',
+    summary: 'Hoy descansas y mañana queda como día de entrenamiento',
+    target: { type: target.type, focus: target.session?.focus ?? null },
+    tomorrow: addDays(context.dayKey, 1),
+  }
+}
+
+export function buildSetMinutesAction(params: {
+  context: AxisContext
+  origin: AxisProposal
+  minutes: number
+  reason: string
+}): AxisActionProposal {
+  const { context, origin, minutes, reason } = params
+  return {
+    ...baseOf(context, origin, reason),
+    type: 'set_available_minutes',
+    summary: `Ajustar la sesión de hoy a ${minutes} minutos`,
+    minutes,
+  }
+}
+
+export function buildAddDatedActivityAction(params: {
+  context: AxisContext
+  origin: AxisProposal
+  activity: DatedActivityDraft
+  reason: string
+}): AxisActionProposal {
+  const { context, origin, activity, reason } = params
+  return {
+    ...baseOf(context, origin, reason),
+    type: 'add_dated_activity',
+    label: 'Registrar',
+    summary: `Registrar ${activity.name.toLowerCase()} ${formatDayInSentence(activity.date)}`,
+    activity,
+  }
+}
+
+/**
+ * El partido de mañana, sin inventar nada (D-022).
+ *
+ * Con un único deporte habitual, es un partido de ese deporte y carga lo mismo
+ * que él. Con varios o ninguno no se sabe de cuál: se registra como «Partido»,
+ * sin grupos musculares.
+ */
+export function datedActivityDraft(
+  context: AxisContext,
+  intensity: ActivityIntensity,
+): DatedActivityDraft {
+  const sports = sportsFromActivities(context.activities)
+  const date = addDays(context.dayKey, 1)
+  const sport = sports.length === 1 ? sports[0] : null
+  return {
+    name: matchName(sports.map((item) => item.name)),
+    date,
+    intensity,
+    loadsMuscleGroups: sport ? [...sport.loadsMuscleGroups] : [],
+  }
+}
+
+/** «Partido de baloncesto» con un único deporte habitual; «Partido» si no (D-022). */
+export function matchName(sportNames: readonly string[]): string {
+  return sportNames.length === 1 ? `Partido de ${sportNames[0].toLowerCase()}` : 'Partido'
+}
+
+/**
+ * Lo que la acción cambia en la memoria del día. `target` es lo que devolvió la
+ * validación.
+ */
+export function dayChangesFor(
+  action: AxisActionProposal,
+  target: AxisProposal | null,
+  now: string = nowIso(),
+): DayChanges {
+  switch (action.type) {
+    case 'change_training':
+      return target ? { override: overrideFrom(action, target, now) } : {}
+    case 'move_to_tomorrow':
+      return target
+        ? { override: overrideFrom(action, target, now), movedTo: action.tomorrow }
+        : { movedTo: action.tomorrow }
+    case 'set_available_minutes':
+      // Con otro tiempo, la elección anterior puede no existir: se retira y
+      // manda la decisión nueva. Deshacer la restaura.
+      return { availableMinutes: action.minutes, override: null }
+    case 'add_dated_activity':
+      return {}
+  }
+}
+
+/** La actividad que crea la acción, si crea una. Con id y fechas estables. */
+export function activityCreatedBy(
+  action: AxisActionProposal,
+  now: string = nowIso(),
+): ScheduledActivity | null {
+  if (action.type !== 'add_dated_activity') return null
+  const { activity } = action
+  return {
+    id: createId(),
+    name: activity.name,
+    weekday: weekdayOfKey(activity.date),
+    date: activity.date,
+    startMinute: null,
+    endMinute: null,
+    intensity: activity.intensity,
+    loadsMuscleGroups: [...activity.loadsMuscleGroups],
+    createdAt: now,
+    updatedAt: now,
+  }
 }

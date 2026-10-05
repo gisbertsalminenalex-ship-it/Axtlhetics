@@ -23,23 +23,32 @@
  * existe en `actions.ts` y `memory.ts`.
  */
 
+import type { ScheduledActivity } from '../profile/types'
 import {
+  activityCreatedBy,
+  buildAddDatedActivityAction,
   buildChangeTrainingAction,
+  buildMoveToTomorrowAction,
+  buildSetMinutesAction,
+  datedActivityDraft,
+  dayChangesFor,
   findProposal,
-  overrideFrom,
   validateAction,
   type AxisActionProposal,
   type AxisActionRejection,
   type AxisActionStatus,
   type DayPlanOverride,
+  type TargetedAction,
 } from './actions'
 import type { AxisAnswer } from './conversation/types'
 import {
   actionStatusOf,
-  applyOverride,
+  applyDayChanges,
   cancelAction,
+  isLastApplied,
   markActionError,
   supersedeOtherActions,
+  undoLastApplied,
   type AxisDayMemory,
 } from './memory'
 import type { AxisContext, AxisDecision, AxisProposal } from './types'
@@ -71,19 +80,31 @@ export type AxisDay = {
  */
 export function proposeAction(
   day: AxisDay,
-  answer: Pick<AxisAnswer, 'proposedTarget' | 'proposedReason'>,
+  answer: Pick<AxisAnswer, 'proposedTarget' | 'proposedReason' | 'proposedEffect'>,
 ): AxisActionProposal | null {
+  const reason = answer.proposedReason ?? ''
+  const effect = answer.proposedEffect ?? null
+  const base = { context: day.context, origin: day.selected, reason }
+
+  // Reorganizaciones (D-022): cambian algo del día y el motor vuelve a decidir.
+  if (effect?.kind === 'set_available_minutes') {
+    return buildSetMinutesAction({ ...base, minutes: effect.minutes })
+  }
+  if (effect?.kind === 'add_dated_activity') {
+    return buildAddDatedActivityAction({ ...base, activity: datedActivityDraft(day.context, effect.intensity) })
+  }
+  if (effect?.kind === 'move_to_tomorrow') {
+    // Mover exige un destino real para hoy: la recuperación que generó el motor.
+    const target = answer.proposedTarget ? findProposal(day.decision, answer.proposedTarget) : null
+    return target ? buildMoveToTomorrowAction({ ...base, target }) : null
+  }
+
   if (!answer.proposedTarget) return null
 
   const target = findProposal(day.decision, answer.proposedTarget)
   if (!target || target.id === day.selected.id) return null
 
-  return buildChangeTrainingAction({
-    context: day.context,
-    origin: day.selected,
-    target,
-    reason: answer.proposedReason ?? '',
-  })
+  return buildChangeTrainingAction({ ...base, target })
 }
 
 // ---------------------------------------------------------------------------
@@ -98,16 +119,27 @@ export type ActionCheckRejection =
   | 'cancelada'
   /** Otra acción del día se aplicó después: esta ya no tiene sentido. */
   | 'superada'
+  /** Se aplicó y se deshizo (D-022). No vuelve a ejecutarse. */
+  | 'deshecha'
 
 export type ActionCheck =
+  /** `target` es la alternativa elegida, o `null` si la acción no elige ninguna. */
+  | { ok: true; target: AxisProposal | null }
+  | { ok: false; reason: ActionCheckRejection; message: string }
+
+/** La comprobación de una acción con destino: si pasa, el destino existe. */
+export type TargetedCheck =
   | { ok: true; target: AxisProposal }
   | { ok: false; reason: ActionCheckRejection; message: string }
 
-const REJECTION_MESSAGES: Record<'malformada' | 'ya_aplicada' | 'cancelada' | 'superada', string> = {
+type ClosedRejection = 'malformada' | 'ya_aplicada' | 'cancelada' | 'superada' | 'deshecha'
+
+const REJECTION_MESSAGES: Record<ClosedRejection, string> = {
   malformada: 'Esta propuesta no se puede leer. Pídemelo otra vez y la preparo de nuevo.',
   ya_aplicada: 'Ese cambio ya está aplicado.',
   cancelada: 'Esa propuesta la descartaste. Si la quieres, pídemela otra vez.',
   superada: 'Ya aplicaste otro cambio después de esta propuesta. Pídeme el que quieras ahora.',
+  deshecha: 'Ese cambio lo deshiciste. Si lo quieres otra vez, pídemelo.',
 }
 
 /**
@@ -117,6 +149,12 @@ const REJECTION_MESSAGES: Record<'malformada' | 'ya_aplicada' | 'cancelada' | 's
  * después lo que decide `validateAction` contra la decisión vigente: día,
  * existencia del destino, catálogo, carga y que de verdad cambie algo.
  */
+export function checkAction(
+  action: TargetedAction,
+  day: AxisDay,
+  memory: AxisDayMemory,
+): TargetedCheck
+export function checkAction(action: AxisActionProposal, day: AxisDay, memory: AxisDayMemory): ActionCheck
 export function checkAction(
   action: AxisActionProposal,
   day: AxisDay,
@@ -136,6 +174,9 @@ export function checkAction(
   if (status === 'superseded') {
     return { ok: false, reason: 'superada', message: REJECTION_MESSAGES.superada }
   }
+  if (status === 'undone') {
+    return { ok: false, reason: 'deshecha', message: REJECTION_MESSAGES.deshecha }
+  }
 
   return validateAction(action, day.decision, day.context, day.selected)
 }
@@ -145,7 +186,14 @@ export function checkAction(
 // ---------------------------------------------------------------------------
 
 export type ApplyResult =
-  | { ok: true; memory: AxisDayMemory; override: DayPlanOverride }
+  | {
+      ok: true
+      memory: AxisDayMemory
+      /** La elección de hoy después de aplicar, o `null` si no hay ninguna. */
+      override: DayPlanOverride | null
+      /** La actividad que hay que guardar, si la acción crea una (D-022). */
+      createdActivity: ScheduledActivity | null
+    }
   | { ok: false; memory: AxisDayMemory; reason: ActionCheckRejection; message: string }
 
 /**
@@ -164,7 +212,11 @@ export function applyAction(
 ): ApplyResult {
   const check = checkAction(action, day, memory)
   if (!check.ok) {
-    const closed = check.reason === 'ya_aplicada' || check.reason === 'cancelada' || check.reason === 'superada'
+    const closed =
+      check.reason === 'ya_aplicada' ||
+      check.reason === 'cancelada' ||
+      check.reason === 'superada' ||
+      check.reason === 'deshecha'
     return {
       ok: false,
       memory: closed ? memory : markActionError(memory, action.id, check.message, now),
@@ -173,9 +225,15 @@ export function applyAction(
     }
   }
 
-  const override = overrideFrom(action, check.target, now)
-  const applied = applyOverride(memory, override, action.id, now)
-  return { ok: true, memory: supersedeOtherActions(applied, action.id, now), override }
+  const changes = dayChangesFor(action, check.target, now)
+  const createdActivity = activityCreatedBy(action, now)
+  const applied = applyDayChanges(memory, action.id, changes, createdActivity, now)
+  return {
+    ok: true,
+    memory: supersedeOtherActions(applied, action.id, now),
+    override: applied.override,
+    createdActivity,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -222,14 +280,41 @@ function isTarget(value: unknown): boolean {
  * entiende no puede tener botón: se descarta antes de llegar a `checkAction`, y
  * si llega, `checkAction` la rechaza como malformada.
  */
+function isDatedActivityDraft(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.name === 'string' &&
+    value.name.length > 0 &&
+    typeof value.date === 'string' &&
+    (value.intensity === 'baja' || value.intensity === 'media' || value.intensity === 'alta') &&
+    Array.isArray(value.loadsMuscleGroups) &&
+    value.loadsMuscleGroups.every((group) => typeof group === 'string')
+  )
+}
+
+/** Lo propio de cada tipo de acción. */
+function hasTypeFields(value: Record<string, unknown>): boolean {
+  switch (value.type) {
+    case 'change_training':
+      return isTarget(value.target)
+    case 'move_to_tomorrow':
+      return isTarget(value.target) && typeof value.tomorrow === 'string'
+    case 'set_available_minutes':
+      return typeof value.minutes === 'number' && Number.isInteger(value.minutes)
+    case 'add_dated_activity':
+      return isDatedActivityDraft(value.activity)
+    default:
+      return false
+  }
+}
+
 export function isActionProposal(value: unknown): value is AxisActionProposal {
   if (!isRecord(value)) return false
-  if (value.type !== 'change_training') return false
+  if (!hasTypeFields(value)) return false
   if (typeof value.id !== 'string' || value.id.length === 0) return false
   if (typeof value.dayKey !== 'string' || typeof value.createdAt !== 'string') return false
   if (typeof value.label !== 'string' || typeof value.summary !== 'string') return false
   if (typeof value.reason !== 'string') return false
-  if (!isTarget(value.target)) return false
   return (
     isRecord(value.origin) &&
     typeof value.origin.proposalId === 'string' &&
@@ -265,10 +350,16 @@ export function sanitizeActions(memory: AxisDayMemory): AxisDayMemory {
  */
 export type AxisMemoryPort = {
   save(memory: AxisDayMemory): Promise<void>
+  /**
+   * Guardar y retirar una actividad del calendario. Solo lo necesita registrar
+   * el partido de mañana (D-022); sin ellos, esa acción falla sin tocar nada.
+   */
+  addActivity?(activity: ScheduledActivity): Promise<void>
+  removeActivity?(id: string): Promise<void>
 }
 
 export type ExecuteResult =
-  | { ok: true; memory: AxisDayMemory; override: DayPlanOverride }
+  | { ok: true; memory: AxisDayMemory; override: DayPlanOverride | null; createdActivity: ScheduledActivity | null }
   | {
       ok: false
       /** La memoria a mostrar: con el error marcado, o intacta si la acción ya estaba cerrada. */
@@ -300,17 +391,111 @@ export async function executeAction(
   const applied = applyAction(action, day, memory, now)
   if (!applied.ok) return applied
 
-  try {
-    await port.save(applied.memory)
-  } catch (cause) {
+  const failed = (cause: unknown): ExecuteResult => {
     const message = cause instanceof Error && cause.message ? cause.message : PERSISTENCE_MESSAGE
-    return {
-      ok: false,
-      memory: markActionError(memory, action.id, message, now),
-      reason: 'persistencia',
-      message,
+    return { ok: false, memory: markActionError(memory, action.id, message, now), reason: 'persistencia', message }
+  }
+
+  /*
+   * La actividad va antes que la memoria: si no se puede crear, no se marca
+   * nada como aplicado. Si después falla guardar la memoria, se retira la
+   * actividad recién creada para no dejar un partido sin acción que lo explique.
+   */
+  const activity = applied.createdActivity
+  if (activity) {
+    if (!port.addActivity || !port.removeActivity) return failed(null)
+    try {
+      await port.addActivity(activity)
+    } catch (cause) {
+      return failed(cause)
     }
   }
 
+  try {
+    await port.save(applied.memory)
+  } catch (cause) {
+    if (activity) await port.removeActivity?.(activity.id).catch(() => undefined)
+    return failed(cause)
+  }
+
   return applied
+}
+
+// ---------------------------------------------------------------------------
+// 8. Deshacer la última acción (D-022)
+// ---------------------------------------------------------------------------
+
+export type UndoRejection = 'no_deshacible' | 'entrenamiento_empezado' | 'persistencia'
+
+export type UndoResult =
+  | { ok: true; memory: AxisDayMemory; removedActivityId: string | null }
+  | { ok: false; memory: AxisDayMemory; reason: UndoRejection; message: string }
+
+/**
+ * `true` si esa acción se puede deshacer ahora: es la última aplicada hoy y el
+ * entrenamiento de hoy no ha empezado ni terminado.
+ */
+export function canUndoAction(
+  memory: AxisDayMemory,
+  actionId: string,
+  options: { workoutStarted: boolean },
+): boolean {
+  return !options.workoutStarted && isLastApplied(memory, actionId)
+}
+
+/**
+ * Deshace la última acción aplicada: restaura lo que había antes, retira la
+ * actividad que hubiera creado y guarda. Nada queda deshecho antes de guardarse
+ * (D-012); si guardar falla, la actividad retirada se vuelve a crear.
+ */
+export async function undoAction(
+  actionId: string,
+  memory: AxisDayMemory,
+  port: AxisMemoryPort,
+  options: { workoutStarted: boolean },
+  now?: string,
+): Promise<UndoResult> {
+  if (options.workoutStarted) {
+    return {
+      ok: false,
+      memory,
+      reason: 'entrenamiento_empezado',
+      message: 'Ya has empezado a entrenar hoy: el cambio ya no se puede deshacer.',
+    }
+  }
+  if (!isLastApplied(memory, actionId) || !memory.lastApplied) {
+    return {
+      ok: false,
+      memory,
+      reason: 'no_deshacible',
+      message: 'Solo puedo deshacer el último cambio que aplicaste hoy.',
+    }
+  }
+
+  const created = memory.lastApplied.createdActivity
+  const next = undoLastApplied(memory, actionId, now)
+  const failed = (cause: unknown): UndoResult => ({
+    ok: false,
+    memory,
+    reason: 'persistencia',
+    message: cause instanceof Error && cause.message ? cause.message : 'No he podido deshacer el cambio. Puedes volver a intentarlo.',
+  })
+
+  if (created) {
+    if (!port.removeActivity || !port.addActivity) return failed(null)
+    try {
+      await port.removeActivity(created.id)
+    } catch (cause) {
+      return failed(cause)
+    }
+  }
+
+  try {
+    await port.save(next)
+  } catch (cause) {
+    if (created) await port.addActivity?.(created).catch(() => undefined)
+    return failed(cause)
+  }
+
+  return { ok: true, memory: next, removedActivityId: created?.id ?? null }
 }

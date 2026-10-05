@@ -435,7 +435,7 @@ Todo lo que AXIS recuerda de un día y no se deduce de los datos vive en **un so
 - **El modo cambio termina** al confirmar una acción, al cancelarla o al pulsar «Volver». Sobrevive a una recarga mientras dure.
 - **Lo contado cuenta después.** Una carga contada en un mensaje sigue siendo evidencia para las peticiones posteriores del mismo día. Solo en la conversación: el motor, `deriveFacts` y las reglas no la leen. Se sigue diciendo que no consta registrada.
 - **Terminar de entrenar retira solo la elección.** Cancelaciones, cargas, hilo y acciones se conservan.
-- **La memoria de ayer no se aplica hoy.** Cada día empieza vacío; los registros de días anteriores se conservan sin límite, y por ahora nadie los lee.
+- **La memoria de ayer no se aplica hoy.** Cada día empieza vacío; los registros de días anteriores se conservan sin límite, y por ahora nadie los lee. *(Enmendado por D-022: se lee un único campo del registro de ayer, `movedTo`, para saber si el entrenamiento de ayer se movió a hoy. Nada más de ayer se aplica.)*
 - Ninguna inteligencia nueva: es memoria, no decisión.
 
 ---
@@ -987,6 +987,44 @@ Aprobadas por Alex el 2026-10-04, después del dominio (`1c49337`):
 3. **Un test a medias que se intenta continuar otro día** se considera **interrumpido**: no se reanuda y no entra en ninguna comparación oficial.
 4. **Límites de entrada**: máximo **500 repeticiones** y **3600 segundos**. No son métricas: solo impiden guardar un valor imposible.
 5. Si hay un **test en curso del mismo día**, la tarjeta de Entrenamiento muestra **«Continuar test»** en lugar de «Hacer test».
+
+---
+
+## D-022 — Reorganización flexible del entrenamiento
+
+**Fecha:** 2026-10-04 · **Estado:** aprobada · Amplía D-010 (negociación) y D-012 (acciones). Enmienda D-011.
+
+AXTHLETICS **sigue decidiendo el entrenamiento día a día**. No hay plan semanal y D-022 no lo crea: reorganizar es cambiar la elección de hoy o dar a AXIS un dato que no tenía, y dejar que el motor vuelva a decidir. **Nunca se copia una sesión entre días.**
+
+### Los siete casos
+
+1. **«Hoy no puedo entrenar».** No poder es un límite real, como el tiempo, no una preferencia: AXIS lo acepta y propone recuperación para hoy (acción `change_training`). Solo cambia la elección de hoy. Si ya entrenó hoy, o hoy ya no tocaba entrenar, no hay nada que cambiar. «No quiero entrenar» sigue siendo `rest`, con sus frenos de siempre; «no puedo más» sigue siendo cansancio.
+2. **«Mover el entrenamiento de hoy a mañana».** Hoy pasa a recuperación y **mañana queda marcado como disponible para entrenar**, aunque no sea un día marcado en el perfil. **No se copia la sesión**: mañana el motor decide con el contexto de mañana, y si mañana la recuperación es baja, propondrá descansar. Se rechaza, con una alternativa, si ya entrenó hoy, si hoy no tocaba entrenar, si **mañana hay un deporte de intensidad alta** o si el entrenamiento de hoy **ya venía movido de ayer**: como máximo un aplazamiento desde el día de origen. La tarjeta de Entrenamiento muestra «Movido a mañana» como contexto; Inicio puede decirlo brevemente. Sin cards, pestañas ni composiciones nuevas.
+3. **«Ayer no pude entrenar».** Respuesta informativa: no se recupera acumulando, no hay sesión doble, y el foco de hoy ya prioriza lo que más tiempo lleva sin trabajarse. No modifica nada.
+4. **Minutos concretos** («solo tengo 20 minutos», «media hora»). El número se usa de verdad: con confirmación (acción `set_available_minutes`) pasa a ser el tiempo disponible de hoy y el motor vuelve a decidir con él. Solo baja el tiempo, nunca lo sube. **Por debajo del mínimo de sesión (20 min) no se genera una sesión estructurada**: AXIS propone descansar o hacer movilidad libre, que no cuenta como sesión de entrenamiento. Fijar minutos retira la elección anterior de hoy, porque con otro tiempo puede no existir; «Deshacer» la restaura.
+5. **Fatiga expresada en la conversación.** Si la fatiga no está registrada, AXIS pide registrarla en Recuperación. **No inventa ni guarda ese dato desde la conversación.** Si está registrada, las reglas ya la tienen en cuenta y AXIS lo explica.
+6. **«Mañana tengo un partido».** Si ya está registrado, AXIS lo confirma y explica su efecto en el día de hoy. Si no, propone **registrarlo como actividad de un día concreto** (D-018) para mañana, con confirmación (acción `add_dated_activity`). Si no se sabe la intensidad, la pregunta antes de proponer nada. Nombre: si el usuario tiene **un único deporte habitual**, «Partido de <deporte>» con los grupos musculares de ese deporte; con varios o ninguno, «Partido» sin grupos musculares. No se inventa deporte ni grupos musculares. Es la única reorganización que crea un dato fuera de la memoria del día.
+7. **«No puedo hacer el entrenamiento previsto».** AXIS pregunta el motivo antes de decidir: tiempo (se trata como el caso 4), zona (como evitar una zona), material o lugar, u otro motivo. Para material o lugar no hay filtro por material en v1: AXIS lo dice y sugiere hacer lo que se pueda y saltar lo demás, o tratarlo como «hoy no puedo».
+
+**Molestias y dolor** siguen la respuesta segura existente y **nunca** generan una modificación automática del entrenamiento.
+
+### Deshacer cambio
+
+- Solo la **última acción aplicada del día**, solo desde su tarjeta aplicada en el chat.
+- Solo mientras el entrenamiento de ese día **no ha empezado ni terminado**. Empezar a entrenar cierra la posibilidad de deshacer.
+- Restaura exactamente lo que la acción cambió: la elección de hoy, los minutos, el movimiento a mañana. Si creó la actividad del partido, la retira.
+- La acción queda **deshecha** y no se vuelve a ejecutar (D-012). Las acciones superadas no resucitan. Nada queda deshecho antes de guardarse.
+
+### Datos
+
+- La memoria del día (D-011) gana tres campos **opcionales**: `availableMinutes`, `movedTo` y `lastApplied` (lo necesario para deshacer). Los registros anteriores siguen siendo válidos. **Sin migración de IndexedDB.**
+- **Enmienda a D-011:** el registro de ayer se lee solo para un campo, `movedTo`. Nada más de ayer se aplica.
+- No se modifican el perfil, el catálogo, las sesiones guardadas, la progresión ni la Carga. La única excepción es la actividad con fecha del partido, creada tras confirmar.
+- Las respuestas de D-022 son deterministas. La capa de lenguaje solo puede reescribir el texto (D-016).
+
+### Fuera de D-022 v1
+
+Planificación semanal, copiar sesiones entre días, filtro inteligente por material, pestañas o dashboards nuevos, gamificación, scores nuevos y cambios en la progresión o la Carga.
 
 ---
 

@@ -340,7 +340,7 @@ function app(repositories = createMemoryRepositories(), sessions = [upperSession
       if (!validation.ok) {
         memory = markActionError(memory, action.id, validation.message)
       } else {
-        memory = applyOverride(memory, overrideFrom(action, validation.target), action.id)
+        if (validation.target) memory = applyOverride(memory, overrideFrom(action, validation.target), action.id)
       }
       await persist()
       return validation

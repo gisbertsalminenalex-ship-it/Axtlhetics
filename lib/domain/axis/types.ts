@@ -114,6 +114,18 @@ export type AxisContext = {
    */
   cancelledToday: readonly string[]
   catalog: readonly Exercise[]
+  /**
+   * Minutos que el usuario ha dicho tener hoy, confirmados en la conversación
+   * (D-022). Solo pueden bajar el tiempo disponible, nunca subirlo. Ausente o
+   * `null` si no ha dicho nada.
+   */
+  availableMinutesToday?: number | null
+  /**
+   * El entrenamiento de ayer se movió a hoy (D-022). Hace de hoy un día
+   * disponible aunque no esté marcado en el perfil; el resto de reglas sigue
+   * mandando.
+   */
+  movedFromYesterday?: boolean
 }
 
 /**
