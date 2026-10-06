@@ -825,7 +825,7 @@ function evaluateRest(
     }
   }
 
-  if (briefing.trainedToday) {
+  if (activeToday(briefing)) {
     return {
       outcome: 'accept',
       text: 'Hoy ya has entrenado. No hay nada que negociar: toca recuperar.',
@@ -897,7 +897,7 @@ function evaluateTrainAnyway(
   const alreadyTraining = proposal.session !== null
 
   // Motivos que no desaparecen porque el usuario tenga ganas.
-  if (briefing.trainedToday) {
+  if (activeToday(briefing)) {
     return {
       outcome: 'decline',
       text: 'Hoy ya has entrenado. Las ganas están bien, pero el músculo crece entre sesiones, no dentro de ellas. Mañana lo aprovecharás más.',
@@ -1026,7 +1026,7 @@ function evaluateCannotToday(
   briefing: AxisBriefing,
   alternatives: readonly BriefingAlternative[],
 ): ChangeVerdict {
-  if (briefing.trainedToday) return ALREADY_TRAINED
+  if (activeToday(briefing)) return ALREADY_TRAINED
   if (!isTrainingDay(briefing)) return NOT_A_TRAINING_DAY
 
   const rest = restAlternative(alternatives)
@@ -1052,7 +1052,7 @@ function evaluateMoveTomorrow(
   briefing: AxisBriefing,
   alternatives: readonly BriefingAlternative[],
 ): ChangeVerdict {
-  if (briefing.trainedToday) {
+  if (activeToday(briefing)) {
     return { outcome: 'decline', text: 'Hoy ya has entrenado: no hay nada que mover a mañana.', proposedTarget: null }
   }
   if (!isTrainingDay(briefing)) {
@@ -1103,7 +1103,7 @@ function evaluateMinutes(
   alternatives: readonly BriefingAlternative[],
   currentMinutes: number | null,
 ): ChangeVerdict {
-  if (briefing.trainedToday) return ALREADY_TRAINED
+  if (activeToday(briefing)) return ALREADY_TRAINED
   if (!isTrainingDay(briefing)) return NOT_A_TRAINING_DAY
 
   if (minutes < MIN_SESSION_MINUTES) {
@@ -1134,7 +1134,7 @@ function evaluateMinutes(
 
 /** «No puedo hacer el entrenamiento previsto»: antes de decidir, el motivo. */
 function askBlockReason(briefing: AxisBriefing): ChangeVerdict {
-  if (briefing.trainedToday) return ALREADY_TRAINED
+  if (activeToday(briefing)) return ALREADY_TRAINED
   return {
     outcome: 'need_info',
     text: '¿Qué te lo impide: el tiempo, la zona que toca, el material o el sitio, u otro motivo? Con eso decido.',
@@ -1205,3 +1205,11 @@ function evaluateTired(
 /** Lo que AXIS dice cuando el cansancio no está registrado. Lo comparten las dos vías. */
 export const FATIGUE_NOT_REGISTERED =
   'No tengo tu fatiga registrada hoy. Regístrala en Recuperación y decido con ese dato; desde aquí no la anoto.'
+
+/**
+ * Hoy ya hubo actividad: una sesión completada o un test de evolución completo
+ * o interrumpido (D-021). Ninguna petición convierte eso en otro entrenamiento.
+ */
+function activeToday(briefing: AxisBriefing): boolean {
+  return briefing.trainedToday || briefing.assessment.completedToday || briefing.assessment.interruptedToday
+}

@@ -16,6 +16,9 @@
  * estimación**: es lo que permite que AXIS diga «no lo sé» en lugar de inventar.
  */
 
+import { fixedPushUpVariant } from '../assessment/assessment'
+import { recommendedPushUpVariant } from '../assessment/protocol'
+import { assessmentStatusFor, type AxisAssessmentStatus } from './assessment'
 import type { TrainingGoal } from '../profile/types'
 import type { ScheduledActivity } from '../profile/types'
 import { isDatedActivity, sportsFromActivities } from '../profile/types'
@@ -23,11 +26,13 @@ import type { RecoveryBand } from '../recovery/types'
 import { computeHistoryStats } from '../history/stats'
 import { RECOVERY_FACTOR_LABELS } from '../recovery/types'
 import { formatMinutesOfDay, type DayKey } from '../shared/dates'
+import { findExercise } from '../workouts/catalog'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
 import type { SessionFocus, WorkoutSession } from '../workouts/types'
 import { deriveFacts } from './facts'
 import type { ReportedLoadMemory } from './memory'
-import type { AxisContext, AxisDecision, AxisProposal, AxisRecommendationType } from './types'
+import type { AxisContext, AxisDecision, AxisFacts, AxisProposal, AxisRecommendationType } from './types'
+import { isTrainingRecommendation } from './types'
 
 export type BriefingRecovery =
   | { known: false; missing: string[]; reason: string }
@@ -161,6 +166,30 @@ export type AxisBriefing = {
   fatigueLevel: number | null
   /** Lo reorganizado hoy (D-022). Lo usa la conversación; no decide nada. */
   reorganization: BriefingReorganization
+  /**
+   * El test de evolución (D-021). Solo se usa para responder cuando el usuario
+   * pregunta por él: AXIS no lo menciona por su cuenta.
+   */
+  assessment: BriefingAssessment
+}
+
+export type BriefingAssessment = {
+  completedToday: boolean
+  inProgressToday: boolean
+  interruptedToday: boolean
+  status: AxisAssessmentStatus['status']
+  reasons: AxisAssessmentStatus['reasons']
+  lastCompletedDay: DayKey | null
+  nextEligibleDay: DayKey | null
+  completedCount: number
+  /**
+   * La variante de flexiones del próximo test: la fijada por el último test
+   * completado o, si no hay ninguno, la recomendada para el nivel (principiante →
+   * inclinadas; intermedio y avanzado → estándar). `null` sin perfil.
+   */
+  pushUp: { name: string; fixed: boolean } | null
+  /** Por qué el motor decide descansar hoy, si lo decide. Es su explicación, no una nueva. */
+  restReason: string | null
 }
 
 export type BriefingReorganization = {
@@ -258,6 +287,34 @@ export function buildBriefing(
       movedFromYesterday: context.movedFromYesterday === true,
       statedMinutes: context.availableMinutesToday ?? null,
     },
+    assessment: briefingAssessment(context, facts, decision),
+  }
+}
+
+function briefingAssessment(
+  context: AxisContext,
+  facts: AxisFacts,
+  decision: AxisDecision | null,
+): BriefingAssessment {
+  const assessments = context.assessments ?? []
+  const status = decision ? assessmentStatusFor(context, facts, decision) : null
+
+  const fixed = fixedPushUpVariant(assessments)
+  const variantId = fixed ?? (context.profile ? recommendedPushUpVariant(context.profile.experience) : null)
+  const variant = variantId ? findExercise(variantId, context.catalog) : null
+
+  return {
+    completedToday: facts.assessmentCompletedToday,
+    inProgressToday: facts.assessmentInProgressToday,
+    interruptedToday: facts.assessmentInterruptedToday,
+    // Sin decisión del motor no se sabe si hoy toca descansar: no se da por disponible.
+    status: status?.status ?? 'unavailable',
+    reasons: status?.reasons ?? [],
+    lastCompletedDay: status?.lastCompletedDay ?? null,
+    nextEligibleDay: status?.nextEligibleDay ?? null,
+    completedCount: status?.completedCount ?? 0,
+    pushUp: variant ? { name: variant.name, fixed: fixed !== null } : null,
+    restReason: decision && !isTrainingRecommendation(decision.primary.type) ? decision.primary.reason : null,
   }
 }
 

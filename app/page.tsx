@@ -13,6 +13,7 @@ import { InicioScreen } from '@/components/screens/inicio'
 import { OnboardingScreen } from '@/components/screens/onboarding'
 import { PerfilScreen } from '@/components/screens/perfil'
 import { RecuperacionScreen } from '@/components/screens/recuperacion'
+import { TestEvolucionScreen } from '@/components/screens/test-evolucion'
 import { useAxtlhetics } from '@/lib/state/store'
 
 export default function Page() {
@@ -20,6 +21,8 @@ export default function Page() {
   const [tab, setTab] = useState<Tab>('inicio')
   const [perfilOpen, setPerfilOpen] = useState(false)
   const [axisOpen, setAxisOpen] = useState(false)
+  // El test de evolución (D-021): un flujo dentro de Entrenamiento, no una pestaña.
+  const [testOpen, setTestOpen] = useState(false)
 
   const goToRecuperacion = () => setTab('recuperacion')
 
@@ -32,7 +35,12 @@ export default function Page() {
   // curso o un resumen pendiente, la aplicación se queda en él.
   const inWorkout = store.activeWorkout !== null
   const inSummary = store.activeWorkout === null && store.lastCompleted !== null
-  const immersive = inWorkout || inSummary || perfilOpen || axisOpen || store.status !== 'ready'
+  // Un test a medias de hoy o un resumen pendiente también mandan, como el entrenamiento.
+  const inTest =
+    !inWorkout &&
+    !inSummary &&
+    (testOpen || store.assessments.active !== null || store.assessments.summary !== null)
+  const immersive = inWorkout || inSummary || inTest || perfilOpen || axisOpen || store.status !== 'ready'
 
   return (
     <div className="flex min-h-dvh w-full items-center justify-center bg-neutral-100 sm:py-8">
@@ -82,7 +90,18 @@ export default function Page() {
                 nuevo y la animación de entrada se reproduce. La barra inferior queda
                 fuera y no se mueve.
               */}
-              {!inWorkout && !inSummary && (
+              {inTest && (
+                <div key="test" className="ax-enter">
+                  <TestEvolucionScreen
+                    onClose={() => {
+                      setTestOpen(false)
+                      setTab('entrenamiento')
+                    }}
+                  />
+                </div>
+              )}
+
+              {!inWorkout && !inSummary && !inTest && (
                 <div key={tab} className="ax-enter">
                   {tab === 'inicio' && (
                     <InicioScreen
@@ -99,6 +118,7 @@ export default function Page() {
                       onGoRecuperacion={goToRecuperacion}
                       onGoHistorial={() => setTab('historial')}
                       onOpenAxis={() => setAxisOpen(true)}
+                      onOpenTest={() => setTestOpen(true)}
                     />
                   )}
                   {tab === 'recuperacion' && <RecuperacionScreen />}

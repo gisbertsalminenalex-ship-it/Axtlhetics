@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import Image from 'next/image'
 import { ChevronRight, Clock, Dumbbell } from 'lucide-react'
+import { AssessmentEntry } from '@/components/assessment/assessment-entry'
 import { AxisMark } from '@/components/axis-mark'
 import { WeeklyActivity } from '@/components/weekly-activity'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
@@ -14,11 +15,14 @@ export function EntrenamientoScreen({
   onGoRecuperacion,
   onGoHistorial,
   onOpenAxis,
+  onOpenTest,
 }: {
   onStart: () => void
   onGoRecuperacion: () => void
   onGoHistorial: () => void
   onOpenAxis: () => void
+  /** Abre el test de evolución (D-021). */
+  onOpenTest: () => void
 }) {
   const { proposal, openChangeConversation, sessions, weeklyActivity, today, movedToTomorrow } =
     useAxtlhetics()
@@ -104,6 +108,7 @@ export function EntrenamientoScreen({
         )}
       </section>
 
+
       {/* Ejercicios de la sesión propuesta */}
       {session && session.exercises.length > 0 && (
         <>
@@ -131,6 +136,9 @@ export function EntrenamientoScreen({
           </ul>
         </>
       )}
+
+      {/* Test de evolución (D-021): secundario, después de la sesión de hoy y sus ejercicios. */}
+      <AssessmentEntry onOpen={onOpenTest} />
 
       {/* Planificación */}
       <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">Tu planificación</h3>

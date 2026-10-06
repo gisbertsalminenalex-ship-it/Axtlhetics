@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, Check, ChevronRight, Minus, Plus, SkipForward, Undo2 } from 'lucide-react'
-import { CircularMetric } from '@/components/circular-metric'
+import { ArrowLeft, Check, ChevronRight, SkipForward, Undo2 } from 'lucide-react'
+import { Confirmation } from '@/components/workout/confirmation'
+import { RestTimer } from '@/components/workout/rest-timer'
+import { ValueStepper } from '@/components/workout/value-stepper'
 import {
   canUndoLastSet,
   completedSetsTotal,
@@ -12,7 +14,6 @@ import {
   currentVolumeKg,
   hasProgress,
   nextEntry,
-  REST_EXTENSION_SECONDS,
   restState,
   WEIGHT_STEP_KG,
   type ActiveExerciseEntry,
@@ -350,14 +351,7 @@ function LastTime({
   )
 }
 
-/**
- * Descanso entre series (D-019, Design System «Rest Timer»).
- *
- * Arranca solo al completar una serie. La cuenta atrás es la protagonista; debajo,
- * lo que viene, para llegar preparado. La acción principal es saltarlo; ampliar
- * y deshacer quedan como texto. Al llegar a cero la pantalla vuelve sola a la
- * serie: el estado se calcula del reloj, no hay nada que cerrar.
- */
+/** Descanso entre series (D-019): el RestTimer compartido, con deshacer. */
 function RestPanel({
   rest,
   entry,
@@ -384,48 +378,9 @@ function RestPanel({
     .join(' · ')
 
   return (
-    <section className="ax-enter" aria-label="Descanso">
-      <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">DESCANSO</p>
-
-      <div className="mt-5 flex justify-center">
-        <CircularMetric
-          value={rest.remainingSeconds}
-          max={rest.totalSeconds}
-          size={200}
-          stroke={8}
-          tone="primary"
-        >
-          <span
-            className="text-[44px] font-bold tracking-[-0.02em] tabular-nums"
-            role="timer"
-            aria-live="off"
-          >
-            {formatDuration(rest.remainingSeconds)}
-          </span>
-        </CircularMetric>
-      </div>
-
-      <p className="mt-6 text-[13px] text-muted-foreground">Después</p>
-      <p className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em]">{entry.name}</p>
-      <p className="mt-0.5 text-[14px] text-muted-foreground tabular-nums">{next}</p>
-
-      <button
-        type="button"
-        onClick={onSkip}
-        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
-      >
-        Saltar descanso
-      </button>
-      <button
-        type="button"
-        onClick={onExtend}
-        className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-primary tabular-nums"
-      >
-        + {REST_EXTENSION_SECONDS} s
-      </button>
-
+    <RestTimer rest={rest} nextName={entry.name} nextDetail={next} onSkip={onSkip} onExtend={onExtend}>
       {canUndo && <UndoButton onUndo={onUndo} />}
-    </section>
+    </RestTimer>
   )
 }
 
@@ -440,117 +395,6 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
       <Undo2 className="h-4 w-4" strokeWidth={1.75} />
       Deshacer última serie
     </button>
-  )
-}
-
-/**
- * Confirmación de una acción que no se puede deshacer: salir o saltar.
- *
- * Mismo criterio que el borrado de datos en Perfil: la confirmación es parte de
- * la pantalla, no un `confirm()` del navegador, que bloquea la página entera.
- * Dice exactamente qué pasa, porque es lo que hace falta saber para decidir. La
- * acción segura es la principal; la otra, texto.
- */
-function Confirmation({
-  title,
-  body,
-  stayLabel,
-  leaveLabel,
-  leaveTone,
-  onStay,
-  onLeave,
-}: {
-  title: string
-  body: ReactNode
-  stayLabel: string
-  leaveLabel: string
-  leaveTone: 'error' | 'muted'
-  onStay: () => void
-  onLeave: () => void
-}) {
-  return (
-    /*
-      Misma composición que una pregunta del onboarding: titular grande arriba y
-      la acción debajo. No se centra en vertical porque el contenedor de pantalla
-      de `page.tsx` no impone altura, así que un `min-h-full` aquí no resolvería.
-    */
-    <div className="ax-enter px-6 pt-10 pb-8">
-      <h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em] text-balance">
-        {title}
-      </h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground text-pretty">
-        {body}
-      </p>
-
-      <div className="mt-10">
-        <button
-          type="button"
-          onClick={onStay}
-          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
-        >
-          {stayLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onLeave}
-          className={cn(
-            'ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold',
-            leaveTone === 'error' ? 'text-error' : 'text-muted-foreground',
-          )}
-        >
-          {leaveLabel}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/**
- * Selector de carga y repeticiones.
- *
- * Mantiene la tarjeta grande del diseño aprobado y añade el `Set Stepper` que el
- * Design System §23 ya contemplaba, para poder registrar lo que se hace de verdad.
- */
-function ValueStepper({
-  value,
-  unit,
-  onDecrease,
-  onIncrease,
-  decreaseLabel,
-  increaseLabel,
-}: {
-  value: string
-  unit: string
-  onDecrease: () => void
-  onIncrease: () => void
-  decreaseLabel: string
-  increaseLabel: string
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-surface py-4 text-center">
-      <p className="text-[34px] font-bold leading-none tracking-[-0.02em] tabular-nums">
-        {value}
-      </p>
-      <p className="mt-1.5 text-[13px] text-muted-foreground">{unit}</p>
-      <div className="mt-2 flex items-center justify-center gap-2">
-        <button
-          type="button"
-          onClick={onDecrease}
-          aria-label={decreaseLabel}
-          className="ax-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background"
-        >
-          <Minus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
-        </button>
-        <button
-          type="button"
-          onClick={onIncrease}
-          aria-label={increaseLabel}
-          className="ax-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background"
-        >
-          <Plus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
-        </button>
-      </div>
-    </div>
   )
 }
 

@@ -8,6 +8,7 @@
  */
 
 import type { ScheduledActivity, UserProfile } from '../profile/types'
+import type { Assessment } from '../assessment/types'
 import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
 import type { DayKey } from '../shared/dates'
 import type { Exercise, MuscleGroup, PlannedSession, WorkoutSession } from '../workouts/types'
@@ -37,6 +38,8 @@ export type AxisFactorKey =
   | 'hydration'
   | 'days_since_last_workout'
   | 'trained_today'
+  /** Hoy hubo un test de evolución, completo o interrumpido (D-021). */
+  | 'assessment_today'
   | 'recent_muscle_groups'
   | 'scheduled_activity'
   | 'activity_tomorrow'
@@ -126,6 +129,12 @@ export type AxisContext = {
    * mandando.
    */
   movedFromYesterday?: boolean
+  /**
+   * Los tests de evolución guardados (D-021): modelos del dominio, nunca filas del
+   * almacén. AXIS solo deriva de ellos si hoy hubo test y si el siguiente está
+   * disponible; no los usa para elegir ni para cargar una sesión.
+   */
+  assessments?: readonly Assessment[]
 }
 
 /**
@@ -148,6 +157,12 @@ export type AxisFacts = {
   stressLevel: number | null
   sleepHours: number | null
   trainedToday: boolean
+  /** Hoy se completó un test de evolución (D-021). Cuenta como actividad del día. */
+  assessmentCompletedToday: boolean
+  /** Hay un test de hoy a medias. Se reanuda; no es actividad todavía. */
+  assessmentInProgressToday: boolean
+  /** Hoy se interrumpió un test con algo registrado. Cuenta como actividad del día. */
+  assessmentInterruptedToday: boolean
   daysSinceLastWorkout: number | null
   /** Grupos trabajados en las sesiones recientes, del más reciente al más antiguo. */
   recentMuscleGroups: MuscleGroup[]

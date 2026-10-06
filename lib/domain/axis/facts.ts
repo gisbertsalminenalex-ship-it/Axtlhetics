@@ -5,6 +5,7 @@
  * cada hecho pueda comprobarse por separado en un test.
  */
 
+import { assessmentDayFacts } from './assessment'
 import { activityOccursOn, isAvailableOn } from '../profile/types'
 import { addDays, daysBetween, weekdayOfKey } from '../shared/dates'
 import type { MuscleGroup } from '../workouts/types'
@@ -54,6 +55,8 @@ export function deriveFacts(context: AxisContext): AxisFacts {
   const lastSession = completedSessions[0] ?? null
 
   const trainedToday = completedSessions.some((session) => session.dayKey === dayKey)
+  // Los tests de hoy, por estado (D-021). No son sesiones: no entran en nada de lo de arriba.
+  const assessmentToday = assessmentDayFacts(context.assessments ?? [], dayKey)
   const daysSinceLastWorkout = lastSession ? daysBetween(lastSession.dayKey, dayKey) : null
 
   const recentMuscleGroups: MuscleGroup[] = []
@@ -102,6 +105,7 @@ export function deriveFacts(context: AxisContext): AxisFacts {
     stressLevel: recoveryInputs?.stress ?? null,
     sleepHours: recoveryInputs?.sleepHours ?? null,
     trainedToday,
+    ...assessmentToday,
     daysSinceLastWorkout,
     recentMuscleGroups,
     isAvailableToday,

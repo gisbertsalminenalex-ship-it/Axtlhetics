@@ -940,7 +940,7 @@ Introducción (4 pruebas, 10–15 min, qué se mide, fecha del test anterior) �
 Solo con el **test completado anterior compatible** (mismo protocolo, ejercicio, variante, medida y carga).
 
 - «+3 reps», «−8 s»: la diferencia exacta. Signo menos siempre «−».
-- «Sin cambio» solo con el resultado **exactamente** igual. No hay margen de tolerancia.
+- «No cambio» solo con el resultado **exactamente** igual. No hay margen de tolerancia. *(Antes «Sin cambio»; cambiado por Alex el 2026-10-05.)*
 - «Línea base» si no hay anterior compatible.
 - Remo: cuenta como mejora solo si mejoran **los dos lados** y ninguno empeora; si uno mejora y otro empeora es **mixto**, con los dos datos («+2 / −1»).
 - Nunca porcentajes de forma física, «más fuerte», niveles ni interpretaciones más allá de los datos.

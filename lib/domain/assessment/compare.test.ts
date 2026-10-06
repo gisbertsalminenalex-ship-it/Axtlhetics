@@ -38,7 +38,7 @@ test('la diferencia es exacta y con signo; el remo, por lados', () => {
   assert.deepEqual(c.pull.delta, { kind: 'sides', left: 2, right: -1, trend: 'mixed' })
 })
 
-test('«sin cambio» solo con el resultado exactamente igual: un segundo ya es diferencia', () => {
+test('«no cambio» solo con el resultado exactamente igual: un segundo ya es diferencia', () => {
   const sept = completed('2026-09-05', SEPT)
   const same = completed('2026-10-04', { ...SEPT, core: 57 })
   const c = byKey(compareAssessment(same, [same, sept]))
@@ -133,12 +133,12 @@ test('valores y diferencias se escriben como en el diseño, con el signo menos r
   assert.equal(formatAssessmentDelta({ kind: 'baseline' }, 'reps'), 'Línea base')
   assert.equal(formatAssessmentDelta({ kind: 'single', diff: 3, trend: 'up' }, 'reps'), '+3 reps')
   assert.equal(formatAssessmentDelta({ kind: 'single', diff: -8, trend: 'down' }, 'seconds'), '−8 s')
-  assert.equal(formatAssessmentDelta({ kind: 'single', diff: 0, trend: 'same' }, 'reps'), 'Sin cambio')
+  assert.equal(formatAssessmentDelta({ kind: 'single', diff: 0, trend: 'same' }, 'reps'), 'No cambio')
   assert.equal(formatAssessmentDelta({ kind: 'sides', left: 2, right: -1, trend: 'mixed' }, 'reps'), 'Mixto · +2 / −1')
   assert.equal(formatAssessmentDelta({ kind: 'sides', left: 2, right: 1, trend: 'up' }, 'reps'), '+2 / +1')
   assert.equal(formatAssessmentDelta({ kind: 'sides', left: 2, right: 0, trend: 'mixed' }, 'reps'), 'Mixto · +2 / 0')
   assert.equal(formatAssessmentDelta({ kind: 'sides', left: -1, right: 0, trend: 'mixed' }, 'reps'), 'Mixto · −1 / 0')
-  assert.equal(formatAssessmentDelta({ kind: 'sides', left: 0, right: 0, trend: 'same' }, 'reps'), 'Sin cambio')
+  assert.equal(formatAssessmentDelta({ kind: 'sides', left: 0, right: 0, trend: 'same' }, 'reps'), 'No cambio')
   assert.ok(!formatAssessmentDelta({ kind: 'single', diff: -8, trend: 'down' }, 'seconds').includes('-'))
 })
 

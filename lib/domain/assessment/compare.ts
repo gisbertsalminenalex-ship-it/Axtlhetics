@@ -135,12 +135,12 @@ export function formatAssessmentValue(value: AssessmentValue, measure: Assessmen
 }
 
 /**
- * «+3 reps», «−8 s», «Sin cambio», «Línea base», «Mixto · +2 / −1».
+ * «+3 reps», «−8 s», «No cambio», «Línea base», «Mixto · +2 / −1».
  * La unidad acompaña a las pruebas de un valor; por lados se leen los dos números.
  */
 export function formatAssessmentDelta(delta: AssessmentDelta, measure: AssessmentMeasure): string {
   if (delta.kind === 'baseline') return 'Línea base'
-  if (delta.trend === 'same') return 'Sin cambio'
+  if (delta.trend === 'same') return 'No cambio'
   if (delta.kind === 'single') return signed(delta.diff, UNIT[measure])
   const pair = `${signed(delta.left)} / ${signed(delta.right)}`
   return delta.trend === 'mixed' ? `Mixto · ${pair}` : pair

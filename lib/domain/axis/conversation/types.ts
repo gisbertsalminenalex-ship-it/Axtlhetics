@@ -22,6 +22,8 @@ export type AxisIntent =
   | 'missed_yesterday'
   /** «Mañana tengo un partido» (D-022). */
   | 'match_tomorrow'
+  /** Preguntas por el test de evolución (D-021). Solo si el usuario pregunta. */
+  | 'assessment'
   | 'week'
   | 'load'
   | 'goals'

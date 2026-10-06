@@ -33,6 +33,7 @@ import {
   type IntentMatch,
 } from './intents'
 import { matchName } from '../actions'
+import { answerAssessment, asksAboutAssessment } from './assessment-answer'
 import {
   evaluateBlockReason,
   evaluateChange,
@@ -201,6 +202,8 @@ export function answerFromBriefing(
       return answerMissedYesterday(briefing)
     case 'match_tomorrow':
       return answerMatchTomorrow(briefing, detectIntensity(question))
+    case 'assessment':
+      return answerAssessment(question, briefing)
     case 'week':
       return answerWeek(briefing)
     case 'load':
@@ -602,6 +605,9 @@ function answerStatement(
   memory?: AxisConversationMemory,
 ): AxisAnswer | null {
   if (saysMissedYesterday(question)) return answerMissedYesterday(briefing)
+
+  // El test de evolución, solo porque el usuario pregunta por él (D-021).
+  if (asksAboutAssessment(question, memory?.lastIntent ?? null)) return answerAssessment(question, briefing)
 
   // «Hoy no puedo porque mañana tengo partido» pide algo para hoy: eso negocia.
   const asksForToday = asksToMoveToTomorrow(question) || saysCannotTrainToday(question)

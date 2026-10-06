@@ -6,6 +6,7 @@ import type { ChartPoint, HistoryRange } from '@/lib/domain/history/stats'
 import { formatTotalTime, formatVolume, HISTORY_RANGE_LABELS } from '@/lib/domain/history/stats'
 import { formatDuration, formatShortDate } from '@/lib/domain/shared/dates'
 import { safeDivide } from '@/lib/domain/shared/ids'
+import { AssessmentDetail, AssessmentHistoryList } from '@/components/assessment/assessment-history'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -20,9 +21,13 @@ const SUMMARY_TITLES: Record<HistoryRange, string> = {
 export function HistorialScreen() {
   const { historyStats, sessions } = useAxtlhetics()
   const [range, setRange] = useState<HistoryRange>('semana')
+  // El detalle de un test de evolución se abre en lugar del historial (D-021).
+  const [openTestId, setOpenTestId] = useState<string | null>(null)
 
   const stats = historyStats(range)
   const recent = sessions.filter((session) => session.status === 'completed').slice(0, 5)
+
+  if (openTestId) return <AssessmentDetail id={openTestId} onBack={() => setOpenTestId(null)} />
 
   return (
     <div className="px-6 pb-10">
@@ -133,6 +138,9 @@ export function HistorialScreen() {
           Cuando completes tu primer entrenamiento aparecerá aquí.
         </p>
       )}
+
+      {/* Tests de evolución (D-021): una sección más del historial. */}
+      <AssessmentHistoryList onOpen={setOpenTestId} />
     </div>
   )
 }

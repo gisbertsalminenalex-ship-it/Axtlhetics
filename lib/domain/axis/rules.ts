@@ -44,19 +44,44 @@ type Rule = {
 const alreadyTrainedToday: Rule = {
   id: 'already_trained_today',
   evaluate(facts) {
-    if (!facts.trainedToday) return null
-    return {
-      type: 'REST',
-      rule: 'already_trained_today',
-      factors: [
-        {
-          key: 'trained_today',
-          label: 'Ya has entrenado hoy',
-          detail: 'Has completado una sesión hoy.',
-          direction: 'limits',
-        },
-      ],
+    if (facts.trainedToday) {
+      return {
+        type: 'REST',
+        rule: 'already_trained_today',
+        factors: [
+          {
+            key: 'trained_today',
+            label: 'Ya has entrenado hoy',
+            detail: 'Has completado una sesión hoy.',
+            direction: 'limits',
+          },
+        ],
+      }
     }
+
+    /*
+     * Un test de evolución completado o interrumpido es actividad física del día
+     * (D-021): proponer después otro entrenamiento sería ignorarlo. No se le
+     * atribuye ninguna carga: no hay esfuerzo, volumen ni duración registrados
+     * que la sostengan, y la Carga solo lee sesiones.
+     */
+    if (facts.assessmentCompletedToday || facts.assessmentInterruptedToday) {
+      return {
+        type: 'REST',
+        rule: 'assessment_today',
+        factors: [
+          {
+            key: 'assessment_today',
+            label: 'Test de evolución hoy',
+            detail: facts.assessmentCompletedToday
+              ? 'Has completado un test de evolución hoy, así que no necesitas otro entrenamiento.'
+              : 'Hoy ya has hecho parte de un test de evolución, así que no necesitas otro entrenamiento.',
+            direction: 'limits',
+          },
+        ],
+      }
+    }
+    return null
   },
 }
 

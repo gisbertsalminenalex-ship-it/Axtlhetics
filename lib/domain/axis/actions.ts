@@ -37,6 +37,7 @@ import { EXERCISE_CATALOG, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
 import type { Exercise, SessionFocus } from '../workouts/types'
 import { addDays, formatDayInSentence, weekdayOfKey, type DayKey } from '../shared/dates'
 import { createId, nowIso } from '../shared/ids'
+import { assessmentActivityOn } from './assessment'
 import { MIN_SESSION_MINUTES } from './facts'
 import type { DayChanges } from './memory'
 import type { AxisContext, AxisDecision, AxisProposal, AxisRecommendationType } from './types'
@@ -284,10 +285,12 @@ export function validateAction(
   }
 }
 
+/** Hoy ya hubo actividad: una sesión completada o un test de evolución (D-021). */
 function trainedOn(context: AxisContext): boolean {
-  return context.recentSessions.some(
-    (session) => session.status === 'completed' && session.dayKey === context.dayKey,
+  const session = context.recentSessions.some(
+    (item) => item.status === 'completed' && item.dayKey === context.dayKey,
   )
+  return session || assessmentActivityOn(context)
 }
 
 const TRAINED_TODAY: AxisActionValidation = {

@@ -5,6 +5,7 @@
  * para que los tests puedan fabricar un contexto sin pasar por la persistencia.
  */
 
+import type { Assessment } from '../assessment/types'
 import type { ScheduledActivity, UserProfile } from '../profile/types'
 import { computeRecoveryScore } from '../recovery/score'
 import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
@@ -25,6 +26,8 @@ export type AxisContextInput = {
   availableMinutesToday?: number | null
   /** El entrenamiento de ayer se movió a hoy (D-022). */
   movedFromYesterday?: boolean
+  /** Tests de evolución guardados (D-021). Por defecto, ninguno. */
+  assessments?: readonly Assessment[]
   catalog?: readonly Exercise[]
   /** Momento de la decisión. Inyectable para que los tests sean deterministas. */
   now?: Date
@@ -54,6 +57,7 @@ export function buildAxisContext(input: AxisContextInput): AxisContext {
     cancelledToday: input.cancelledToday ?? [],
     availableMinutesToday: input.availableMinutesToday ?? null,
     movedFromYesterday: input.movedFromYesterday ?? false,
+    assessments: input.assessments ?? [],
     catalog: input.catalog ?? EXERCISE_CATALOG,
   }
 }
