@@ -491,6 +491,20 @@ test('el test de evolución no sale hacia el proveedor (D-021)', async () => {
   assert.doesNotMatch(JSON.stringify(requests[0]), new RegExp(PAST_TEST_DAY))
 })
 
+test('las preguntas sobre el test de evolución nunca llegan al proveedor (D-021)', async () => {
+  const { briefing } = setup()
+  const { transport, requests } = fakeTransport(() => ({ text: 'No debería llamarse.' }))
+  const conversation = createAxisConversation({ transport })
+
+  for (const memory of [undefined, CHANGE_MODE]) {
+    for (const question of ['¿por qué no puedo hacer el test?', '¿cuándo me toca el test de evolución?', '¿cómo funciona el test?']) {
+      const result = await conversation.ask(question, briefing, memory)
+      assert.equal(result.intent, 'assessment', question)
+    }
+  }
+  assert.equal(requests.length, 0)
+})
+
 test('el prompt del proveedor se genera desde la personalidad y añade solo el formato', () => {
   const prompt = aiSystemPrompt()
 
