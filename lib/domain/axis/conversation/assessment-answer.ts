@@ -44,7 +44,9 @@ function describeProtocol(assessment: BriefingAssessment): string[] {
     'Se mide cuántas repeticiones o segundos aguantas con buena técnica, se para cuando la técnica deja de ser válida y se compara solo con tu test anterior. Son unos 10–15 minutos.',
   ]
   if (assessment.pushUp && !assessment.pushUp.fixed) {
-    parts.push(`Para el primero, las flexiones que corresponden a tu nivel son ${push}.`)
+    // «Flexiones» a secas es la variante estándar: dicho así, la frase no diría nada.
+    const variant = push === 'flexiones' ? 'flexiones estándar' : push
+    parts.push(`Para el primero, por tu nivel, tocan ${variant}.`)
   }
   parts.push(`Se puede repetir a los ${ASSESSMENT_INTERVAL_DAYS} días del último test completado.`)
   return parts

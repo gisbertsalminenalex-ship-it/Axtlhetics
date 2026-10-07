@@ -284,6 +284,15 @@ test('«¿Cómo funciona el test?» describe el protocolo; un seguimiento sigue 
   assert.equal(followUp.intent, 'assessment')
 })
 
+test('el protocolo nombra la variante del primer test entera: «flexiones estándar», nunca «son flexiones»', () => {
+  const howFor = (experience: ExperienceLevel) =>
+    answerFromBriefing('¿Cómo funciona el test?', setup({ profile: profile({ experience }) }).briefing).text
+
+  assert.match(howFor('intermedio'), /Para el primero, por tu nivel, tocan flexiones estándar\./)
+  assert.match(howFor('principiante'), /Para el primero, por tu nivel, tocan flexiones inclinadas\./)
+  assert.doesNotMatch(howFor('intermedio'), /son flexiones\./)
+})
+
 test('sin preguntar por el test, «¿cuándo me toca repetirlo?» no habla del test', () => {
   const answer = answerFromBriefing('¿cuándo me toca repetirlo?', setup().briefing)
   assert.notEqual(answer.intent, 'assessment')
