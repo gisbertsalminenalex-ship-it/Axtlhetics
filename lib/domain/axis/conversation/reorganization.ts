@@ -76,8 +76,10 @@ export function saysCannotTrainToday(message: string): boolean {
 // «Muévelo a mañana»
 // ---------------------------------------------------------------------------
 
+// En masculino («el entrenamiento») y en femenino («la sesión»): AXIS ofrece
+// «puedo moverla a mañana», así que «muévela a mañana» tiene que entenderse.
 const MOVE_VERBS =
-  '(mover|muevelo|moverlo|mueve|mueva|pasar|pasarlo|pasalo|dejar|dejarlo|dejalo|aplazar|aplazarlo|aplazalo|posponer|posponerlo|cambiar|cambiarlo|hacerlo|hacer|entrenar)'
+  '(mover|muevelo|muevela|moverlo|moverla|mueve|mueva|pasar|pasarlo|pasarla|pasalo|pasala|dejar|dejarlo|dejarla|dejalo|dejala|aplazar|aplazarlo|aplazarla|aplazalo|aplazala|posponer|posponerlo|posponerla|posponlo|posponla|cambiar|cambiarlo|cambiarla|hacerlo|hacerla|hacer|entrenar)'
 
 /** «Muévelo a mañana», «déjalo para mañana», «prefiero entrenar mañana en vez de hoy». */
 export function asksToMoveToTomorrow(message: string): boolean {

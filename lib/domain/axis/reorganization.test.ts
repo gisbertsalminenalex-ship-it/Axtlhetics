@@ -250,6 +250,15 @@ test('mover a mañana: hoy recuperación y mañana disponible', () => {
   assert.equal(applied.createdActivity, null)
 })
 
+test('«muévela a mañana», como lo ofrece AXIS, también mueve: dentro y fuera del modo cambio', () => {
+  const { briefing, day } = setup()
+  for (const memory of [undefined, { lastIntent: 'change' as const, changeMode: true, lastChangeRequest: null }]) {
+    const answer = answerFromBriefing('Muévela a mañana', briefing, memory)
+    assert.deepEqual(answer.proposedEffect, { kind: 'move_to_tomorrow' })
+    assert.equal(proposeAction(day, answer)?.type, 'move_to_tomorrow')
+  }
+})
+
 test('no se aplaza dos veces: lo movido desde ayer no se mueve otra vez', () => {
   const { briefing, day } = setup({ movedFromYesterday: true })
   const answer = answerFromBriefing('muévelo a mañana', briefing)

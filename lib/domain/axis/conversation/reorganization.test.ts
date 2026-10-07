@@ -71,6 +71,13 @@ test('mover a mañana', () => {
     'prefiero entrenar mañana en vez de hoy',
     'mejor mañana',
     'aplázalo a mañana',
+    // En femenino, «la sesión»: es como lo ofrece AXIS («puedo moverla a mañana»).
+    'muévela a mañana',
+    'sí, muévela a mañana',
+    '¿puedes moverla a mañana?',
+    'pásala a mañana',
+    'déjala para mañana',
+    'pospónla a mañana',
   ]) {
     assert.equal(asksToMoveToTomorrow(phrase), true, phrase)
   }
