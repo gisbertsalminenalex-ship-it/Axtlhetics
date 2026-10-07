@@ -52,6 +52,9 @@ export function TestActive({
     const timer = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [])
+  // «Corregir» devuelve al lado izquierdo: se parte del valor que se corrige,
+  // no de 0. El dominio no lo guarda al deshacer; basta con recordarlo aquí.
+  const [correctingLeft, setCorrectingLeft] = useState<number | null>(null)
 
   const test = currentTest(assessment)
   if (!test) return null
@@ -96,8 +99,12 @@ export function TestActive({
           assessment={assessment}
           test={test}
           side={side}
+          initialValue={side === 'left' ? (correctingLeft ?? 0) : 0}
           onRecord={onRecord}
-          onUndoLeft={onUndoLeft}
+          onUndoLeft={() => {
+            setCorrectingLeft(assessment.pendingLeft)
+            onUndoLeft()
+          }}
         />
       )}
     </div>
@@ -108,12 +115,14 @@ function TestBody({
   assessment,
   test,
   side,
+  initialValue,
   onRecord,
   onUndoLeft,
 }: {
   assessment: Assessment
   test: AssessmentTest
   side: 'left' | 'right' | null
+  initialValue: number
   onRecord: (value: number) => Promise<boolean>
   onUndoLeft: () => void
 }) {
@@ -140,6 +149,7 @@ function TestBody({
         <RepsEntry
           measure={test.measure}
           label={side === 'left' ? 'Lado izquierdo' : side === 'right' ? 'Lado derecho' : 'Resultado'}
+          initial={initialValue}
           saving={saving}
           onFinish={submit}
         />
@@ -202,15 +212,17 @@ function useResultValue(measure: AssessmentMeasure, initial = 0) {
 function RepsEntry({
   measure,
   label,
+  initial = 0,
   saving,
   onFinish,
 }: {
   measure: AssessmentMeasure
   label: string
+  initial?: number
   saving: boolean
   onFinish: (value: number) => void
 }) {
-  const result = useResultValue(measure)
+  const result = useResultValue(measure, initial)
   return (
     <div className="mt-auto pt-8">
       <p className="mb-2 text-center text-[13px] font-semibold text-muted-foreground">{label}</p>

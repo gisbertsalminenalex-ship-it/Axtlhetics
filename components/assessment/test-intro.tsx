@@ -10,6 +10,7 @@ import {
   PUSH_UP_VARIANT_IDS,
   recommendedPushUpVariant,
 } from '@/lib/domain/assessment/protocol'
+import { assessmentUnavailableText } from '@/lib/domain/axis/conversation/assessment-answer'
 import { formatDayInSentence } from '@/lib/domain/shared/dates'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { useAxtlhetics } from '@/lib/state/store'
@@ -46,6 +47,10 @@ export function TestIntro({
   const [starting, setStarting] = useState(false)
 
   const last = briefing?.assessment.lastCompletedDay ?? null
+  // La disponibilidad es la del dominio, la misma que responde AXIS: si hoy no
+  // se puede, aquí tampoco. Sin briefing aún no se sabe, así que no se ofrece.
+  const unavailable = briefing ? assessmentUnavailableText(briefing.assessment) : null
+  const canStart = briefing !== null && unavailable === null
 
   return (
     <div className="flex min-h-full flex-col px-6 pb-8">
@@ -119,10 +124,16 @@ export function TestIntro({
       </p>
 
       <div className="mt-auto pt-8">
+        {unavailable && (
+          <p role="status" className="mb-4 text-[13.5px] leading-relaxed text-pretty">
+            {unavailable}
+          </p>
+        )}
         <button
           type="button"
-          disabled={starting}
+          disabled={starting || !canStart}
           onClick={async () => {
+            if (!canStart) return
             setStarting(true)
             // Si sale bien, el test en curso sustituye a esta pantalla; si no, el
             // aviso de error lo explica y se puede volver a intentar.

@@ -73,10 +73,28 @@ function describeAvailability(assessment: BriefingAssessment): string[] {
     return ['Sí, hoy puedes hacer el test.', last ? `El anterior fue el ${last}.` : 'Sería tu primer test.']
   }
 
-  const reasons = assessment.reasons
-    .map((reason) => reasonText(reason, assessment, last, next))
+  /*
+   * Una razón por causa. Si hoy ya se entrenó, el descanso que decide el motor
+   * es consecuencia de eso: decirlo dos veces («ya has entrenado» y «has
+   * completado una sesión») no añade nada.
+   */
+  const blocks = assessment.reasons.filter(
+    (reason) => !(reason === 'axis_rest' && assessment.reasons.includes('trained_today')),
+  )
+  const reasons = blocks
+    .map((reason) => reasonText(reason, assessment, last, next, blocks.length === 1))
     .filter((reason): reason is string => reason !== null)
   return ['Hoy no puedes hacer el test.', ...reasons]
+}
+
+/**
+ * Por qué hoy no se puede hacer el test, con las mismas palabras con las que lo
+ * responde AXIS. `null` si se puede hacer o hay uno a medias que reanudar. Lo usa
+ * la introducción del test: la disponibilidad del dominio manda también ahí.
+ */
+export function assessmentUnavailableText(assessment: BriefingAssessment): string | null {
+  if (assessment.status === 'available' || assessment.status === 'in_progress') return null
+  return describeAvailability(assessment).join(' ')
 }
 
 function reasonText(
@@ -84,6 +102,7 @@ function reasonText(
   assessment: BriefingAssessment,
   last: string | null,
   next: string | null,
+  onlyBlock: boolean,
 ): string | null {
   switch (reason) {
     case 'too_soon':
@@ -95,7 +114,11 @@ function reasonText(
     case 'trained_today':
       return 'Hoy ya has entrenado, y el test pide llegar fresco.'
     case 'recovery_unknown':
-      return 'No tengo tu recuperación de hoy registrada, y sin ella no sé si estás para un esfuerzo máximo. Regístrala y lo miro.'
+      // Registrarla solo cambia algo si es lo único que falta: si no, sería
+      // ofrecer una salida que no lleva a ningún sitio.
+      return onlyBlock
+        ? 'No tengo tu recuperación de hoy registrada, y sin ella no sé si estás para un esfuerzo máximo. Regístrala y lo miro.'
+        : 'No tengo tu recuperación de hoy registrada.'
     case 'recovery_low':
       return 'Tu recuperación de hoy es baja: no es día para un esfuerzo máximo.'
     case 'demanding_activity_today':

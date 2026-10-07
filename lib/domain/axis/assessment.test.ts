@@ -17,7 +17,7 @@ import type { WorkoutSession } from '../workouts/types'
 import { assessmentStatusFor } from './assessment'
 import { buildBriefing } from './briefing'
 import { buildAxisContext } from './context'
-import { assessmentEntryReason } from './conversation/assessment-answer'
+import { assessmentEntryReason, assessmentUnavailableText } from './conversation/assessment-answer'
 import { answerFromBriefing } from './conversation/deterministic'
 import { decide } from './engine'
 import { deriveFacts } from './facts'
@@ -354,6 +354,33 @@ test('sin recuperación registrada no se da por disponible', () => {
   assert.notEqual(status.status, 'available')
   assert.ok(status.reasons.includes('recovery_unknown'))
   assert.match(answerFromBriefing('¿puedo hacer el test?', briefing).text, /Regístrala y lo miro/)
+})
+
+test('una razón por causa: tras entrenar, el descanso del motor no se dice dos veces', () => {
+  const { status, briefing } = setup({ sessions: [session(TODAY)], assessments: [OLD_TEST] })
+  assert.ok(status.reasons.includes('trained_today'))
+  assert.ok(status.reasons.includes('axis_rest'), 'el motor también descansa: es el caso de la duplicación')
+  const text = answerFromBriefing('¿puedo hacer el test?', briefing).text
+  assert.match(text, /Hoy ya has entrenado/)
+  assert.doesNotMatch(text, /Hoy toca descansar/)
+})
+
+test('«regístrala» solo se ofrece si registrar la recuperación cambiaría algo', () => {
+  const { status, briefing } = setup({ recovery: null, sessions: [session(TODAY)], assessments: [OLD_TEST] })
+  assert.ok(status.reasons.includes('recovery_unknown'))
+  const text = answerFromBriefing('¿puedo hacer el test?', briefing).text
+  assert.match(text, /No tengo tu recuperación de hoy registrada\./)
+  assert.doesNotMatch(text, /Regístrala/)
+})
+
+test('la intro del test usa la misma disponibilidad y las mismas palabras que AXIS', () => {
+  assert.equal(assessmentUnavailableText(setup({ assessments: [OLD_TEST] }).briefing.assessment), null)
+  const ongoing = recordResult(started(TODAY), 14, at(TODAY))
+  assert.equal(assessmentUnavailableText(setup({ assessments: [ongoing] }).briefing.assessment), null)
+
+  const trained = setup({ sessions: [session(TODAY)], assessments: [OLD_TEST] }).briefing
+  assert.equal(assessmentUnavailableText(trained.assessment), answerFromBriefing('¿puedo hacer el test?', trained).text)
+  assert.match(assessmentUnavailableText(setup({ assessments: [completed(TODAY)] }).briefing.assessment) ?? '', /Ya has hecho el test hoy/)
 })
 
 test('sin decisión del motor tampoco: no se sabe si hoy toca descansar', () => {
