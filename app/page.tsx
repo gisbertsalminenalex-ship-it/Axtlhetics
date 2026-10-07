@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BottomNav, type Tab } from '@/components/bottom-nav'
 import { ErrorBanner } from '@/components/error-banner'
 import { AppLoading } from '@/components/screens/app-loading'
@@ -42,10 +42,25 @@ export default function Page() {
     (testOpen || store.assessments.active !== null || store.assessments.summary !== null)
   const immersive = inWorkout || inSummary || inTest || perfilOpen || axisOpen || store.status !== 'ready'
 
+  /*
+   * Todas las vistas comparten el mismo `main` con scroll. Sin esto, abrir el
+   * test, el perfil o cambiar de pestaña heredaba el scroll de la vista
+   * anterior y la nueva aparecía a mitad, sin su cabecera.
+   */
+  const testPhase = store.assessments.summary ? 'summary' : store.assessments.active ? 'active' : 'intro'
+  const view = [
+    store.status,
+    axisOpen ? 'axis' : perfilOpen ? 'perfil' : inWorkout ? 'workout' : inSummary ? 'summary' : inTest ? `test-${testPhase}` : tab,
+  ].join(':')
+  const mainRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 })
+  }, [view])
+
   return (
     <div className="flex min-h-dvh w-full items-center justify-center bg-neutral-100 sm:py-8">
       <div className="relative flex h-dvh w-full max-w-[400px] flex-col overflow-hidden bg-background sm:h-[860px] sm:rounded-[44px] sm:border-8 sm:border-neutral-900 sm:shadow-2xl">
-        <main className="no-scrollbar flex-1 overflow-y-auto pt-2">
+        <main ref={mainRef} className="no-scrollbar flex-1 overflow-y-auto pt-2">
           {store.status === 'loading' && <AppLoading />}
 
           {store.status === 'onboarding' && (
