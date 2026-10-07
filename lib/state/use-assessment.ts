@@ -42,6 +42,11 @@ export type AssessmentsApi = AssessmentsState & {
   active: Assessment | null
   /** El test recién completado, hasta cerrar su resumen. */
   summary: Assessment | null
+  /**
+   * Un test que seguía en curso de otro día se acaba de cerrar con la regla del
+   * dominio. Se cuenta hasta que se empieza otro o se borra todo.
+   */
+  staleTestClosed: boolean
   /** Guarda un test (nuevo o el mismo, más avanzado). `false` si no se pudo. */
   saveAssessment(assessment: Assessment): Promise<boolean>
   /** Retira un test. `false` si no se pudo. */
@@ -68,6 +73,7 @@ export type AssessmentsApi = AssessmentsState & {
 export function useAssessments(): AssessmentsApi {
   const [state, setState] = useState<AssessmentsState>(INITIAL_ASSESSMENTS_STATE)
   const [summaryId, setSummaryId] = useState<string | null>(null)
+  const [staleTestClosed, setStaleTestClosed] = useState(false)
   const stateRef = useRef(state)
   stateRef.current = state
   // Una lectura que llega después de un `reset` no debe resucitar lo borrado.
@@ -78,8 +84,9 @@ export function useAssessments(): AssessmentsApi {
   const reconcile = useCallback(async (): Promise<AssessmentsState | null> => {
     const generation = generationRef.current
     const today = todayKey()
-    const next = await loadAndReconcile(getRepositories().assessments, today)
+    const { closedStale, ...next } = await loadAndReconcile(getRepositories().assessments, today)
     if (generation !== generationRef.current) return null
+    if (closedStale) setStaleTestClosed(true)
     loadedDayRef.current = today
     stateRef.current = next
     setState(next)
@@ -96,11 +103,12 @@ export function useAssessments(): AssessmentsApi {
    * la medianoche), primero se reconcilia con la regla del dominio: así nunca
    * se empieza un test nuevo con el de ayer todavía a medias. Si la
    * reconciliación no se pudo guardar, `null`: no se actúa sobre algo a medias.
+   * Con `fresh`, se relee siempre del almacén (lo que pudo escribir otra pestaña).
    */
-  const currentAssessments = useCallback(async (): Promise<readonly Assessment[] | null> => {
+  const currentAssessments = useCallback(async (fresh = false): Promise<readonly Assessment[] | null> => {
     const today = todayKey()
     const { assessments } = stateRef.current
-    if (loadedDayRef.current === today && !hasStaleInProgress(assessments, today)) return assessments
+    if (!fresh && loadedDayRef.current === today && !hasStaleInProgress(assessments, today)) return assessments
     const next = await reconcile()
     if (!next || next.status !== 'ready' || hasStaleInProgress(next.assessments, today)) return null
     return next.assessments
@@ -159,10 +167,15 @@ export function useAssessments(): AssessmentsApi {
 
   const start = useCallback(
     async (pushUpVariantId: string) => {
-      const list = await currentAssessments()
+      // Empezar crea un registro: se lee del almacén y no de memoria. Si otra
+      // pestaña ya empezó el test de hoy, aquí se reanuda ese en vez de abrir
+      // un segundo a medias.
+      const list = await currentAssessments(true)
       if (!list || inProgressAssessment(list, todayKey())) return false
       const assessment = startAssessment({ dayKey: todayKey(), pushUpVariantId })
-      return assessment ? saveAssessment(assessment) : false
+      const saved = assessment ? await saveAssessment(assessment) : false
+      if (saved) setStaleTestClosed(false)
+      return saved
     },
     [currentAssessments, saveAssessment],
   )
@@ -192,6 +205,7 @@ export function useAssessments(): AssessmentsApi {
   const reset = useCallback(() => {
     generationRef.current += 1
     setSummaryId(null)
+    setStaleTestClosed(false)
     setState(EMPTY_ASSESSMENTS_STATE)
   }, [])
 
@@ -212,6 +226,7 @@ export function useAssessments(): AssessmentsApi {
       ...state,
       active,
       summary,
+      staleTestClosed,
       saveAssessment,
       removeAssessment,
       start,
@@ -225,7 +240,7 @@ export function useAssessments(): AssessmentsApi {
       reload,
       reset,
     }),
-    [state, active, summary, saveAssessment, removeAssessment, start, record, undoLeft, skipRest, extendRest, interrupt, dismissSummary, dismissError, reload, reset],
+    [state, active, summary, staleTestClosed, saveAssessment, removeAssessment, start, record, undoLeft, skipRest, extendRest, interrupt, dismissSummary, dismissError, reload, reset],
   )
 }
 

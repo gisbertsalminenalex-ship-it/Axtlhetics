@@ -43,7 +43,13 @@ const SAVE_ERROR = 'No se pudo guardar el test de evolución.'
 const REMOVE_ERROR = 'No se pudo retirar el test de evolución.'
 const INVALID = 'Ese test de evolución no tiene una forma válida y no se ha guardado.'
 
+/**
+ * El motivo, si es nuestro y dice algo («Otra pestaña… está bloqueando»). Los
+ * errores del propio navegador (`DOMException`: cuota llena, transacción
+ * abortada…) llegan en inglés y en jerga técnica: para el usuario, el texto fijo.
+ */
 function messageOf(cause: unknown, fallback: string): string {
+  if (typeof DOMException !== 'undefined' && cause instanceof DOMException) return fallback
   return cause instanceof Error && cause.message ? cause.message : fallback
 }
 
@@ -135,20 +141,34 @@ export function reconcileLoaded(list: readonly Assessment[], today: string): Loa
   return { assessments: sortAssessments(kept), toSave, toRemove }
 }
 
+export type ReconciledAssessmentsState = AssessmentsState & {
+  /**
+   * `true` si esta carga cerró un test que seguía en curso de otro día
+   * (interrumpido o retirado) y quedó guardado así. Es lo que se le cuenta al
+   * usuario: el test que dejó abierto ya no se puede continuar.
+   */
+  closedStale: boolean
+}
+
 /** Carga, reconcilia y deja guardado lo reconciliado. */
 export async function loadAndReconcile(
   repository: AssessmentRepository,
   today: string,
-): Promise<AssessmentsState> {
+): Promise<ReconciledAssessmentsState> {
   const loaded = await loadAssessments(repository)
-  if (loaded.status !== 'ready') return loaded
+  if (loaded.status !== 'ready') return { ...loaded, closedStale: false }
   const reconciled = reconcileLoaded(loaded.assessments, today)
   try {
     for (const assessment of reconciled.toSave) await repository.save(assessment)
     for (const id of reconciled.toRemove) await repository.remove(id)
   } catch (cause) {
     // Lo leído sigue siendo válido: se enseña, y al volver a abrir se reintenta.
-    return { ...loaded, error: messageOf(cause, SAVE_ERROR) }
+    return { ...loaded, error: messageOf(cause, SAVE_ERROR), closedStale: false }
   }
-  return { status: 'ready', assessments: reconciled.assessments, error: null }
+  return {
+    status: 'ready',
+    assessments: reconciled.assessments,
+    error: null,
+    closedStale: reconciled.toSave.length + reconciled.toRemove.length > 0,
+  }
 }

@@ -236,6 +236,11 @@ function RepsEntry({
 /**
  * Cronómetro integrado para la plancha y la sentadilla en pared. Al parar, el
  * resultado se puede corregir antes de registrarlo.
+ *
+ * Riesgo conocido y aceptado (revisión de D-021): el cronómetro vive solo en el
+ * estado de este componente. Si la app se recarga con la prueba cronometrada en
+ * marcha, la medición se pierde y hay que repetirla; el test y lo ya registrado
+ * se conservan. Guardarlo con el test es una mejora pendiente de decisión.
  */
 function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: number) => void }) {
   const [startedAt, setStartedAt] = useState<number | null>(null)

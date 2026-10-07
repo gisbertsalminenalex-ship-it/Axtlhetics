@@ -106,6 +106,18 @@ test('si guardar falla, se devuelve el motivo', async () => {
   assert.deepEqual(result, { ok: false, message: 'disco lleno' })
 })
 
+test('un error del navegador no se enseña tal cual: se da el texto para el usuario', async () => {
+  const real = createMemoryRepositories().assessments
+  const quota: AssessmentRepository = {
+    ...real,
+    save: async () => { throw new DOMException('The quota has been exceeded.', 'QuotaExceededError') },
+  }
+  assert.deepEqual(await persistAssessment(quota, completed('2026-09-05')), {
+    ok: false,
+    message: 'No se pudo guardar el test de evolución.',
+  })
+})
+
 test('retirar borra del repositorio; si falla, se devuelve el motivo', async () => {
   const repository = createMemoryRepositories().assessments
   await repository.save(completed('2026-09-05'))
@@ -306,6 +318,34 @@ test('al cambiar de día, un test empezado sin nada registrado se retira', async
   const state = await loadAndReconcile(repository, NEXT_DAY)
   assert.deepEqual(state.assessments, [])
   assert.deepEqual(await repository.list(), [])
+})
+
+test('cerrar un test de otro día se avisa: interrumpido o retirado', async () => {
+  const withProgress = createMemoryRepositories().assessments
+  await persistAssessment(withProgress, recordResult(started(DAY), 14, at(DAY)))
+  assert.equal((await loadAndReconcile(withProgress, NEXT_DAY)).closedStale, true)
+  // Ya cerrado: la siguiente carga no vuelve a avisar.
+  assert.equal((await loadAndReconcile(withProgress, NEXT_DAY)).closedStale, false)
+
+  const empty = createMemoryRepositories().assessments
+  await persistAssessment(empty, started(DAY))
+  assert.equal((await loadAndReconcile(empty, NEXT_DAY)).closedStale, true)
+})
+
+test('sin nada que cerrar, o con el test de hoy a medias, no hay aviso', async () => {
+  const repository = createMemoryRepositories().assessments
+  await persistAssessment(repository, completed('2026-09-01'))
+  await persistAssessment(repository, recordResult(started(DAY), 14, at(DAY)))
+  assert.equal((await loadAndReconcile(repository, DAY)).closedStale, false)
+})
+
+test('si cerrar el test de otro día no se pudo guardar, no se avisa de que se cerró', async () => {
+  const repository = failing('save')
+  const real = createMemoryRepositories().assessments
+  await real.save(recordResult(started(DAY), 14, at(DAY)))
+  const state = await loadAndReconcile({ ...repository, list: real.list }, NEXT_DAY)
+  assert.equal(state.closedStale, false)
+  assert.ok(state.error)
 })
 
 test('reconciliar no toca los completados, los interrumpidos ni el de hoy', () => {

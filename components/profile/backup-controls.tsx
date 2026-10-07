@@ -67,8 +67,8 @@ export function BackupControls() {
       <RestoreFlow className="mt-2" />
 
       <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
-        El archivo incluye tus entrenamientos, tu recuperación y tus conversaciones
-        con AXIS. Es para ti, no para compartir.
+        El archivo incluye tus entrenamientos, tu recuperación, tus tests de
+        evolución y tus conversaciones con AXIS. Es para ti, no para compartir.
       </p>
     </div>
   )
@@ -241,7 +241,8 @@ function RestoreConfirmation({
 
       {hasSomethingToLose ? (
         <p className="mt-2 text-[13.5px] leading-relaxed">
-          Se sustituirá{' '}
+          {/* El sujeto es «restaurarla»: concuerda igual con uno o con varios. */}
+          Restaurarla sustituirá{' '}
           <span className="font-semibold">
             {describeCurrent(current)}
           </span>

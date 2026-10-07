@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
+import { StaleTestNotice } from '@/components/assessment/stale-test-notice'
 import { AxisMark } from '@/components/axis-mark'
 import { fixedPushUpVariant } from '@/lib/domain/assessment/assessment'
 import {
@@ -56,6 +57,7 @@ export function TestIntro({
 
       <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Test de evolución</h1>
       <p className="mt-1.5 text-[15px] text-muted-foreground">4 pruebas · 10–15 min</p>
+      <StaleTestNotice className="mt-4" />
       <p className="mt-4 text-[15px] leading-relaxed text-pretty">
         {/* Sin ningún test completado no hay con qué comparar: este es la primera referencia. */}
         {fixed === null
