@@ -223,8 +223,15 @@ function RestoreConfirmation({
   onCancel: () => void
   onConfirm: () => void
 }) {
-  const { sessions, profile } = useAxtlhetics()
-  const hasSomethingToLose = sessions.length > 0 || profile !== null
+  const { sessions, profile, assessments } = useAxtlhetics()
+  // Importar reemplaza (D-015): los tests de evolución de este dispositivo se
+  // pierden aunque la copia sea de schema 1 y no traiga ninguno.
+  const current = {
+    sessions: sessions.length,
+    assessments: assessments.assessments.length,
+    profile: profile !== null,
+  }
+  const hasSomethingToLose = current.sessions > 0 || current.assessments > 0 || current.profile
 
   return (
     <div className="ax-enter mt-4 rounded-2xl border border-border bg-surface p-4">
@@ -236,7 +243,7 @@ function RestoreConfirmation({
         <p className="mt-2 text-[13.5px] leading-relaxed">
           Se sustituirá{' '}
           <span className="font-semibold">
-            {describeCurrent(sessions.length, profile !== null)}
+            {describeCurrent(current)}
           </span>
           . <span className="font-semibold">No se puede deshacer.</span>
         </p>
@@ -304,18 +311,29 @@ function describe(counts: BackupCounts): string {
   return `${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}`
 }
 
-/** Lo que hay ahora mismo y se va a perder: «tus 3 entrenamientos y tu perfil». */
-function describeCurrent(sessionCount: number, hasProfile: boolean): string {
+/**
+ * Lo que hay ahora mismo y se va a perder: «tus 3 entrenamientos guardados, tus
+ * 2 tests de evolución y tu perfil».
+ */
+function describeCurrent(current: { sessions: number; assessments: number; profile: boolean }): string {
   const parts: string[] = []
 
-  if (sessionCount > 0) {
+  if (current.sessions > 0) {
     parts.push(
-      sessionCount === 1
+      current.sessions === 1
         ? 'tu entrenamiento guardado'
-        : `tus ${sessionCount} entrenamientos guardados`,
+        : `tus ${current.sessions} entrenamientos guardados`,
     )
   }
-  if (hasProfile) parts.push('tu perfil')
+  if (current.assessments > 0) {
+    parts.push(
+      current.assessments === 1
+        ? 'tu test de evolución'
+        : `tus ${current.assessments} tests de evolución`,
+    )
+  }
+  if (current.profile) parts.push('tu perfil')
 
-  return parts.join(' y ')
+  if (parts.length <= 1) return parts.join('')
+  return `${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}`
 }

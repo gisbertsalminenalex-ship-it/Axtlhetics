@@ -135,9 +135,12 @@ export default function Page() {
           scroll, sin taparla. `main` es `flex-1`, de modo que el aviso le quita
           alto en vez de superponerse.
         */}
-        {store.error && (
-          <div className="shrink-0 px-6 pt-2 pb-3">
-            <ErrorBanner message={store.error} onDismiss={store.dismissError} />
+        {(store.error || store.assessments.error) && (
+          <div className="flex shrink-0 flex-col gap-2 px-6 pt-2 pb-3">
+            {store.error && <ErrorBanner message={store.error} onDismiss={store.dismissError} />}
+            {store.assessments.error && (
+              <ErrorBanner message={store.assessments.error} onDismiss={store.assessments.dismissError} />
+            )}
           </div>
         )}
 

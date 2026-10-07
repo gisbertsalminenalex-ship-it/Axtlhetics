@@ -57,6 +57,8 @@ export type AssessmentsApi = AssessmentsState & {
   /** Salir a mitad, ya confirmado: queda interrumpido o, sin nada, no deja rastro. */
   interrupt(): Promise<boolean>
   dismissSummary(): void
+  /** El usuario ha leído el aviso de error. */
+  dismissError(): void
   /** Vuelve a leer del almacén. */
   reload(): Promise<void>
   /** Vacía el estado sin escribir nada: lo usa «borrar todos los datos». */
@@ -72,14 +74,37 @@ export function useAssessments(): AssessmentsApi {
   const generationRef = useRef(0)
   const loadedDayRef = useRef<string | null>(null)
 
-  const reload = useCallback(async () => {
+  /** Lee y reconcilia. Devuelve lo leído, o `null` si un `reset` llegó antes. */
+  const reconcile = useCallback(async (): Promise<AssessmentsState | null> => {
     const generation = generationRef.current
     const today = todayKey()
     const next = await loadAndReconcile(getRepositories().assessments, today)
-    if (generation !== generationRef.current) return
+    if (generation !== generationRef.current) return null
     loadedDayRef.current = today
+    stateRef.current = next
     setState(next)
+    return next
   }, [])
+
+  const reload = useCallback(async () => {
+    await reconcile()
+  }, [reconcile])
+
+  /**
+   * La lista con la que actuar hoy. Si ha cambiado el día desde la última
+   * lectura o queda un test en curso de otro día (la app siguió abierta pasada
+   * la medianoche), primero se reconcilia con la regla del dominio: así nunca
+   * se empieza un test nuevo con el de ayer todavía a medias. Si la
+   * reconciliación no se pudo guardar, `null`: no se actúa sobre algo a medias.
+   */
+  const currentAssessments = useCallback(async (): Promise<readonly Assessment[] | null> => {
+    const today = todayKey()
+    const { assessments } = stateRef.current
+    if (loadedDayRef.current === today && !hasStaleInProgress(assessments, today)) return assessments
+    const next = await reconcile()
+    if (!next || next.status !== 'ready' || hasStaleInProgress(next.assessments, today)) return null
+    return next.assessments
+  }, [reconcile])
 
   useEffect(() => {
     void reload()
@@ -120,7 +145,8 @@ export function useAssessments(): AssessmentsApi {
   /** Aplica un paso del dominio al test en curso y guarda el resultado. */
   const advance = useCallback(
     async (step: (current: Assessment, now: Date) => Assessment) => {
-      const current = inProgressAssessment(stateRef.current.assessments, todayKey())
+      const list = await currentAssessments()
+      const current = list ? inProgressAssessment(list, todayKey()) : null
       if (!current) return false
       const next = step(current, new Date())
       if (next === current) return true
@@ -128,16 +154,17 @@ export function useAssessments(): AssessmentsApi {
       if (saved && next.status === 'completed') setSummaryId(next.id)
       return saved
     },
-    [saveAssessment],
+    [currentAssessments, saveAssessment],
   )
 
   const start = useCallback(
     async (pushUpVariantId: string) => {
-      if (inProgressAssessment(stateRef.current.assessments, todayKey())) return false
+      const list = await currentAssessments()
+      if (!list || inProgressAssessment(list, todayKey())) return false
       const assessment = startAssessment({ dayKey: todayKey(), pushUpVariantId })
       return assessment ? saveAssessment(assessment) : false
     },
-    [saveAssessment],
+    [currentAssessments, saveAssessment],
   )
 
   const record = useCallback(
@@ -152,13 +179,15 @@ export function useAssessments(): AssessmentsApi {
   )
 
   const interrupt = useCallback(async () => {
-    const current = inProgressAssessment(stateRef.current.assessments, todayKey())
+    const list = await currentAssessments()
+    const current = list ? inProgressAssessment(list, todayKey()) : null
     if (!current) return false
     const outcome = interruptAssessment(current, new Date())
     return outcome.kind === 'discard' ? removeAssessment(current.id) : saveAssessment(outcome.assessment)
-  }, [removeAssessment, saveAssessment])
+  }, [currentAssessments, removeAssessment, saveAssessment])
 
   const dismissSummary = useCallback(() => setSummaryId(null), [])
+  const dismissError = useCallback(() => setState((current) => ({ ...current, error: null })), [])
 
   const reset = useCallback(() => {
     generationRef.current += 1
@@ -166,7 +195,16 @@ export function useAssessments(): AssessmentsApi {
     setState(EMPTY_ASSESSMENTS_STATE)
   }, [])
 
-  const active = inProgressAssessment(state.assessments, todayKey())
+  const today = todayKey()
+  const active = inProgressAssessment(state.assessments, today)
+
+  // Un test en curso de otro día con la app abierta: se reconcilia en cuanto se
+  // vuelve a pintar, sin esperar a que la app pase a primer plano. Si la
+  // reconciliación falla, `stale` no cambia y el efecto no se repite en bucle.
+  const stale = state.status === 'ready' && hasStaleInProgress(state.assessments, today)
+  useEffect(() => {
+    if (stale) void reload()
+  }, [stale, reload])
   const summary = summaryId ? (state.assessments.find((item) => item.id === summaryId) ?? null) : null
 
   return useMemo(
@@ -183,9 +221,15 @@ export function useAssessments(): AssessmentsApi {
       extendRest,
       interrupt,
       dismissSummary,
+      dismissError,
       reload,
       reset,
     }),
-    [state, active, summary, saveAssessment, removeAssessment, start, record, undoLeft, skipRest, extendRest, interrupt, dismissSummary, reload, reset],
+    [state, active, summary, saveAssessment, removeAssessment, start, record, undoLeft, skipRest, extendRest, interrupt, dismissSummary, dismissError, reload, reset],
   )
+}
+
+/** Un test que sigue «en curso» con fecha de otro día: pendiente de reconciliar. */
+function hasStaleInProgress(assessments: readonly Assessment[], today: string): boolean {
+  return assessments.some((assessment) => assessment.status === 'in_progress' && assessment.dayKey !== today)
 }

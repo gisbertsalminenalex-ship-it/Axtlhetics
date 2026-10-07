@@ -29,7 +29,14 @@ function variantLabel(id: string): string {
  * nivel —principiante, inclinadas; intermedio y avanzado, estándar— y el usuario
  * puede elegir otra. Después queda fijada y aquí solo se enseña.
  */
-export function TestIntro({ onStart, onBack }: { onStart: (variantId: string) => void; onBack: () => void }) {
+export function TestIntro({
+  onStart,
+  onBack,
+}: {
+  /** `false` si no se pudo empezar: el botón vuelve a estar disponible. */
+  onStart: (variantId: string) => Promise<boolean>
+  onBack: () => void
+}) {
   const { profile, briefing, assessments } = useAxtlhetics()
 
   const fixed = fixedPushUpVariant(assessments.assessments)
@@ -113,9 +120,11 @@ export function TestIntro({ onStart, onBack }: { onStart: (variantId: string) =>
         <button
           type="button"
           disabled={starting}
-          onClick={() => {
+          onClick={async () => {
             setStarting(true)
-            onStart(variant)
+            // Si sale bien, el test en curso sustituye a esta pantalla; si no, el
+            // aviso de error lo explica y se puede volver a intentar.
+            if (!(await onStart(variant))) setStarting(false)
           }}
           className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
         >

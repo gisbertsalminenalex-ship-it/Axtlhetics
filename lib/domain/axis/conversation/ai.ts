@@ -68,16 +68,22 @@ export function aiSystemPrompt(): string {
  * Se quita el nombre: sirve para saludar, no para razonar, y es el único dato del
  * briefing que identifica a una persona. Todo lo demás —edad, objetivos, deportes,
  * recuperación— sí influye en la respuesta, así que se manda.
+ *
+ * Se quita también el bloque `assessment` (D-021): las respuestas sobre el test de
+ * evolución son deterministas y no pasan por el modelo, así que sus fechas, motivos
+ * y variante no tienen por qué salir del dispositivo. Si la propuesta del día
+ * menciona el test, eso viaja dentro de `proposal`, como cualquier otra razón.
  */
-export type AxisAiBriefing = Omit<AxisBriefing, 'profile'> & {
+export type AxisAiBriefing = Omit<AxisBriefing, 'profile' | 'assessment'> & {
   profile: Omit<NonNullable<AxisBriefing['profile']>, 'name'> | null
 }
 
 export function toAiBriefing(briefing: AxisBriefing): AxisAiBriefing {
-  if (!briefing.profile) return { ...briefing, profile: null }
+  const { assessment: _assessment, profile, ...shared } = briefing
+  if (!profile) return { ...shared, profile: null }
 
-  const { name: _name, ...rest } = briefing.profile
-  return { ...briefing, profile: rest }
+  const { name: _name, ...rest } = profile
+  return { ...shared, profile: rest }
 }
 
 /** Lo que el motor determinista ya ha concluido. El modelo lo redacta, no lo sustituye. */

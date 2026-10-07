@@ -9,6 +9,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { completed } from '../../assessment/test-fixtures'
 import type { UserProfile } from '../../profile/types'
 import type { RecoveryInputs } from '../../recovery/types'
 import type { WorkoutSession } from '../../workouts/types'
@@ -462,6 +463,32 @@ test('el nombre del usuario no sale hacia el proveedor; el resto del briefing s�
 
   const withoutProfile = toAiBriefing({ ...briefing, profile: null })
   assert.equal(withoutProfile.profile, null)
+})
+
+test('el test de evolución no sale hacia el proveedor (D-021)', async () => {
+  const PAST_TEST_DAY = '2026-08-10'
+  const context = buildAxisContext({
+    profile: profile(),
+    recoveryInputs: recovery(),
+    recentSessions: [session()],
+    activities: [],
+    assessments: [completed(PAST_TEST_DAY)],
+    now: MONDAY,
+  })
+  const briefing = buildBriefing(context, decide(context), [session()])
+  assert.equal(briefing.assessment.lastCompletedDay, PAST_TEST_DAY, 'el briefing local sí lo tiene')
+
+  for (const sent of [toAiBriefing(briefing), toAiBriefing({ ...briefing, profile: null })]) {
+    assert.equal('assessment' in sent, false)
+    assert.doesNotMatch(JSON.stringify(sent), new RegExp(PAST_TEST_DAY))
+  }
+
+  const { transport, requests } = fakeTransport(() => ({ text: 'Hoy no quitaría piernas.' }))
+  await createAxisConversation({ transport }).ask(DECLINE_MESSAGE, briefing, CHANGE_MODE)
+
+  assert.equal(requests.length, 1)
+  assert.equal('assessment' in requests[0].briefing, false)
+  assert.doesNotMatch(JSON.stringify(requests[0]), new RegExp(PAST_TEST_DAY))
 })
 
 test('el prompt del proveedor se genera desde la personalidad y añade solo el formato', () => {

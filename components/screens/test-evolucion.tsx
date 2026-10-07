@@ -32,7 +32,7 @@ export function TestEvolucionScreen({ onClose }: { onClose: () => void }) {
 
   const active = assessments.active
   if (!active) {
-    return <TestIntro onStart={(variant) => void assessments.start(variant)} onBack={onClose} />
+    return <TestIntro onStart={assessments.start} onBack={onClose} />
   }
 
   const done = active.results.length
