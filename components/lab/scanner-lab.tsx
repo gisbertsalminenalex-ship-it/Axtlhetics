@@ -19,6 +19,9 @@ import {
   type ScanPose,
   type Silhouette,
 } from '@/lib/domain/scanner/measure'
+import { summarizeScan, type PoseShots, type ScanSummary } from '@/lib/domain/scanner/summary'
+import { findExercise } from '@/lib/domain/workouts/catalog'
+import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
 const MODEL_PATH = '/mediapipe/pose_landmarker_full.task'
@@ -123,6 +126,13 @@ export function ScannerLab() {
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const landmarker = useRef<Promise<PoseLandmarker> | null>(null)
+  // El desarrollo muscular sale del rendimiento real: los tests de evolución guardados.
+  const { assessments } = useAxtlhetics()
+  const allShots: PoseShots = Object.fromEntries(
+    POSES.map(({ id }) => [id, shots[id].filter((shot) => !shot.error).map((shot) => shot.measures)]).filter(([, list]) => list.length > 0),
+  )
+  const hasAnyShot = Object.keys(allShots).length > 0
+  const summary = hasAnyShot ? summarizeScan({ shots: allShots, assessments: assessments.assessments }) : null
 
   const analyze = async (files: File[]) => {
     if (files.length === 0) return
@@ -240,9 +250,14 @@ export function ScannerLab() {
 
       {error && <p role="alert" className="mt-3 text-[13.5px] text-error">{error}</p>}
 
+      {summary && <SummaryView summary={summary} />}
+
       {current.length > 0 && (
         <>
-          <h2 className="mt-8 text-[15px] font-semibold">Estabilidad · {current.length} fotos</h2>
+          <details className="mt-8">
+          <summary className="min-h-11 cursor-pointer py-2 text-[15px] font-semibold">
+            Detalles técnicos · {info.name} · {current.length} fotos
+          </summary>
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-[13px] tabular-nums">
               <thead>
@@ -268,8 +283,9 @@ export function ScannerLab() {
               </tbody>
             </table>
           </div>
+          </details>
 
-          <h2 className="mt-8 text-[15px] font-semibold">Cada foto</h2>
+          <h2 className="mt-6 text-[15px] font-semibold">Fotos de {info.name.toLowerCase()}</h2>
           <ul className="mt-2 space-y-4">
             {current.map((shot, index) => (
               <li key={`${shot.name}-${index}`} className="flex gap-3">
@@ -314,5 +330,89 @@ export function ScannerLab() {
         {copied ? 'Copiado' : 'Copiar resultados (solo números)'}
       </button>
     </main>
+  )
+}
+
+/** El resumen de todas las fotos juntas: lo que verá el usuario en el escáner. */
+function SummaryView({ summary }: { summary: ScanSummary }) {
+  return (
+    <section className="mt-8">
+      <p className="text-[12px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">Tu escaneo</p>
+      <p className="mt-2 flex items-baseline gap-1.5">
+        <span className="text-[44px] font-bold leading-none tracking-[-0.03em] tabular-nums">{summary.index ?? '—'}</span>
+        <span className="text-[15px] text-muted-foreground">/100</span>
+      </p>
+      <p className="mt-1 text-[13px] text-muted-foreground">Índice de equilibrio corporal · orientativo, no es una medida médica</p>
+      <p className="mt-3 text-[15px] leading-relaxed text-pretty">{summary.overview}</p>
+
+      <ul className="mt-5 divide-y divide-border border-y border-border">
+        {summary.categories.map((category) => (
+          <li key={category.key} className="py-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[15px] font-semibold">{category.title}</p>
+              <p className="text-[15px] font-semibold tabular-nums">
+                {category.score !== null ? `${category.score}` : category.inIndex ? '—' : ''}
+              </p>
+            </div>
+            <p className="mt-0.5 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">{category.summary}</p>
+            {category.details.length > 0 && (
+              <ul className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
+                {category.details.map((detail) => (
+                  <li key={detail}>· {detail}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {summary.strengths.length > 0 && (
+        <>
+          <h3 className="mt-6 text-[15px] font-semibold">Puntos fuertes</h3>
+          <ul className="mt-1.5 space-y-1 text-[14px] leading-relaxed">
+            {summary.strengths.map((text) => (
+              <li key={text}>· {text}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {summary.improvements.length > 0 && (
+        <>
+          <h3 className="mt-6 text-[15px] font-semibold">Áreas de mejora</h3>
+          <ul className="mt-1.5 space-y-1 text-[14px] leading-relaxed">
+            {summary.improvements.map((text) => (
+              <li key={text}>· {text}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {summary.actions.length > 0 && (
+        <>
+          <h3 className="mt-6 text-[15px] font-semibold">Pasos de acción</h3>
+          <ol className="mt-1.5 space-y-2.5 text-[14px] leading-relaxed">
+            {summary.actions.map((action, index) => (
+              <li key={action.text}>
+                <span className="font-semibold tabular-nums">{index + 1}.</span> {action.text}
+                {action.exerciseIds.length > 0 && (
+                  <span className="block text-[12.5px] text-muted-foreground">
+                    {action.exerciseIds.map((id) => findExercise(id)?.name ?? id).join(' · ')}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+
+      {summary.photoNotes.length > 0 && (
+        <ul className="mt-6 space-y-1 text-[12.5px] leading-relaxed text-muted-foreground">
+          {summary.photoNotes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

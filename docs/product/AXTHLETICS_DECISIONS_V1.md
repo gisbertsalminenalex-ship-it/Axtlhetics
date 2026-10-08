@@ -1092,6 +1092,22 @@ D-021 dice «medir, no puntuar», «sin métrica global» y «sin métricas corp
 - Un almacén nuevo en IndexedDB (v9, migración que solo añade). Las copias de seguridad incluyen los resultados medidos. Si incluyen o no las fotos queda en `P-016`.
 - **Antes de construir pantallas, un prototipo de medición** en el móvil real comprueba que cada medida es estable al repetirla con el mismo montaje. Lo que no sea estable no entra en v1.
 
+### Enmienda (2026-10-08): el resumen conjunto y sus categorías
+
+Aprobada por Alex. El resultado no es una tabla de medidas sino **un resumen de todas las fotos juntas**: índice, categorías, puntos fuertes, áreas de mejora y pasos de acción con ejercicios del catálogo, que AXIS recuerda.
+
+| Categoría | De dónde sale | ¿Cuenta en el índice? |
+|---|---|---|
+| Simetría | Fotos: hombros, caderas, rango de cada brazo y rodillas, izquierda frente a derecha | Sí (35 %) |
+| Proporciones | Fotos: hombros/cintura y piernas/tronco. Se puntúa frente al objetivo que declare el usuario; hasta entonces se mide y se compara consigo mismo | Sí (15 %) |
+| Postura y movilidad | Fotos: cabeza, sentadilla (profundidad, tronco, rodillas) y brazos arriba | Sí (50 %: las antiguas postura 25 % y movimiento 25 %, presentadas juntas) |
+| Desarrollo muscular | **Rendimiento real**: los tests de evolución (D-021) y su tendencia. La cámara no ve cuánto músculo hay | No |
+| Composición corporal | **No se mide con fotos.** Solo aparece si el usuario da un dato real (báscula de composición o medición profesional) | No |
+
+- Cada medida es la **mediana de todas las fotos** de su pose. Si varía demasiado entre fotos, no entra y se avisa de repetir las fotos.
+- La **diferencia de longitud de brazos o piernas no se puntúa**: la longitud de los huesos no se entrena y, en una foto, una diferencia grande indica casi siempre un cuerpo girado. Se usa solo para avisar de la foto.
+- Sin simetría ni postura no hay índice. Los umbrales viven en `lib/domain/scanner/scales.ts` y son **provisionales hasta cerrar `P-015`**.
+
 ### Fuera de D-023 v1
 
 Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal, comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.
