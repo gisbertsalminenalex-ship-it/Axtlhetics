@@ -1,21 +1,25 @@
 /**
- * Resumen del escáner corporal (D-023): todas las fotos juntas → categorías,
- * índice de equilibrio 0–100, puntos fuertes, áreas de mejora y pasos de acción.
+ * Resumen del escáner corporal (D-023): todas las fotos juntas → un resumen de
+ * entrenador con índice de equilibrio, categorías, puntos fuertes, áreas de
+ * mejora y pasos de acción.
  *
  * Determinista y honesto: cada frase sale de una medida o de un dato registrado.
  * - Simetría, proporciones y postura/movilidad salen de las fotos.
- * - El desarrollo muscular sale del rendimiento real (tests de evolución), no de
- *   la foto: la cámara no ve cuánto músculo hay.
- * - La composición corporal no se mide con fotos: solo aparece si el usuario da
- *   un dato real.
- * Lo que no tiene datos fiables sale como «datos insuficientes». Nunca se rellena.
- * Sin diagnósticos: se describe lo medido («la rodilla izquierda se va hacia
- * dentro»), nunca un nombre clínico.
+ * - El desarrollo muscular se estima con la fuerza y el entrenamiento reales
+ *   (tests de evolución, sesiones, nivel): la cámara no ve cuánto músculo hay.
+ * - La composición corporal no se deduce de una foto: solo un dato real del usuario.
+ * Lo que no tiene datos fiables no se rellena.
+ *
+ * Voz de AXIS (`personality.ts`): primero la conclusión, sin exclamaciones, sin
+ * cumplidos de apertura, sin diagnósticos y sin hablar de peso, estética o dietas.
  */
 
 import { completedAssessments } from '../assessment/assessment'
-import { compareAssessment, type AssessmentTrend } from '../assessment/compare'
+import { compareAssessment } from '../assessment/compare'
 import type { Assessment } from '../assessment/types'
+import { EXPERIENCE_LABELS, type ExperienceLevel } from '../profile/types'
+import { daysBetween, type DayKey } from '../shared/dates'
+import { MUSCLE_GROUP_LABELS, type MuscleGroup, type WorkoutSession } from '../workouts/types'
 import type { Measurements, ScanPose } from './measure'
 import {
   IMPROVE_UNTIL,
@@ -39,9 +43,9 @@ export type ScanCategory = {
   score: number | null
   /** Si cuenta para el índice de equilibrio. */
   inIndex: boolean
-  /** Una frase con lo esencial. */
-  summary: string
-  /** Lo medido, una línea por medida. */
+  /** El párrafo de AXIS sobre la categoría. */
+  text: string
+  /** Lo medido, una línea por medida, para quien quiera el detalle. */
   details: string[]
 }
 
@@ -58,37 +62,22 @@ export type ScanSummary = {
   photoNotes: string[]
 }
 
+export type ScanInput = {
+  shots: PoseShots
+  assessments?: readonly Assessment[]
+  sessions?: readonly WorkoutSession[]
+  experience?: ExperienceLevel | null
+  bodyFatPct?: number | null
+  /** Día de referencia para el historial de entrenamiento. */
+  today?: DayKey
+}
+
+/** Ventana del historial de entrenamiento que se mira. */
+export const TRAINING_WINDOW_DAYS = 56
+
 // ---------------------------------------------------------------------------
 // Combinar las fotos de cada pose
 // ---------------------------------------------------------------------------
-
-type Combined = { value: number; photos: number }
-
-const median = (values: number[]) => {
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-}
-
-/** Mediana de una medida entre las fotos de una pose; `null` si no hay datos o varían demasiado. */
-function combine(
-  shots: PoseShots,
-  pose: ScanPose,
-  key: string,
-  notes: Set<string>,
-): Combined | null {
-  const values = (shots[pose] ?? [])
-    .map((m) => m[key]?.value)
-    .filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
-  if (values.length === 0) return null
-  const range = Math.max(...values) - Math.min(...values)
-  const tolerance = STABILITY_TOLERANCE[key]
-  if (values.length > 1 && tolerance !== undefined && range > tolerance) {
-    notes.add(`${POSE_NAMES[pose]}: algunas medidas cambian mucho entre fotos. Repite las fotos con el mismo montaje y no se tendrán en cuenta hasta entonces.`)
-    return null
-  }
-  return { value: median(values), photos: values.length }
-}
 
 const POSE_NAMES: Record<ScanPose, string> = {
   front: 'De frente',
@@ -98,8 +87,29 @@ const POSE_NAMES: Record<ScanPose, string> = {
   arms_up: 'Brazos arriba',
 }
 
+const median = (values: number[]) => {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+/** Mediana de una medida entre las fotos de una pose; `null` si no hay datos o varían demasiado. */
+function combine(shots: PoseShots, pose: ScanPose, key: string, notes: Set<string>): number | null {
+  const values = (shots[pose] ?? [])
+    .map((m) => m[key]?.value)
+    .filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (values.length === 0) return null
+  const range = Math.max(...values) - Math.min(...values)
+  const tolerance = STABILITY_TOLERANCE[key]
+  if (values.length > 1 && tolerance !== undefined && range > tolerance) {
+    notes.add(`${POSE_NAMES[pose]}: algunas medidas cambian mucho entre fotos, así que no las he tenido en cuenta. Repítelas con el mismo montaje.`)
+    return null
+  }
+  return median(values)
+}
+
 // ---------------------------------------------------------------------------
-// Puntuar
+// Puntuar y redactar
 // ---------------------------------------------------------------------------
 
 /** 100 hasta `good`, 0 desde `poor`, lineal entre medias. Sirve en los dos sentidos. */
@@ -111,297 +121,375 @@ export function scoreOn(value: number, scale: Scale): number {
 
 const mean = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
 const one = (n: number) => (Math.round(n * 10) / 10).toString().replace('.', ',')
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
+const list = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`)
 
-type Scored = { key: string; score: number; detail: string; strength: string; improvement: string; action?: ScanAction }
+/**
+ * Una medida puntuada, con todo lo que AXIS dice de ella: el punto fuerte, el
+ * área de mejora, por qué importa y qué hacer.
+ */
+type Finding = {
+  score: number
+  detail: string
+  strength: string
+  improvement: string
+  why: string
+  action?: ScanAction
+}
 
 const ACTIONS = {
   sideBalance: {
-    text: 'Trabajo unilateral y de core para equilibrar los dos lados: AXIS te propondrá ejercicios a una pierna y a un brazo.',
+    text: 'Trabajo a una pierna y a un brazo para que los dos lados trabajen por separado y se igualen.',
     exerciseIds: ['zancada-bulgara', 'peso-muerto-unilateral', 'remo-unilateral'],
   },
   shoulderMobility: {
-    text: 'Movilidad y fuerza de hombro por encima de la cabeza, sobre todo del lado más limitado.',
+    text: 'Movilidad y fuerza de hombro por encima de la cabeza, empezando por el lado que menos sube.',
     exerciseIds: ['pullover-con-pesa', 'ytw-boca-abajo', 'flexion-pica'],
   },
   kneeControl: {
-    text: 'Control de rodilla: sentadillas y zancadas lentas manteniendo la rodilla en línea con el pie, y glúteo.',
+    text: 'Control de rodilla: bajar lento en sentadillas y zancadas con la rodilla en línea con el pie, y más glúteo.',
     exerciseIds: ['zancada-atras', 'puente-gluteos', 'sentadilla-isometrica-pared'],
   },
   squatDepth: {
-    text: 'Profundidad de sentadilla: bajar poco a poco con buena técnica y trabajo de cadera y tobillo.',
+    text: 'Ganar profundidad en la sentadilla poco a poco, sin perder la técnica.',
     exerciseIds: ['sentadilla', 'sentadilla-isometrica-pared', 'puente-gluteos'],
   },
   upperBack: {
-    text: 'Espalda alta y postura: más tirón y extensión de espalda para equilibrar el empuje.',
+    text: 'Más espalda alta: tirón y extensión de espalda para que la postura no dependa de pensar en ella.',
     exerciseIds: ['ytw-boca-abajo', 'superman', 'remo-unilateral'],
   },
 } satisfies Record<string, ScanAction>
 
-function symmetry(shots: PoseShots, notes: Set<string>): Scored[] {
-  const out: Scored[] = []
+function symmetryFindings(shots: PoseShots, notes: Set<string>): Finding[] {
+  const out: Finding[] = []
   const shoulders = combine(shots, 'front', 'shoulderTiltDeg', notes)
-  if (shoulders) {
-    const side = shoulders.value > 0 ? 'izquierdo' : 'derecho'
+  if (shoulders !== null) {
+    const side = shoulders > 0 ? 'izquierdo' : 'derecho'
     out.push({
-      key: 'shoulders',
-      score: scoreOn(Math.abs(shoulders.value), SYMMETRY_SCALES.shoulderTiltDeg),
-      detail: `Línea de hombros: ${one(Math.abs(shoulders.value))}°${Math.abs(shoulders.value) >= 1 ? ` (el ${side} más alto)` : ''}`,
-      strength: 'Hombros nivelados',
-      improvement: `El hombro ${side} queda más alto que el otro (${one(Math.abs(shoulders.value))}°)`,
+      score: scoreOn(Math.abs(shoulders), SYMMETRY_SCALES.shoulderTiltDeg),
+      detail: `Línea de hombros: ${one(Math.abs(shoulders))}°${Math.abs(shoulders) >= 1 ? ` (el ${side} más alto)` : ''}`,
+      strength: 'Tus hombros están nivelados',
+      improvement: `El hombro ${side} queda algo más alto que el otro`,
+      why: 'suele venir de que un lado trabaja más que el otro en el día a día',
       action: ACTIONS.sideBalance,
     })
   }
   const hips = combine(shots, 'front', 'hipTiltDeg', notes)
-  if (hips) {
-    const side = hips.value > 0 ? 'izquierda' : 'derecha'
+  if (hips !== null) {
+    const side = hips > 0 ? 'izquierda' : 'derecha'
     out.push({
-      key: 'hips',
-      score: scoreOn(Math.abs(hips.value), SYMMETRY_SCALES.hipTiltDeg),
-      detail: `Línea de caderas: ${one(Math.abs(hips.value))}°${Math.abs(hips.value) >= 1 ? ` (la ${side} más alta)` : ''}`,
-      strength: 'Caderas niveladas',
-      improvement: `La cadera ${side} queda más alta que la otra (${one(Math.abs(hips.value))}°)`,
+      score: scoreOn(Math.abs(hips), SYMMETRY_SCALES.hipTiltDeg),
+      detail: `Línea de caderas: ${one(Math.abs(hips))}°${Math.abs(hips) >= 1 ? ` (la ${side} más alta)` : ''}`,
+      strength: 'Tus caderas están niveladas',
+      improvement: `La cadera ${side} queda algo más alta que la otra`,
+      why: 'el trabajo a una pierna ayuda a que las dos se repartan igual el esfuerzo',
       action: ACTIONS.sideBalance,
     })
   }
   const arms = combine(shots, 'arms_up', 'armsDiffDeg', notes)
-  if (arms) {
-    const worse = arms.value > 0 ? 'derecho' : 'izquierdo'
+  if (arms !== null) {
+    const worse = arms > 0 ? 'derecho' : 'izquierdo'
     out.push({
-      key: 'armsSides',
-      score: scoreOn(Math.abs(arms.value), SYMMETRY_SCALES.armsDiffDeg),
-      detail: `Brazos arriba, diferencia entre lados: ${one(Math.abs(arms.value))}°`,
-      strength: 'Los dos brazos suben igual por encima de la cabeza',
-      improvement: `El brazo ${worse} sube menos que el otro (${one(Math.abs(arms.value))}°)`,
+      score: scoreOn(Math.abs(arms), SYMMETRY_SCALES.armsDiffDeg),
+      detail: `Brazos arriba, diferencia entre lados: ${one(Math.abs(arms))}°`,
+      strength: 'Tus dos brazos suben igual por encima de la cabeza',
+      improvement: `El brazo ${worse} sube menos que el otro (${one(Math.abs(arms))}°)`,
+      why: 'un hombro que sube menos acaba compensando con la espalda en los ejercicios por encima de la cabeza',
       action: ACTIONS.shoulderMobility,
     })
   }
-  const left = combine(shots, 'squat_front', 'leftKneeDeg', notes)
-  const right = combine(shots, 'squat_front', 'rightKneeDeg', notes)
-  if (left && right) {
-    const diff = left.value - right.value
+  const left = combine(shots, 'squat_front', 'leftKneeInPct', notes)
+  const right = combine(shots, 'squat_front', 'rightKneeInPct', notes)
+  if (left !== null && right !== null) {
+    const diff = Math.abs(Math.max(0, left) - Math.max(0, right))
     out.push({
-      key: 'kneesSides',
-      score: scoreOn(Math.abs(diff), SYMMETRY_SCALES.kneesDiffDeg),
-      detail: `Rodillas en la sentadilla, diferencia entre lados: ${one(Math.abs(diff))}°`,
-      strength: 'Las dos rodillas se comportan igual en la sentadilla',
-      improvement: `En la sentadilla, una rodilla se mueve distinto que la otra (${one(Math.abs(diff))}°)`,
+      score: scoreOn(diff, SYMMETRY_SCALES.kneesDiffPct),
+      detail: `Sentadilla de frente, diferencia entre rodillas: ${Math.round(diff)} % de la anchura de cadera`,
+      strength: 'Tus dos rodillas se comportan igual en la sentadilla',
+      improvement: 'En la sentadilla, una rodilla se mueve distinto que la otra',
+      why: 'cuando un lado controla peor, el otro carga más',
       action: ACTIONS.kneeControl,
     })
   }
   return out
 }
 
-function postureMobility(shots: PoseShots, notes: Set<string>): Scored[] {
-  const out: Scored[] = []
+function postureFindings(shots: PoseShots, notes: Set<string>): Finding[] {
+  const out: Finding[] = []
   const head = combine(shots, 'side', 'headForwardPct', notes)
-  if (head) {
-    const forward = Math.max(0, head.value)
+  if (head !== null) {
+    const forward = Math.max(0, head)
     out.push({
-      key: 'head',
       score: scoreOn(forward, POSTURE_SCALES.headForwardPct),
       detail: `Cabeza respecto al hombro: ${forward < 1 ? 'alineada' : `${one(forward)} % del tronco por delante`}`,
-      strength: 'Cabeza bien alineada sobre los hombros',
+      strength: 'Llevas la cabeza bien alineada sobre los hombros',
       improvement: 'La cabeza queda adelantada respecto a los hombros',
+      why: 'es muy habitual con el móvil y los estudios, y una espalda alta más fuerte ayuda a sostenerla',
       action: ACTIONS.upperBack,
     })
   }
   const depth = combine(shots, 'squat_side', 'kneeAngleDeg', notes)
-  if (depth) {
+  if (depth !== null) {
     out.push({
-      key: 'squatDepth',
-      score: scoreOn(depth.value, POSTURE_SCALES.squatKneeAngleDeg),
-      detail: `Sentadilla, ángulo de rodilla abajo: ${Math.round(depth.value)}°`,
-      strength: 'Buena profundidad de sentadilla',
-      improvement: 'La sentadilla se queda alta',
+      score: scoreOn(depth, POSTURE_SCALES.squatKneeAngleDeg),
+      detail: `Sentadilla, ángulo de rodilla abajo: ${Math.round(depth)}°`,
+      strength: 'Bajas bien en la sentadilla',
+      improvement: 'La sentadilla se queda algo alta',
+      why: 'más recorrido significa más trabajo de piernas y glúteo en cada repetición',
       action: ACTIONS.squatDepth,
     })
   }
   const lean = combine(shots, 'squat_side', 'trunkLeanDeg', notes)
-  if (lean) {
+  if (lean !== null) {
     out.push({
-      key: 'trunkLean',
-      score: scoreOn(lean.value, POSTURE_SCALES.trunkLeanDeg),
-      detail: `Sentadilla, inclinación del tronco: ${Math.round(lean.value)}°`,
-      strength: 'Tronco controlado en la sentadilla',
-      improvement: 'El tronco se inclina mucho hacia delante en la sentadilla',
+      score: scoreOn(lean, POSTURE_SCALES.trunkLeanDeg),
+      detail: `Sentadilla, inclinación del tronco: ${Math.round(lean)}°`,
+      strength: 'Mantienes el tronco controlado en la sentadilla',
+      improvement: 'El tronco se va bastante hacia delante en la sentadilla',
+      why: 'eso pasa parte del trabajo de las piernas a la zona baja de la espalda',
       action: ACTIONS.upperBack,
     })
   }
-  const kneeL = combine(shots, 'squat_front', 'leftKneeDeg', notes)
-  const kneeR = combine(shots, 'squat_front', 'rightKneeDeg', notes)
-  if (kneeL || kneeR) {
-    const inward = Math.max(kneeL ? Math.max(0, kneeL.value) : 0, kneeR ? Math.max(0, kneeR.value) : 0)
-    const which = kneeL && kneeR ? (Math.max(0, kneeL.value) >= Math.max(0, kneeR.value) ? 'izquierda' : 'derecha') : kneeL ? 'izquierda' : 'derecha'
+  const left = combine(shots, 'squat_front', 'leftKneeInPct', notes)
+  const right = combine(shots, 'squat_front', 'rightKneeInPct', notes)
+  if (left !== null || right !== null) {
+    const l = left !== null ? Math.max(0, left) : -1
+    const r = right !== null ? Math.max(0, right) : -1
+    const inward = Math.max(l, r, 0)
+    const which = l >= r ? 'izquierda' : 'derecha'
     out.push({
-      key: 'kneeInward',
-      score: scoreOn(inward, POSTURE_SCALES.kneeInwardDeg),
-      detail: `Sentadilla de frente, rodilla hacia dentro: ${inward < 1 ? 'no' : `${one(inward)}° (la ${which})`}`,
-      strength: 'Rodillas alineadas con los pies en la sentadilla',
-      improvement: `En la sentadilla, la rodilla ${which} se va hacia dentro (${one(inward)}°)`,
+      score: scoreOn(inward, POSTURE_SCALES.kneeInwardPct),
+      detail: `Sentadilla de frente, rodilla hacia dentro: ${inward < 3 ? 'no' : `${Math.round(inward)} % de la anchura de cadera (la ${which})`}`,
+      strength: 'Tus rodillas siguen la línea de los pies en la sentadilla',
+      improvement: `En la sentadilla, la rodilla ${which} se va hacia dentro`,
+      why: 'con más carga, una rodilla que se cierra trabaja peor; se corrige con control y glúteo',
       action: ACTIONS.kneeControl,
     })
   }
   const leftArm = combine(shots, 'arms_up', 'leftArmDeg', notes)
   const rightArm = combine(shots, 'arms_up', 'rightArmDeg', notes)
-  if (leftArm && rightArm) {
-    const limited = Math.min(leftArm.value, rightArm.value)
+  if (leftArm !== null && rightArm !== null) {
     out.push({
-      key: 'overhead',
-      score: scoreOn(limited, POSTURE_SCALES.armOverheadDeg),
-      detail: `Brazos arriba: izquierdo ${Math.round(leftArm.value)}°, derecho ${Math.round(rightArm.value)}°`,
-      strength: 'Buen rango de hombro por encima de la cabeza',
+      score: scoreOn(Math.min(leftArm, rightArm), POSTURE_SCALES.armOverheadDeg),
+      detail: `Brazos arriba: izquierdo ${Math.round(leftArm)}°, derecho ${Math.round(rightArm)}°`,
+      strength: 'Tienes buen rango de hombro por encima de la cabeza',
       improvement: 'Los brazos no llegan del todo arriba sin compensar',
+      why: 'el rango de hombro es la base de cualquier press y de la espalda alta',
       action: ACTIONS.shoulderMobility,
     })
   }
   return out
 }
 
+/** El párrafo de una categoría medida: lo que está bien, lo que conviene trabajar y por qué. */
+function categoryText(findings: Finding[], empty: string): string {
+  if (findings.length === 0) return empty
+  const good = findings.filter((f) => f.score >= STRENGTH_FROM)
+  const weak = [...findings].filter((f) => f.score <= IMPROVE_UNTIL).sort((a, b) => a.score - b.score)
+  const middle = findings.filter((f) => f.score > IMPROVE_UNTIL && f.score < STRENGTH_FROM)
+  const parts: string[] = []
+  if (weak.length === 0 && middle.length === 0) {
+    parts.push(`Aquí estás bien: ${lowerFirst(list(good.map((f) => lowerFirst(f.strength))))}.`)
+    parts.push('Mantenerlo es cuestión de seguir entrenando los dos lados por igual.')
+  } else {
+    if (good.length) parts.push(`${list(good.map((f, i) => (i === 0 ? f.strength : lowerFirst(f.strength))))}.`)
+    for (const f of weak.slice(0, 2)) parts.push(`${f.improvement}: ${f.why}.`)
+    if (weak.length === 0 && middle.length) parts.push(`${middle[0].improvement}, aunque por poco: ${middle[0].why}.`)
+  }
+  return parts.join(' ')
+}
+
 // ---------------------------------------------------------------------------
-// Desarrollo muscular: del rendimiento real
+// Desarrollo muscular: fuerza y entrenamiento reales
 // ---------------------------------------------------------------------------
 
 const AREA: Record<string, string> = { push: 'empuje', core: 'core', legs: 'piernas', pull: 'tirón' }
-const TREND_TEXT: Record<AssessmentTrend, string> = { up: 'sube', down: 'baja', same: 'se mantiene', mixed: 'mixto' }
+const MAIN_GROUPS: readonly MuscleGroup[] = ['pecho', 'espalda', 'hombros', 'brazos', 'piernas', 'gluteos']
 
-function muscleDevelopment(assessments: readonly Assessment[]): {
-  category: ScanCategory
-  strengths: string[]
-  improvements: string[]
-  actions: ScanAction[]
-} {
-  const done = completedAssessments(assessments)
-  const base: ScanCategory = { key: 'muscleDevelopment', title: 'Desarrollo muscular', score: null, inIndex: false, summary: '', details: [] }
-  if (done.length === 0) {
+type Development = { category: ScanCategory; strengths: string[]; improvements: string[]; actions: ScanAction[] }
+
+function muscleDevelopment(input: ScanInput): Development {
+  const done = completedAssessments(input.assessments ?? [])
+  const sessions = (input.sessions ?? []).filter((s) => s.status === 'completed')
+  const today = input.today ?? sessions.map((s) => s.dayKey).sort().at(-1) ?? null
+  const recent = today ? sessions.filter((s) => { const age = daysBetween(s.dayKey, today); return age >= 0 && age < TRAINING_WINDOW_DAYS }) : []
+  const base: ScanCategory = { key: 'muscleDevelopment', title: 'Desarrollo muscular', score: null, inIndex: false, text: '', details: [] }
+
+  if (done.length === 0 && recent.length === 0) {
     return {
-      category: { ...base, summary: 'Sale de tu rendimiento real, no de la foto. Haz el test de evolución para tener tu punto de partida.' },
+      category: {
+        ...base,
+        text: 'La foto no muestra cuánto músculo tienes; eso lo estimo con tu fuerza y tu entrenamiento, y todavía no tengo datos de ninguno de los dos. Haz el test de evolución y tus primeras sesiones, y en el próximo escaneo te lo podré decir.',
+      },
       strengths: [],
       improvements: [],
       actions: [],
     }
   }
-  const comparisons = compareAssessment(done[0], assessments) ?? []
-  const baseline = comparisons.every((c) => c.delta.kind === 'baseline')
-  const details = comparisons.map((c) =>
-    c.delta.kind === 'baseline' ? `${capital(AREA[c.test.key])}: línea base` : `${capital(AREA[c.test.key])}: ${TREND_TEXT[c.delta.trend]} respecto al test anterior`,
-  )
-  if (baseline) {
-    return {
-      category: { ...base, summary: 'Tu primer test es la referencia. Con el próximo se verá cómo evoluciona cada zona.', details },
-      strengths: [],
-      improvements: [],
-      actions: [],
+
+  const parts: string[] = []
+  const details: string[] = []
+  const strengths: string[] = []
+  const improvements: string[] = []
+  const actions: ScanAction[] = []
+
+  // Lo que dicen los datos, dicho primero.
+  const sources: string[] = []
+  if (recent.length) sources.push(`${recent.length} ${recent.length === 1 ? 'sesión' : 'sesiones'} en las últimas 8 semanas`)
+  if (input.experience) sources.push(`nivel ${EXPERIENCE_LABELS[input.experience].toLowerCase()}`)
+  if (done.length) sources.push(done.length === 1 ? 'tu test de evolución' : `tus ${done.length} tests de evolución`)
+  parts.push(`Lo estimo con tu fuerza y tu entrenamiento, no con la foto: ${list(sources)}.`)
+
+  if (done.length >= 2) {
+    const comparisons = compareAssessment(done[0], input.assessments ?? []) ?? []
+    const up = comparisons.filter((c) => c.delta.kind !== 'baseline' && c.delta.trend === 'up').map((c) => AREA[c.test.key])
+    const stuck = comparisons.filter((c) => c.delta.kind !== 'baseline' && (c.delta.trend === 'down' || c.delta.trend === 'same')).map((c) => AREA[c.test.key])
+    for (const c of comparisons) details.push(`${AREA[c.test.key].charAt(0).toUpperCase() + AREA[c.test.key].slice(1)}: ${c.delta.kind === 'baseline' ? 'línea base' : c.delta.trend === 'up' ? 'sube' : c.delta.trend === 'down' ? 'baja' : c.delta.trend === 'same' ? 'igual' : 'mixto'}`)
+    if (up.length) {
+      parts.push(`Tu fuerza sube en ${list(up)}: ese músculo está respondiendo.`)
+      strengths.push(`Tu fuerza sube en ${list(up)}`)
     }
+    if (stuck.length) {
+      parts.push(`En ${list(stuck)} no hay progreso respecto al test anterior, y es donde más margen tienes.`)
+      improvements.push(`Tu fuerza no sube en ${list(stuck)}`)
+      actions.push({ text: `Más frecuencia y progresión de carga en ${list(stuck)}: AXIS les dará prioridad en tus próximas sesiones.`, exerciseIds: [] })
+    }
+  } else if (done.length === 1) {
+    parts.push('Tu primer test es la referencia: con el siguiente veremos qué zonas crecen más rápido.')
   }
-  const up = comparisons.filter((c) => c.delta.kind !== 'baseline' && c.delta.trend === 'up').map((c) => AREA[c.test.key])
-  const stuck = comparisons.filter((c) => c.delta.kind !== 'baseline' && (c.delta.trend === 'down' || c.delta.trend === 'same')).map((c) => AREA[c.test.key])
-  return {
-    category: {
-      ...base,
-      summary: up.length ? `Mejoras en ${list(up)} respecto a tu test anterior.` : 'Sin mejoras respecto a tu test anterior.',
-      details,
-    },
-    strengths: up.length ? [`Tu rendimiento sube en ${list(up)}`] : [],
-    improvements: stuck.length ? [`Tu rendimiento no sube en ${list(stuck)}`] : [],
-    actions: stuck.length
-      ? [{ text: `Más frecuencia y progresión en ${list(stuck)}: AXIS le dará prioridad en tus próximas sesiones.`, exerciseIds: [] }]
-      : [],
+
+  if (recent.length) {
+    const counts = new Map<MuscleGroup, number>()
+    for (const s of recent) for (const g of s.muscleGroups) counts.set(g, (counts.get(g) ?? 0) + 1)
+    const ordered = MAIN_GROUPS.map((g) => ({ g, n: counts.get(g) ?? 0 })).sort((a, b) => a.n - b.n)
+    const least = ordered[0]
+    const most = ordered[ordered.length - 1]
+    details.push(...MAIN_GROUPS.map((g) => `${MUSCLE_GROUP_LABELS[g]}: ${counts.get(g) ?? 0} sesiones`))
+    if (most.n > least.n) {
+      parts.push(`Has entrenado sobre todo ${MUSCLE_GROUP_LABELS[most.g].toLowerCase()} y poco ${MUSCLE_GROUP_LABELS[least.g].toLowerCase()}: para un desarrollo completo, ${MUSCLE_GROUP_LABELS[least.g].toLowerCase()} necesita más trabajo.`)
+      improvements.push(`${MUSCLE_GROUP_LABELS[least.g]} es lo que menos has entrenado`)
+      actions.push({ text: `Más ${MUSCLE_GROUP_LABELS[least.g].toLowerCase()} en tus semanas: AXIS lo tendrá en cuenta al elegir el foco de cada sesión.`, exerciseIds: [] })
+    }
+    const perWeek = recent.length / (TRAINING_WINDOW_DAYS / 7)
+    if (perWeek >= 2.5) strengths.push(`Entrenas con constancia (${one(perWeek)} sesiones por semana)`)
+    else parts.push(`Con ${one(perWeek)} sesiones por semana, la constancia es lo que más te hará crecer ahora.`)
   }
+
+  return { category: { ...base, text: parts.join(' '), details }, strengths, improvements, actions }
 }
-
-const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
-const list = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`)
 
 // ---------------------------------------------------------------------------
 // Resumen
 // ---------------------------------------------------------------------------
 
-function categoryFrom(key: CategoryKey, title: string, scored: Scored[], inIndex: boolean, empty: string): ScanCategory {
-  if (scored.length === 0) return { key, title, score: null, inIndex, summary: empty, details: [] }
-  const score = Math.round(mean(scored.map((s) => s.score)))
-  const best = [...scored].sort((a, b) => b.score - a.score)[0]
-  const worst = [...scored].sort((a, b) => a.score - b.score)[0]
-  const summary =
-    worst.score <= IMPROVE_UNTIL ? `${worst.improvement}.` : best.score >= STRENGTH_FROM ? `${best.strength}.` : 'Sin diferencias destacables.'
-  return { key, title, score, inIndex, summary, details: scored.map((s) => s.detail) }
-}
-
-export function summarizeScan(input: { shots: PoseShots; assessments?: readonly Assessment[]; bodyFatPct?: number | null }): ScanSummary {
+export function summarizeScan(input: ScanInput): ScanSummary {
   const notes = new Set<string>()
   const { shots } = input
 
   for (const pose of Object.keys(shots) as ScanPose[]) {
-    if ((shots[pose]?.length ?? 0) === 1) notes.add(`${POSE_NAMES[pose]}: con una sola foto no se puede comprobar que la medida sea estable. Mejor 3 o más.`)
+    if ((shots[pose]?.length ?? 0) === 1) notes.add(`${POSE_NAMES[pose]}: con una sola foto no puedo comprobar que la medida sea estable. Mejor 3 o más.`)
   }
   // La longitud de los huesos no se entrena: una diferencia grande delata una foto girada.
   for (const key of ['armAsymmetryPct', 'legAsymmetryPct']) {
     const limb = combine(shots, 'front', key, notes)
-    if (limb && Math.abs(limb.value) > LIMB_LENGTH_PHOTO_CHECK_PCT) {
+    if (limb !== null && Math.abs(limb) > LIMB_LENGTH_PHOTO_CHECK_PCT) {
       notes.add('De frente: el cuerpo parece girado respecto a la cámara. Ponte totalmente de frente para que la comparación entre lados sea fiable.')
     }
   }
 
-  const sym = symmetry(shots, notes)
-  const pm = postureMobility(shots, notes)
+  const sym = symmetryFindings(shots, notes)
+  const pm = postureFindings(shots, notes)
+  const development = muscleDevelopment(input)
 
   const v = combine(shots, 'front', 'shoulderToWaist', notes)
   const legs = combine(shots, 'front', 'legToTorso', notes)
-  const proportionDetails = [
-    ...(v ? [`Hombros / cintura (la «V»): ${one(v.value)}`] : []),
-    ...(legs ? [`Piernas / tronco: ${one(legs.value)}`] : []),
-  ]
   const proportion: ScanCategory = {
     key: 'proportion',
     title: 'Proporciones',
     // Se puntúa frente al objetivo que declare el usuario (D-023); hasta entonces, se mide y se compara consigo mismo.
     score: null,
     inIndex: true,
-    summary: proportionDetails.length
-      ? 'Medidas como referencia: se valorarán frente a tu objetivo y frente a tu próximo escaneo.'
-      : 'Datos insuficientes: hace falta una foto de frente con los brazos separados del cuerpo.',
-    details: proportionDetails,
+    text:
+      v !== null || legs !== null
+        ? `${v !== null ? `La relación entre la anchura de tus hombros y tu cintura es ${one(v)}. ` : ''}La espalda y los hombros son lo que más cambia esta relación al entrenar, así que la iremos siguiendo escaneo a escaneo. Cuando me digas qué zonas quieres desarrollar, también te diré cómo vas respecto a tu objetivo.`
+        : 'Necesito una foto de frente con los brazos algo separados del cuerpo para medir tus proporciones.',
+    details: [...(v !== null ? [`Hombros / cintura: ${one(v)}`] : []), ...(legs !== null ? [`Piernas / tronco: ${one(legs)}`] : [])],
   }
 
-  const development = muscleDevelopment(input.assessments ?? [])
+  const composition: ScanCategory = {
+    key: 'composition',
+    title: 'Composición corporal',
+    score: null,
+    inIndex: false,
+    text:
+      typeof input.bodyFatPct === 'number'
+        ? `Tu dato registrado es ${one(input.bodyFatPct)} % de grasa corporal. Lo usaré solo para seguir tu evolución, no para juzgarla.`
+        : 'Una foto no permite saber qué parte es músculo y qué parte no, así que no lo estimo. Tu progreso muscular lo ves en Desarrollo muscular; si tienes un dato de una báscula de composición o de una medición profesional, puedes añadirlo.',
+    details: [],
+  }
 
-  const composition: ScanCategory =
-    typeof input.bodyFatPct === 'number'
-      ? { key: 'composition', title: 'Composición corporal', score: null, inIndex: false, summary: `Grasa corporal registrada por ti: ${one(input.bodyFatPct)} %.`, details: [] }
-      : { key: 'composition', title: 'Composición corporal', score: null, inIndex: false, summary: 'No se mide con fotos. Solo aparece si añades un dato real (báscula de composición o medición profesional).', details: [] }
+  const symmetry: ScanCategory = {
+    key: 'symmetry',
+    title: 'Simetría',
+    score: sym.length ? Math.round(mean(sym.map((f) => f.score))) : null,
+    inIndex: true,
+    text: categoryText(sym, 'Necesito fotos de frente, de brazos arriba o de sentadilla de frente para valorar tu simetría.'),
+    details: sym.map((f) => f.detail),
+  }
+  const posture: ScanCategory = {
+    key: 'postureMobility',
+    title: 'Postura y movilidad',
+    score: pm.length ? Math.round(mean(pm.map((f) => f.score))) : null,
+    inIndex: true,
+    text: categoryText(pm, 'Necesito fotos de perfil, de sentadilla o de brazos arriba para valorar tu postura y movilidad.'),
+    details: pm.map((f) => f.detail),
+  }
 
-  const categories: ScanCategory[] = [
-    categoryFrom('symmetry', 'Simetría', sym, true, 'Datos insuficientes: hacen falta fotos de frente, de brazos arriba o de sentadilla de frente.'),
-    proportion,
-    categoryFrom('postureMobility', 'Postura y movilidad', pm, true, 'Datos insuficientes: hacen falta fotos de perfil, de sentadilla o de brazos arriba.'),
-    development.category,
-    composition,
-  ]
+  const categories = [proportion, symmetry, posture, development.category, composition]
 
   // Índice: media ponderada de lo que tiene nota. Sin simetría ni postura no hay índice.
   const weighted = categories
     .filter((c) => c.inIndex && c.score !== null)
     .map((c) => ({ score: c.score as number, weight: SCAN_INDEX_WEIGHTS[c.key as keyof typeof SCAN_INDEX_WEIGHTS] }))
-  const hasCore = categories.find((c) => c.key === 'symmetry')?.score !== null && categories.find((c) => c.key === 'postureMobility')?.score !== null
-  const index = hasCore
-    ? Math.round(weighted.reduce((s, w) => s + w.score * w.weight, 0) / weighted.reduce((s, w) => s + w.weight, 0))
-    : null
+  const index =
+    symmetry.score !== null && posture.score !== null
+      ? Math.round(weighted.reduce((s, w) => s + w.score * w.weight, 0) / weighted.reduce((s, w) => s + w.weight, 0))
+      : null
 
-  const all = [...sym, ...pm]
-  const strengths = [...all.filter((s) => s.score >= STRENGTH_FROM).map((s) => s.strength), ...development.strengths]
-  const weak = all.filter((s) => s.score <= IMPROVE_UNTIL).sort((a, b) => a.score - b.score)
-  const improvements = [...weak.map((s) => s.improvement), ...development.improvements]
+  const measured = [...sym, ...pm]
+  const weak = measured.filter((f) => f.score <= IMPROVE_UNTIL).sort((a, b) => a.score - b.score)
+  const strengths = [...measured.filter((f) => f.score >= STRENGTH_FROM).map((f) => f.strength), ...development.strengths]
+  const improvements = [...weak.map((f) => f.improvement), ...development.improvements]
 
   const actions: ScanAction[] = []
-  for (const action of [...weak.map((s) => s.action).filter((a): a is ScanAction => !!a), ...development.actions]) {
+  for (const action of [...weak.map((f) => f.action).filter((a): a is ScanAction => !!a), ...development.actions]) {
     if (!actions.some((a) => a.text === action.text)) actions.push(action)
   }
 
-  const overview =
-    index === null
-      ? 'Faltan fotos para calcular el índice: completa de frente, de perfil, sentadilla y brazos arriba.'
-      : `Índice de equilibrio ${index}/100. ${weak.length ? `Lo que más margen tiene: ${lowerFirst(weak[0].improvement)}.` : 'Sin desequilibrios destacables en lo medido.'}`
-
-  return { index, overview, categories, strengths, improvements, actions: actions.slice(0, 4), photoNotes: Array.from(notes) }
+  return {
+    index,
+    overview: overviewText(index, symmetry, posture, weak, development),
+    categories,
+    strengths,
+    improvements,
+    actions: actions.slice(0, 4),
+    photoNotes: Array.from(notes),
+  }
 }
 
-const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
+/** La primera frase es la conclusión: dónde estás y qué te hará avanzar más. */
+function overviewText(index: number | null, symmetry: ScanCategory, posture: ScanCategory, weak: Finding[], development: Development): string {
+  if (index === null) return 'Me faltan fotos para darte un resultado completo: necesito de frente, de perfil, la sentadilla y los brazos arriba.'
+  const solid = [symmetry, posture].filter((c) => (c.score ?? 0) >= STRENGTH_FROM).map((c) => c.title.toLowerCase())
+  const base =
+    index >= STRENGTH_FROM
+      ? `Partes de una base sólida (${index}/100)${solid.length ? `, sobre todo en ${list(solid)}` : ''}.`
+      : index > IMPROVE_UNTIL
+        ? `Tienes una base buena para construir (${index}/100)${solid.length ? `, con ${list(solid)} como punto fuerte` : ''}.`
+        : `Hay bastante margen de mejora (${index}/100), y eso significa que vas a notar los cambios pronto si entrenas con constancia.`
+  const focus = [
+    ...weak.slice(0, 2).map((f) => lowerFirst(f.improvement)),
+    ...(development.improvements.length ? [lowerFirst(development.improvements[0])] : []),
+  ]
+  return focus.length ? `${base} Lo que más te hará avanzar ahora: ${list(focus.slice(0, 2))}.` : `${base} No veo desequilibrios destacables: ahora toca seguir sumando fuerza.`
+}

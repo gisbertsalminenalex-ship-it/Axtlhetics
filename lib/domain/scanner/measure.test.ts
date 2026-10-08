@@ -136,17 +136,29 @@ test('sentadilla de perfil: rodilla a 90° y tronco a 45°', () => {
   assert.equal(value(m.trunkLeanDeg), 45)
 })
 
-test('sentadilla de frente: rodilla hacia dentro positiva, hacia fuera negativa', () => {
+test('sentadilla de frente: rodilla hacia dentro positiva, hacia fuera negativa, en % de la cadera', () => {
+  // Cadera de 120 px de ancho; tobillos bajo las caderas.
   const base = { leftHip: [560, 1100], rightHip: [440, 1100], leftAnkle: [560, 1700], rightAnkle: [440, 1700] } as const
-  // Rodillas en la recta cadera–tobillo: 0.
+  // Rodillas sobre los tobillos: 0 y separación igual que los pies.
   const straight = measureSquatFront(pose({ ...base, leftKnee: [560, 1400], rightKnee: [440, 1400] }), SIZE)
-  assert.equal(value(straight.leftKneeDeg), 0)
-  assert.equal(value(straight.rightKneeDeg), 0)
-  // Izquierda hacia dentro (hacia el centro, x menor), derecha hacia fuera (x menor también).
-  const m = measureSquatFront(pose({ ...base, leftKnee: [520, 1400], rightKnee: [400, 1400] }), SIZE)
-  assert.ok((value(m.leftKneeDeg) ?? 0) > 0, 'izquierda hacia dentro')
-  assert.ok((value(m.rightKneeDeg) ?? 0) < 0, 'derecha hacia fuera')
-  assert.equal(value(m.leftKneeDeg), -(value(m.rightKneeDeg) ?? 0), 'mismo desplazamiento, mismo ángulo')
+  assert.equal(value(straight.leftKneeInPct), 0)
+  assert.equal(value(straight.rightKneeInPct), 0)
+  assert.equal(value(straight.kneeAnkleRatio), 1)
+  // Izquierda 24 px hacia dentro (20 %), derecha 24 px hacia fuera (−20 %).
+  const m = measureSquatFront(pose({ ...base, leftKnee: [536, 1400], rightKnee: [416, 1400] }), SIZE)
+  assert.equal(value(m.leftKneeInPct), 20)
+  assert.equal(value(m.rightKneeInPct), -20)
+})
+
+test('sentadilla de frente: la profundidad no cambia la medida (el muslo acortado no cuenta)', () => {
+  const base = { leftHip: [560, 1100], rightHip: [440, 1100], leftAnkle: [560, 1700], rightAnkle: [440, 1700] } as const
+  // Rodilla casi a la altura de la cadera (sentadilla profunda vista de frente), pero sobre el tobillo.
+  const deep = measureSquatFront(pose({ ...base, leftKnee: [560, 1150], rightKnee: [440, 1150] }), SIZE)
+  assert.equal(value(deep.leftKneeInPct), 0)
+  assert.equal(value(deep.kneeAnkleRatio), 1)
+  // Rodillas juntas: separación de rodillas la mitad que la de los tobillos.
+  const together = measureSquatFront(pose({ ...base, leftKnee: [530, 1400], rightKnee: [470, 1400] }), SIZE)
+  assert.equal(value(together.kneeAnkleRatio), 0.5)
 })
 
 test('brazos arriba: vertical es 180° y la diferencia entre lados tiene signo', () => {

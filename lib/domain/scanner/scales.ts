@@ -25,7 +25,8 @@ export const SYMMETRY_SCALES = {
   shoulderTiltDeg: { good: 2, poor: 8 },
   hipTiltDeg: { good: 2, poor: 8 },
   armsDiffDeg: { good: 5, poor: 20 },
-  kneesDiffDeg: { good: 5, poor: 15 },
+  /** Diferencia entre las dos rodillas al desplazarse hacia dentro, en % de la anchura de cadera. */
+  kneesDiffPct: { good: 8, poor: 25 },
 } as const satisfies Record<string, Scale>
 
 /** Postura y movilidad. */
@@ -34,8 +35,8 @@ export const POSTURE_SCALES = {
   /** Ángulo de rodilla en el fondo de la sentadilla: menor = más profunda. */
   squatKneeAngleDeg: { good: 95, poor: 140 },
   trunkLeanDeg: { good: 45, poor: 65 },
-  /** Desviación de cada rodilla hacia dentro (solo cuenta hacia dentro). */
-  kneeInwardDeg: { good: 5, poor: 18 },
+  /** Desplazamiento de la rodilla hacia dentro respecto a su pie, en % de la anchura de cadera (solo cuenta hacia dentro). */
+  kneeInwardPct: { good: 8, poor: 30 },
   /** Brazos arriba: 180 = vertical. Se puntúa el brazo más limitado. */
   armOverheadDeg: { good: 170, poor: 135 },
 } as const satisfies Record<string, Scale>
@@ -55,8 +56,9 @@ export const STABILITY_TOLERANCE: Record<string, number> = {
   headAngleDeg: 8,
   kneeAngleDeg: 10,
   trunkLeanDeg: 8,
-  leftKneeDeg: 6,
-  rightKneeDeg: 6,
+  kneeAnkleRatio: 0.15,
+  leftKneeInPct: 10,
+  rightKneeInPct: 10,
   leftArmDeg: 8,
   rightArmDeg: 8,
   armsDiffDeg: 8,

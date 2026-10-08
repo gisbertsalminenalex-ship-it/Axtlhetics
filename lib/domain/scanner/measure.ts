@@ -261,28 +261,31 @@ export function measureSquatSide(landmarks: readonly ScanLandmark[], size: Image
 }
 
 /**
- * Sentadilla en el punto más bajo, de frente. Por pierna, cuánto se separa la
- * rodilla de la recta cadera–tobillo, en grados: positivo hacia dentro (hacia la
- * línea media del cuerpo), negativo hacia fuera.
+ * Sentadilla en el punto más bajo, de frente.
+ *
+ * No se usa el ángulo de la rodilla: en una sentadilla profunda el muslo apunta
+ * a la cámara y se acorta en la foto, así que ese ángulo mide sobre todo la
+ * profundidad, no si la rodilla se va hacia dentro. Se usan distancias en
+ * horizontal, que no dependen de lo profunda que sea la sentadilla:
+ *
+ * - `kneeAnkleRatio`: separación entre rodillas / separación entre tobillos.
+ *   Por debajo de 1, las rodillas quedan más juntas que los pies.
+ * - `leftKneeInPct` / `rightKneeInPct`: cuánto se desplaza cada rodilla hacia
+ *   la línea media respecto a su tobillo, en % de la anchura de cadera.
+ *   Positivo hacia dentro, negativo hacia fuera.
  */
 export function measureSquatFront(landmarks: readonly ScanLandmark[], size: ImageSize): Measurements {
-  const both = pick(landmarks, size, [LM.leftHip, LM.rightHip])
-  const knee = (hipId: number, kneeId: number, ankleId: number): MeasureValue => {
-    const chain = pick(landmarks, size, [hipId, kneeId, ankleId, LM.leftHip, LM.rightHip])
-    if (!both.ok) return { value: null, reason: both.reason }
-    return measure(chain, ([hip, kneeP, ankle, lh, rh]) => {
-      const deviation = 180 - angleAt(hip, kneeP, ankle)
-      // ¿La rodilla queda del lado de la línea media respecto a la recta cadera–tobillo?
-      const midX = (lh.x + rh.x) / 2
-      const t = (kneeP.y - hip.y) / (ankle.y - hip.y || 1)
-      const lineX = hip.x + (ankle.x - hip.x) * t
-      const inward = Math.abs(kneeP.x - midX) < Math.abs(lineX - midX)
-      return inward ? deviation : -deviation
-    })
+  const all = pick(landmarks, size, [LM.leftHip, LM.rightHip, LM.leftKnee, LM.rightKnee, LM.leftAnkle, LM.rightAnkle])
+  const inward = (knee: Point, ankle: Point, lh: Point, rh: Point) => {
+    const midX = (lh.x + rh.x) / 2
+    const hipWidth = Math.abs(lh.x - rh.x) || 1
+    // Positivo si la rodilla está más cerca de la línea media que su tobillo.
+    return ((Math.abs(ankle.x - midX) - Math.abs(knee.x - midX)) / hipWidth) * 100
   }
   return {
-    leftKneeDeg: knee(LM.leftHip, LM.leftKnee, LM.leftAnkle),
-    rightKneeDeg: knee(LM.rightHip, LM.rightKnee, LM.rightAnkle),
+    kneeAnkleRatio: measure(all, ([, , lk, rk, la, ra]) => Math.abs(lk.x - rk.x) / (Math.abs(la.x - ra.x) || 1), 2),
+    leftKneeInPct: measure(all, ([lh, rh, lk, , la]) => inward(lk, la, lh, rh)),
+    rightKneeInPct: measure(all, ([lh, rh, , rk, , ra]) => inward(rk, ra, lh, rh)),
   }
 }
 

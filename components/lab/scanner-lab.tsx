@@ -20,6 +20,7 @@ import {
   type Silhouette,
 } from '@/lib/domain/scanner/measure'
 import { summarizeScan, type PoseShots, type ScanSummary } from '@/lib/domain/scanner/summary'
+import { todayKey } from '@/lib/domain/shared/dates'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
@@ -48,8 +49,9 @@ const LABELS: Record<string, string> = {
   headAngleDeg: 'Ángulo cabeza (°)',
   kneeAngleDeg: 'Ángulo rodilla (°)',
   trunkLeanDeg: 'Inclinación tronco (°)',
-  leftKneeDeg: 'Rodilla izquierda (°)',
-  rightKneeDeg: 'Rodilla derecha (°)',
+  kneeAnkleRatio: 'Rodillas / tobillos (separación)',
+  leftKneeInPct: 'Rodilla izq. hacia dentro (% cadera)',
+  rightKneeInPct: 'Rodilla der. hacia dentro (% cadera)',
   leftArmDeg: 'Brazo izquierdo (°)',
   rightArmDeg: 'Brazo derecho (°)',
   armsDiffDeg: 'Diferencia brazos (°)',
@@ -127,12 +129,21 @@ export function ScannerLab() {
   const [copied, setCopied] = useState(false)
   const landmarker = useRef<Promise<PoseLandmarker> | null>(null)
   // El desarrollo muscular sale del rendimiento real: los tests de evolución guardados.
-  const { assessments } = useAxtlhetics()
+  // y de las sesiones y el nivel del perfil.
+  const { assessments, sessions, profile } = useAxtlhetics()
   const allShots: PoseShots = Object.fromEntries(
     POSES.map(({ id }) => [id, shots[id].filter((shot) => !shot.error).map((shot) => shot.measures)]).filter(([, list]) => list.length > 0),
   )
   const hasAnyShot = Object.keys(allShots).length > 0
-  const summary = hasAnyShot ? summarizeScan({ shots: allShots, assessments: assessments.assessments }) : null
+  const summary = hasAnyShot
+    ? summarizeScan({
+        shots: allShots,
+        assessments: assessments.assessments,
+        sessions,
+        experience: profile?.experience ?? null,
+        today: todayKey(),
+      })
+    : null
 
   const analyze = async (files: File[]) => {
     if (files.length === 0) return
@@ -354,13 +365,16 @@ function SummaryView({ summary }: { summary: ScanSummary }) {
                 {category.score !== null ? `${category.score}` : category.inIndex ? '—' : ''}
               </p>
             </div>
-            <p className="mt-0.5 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">{category.summary}</p>
+            <p className="mt-1 text-[14.5px] leading-relaxed text-pretty">{category.text}</p>
             {category.details.length > 0 && (
-              <ul className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
-                {category.details.map((detail) => (
-                  <li key={detail}>· {detail}</li>
-                ))}
-              </ul>
+              <details className="mt-1.5">
+                <summary className="min-h-11 cursor-pointer py-2 text-[12.5px] font-semibold text-muted-foreground">Lo medido</summary>
+                <ul className="text-[12.5px] leading-relaxed text-muted-foreground">
+                  {category.details.map((detail) => (
+                    <li key={detail}>· {detail}</li>
+                  ))}
+                </ul>
+              </details>
             )}
           </li>
         ))}
