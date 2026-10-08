@@ -19,7 +19,18 @@ import {
   type ScanPose,
   type Silhouette,
 } from '@/lib/domain/scanner/measure'
-import { summarizeScan, type PoseShots, type ScanSummary } from '@/lib/domain/scanner/summary'
+import {
+  SCAN_PRIORITY_LABELS,
+  SCAN_ZONE_LABELS,
+  SCAN_ZONES,
+  summarizeScan,
+  type PoseShots,
+  type ScanBuild,
+  type ScanPriority,
+  type ScanSelfReport,
+  type ScanSummary,
+  type ScanZone,
+} from '@/lib/domain/scanner/summary'
 import { todayKey } from '@/lib/domain/shared/dates'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { useAxtlhetics } from '@/lib/state/store'
@@ -128,6 +139,7 @@ export function ScannerLab() {
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const landmarker = useRef<Promise<PoseLandmarker> | null>(null)
+  const [selfReport, setSelfReport] = useState<ScanSelfReport>({ build: null, strongZones: [], weakZones: [], priority: null })
   // El desarrollo muscular sale del rendimiento real: los tests de evolución guardados.
   // y de las sesiones y el nivel del perfil.
   const { assessments, sessions, profile } = useAxtlhetics()
@@ -141,6 +153,7 @@ export function ScannerLab() {
         assessments: assessments.assessments,
         sessions,
         experience: profile?.experience ?? null,
+        selfReport,
         today: todayKey(),
       })
     : null
@@ -220,7 +233,10 @@ export function ScannerLab() {
         guardan ni salen del móvil. Solo se comparan los números entre fotos.
       </p>
 
-      <div role="radiogroup" aria-label="Pose" className="mt-6 flex flex-wrap gap-2">
+      <SelfReportForm value={selfReport} onChange={setSelfReport} />
+
+      <h2 className="mt-10 text-[17px] font-semibold tracking-[-0.01em]">Tus fotos</h2>
+      <div role="radiogroup" aria-label="Pose" className="mt-3 flex flex-wrap gap-2">
         {POSES.map((item) => (
           <button
             key={item.id}
@@ -341,6 +357,89 @@ export function ScannerLab() {
         {copied ? 'Copiado' : 'Copiar resultados (solo números)'}
       </button>
     </main>
+  )
+}
+
+/** Una pastilla seleccionable, como las del onboarding. */
+function Chip({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cn(
+        'ax-press min-h-11 rounded-full px-4 text-[13.5px] font-semibold',
+        selected ? 'bg-primary text-primary-foreground' : 'border border-border bg-background',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * Lo que la foto no puede medir, preguntado como en el onboarding. Todo es
+ * opcional y se presenta siempre como respuesta del usuario.
+ */
+function SelfReportForm({ value, onChange }: { value: ScanSelfReport; onChange: (next: ScanSelfReport) => void }) {
+  const toggleZone = (key: 'strongZones' | 'weakZones', zone: ScanZone) => {
+    const other = key === 'strongZones' ? 'weakZones' : 'strongZones'
+    const has = value[key].includes(zone)
+    onChange({
+      ...value,
+      [key]: has ? value[key].filter((z) => z !== zone) : [...value[key], zone],
+      // Una zona no puede estar en las dos listas.
+      [other]: value[other].filter((z) => z !== zone),
+    })
+  }
+  const BUILDS: { id: ScanBuild; label: string }[] = [
+    { id: 'delgada', label: 'Más bien delgada' },
+    { id: 'media', label: 'Media' },
+    { id: 'ancha', label: 'Más bien ancha' },
+  ]
+  return (
+    <section className="mt-8">
+      <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Cómo te ves</h2>
+      <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+        La foto no puede medir el músculo ni la composición. Cuéntamelo tú y lo combino con lo que mido y con tu entrenamiento.
+      </p>
+
+      <p className="mt-5 text-[14px] font-semibold">Tu complexión</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {BUILDS.map((b) => (
+          <Chip key={b.id} selected={value.build === b.id} onClick={() => onChange({ ...value, build: value.build === b.id ? null : b.id })}>
+            {b.label}
+          </Chip>
+        ))}
+      </div>
+
+      <p className="mt-5 text-[14px] font-semibold">Dónde te ves con más músculo</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {SCAN_ZONES.map((zone) => (
+          <Chip key={zone} selected={value.strongZones.includes(zone)} onClick={() => toggleZone('strongZones', zone)}>
+            {SCAN_ZONE_LABELS[zone].charAt(0).toUpperCase() + SCAN_ZONE_LABELS[zone].slice(1)}
+          </Chip>
+        ))}
+      </div>
+
+      <p className="mt-5 text-[14px] font-semibold">Dónde te ves con menos</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {SCAN_ZONES.map((zone) => (
+          <Chip key={zone} selected={value.weakZones.includes(zone)} onClick={() => toggleZone('weakZones', zone)}>
+            {SCAN_ZONE_LABELS[zone].charAt(0).toUpperCase() + SCAN_ZONE_LABELS[zone].slice(1)}
+          </Chip>
+        ))}
+      </div>
+
+      <p className="mt-5 text-[14px] font-semibold">Qué quieres priorizar</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {(Object.keys(SCAN_PRIORITY_LABELS) as ScanPriority[]).map((p) => (
+          <Chip key={p} selected={value.priority === p} onClick={() => onChange({ ...value, priority: value.priority === p ? null : p })}>
+            {SCAN_PRIORITY_LABELS[p].charAt(0).toUpperCase() + SCAN_PRIORITY_LABELS[p].slice(1)}
+          </Chip>
+        ))}
+      </div>
+    </section>
   )
 }
 

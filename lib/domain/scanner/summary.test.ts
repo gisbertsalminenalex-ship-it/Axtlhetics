@@ -145,6 +145,45 @@ test('composición corporal: nunca se estima con la foto; solo el dato que da el
   assert.match(withData.text, /14,5 %/)
 })
 
+test('cómo te ves: dicho como tuyo, y los datos lo confirman o lo matizan', () => {
+  const sessions = ['2026-09-20', '2026-09-23', '2026-09-26', '2026-09-29'].map((d) => session(d, ['pecho', 'hombros', 'brazos']))
+  const s = summarizeScan({
+    shots: balanced(),
+    sessions,
+    today: '2026-10-07',
+    selfReport: { build: 'delgada', strongZones: ['brazos'], weakZones: ['espalda', 'pecho'], priority: 'musculo' },
+  })
+  const dev = s.categories.find((c) => c.key === 'muscleDevelopment')!
+  assert.match(dev.text, /Te ves con más músculo en brazos\./)
+  // La espalda es lo menos entrenado: el historial lo confirma.
+  assert.match(dev.text, /Te ves con menos espalda y tu historial lo confirma/)
+  // El pecho se entrena a menudo: el consejo es subir la carga.
+  assert.match(dev.text, /Te ves con menos pecho aunque la entrenas a menudo/)
+  assert.ok(s.improvements.includes('Quieres más músculo en espalda y pecho'))
+  const priority = s.actions[0]
+  assert.match(priority.text, /^Prioridad a espalda y pecho/)
+  for (const id of priority.exerciseIds) assert.ok(findExercise(id), id)
+})
+
+test('solo con respuestas y sin datos: se dice que todavía no está confirmado', () => {
+  const dev = summarizeScan({ shots: balanced(), selfReport: { build: null, strongZones: [], weakZones: ['piernas'], priority: null } })
+    .categories.find((c) => c.key === 'muscleDevelopment')!
+  assert.match(dev.text, /^Te ves con menos piernas\./)
+  assert.match(dev.text, /Todavía no tengo tus tests ni tus sesiones para confirmarlo/)
+})
+
+test('composición: tu complexión y tu prioridad, con un plan de entrenamiento, sin dietas y sin estimar con la foto', () => {
+  const text = summarizeScan({ shots: balanced(), selfReport: { build: 'delgada', strongZones: [], weakZones: [], priority: 'musculo' } })
+    .categories.find((c) => c.key === 'composition')!.text
+  assert.match(text, /^Describes tu complexión como más bien delgada\./)
+  assert.match(text, /Tu prioridad es ganar músculo\. Con una complexión delgada, lo que más te hará ganar músculo es progresar en carga/)
+  assert.match(text, /la foto no lo puede medir: no lo estimo/)
+  const define = summarizeScan({ shots: balanced(), selfReport: { build: 'media', strongZones: [], weakZones: [], priority: 'definir' } })
+    .categories.find((c) => c.key === 'composition')!.text
+  assert.match(define, /la alimentación queda fuera de lo que valora AXIS/)
+  assert.doesNotMatch(text + define, /[!¡]|dieta|calor[ií]as|prote[ií]na|kilos|peso corporal|adelgaz/i)
+})
+
 test('en la voz de AXIS: sin exclamaciones, sin cumplido de apertura, sin diagnósticos y sin peso ni dietas', () => {
   const shots: PoseShots = {
     front: [m({ shoulderTiltDeg: 9, hipTiltDeg: 9 }), m({ shoulderTiltDeg: 9.5, hipTiltDeg: 8.8 })],

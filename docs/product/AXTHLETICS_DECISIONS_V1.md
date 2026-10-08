@@ -1108,6 +1108,15 @@ Aprobada por Alex. El resultado no es una tabla de medidas sino **un resumen de 
 - La **diferencia de longitud de brazos o piernas no se puntúa**: la longitud de los huesos no se entrena y, en una foto, una diferencia grande indica casi siempre un cuerpo girado. Se usa solo para avisar de la foto.
 - Sin simetría ni postura no hay índice. Los umbrales viven en `lib/domain/scanner/scales.ts` y son **provisionales hasta cerrar `P-015`**.
 
+### Enmienda (2026-10-08): cómo se ve el usuario
+
+Aprobada por Alex. Lo que la foto no puede medir se pregunta, como en el onboarding, y es opcional: **complexión** (más bien delgada / media / más bien ancha), **zonas con más y con menos músculo** (pecho, espalda, hombros, brazos, piernas, core) y **prioridad** (ganar músculo / que se note más el músculo / ganar fuerza / equilibrar el cuerpo).
+
+- Se presenta siempre como respuesta del usuario («te ves con menos espalda»), nunca como medido.
+- **Desarrollo muscular** combina esas respuestas con el entrenamiento real: si la zona que el usuario ve más floja es la que menos entrena, «tu historial lo confirma»; si la entrena a menudo, el consejo es progresar en carga. Las zonas flojas se convierten en un paso de acción con ejercicios del catálogo.
+- **Composición corporal** dice la complexión que describe el usuario y qué implica para su entrenamiento según su prioridad. **Nunca se deduce de la foto** y AXIS no habla de dietas, peso ni calorías: con la prioridad «que se note más el músculo» dice expresamente que la alimentación queda fuera de lo que valora.
+- Los pasos que dicen «AXIS dará prioridad…» describen las reglas del motor de `P-017`: se cumplen cuando se implementen.
+
 ### Fuera de D-023 v1
 
 Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal, comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.

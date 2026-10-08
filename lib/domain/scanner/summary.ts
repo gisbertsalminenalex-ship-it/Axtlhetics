@@ -62,14 +62,57 @@ export type ScanSummary = {
   photoNotes: string[]
 }
 
+/** Zonas por las que se pregunta: las que un adolescente reconoce al mirarse. */
+export type ScanZone = 'pecho' | 'espalda' | 'hombros' | 'brazos' | 'piernas' | 'core'
+export const SCAN_ZONES: readonly ScanZone[] = ['pecho', 'espalda', 'hombros', 'brazos', 'piernas', 'core']
+export const SCAN_ZONE_LABELS: Record<ScanZone, string> = {
+  pecho: 'pecho',
+  espalda: 'espalda',
+  hombros: 'hombros',
+  brazos: 'brazos',
+  piernas: 'piernas',
+  core: 'core',
+}
+
+export type ScanBuild = 'delgada' | 'media' | 'ancha'
+export type ScanPriority = 'musculo' | 'definir' | 'fuerza' | 'equilibrio'
+export const SCAN_PRIORITY_LABELS: Record<ScanPriority, string> = {
+  musculo: 'ganar músculo',
+  definir: 'que se note más el músculo',
+  fuerza: 'ganar fuerza',
+  equilibrio: 'equilibrar el cuerpo',
+}
+
+/**
+ * Lo que el usuario dice de sí mismo (D-023, enmienda de autoevaluación). Cubre
+ * lo que la foto no puede medir. Se presenta siempre como suyo, nunca como medido.
+ */
+export type ScanSelfReport = {
+  build: ScanBuild | null
+  strongZones: readonly ScanZone[]
+  weakZones: readonly ScanZone[]
+  priority: ScanPriority | null
+}
+
 export type ScanInput = {
   shots: PoseShots
   assessments?: readonly Assessment[]
   sessions?: readonly WorkoutSession[]
   experience?: ExperienceLevel | null
   bodyFatPct?: number | null
+  selfReport?: ScanSelfReport | null
   /** Día de referencia para el historial de entrenamiento. */
   today?: DayKey
+}
+
+/** Ejercicios del catálogo para dar prioridad a una zona. */
+const ZONE_EXERCISES: Record<ScanZone, string[]> = {
+  pecho: ['flexiones', 'press-suelo-unilateral'],
+  espalda: ['remo-unilateral', 'pullover-con-pesa', 'superman'],
+  hombros: ['press-hombro-unilateral', 'flexion-pica'],
+  brazos: ['curl-biceps-unilateral', 'extension-triceps-unilateral'],
+  piernas: ['zancada-bulgara', 'sentadilla-con-pesa'],
+  core: ['plancha', 'superman'],
 }
 
 /** Ventana del historial de entrenamiento que se mira. */
@@ -315,7 +358,10 @@ function muscleDevelopment(input: ScanInput): Development {
   const recent = today ? sessions.filter((s) => { const age = daysBetween(s.dayKey, today); return age >= 0 && age < TRAINING_WINDOW_DAYS }) : []
   const base: ScanCategory = { key: 'muscleDevelopment', title: 'Desarrollo muscular', score: null, inIndex: false, text: '', details: [] }
 
-  if (done.length === 0 && recent.length === 0) {
+  const self = input.selfReport
+  const hasSelf = !!self && (self.strongZones.length > 0 || self.weakZones.length > 0)
+
+  if (done.length === 0 && recent.length === 0 && !hasSelf) {
     return {
       category: {
         ...base,
@@ -338,7 +384,7 @@ function muscleDevelopment(input: ScanInput): Development {
   if (recent.length) sources.push(`${recent.length} ${recent.length === 1 ? 'sesión' : 'sesiones'} en las últimas 8 semanas`)
   if (input.experience) sources.push(`nivel ${EXPERIENCE_LABELS[input.experience].toLowerCase()}`)
   if (done.length) sources.push(done.length === 1 ? 'tu test de evolución' : `tus ${done.length} tests de evolución`)
-  parts.push(`Lo estimo con tu fuerza y tu entrenamiento, no con la foto: ${list(sources)}.`)
+  if (done.length || recent.length) parts.push(`Lo estimo con tu fuerza y tu entrenamiento, no con la foto: ${list(sources)}.`)
 
   if (done.length >= 2) {
     const comparisons = compareAssessment(done[0], input.assessments ?? []) ?? []
@@ -358,10 +404,12 @@ function muscleDevelopment(input: ScanInput): Development {
     parts.push('Tu primer test es la referencia: con el siguiente veremos qué zonas crecen más rápido.')
   }
 
+  const counts = new Map<MuscleGroup, number>()
+  for (const s of recent) for (const g of s.muscleGroups) counts.set(g, (counts.get(g) ?? 0) + 1)
+  const ordered = MAIN_GROUPS.map((g) => ({ g, n: counts.get(g) ?? 0 })).sort((a, b) => a.n - b.n)
+  const leastTrained = recent.length && ordered[0].n < ordered[ordered.length - 1].n ? ordered[0].g : null
+
   if (recent.length) {
-    const counts = new Map<MuscleGroup, number>()
-    for (const s of recent) for (const g of s.muscleGroups) counts.set(g, (counts.get(g) ?? 0) + 1)
-    const ordered = MAIN_GROUPS.map((g) => ({ g, n: counts.get(g) ?? 0 })).sort((a, b) => a.n - b.n)
     const least = ordered[0]
     const most = ordered[ordered.length - 1]
     details.push(...MAIN_GROUPS.map((g) => `${MUSCLE_GROUP_LABELS[g]}: ${counts.get(g) ?? 0} sesiones`))
@@ -373,6 +421,37 @@ function muscleDevelopment(input: ScanInput): Development {
     const perWeek = recent.length / (TRAINING_WINDOW_DAYS / 7)
     if (perWeek >= 2.5) strengths.push(`Entrenas con constancia (${one(perWeek)} sesiones por semana)`)
     else parts.push(`Con ${one(perWeek)} sesiones por semana, la constancia es lo que más te hará crecer ahora.`)
+  }
+
+  // Cómo se ve el usuario: lo dice él; los datos lo confirman o lo matizan.
+  if (self && hasSelf) {
+    if (self.strongZones.length) {
+      const zones = list(self.strongZones.map((z) => SCAN_ZONE_LABELS[z]))
+      parts.push(`Te ves con más músculo en ${zones}.`)
+      strengths.push(`Te ves con más músculo en ${zones}`)
+    }
+    if (self.weakZones.length) {
+      for (const zone of self.weakZones) {
+        const trained = counts.get(zone) ?? 0
+        const median = ordered[Math.floor(ordered.length / 2)]?.n ?? 0
+        if (leastTrained === zone) {
+          parts.push(`Te ves con menos ${SCAN_ZONE_LABELS[zone]} y tu historial lo confirma: es lo que menos has entrenado, y ahí está tu mayor margen.`)
+        } else if (recent.length && trained > 0 && trained >= median) {
+          parts.push(`Te ves con menos ${SCAN_ZONE_LABELS[zone]} aunque la entrenas a menudo: ahí lo que más ayuda es ir subiendo la carga, no solo repetir.`)
+        } else {
+          parts.push(`Te ves con menos ${SCAN_ZONE_LABELS[zone]}.`)
+        }
+      }
+      const zones = list(self.weakZones.map((z) => SCAN_ZONE_LABELS[z]))
+      improvements.push(`Quieres más músculo en ${zones}`)
+      actions.unshift({
+        text: `Prioridad a ${zones}: AXIS les dará más peso al elegir el foco y los ejercicios de tus sesiones.`,
+        exerciseIds: Array.from(new Set(self.weakZones.flatMap((z) => ZONE_EXERCISES[z]))).slice(0, 4),
+      })
+    }
+    if (done.length === 0 && recent.length === 0) {
+      parts.push('Todavía no tengo tus tests ni tus sesiones para confirmarlo: con ellos te diré si los datos coinciden con cómo te ves.')
+    }
   }
 
   return { category: { ...base, text: parts.join(' '), details }, strengths, improvements, actions }
@@ -421,10 +500,7 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     title: 'Composición corporal',
     score: null,
     inIndex: false,
-    text:
-      typeof input.bodyFatPct === 'number'
-        ? `Tu dato registrado es ${one(input.bodyFatPct)} % de grasa corporal. Lo usaré solo para seguir tu evolución, no para juzgarla.`
-        : 'Una foto no permite saber qué parte es músculo y qué parte no, así que no lo estimo. Tu progreso muscular lo ves en Desarrollo muscular; si tienes un dato de una báscula de composición o de una medición profesional, puedes añadirlo.',
+    text: compositionText(input.selfReport ?? null, input.bodyFatPct ?? null),
     details: [],
   }
 
@@ -475,6 +551,43 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     actions: actions.slice(0, 4),
     photoNotes: Array.from(notes),
   }
+}
+
+const BUILD_TEXT: Record<ScanBuild, string> = {
+  delgada: 'más bien delgada',
+  media: 'media',
+  ancha: 'más bien ancha',
+}
+
+/**
+ * Composición corporal: nunca se deduce de la foto. Se dice cómo se describe el
+ * usuario, qué implica para su entrenamiento según su prioridad, y el dato real
+ * si lo ha dado. Sin peso, sin dietas: AXIS habla de entrenar.
+ */
+function compositionText(self: ScanSelfReport | null, bodyFatPct: number | null): string {
+  const parts: string[] = []
+  if (self?.build) parts.push(`Describes tu complexión como ${BUILD_TEXT[self.build]}.`)
+  if (self?.priority) {
+    const priority = SCAN_PRIORITY_LABELS[self.priority]
+    const plan: Record<ScanPriority, string> = {
+      musculo:
+        self.build === 'delgada'
+          ? 'Con una complexión delgada, lo que más te hará ganar músculo es progresar en carga semana a semana con ejercicios grandes y ser constante: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.'
+          : 'Para ganar músculo, lo que más cuenta es progresar en carga y entrenar cada zona con frecuencia: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.',
+      definir:
+        'Para que se note más el músculo, lo que AXIS puede hacer es mantener un volumen de trabajo alto y constante y ayudarte a ganar músculo; la alimentación queda fuera de lo que valora AXIS.',
+      fuerza: 'Para ganar fuerza, AXIS priorizará pocas repeticiones bien hechas con más carga y descansos completos.',
+      equilibrio: 'Para equilibrar el cuerpo, AXIS dará más peso al trabajo a una pierna y a un brazo y a lo que menos entrenas.',
+    }
+    parts.push(`Tu prioridad es ${priority}. ${plan[self.priority]}`)
+  }
+  if (typeof bodyFatPct === 'number') parts.push(`Tu dato registrado es ${one(bodyFatPct)} % de grasa corporal; lo uso solo para seguir tu evolución.`)
+  parts.push(
+    parts.length
+      ? 'Lo que es músculo y lo que no, la foto no lo puede medir: no lo estimo.'
+      : 'Una foto no permite saber qué parte es músculo y qué parte no, así que no lo estimo. Cuéntame tu complexión y tu prioridad, o añade un dato real de una báscula de composición o de una medición profesional.',
+  )
+  return parts.join(' ')
 }
 
 /** La primera frase es la conclusión: dónde estás y qué te hará avanzar más. */
