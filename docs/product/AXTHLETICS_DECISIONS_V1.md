@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-04.
+**Última actualización:** 2026-10-08.
 
 ## Qué es este documento
 
@@ -1035,6 +1035,69 @@ Planificación semanal, copiar sesiones entre días, filtro inteligente por mate
 
 ---
 
+## D-023 — Escáner corporal: índice de equilibrio
+
+**Fecha:** 2026-10-08 · **Estado:** aprobada (alcance, privacidad, índice y pesos) · **fórmulas de cada componente, diseño UX/UI y reglas del motor: PENDIENTES** (`P-015` a `P-017`). No se implementa ninguna pantalla hasta cerrarlos.
+
+El usuario hace un escaneo guiado de su cuerpo con la cámara del móvil y obtiene un **índice de equilibrio corporal de 0 a 100** con su desglose, un resumen de AXIS (puntos fuertes, áreas de mejora, pasos de acción) y entrenamientos que AXIS adapta con lo medido. Ningún documento anterior lo definía.
+
+### Principios
+
+- **Todo en el dispositivo.** Las fotos se analizan en el móvil con un modelo de pose local. **Ninguna imagen sale del dispositivo** ni llega a la capa de lenguaje (D-016) ni a ningún servidor. Las fotos se guardan solo en el dispositivo, para que el usuario compare mes a mes.
+- **Medir, no opinar.** Solo entra lo que se puede medir con la cámara con una fiabilidad razonable. Lo que no se puede medir se pregunta al usuario, como en el onboarding.
+- **Compararse con uno mismo**, mes a mes y con el mismo montaje. Sin percentiles, sin normas de población y sin comparación con otras personas.
+- **Orientación, no diagnóstico.** Como el Recovery Score (D-002): nunca se presenta como medida médica. Nada de «tienes valgo» o «tienes escoliosis»; sí «tu rodilla derecha se desplaza hacia dentro más que la izquierda (12° frente a 5°)».
+- **Si no hay datos fiables, no hay resultado.** Un componente con encuadre malo, cuerpo cortado o mala luz sale como «datos insuficientes». No se inventa.
+
+### Qué se mide (v1)
+
+- **Proporciones:** relación de anchura hombros/cintura (la «V», a partir de la silueta y los puntos del cuerpo) y proporción piernas/tronco.
+- **Simetría:** izquierda frente a derecha en hombros, brazos y piernas. Solo se señala una diferencia que supere el margen de error medido.
+- **Postura:** posición de la cabeza respecto al hombro (de perfil) y alineación de pie.
+- **Movimiento:** sentadilla (profundidad, rodillas, inclinación del tronco) y brazos por encima de la cabeza (rango por lado).
+- **Prioridades del usuario**, preguntadas paso a paso: qué zonas quiere desarrollar y cómo se ve cada una. Cubren lo que una foto no puede medir.
+
+**Fuera, porque no se mide con fiabilidad desde una foto:** grasa corporal, composición corporal, «definición» o desarrollo muscular, medidas en centímetros, atractivo, escoliosis, inclinación pélvica y lordosis.
+
+### Índice de equilibrio corporal (0–100)
+
+| Componente | Peso |
+|---|---|
+| Simetría | 35 % |
+| Postura | 25 % |
+| Movimiento | 25 % |
+| Proporción respecto al objetivo declarado por el usuario | 15 % |
+
+Los pesos viven en un único sitio del código, como los del Recovery Score. La nota se muestra **siempre con su desglose**. No es una valoración de lo bueno que es un físico: resume equilibrio, postura y movimiento medidos. Un componente sin datos suficientes no se rellena; cómo se calcula el índice en ese caso queda en `P-015`.
+
+### Dónde vive
+
+- Entrada secundaria **junto al test de evolución** (D-021), en Entrenamiento. Sin pestaña nueva.
+- Los resultados se pueden abrir desde ahí y quedan en **Historial**.
+- La app lo pide de nuevo **cada mes, junto con el test de evolución**. El escaneo es un flujo aparte: el test sigue sin nota.
+
+### AXIS
+
+- AXIS conoce los resultados y los explica componente a componente cuando se le pregunta.
+- **El motor adapta los entrenamientos** con lo medido: por ejemplo, prioriza un grupo muscular cuando la proporción queda por debajo del objetivo declarado, o añade trabajo unilateral ante una asimetría real. Siempre explica por qué. Las reglas concretas quedan en `P-017`.
+- El escaneo y sus fotos **nunca** entran en el briefing que se envía a la capa de lenguaje. Lo que AXIS cuente sobre el escaneo es determinista, como las respuestas sobre el test (D-021).
+
+### Relación con D-021
+
+D-021 dice «medir, no puntuar», «sin métrica global» y «sin métricas corporales» **para el test de evolución**. D-023 no cambia el test: el índice vive en su propio flujo, con su propio almacén, y no se mezcla con los resultados del test ni con la Carga, la progresión o los récords.
+
+### Datos y técnica
+
+- Modelo de pose en el dispositivo: `@mediapipe/tasks-vision` (Apache-2.0). El modelo se sirve desde la propia app para funcionar sin conexión. Es una dependencia nueva, aprobada con esta decisión.
+- Un almacén nuevo en IndexedDB (v9, migración que solo añade). Las copias de seguridad incluyen los resultados medidos. Si incluyen o no las fotos queda en `P-016`.
+- **Antes de construir pantallas, un prototipo de medición** en el móvil real comprueba que cada medida es estable al repetirla con el mismo montaje. Lo que no sea estable no entra en v1.
+
+### Fuera de D-023 v1
+
+Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal, comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
@@ -1088,3 +1151,14 @@ Resuelto el 2026-09-15: la sesión se guarda entera en cada cambio (carga, repet
 
 **`P-012` — Ubicación de la skill de diseño. CERRADO.**
 Movida a `.claude/skills/` y corregidas sus referencias. Además se actualizó su contenido, que seguía describiendo la fase de prototipo visual y **prohibía explícitamente** IndexedDB, el Recovery Score real y el razonamiento real de AXIS: al activarse habría dado instrucciones contrarias a lo ya aprobado.
+
+### Abiertas por D-023 (escáner corporal)
+
+**`P-015` — Fórmula de cada componente del índice.**
+Cómo se convierte cada medida (grados, proporciones, diferencias izquierda/derecha) en un 0–100 por componente, el margen de error a partir del cual una diferencia cuenta y qué hace el índice si falta un componente. Se decide con los datos del prototipo de medición, no antes.
+
+**`P-016` — Fotos en la copia de seguridad.**
+Las fotos se guardan solo en el dispositivo. Falta decidir si la copia de seguridad (D-015) las incluye, las incluye a elección del usuario o no las incluye nunca: el archivo pesaría mucho más y es un archivo sensible.
+
+**`P-017` — Reglas del motor con el escaneo.**
+Qué cambia exactamente en la propuesta del día (prioridad de grupos musculares, trabajo unilateral, ejercicios a evitar) a partir de cada resultado, con qué límites y cómo lo explica AXIS. Ninguna regla puede tratar un resultado del escáner como una lesión o una molestia.
