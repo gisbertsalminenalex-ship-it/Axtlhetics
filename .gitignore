@@ -13,3 +13,6 @@ node_modules
 
 # Carpeta local de la CLI de Vercel (`vercel link`)
 .vercel
+
+# D-023: recursos del modelo de pose, generados por scripts/prepare-mediapipe.mjs
+/public/mediapipe/
