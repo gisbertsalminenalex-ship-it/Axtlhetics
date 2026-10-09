@@ -1117,6 +1117,19 @@ Aprobada por Alex. Lo que la foto no puede medir se pregunta, como en el onboard
 - **Composición corporal** dice la complexión que describe el usuario y qué implica para su entrenamiento según su prioridad. **Nunca se deduce de la foto** y AXIS no habla de dietas, peso ni calorías: con la prioridad «que se note más el músculo» dice expresamente que la alimentación queda fuera de lo que valora.
 - Ningún paso promete que el motor cambie solo (`P-017`, cerrado): los pasos dicen qué hacer y que AXIS ofrece la opción cuando se le pregunta.
 
+### Enmienda (2026-10-09): comparación con el escaneo anterior
+
+Aprobada por Alex, a partir de lo que hacen apps como Critique AI.
+
+- Se comparan **medidas, no fotos**: cada medida estable del escaneo frente a la del escaneo anterior, el índice y las categorías.
+- Un cambio solo cuenta si supera el **margen de esa medida** (el mismo con el que se descarta una medida inestable entre fotos). Por debajo, «sin cambio».
+- Lo que tiene una dirección clara se dice como mejora o retroceso. La proporción hombros/cintura se dice tal cual, sin juzgarla ni interpretarla como grasa o músculo.
+- Aparece al terminar el escaneo (frente al último guardado), en el detalle del historial (frente al anterior a ese) y en lo que responde AXIS. Siempre con el recordatorio de que solo es fiable con el mismo montaje.
+
+**Considerado y descartado por ahora (decisión de Alex):** la captura guiada en vivo con la cámara (silueta superpuesta, sensor de inclinación del móvil y disparo automático al estar bien colocado). La app sigue bloqueando la cámara en vivo (`Permissions-Policy: camera=()`) y las fotos se suben desde la galería. Retomarla exige cambiar esa cabecera y es una decisión de privacidad.
+
+**Descartado por no ser medible:** clasificar los cambios como «pérdida de grasa» o «ganancia de músculo» con nubes de puntos o profundidad estimada desde una foto. El S21 no tiene sensor de profundidad y una sola cámara no da volúmenes fiables.
+
 ### Fuera de D-023 v1
 
 Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal, comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.

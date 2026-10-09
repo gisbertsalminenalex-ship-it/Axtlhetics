@@ -137,6 +137,15 @@ const median = (values: number[]) => {
 }
 
 /** Mediana de una medida entre las fotos de una pose; `null` si no hay datos o varían demasiado. */
+/**
+ * La medida estable de una pose: la mediana de sus fotos, o `null` si no hay
+ * datos o cambia más que su margen entre fotos. El mismo criterio para el
+ * resumen y para la comparación entre escaneos.
+ */
+export function stableValue(shots: PoseShots, pose: ScanPose, key: string): number | null {
+  return combine(shots, pose, key, new Set())
+}
+
 function combine(shots: PoseShots, pose: ScanPose, key: string, notes: Set<string>): number | null {
   const values = (shots[pose] ?? [])
     .map((m) => m[key]?.value)

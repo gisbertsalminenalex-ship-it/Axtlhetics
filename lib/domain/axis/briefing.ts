@@ -18,6 +18,7 @@
 
 import { fixedPushUpVariant } from '../assessment/assessment'
 import { summarizeScan, type ScanPriority, type ScanZone } from '../scanner/summary'
+import { compareScans } from '../scanner/compare'
 import { sortScans } from '../scanner/types'
 import { recommendedPushUpVariant } from '../assessment/protocol'
 import { assessmentStatusFor, type AxisAssessmentStatus } from './assessment'
@@ -192,6 +193,8 @@ export type BriefingScan = {
   improvements: string[]
   /** Los pasos de acción del resumen, solo el texto. */
   actions: string[]
+  /** Frente al escaneo anterior, si lo hay: el titular y lo que se movió más que su margen. */
+  comparison: { headline: string; changes: string[] } | null
 }
 
 export type BriefingAssessment = {
@@ -315,7 +318,7 @@ export function buildBriefing(
 
 /** El último escaneo, resumido con el dominio del escáner y la fuerza y el entrenamiento de ahora. */
 function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[]): BriefingScan | null {
-  const last = sortScans(context.scans ?? [])[0]
+  const [last, previous] = sortScans(context.scans ?? [])
   if (!last) return null
   const summary = summarizeScan({
     shots: last.measurements,
@@ -334,6 +337,15 @@ function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[])
     priority: last.selfReport.priority,
     improvements: summary.improvements,
     actions: summary.actions.map((action) => action.text),
+    comparison: previous
+      ? (() => {
+          const c = compareScans(
+            { shots: last.measurements, index: summary.index, scores: Object.fromEntries(summary.categories.map((x) => [x.key, x.score])) },
+            previous,
+          )
+          return { headline: c.headline, changes: c.changes.filter((x) => x.trend === 'better' || x.trend === 'worse').map((x) => x.text) }
+        })()
+      : null,
   }
 }
 

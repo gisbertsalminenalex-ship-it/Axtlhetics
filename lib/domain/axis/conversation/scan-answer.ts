@@ -58,6 +58,10 @@ export function answerScan(briefing: AxisBriefing): AxisAnswer {
   }
 
   const parts = [`En tu escaneo del ${formatDayInSentence(scan.dayKey)}: ${scan.overview}`]
+  if (scan.comparison) {
+    const moved = scan.comparison.changes.slice(0, 2).map((c) => c.charAt(0).toLowerCase() + c.slice(1))
+    parts.push(`${scan.comparison.headline}${moved.length ? ` Lo más destacado: ${list(moved)}.` : ''}`)
+  }
   const options: string[] = []
   let proposed: BriefingAlternative | null = null
 

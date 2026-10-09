@@ -25,6 +25,7 @@ import {
   type ScanSelfReport,
   type ScanZone,
 } from '@/lib/domain/scanner/summary'
+import { compareScans } from '@/lib/domain/scanner/compare'
 import { createScanRecord } from '@/lib/domain/scanner/types'
 import { createId } from '@/lib/domain/shared/ids'
 import { formatDayInSentence, todayKey } from '@/lib/domain/shared/dates'
@@ -89,6 +90,16 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
       }),
     [measurements, assessments.assessments, sessions, profile?.experience, selfReport],
   )
+
+  // Frente a tu último escaneo guardado, si lo hay.
+  const comparison = useMemo(() => {
+    const last = scans.scans[0]
+    if (!last || Object.keys(measurements).length === 0) return null
+    return compareScans(
+      { shots: measurements, index: summary.index, scores: Object.fromEntries(summary.categories.map((c) => [c.key, c.score])) },
+      last,
+    )
+  }, [scans.scans, measurements, summary])
 
   const addPhotos = async (pose: ScanPose, files: File[]) => {
     if (files.length === 0) return
@@ -198,7 +209,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
         <>
           <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Tu escaneo</h1>
           <div className="mt-5">
-            <ScanSummaryView summary={summary} />
+            <ScanSummaryView summary={summary} comparison={comparison} />
           </div>
           <div className="mt-auto pt-8">
             <button

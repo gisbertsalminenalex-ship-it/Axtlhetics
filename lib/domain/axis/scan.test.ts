@@ -153,3 +153,20 @@ test('el motor no lee el escaneo: la decisión del día es la misma con o sin é
     { type: without.primary.type, focus: without.primary.session?.focus },
   )
 })
+
+test('con dos escaneos, AXIS cuenta qué ha cambiado desde el anterior (y sigue sin salir nada)', () => {
+  const older: ScanRecord = {
+    ...scan(['espalda']),
+    id: 'scan-0',
+    dayKey: '2026-08-01',
+    createdAt: '2026-08-01T18:00:00.000Z',
+    measurements: { side: [{ headForwardPct: { value: 30 } }, { headForwardPct: { value: 31 } }] },
+    result: { index: 60, scores: {} },
+  }
+  const { briefing } = setup([scan(['espalda']), older])
+  assert.ok(briefing.scan?.comparison)
+  const answer = answerFromBriefing('¿Qué dice mi escaneo?', briefing)
+  assert.match(answer.text, /desde tu escaneo del sábado 1 de agosto/)
+  assert.match(answer.text, /llevas la cabeza menos adelantada \(30,5 % → 18,5 %\)/)
+  assert.equal('scan' in toAiBriefing(briefing), false)
+})

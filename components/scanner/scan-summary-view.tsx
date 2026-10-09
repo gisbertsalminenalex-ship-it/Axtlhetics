@@ -1,6 +1,7 @@
 'use client'
 
 import { CircularMetric } from '@/components/circular-metric'
+import type { ScanComparison } from '@/lib/domain/scanner/compare'
 import type { ScanSummary } from '@/lib/domain/scanner/summary'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 
@@ -12,7 +13,7 @@ import { findExercise } from '@/lib/domain/workouts/catalog'
  * El índice va en tono primario, no en los colores de estado: no es un semáforo
  * sobre el cuerpo de nadie.
  */
-export function ScanSummaryView({ summary }: { summary: ScanSummary }) {
+export function ScanSummaryView({ summary, comparison = null }: { summary: ScanSummary; comparison?: ScanComparison | null }) {
   return (
     <section>
       <div className="flex items-center gap-4">
@@ -25,6 +26,8 @@ export function ScanSummaryView({ summary }: { summary: ScanSummary }) {
         </p>
       </div>
       <p className="mt-4 text-[15.5px] leading-relaxed text-pretty">{summary.overview}</p>
+
+      {comparison && <ComparisonBlock comparison={comparison} />}
 
       <ul className="mt-6 divide-y divide-border border-y border-border">
         {summary.categories.map((category) => (
@@ -95,6 +98,49 @@ export function ScanSummaryView({ summary }: { summary: ScanSummary }) {
           ))}
         </ul>
       )}
+    </section>
+  )
+}
+
+const TREND_MARK: Record<ScanComparison['changes'][number]['trend'], string> = {
+  better: '↑',
+  worse: '↓',
+  changed: '·',
+  same: '=',
+}
+
+/**
+ * Cómo has cambiado desde el escaneo anterior. Solo medidas, y solo lo que
+ * supera el margen de medida; lo demás, «sin cambio».
+ */
+function ComparisonBlock({ comparison }: { comparison: ScanComparison }) {
+  const moved = comparison.changes.filter((change) => change.trend !== 'same')
+  const still = comparison.changes.filter((change) => change.trend === 'same')
+  return (
+    <section className="mt-6 rounded-3xl bg-surface p-5">
+      <h3 className="text-[15px] font-semibold">Desde tu escaneo anterior</h3>
+      <p className="mt-1.5 text-[14.5px] leading-relaxed text-pretty">{comparison.headline}</p>
+      {moved.length > 0 && (
+        <ul className="mt-3 space-y-1.5 text-[14px] leading-relaxed">
+          {moved.map((change) => (
+            <li key={change.key} className="flex gap-2">
+              <span
+                aria-hidden="true"
+                className={change.trend === 'better' ? 'text-success' : change.trend === 'worse' ? 'text-warning' : 'text-muted-foreground'}
+              >
+                {TREND_MARK[change.trend]}
+              </span>
+              <span>{change.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {still.length > 0 && (
+        <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+          Sin cambio: {still.map((change) => change.label.toLowerCase()).join(', ')}.
+        </p>
+      )}
+      <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground text-pretty">{comparison.note}</p>
     </section>
   )
 }

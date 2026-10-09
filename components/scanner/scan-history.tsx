@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { ScanSummaryView } from '@/components/scanner/scan-summary-view'
 import { Confirmation } from '@/components/workout/confirmation'
+import { compareScans } from '@/lib/domain/scanner/compare'
 import { SCAN_POSE_GUIDE } from '@/lib/domain/scanner/protocol'
 import { summarizeScan } from '@/lib/domain/scanner/summary'
 import { formatDayInSentence } from '@/lib/domain/shared/dates'
@@ -79,6 +80,13 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
       })
     : null
 
+  // Frente al escaneo anterior a este, si lo hay: la lista va del más reciente al más antiguo.
+  const older = scan ? scans.scans[scans.scans.findIndex((item) => item.id === scan.id) + 1] ?? null : null
+  const comparison =
+    scan && summary && older
+      ? compareScans({ shots: scan.measurements, index: summary.index, scores: Object.fromEntries(summary.categories.map((c) => [c.key, c.score])) }, older)
+      : null
+
   return (
     <div className="ax-enter px-6 pb-10">
       <header className="flex items-center pt-2 pb-1">
@@ -102,7 +110,7 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
             </ul>
           )}
           <div className="mt-6">
-            <ScanSummaryView summary={summary} />
+            <ScanSummaryView summary={summary} comparison={comparison} />
           </div>
           <button
             type="button"
