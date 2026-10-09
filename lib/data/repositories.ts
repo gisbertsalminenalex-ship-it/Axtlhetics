@@ -7,6 +7,7 @@
  */
 
 import type { Assessment } from '../domain/assessment/types'
+import type { ScanRecord } from '../domain/scanner/types'
 import type { AxisDayMemory } from '../domain/axis/memory'
 import type { BackupContents } from '../domain/backup/backup'
 import type { ScheduledActivity, UserProfile } from '../domain/profile/types'
@@ -90,6 +91,17 @@ export type AssessmentRepository = {
   remove(id: string): Promise<void>
 }
 
+/**
+ * Escáneres corporales (D-023). Las miniaturas solo existen aquí, en el
+ * dispositivo: la copia de seguridad las deja fuera (`P-016`).
+ */
+export type ScanRepository = {
+  /** Todos los escaneos válidos, del más reciente al más antiguo. */
+  list(): Promise<ScanRecord[]>
+  save(scan: ScanRecord): Promise<void>
+  remove(id: string): Promise<void>
+}
+
 export type Repositories = {
   profile: UserProfileRepository
   activities: ActivityRepository
@@ -98,6 +110,7 @@ export type Repositories = {
   axisMemory: AxisMemoryRepository
   activeWorkout: ActiveWorkoutRepository
   assessments: AssessmentRepository
+  scans: ScanRepository
   backup: BackupRepository
 }
 

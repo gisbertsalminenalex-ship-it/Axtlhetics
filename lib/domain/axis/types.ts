@@ -9,6 +9,7 @@
 
 import type { ScheduledActivity, UserProfile } from '../profile/types'
 import type { Assessment } from '../assessment/types'
+import type { ScanRecord } from '../scanner/types'
 import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
 import type { DayKey } from '../shared/dates'
 import type { Exercise, MuscleGroup, PlannedSession, WorkoutSession } from '../workouts/types'
@@ -135,6 +136,11 @@ export type AxisContext = {
    * disponible; no los usa para elegir ni para cargar una sesión.
    */
   assessments?: readonly Assessment[]
+  /**
+   * Los escaneos corporales guardados (D-023). AXIS solo los explica y ofrece
+   * opciones cuando se le pregunta; el motor no los lee para decidir (`P-017`).
+   */
+  scans?: readonly ScanRecord[]
 }
 
 /**

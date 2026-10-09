@@ -6,6 +6,7 @@
  */
 
 import type { Assessment } from '../assessment/types'
+import type { ScanRecord } from '../scanner/types'
 import type { ScheduledActivity, UserProfile } from '../profile/types'
 import { computeRecoveryScore } from '../recovery/score'
 import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
@@ -28,6 +29,8 @@ export type AxisContextInput = {
   movedFromYesterday?: boolean
   /** Tests de evolución guardados (D-021). Por defecto, ninguno. */
   assessments?: readonly Assessment[]
+  /** Escaneos corporales guardados (D-023). Por defecto, ninguno. */
+  scans?: readonly ScanRecord[]
   catalog?: readonly Exercise[]
   /** Momento de la decisión. Inyectable para que los tests sean deterministas. */
   now?: Date
@@ -58,6 +61,7 @@ export function buildAxisContext(input: AxisContextInput): AxisContext {
     availableMinutesToday: input.availableMinutesToday ?? null,
     movedFromYesterday: input.movedFromYesterday ?? false,
     assessments: input.assessments ?? [],
+    scans: input.scans ?? [],
     catalog: input.catalog ?? EXERCISE_CATALOG,
   }
 }

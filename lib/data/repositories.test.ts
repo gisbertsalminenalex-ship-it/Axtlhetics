@@ -469,6 +469,7 @@ test('los almacenes esperados están declarados', () => {
     'axisMemory',
     'profile',
     'recovery',
+    'scans',
     'sessions',
   ])
 })
@@ -506,6 +507,7 @@ test('restaurar sustituye lo que había, no lo suma', async () => {
     sessions: [session({ id: 'nueva' })],
     axisMemory: [],
     assessments: [],
+    scans: [],
   })
 
   assert.equal((await repositories.profile.get())?.name, 'Restaurado')
@@ -533,6 +535,7 @@ test('restaurar descarta la sesión que estuviera en curso', async () => {
     sessions: [],
     axisMemory: [],
     assessments: [],
+    scans: [],
   })
 
   assert.equal(await repositories.activeWorkout.get(), null)
@@ -592,6 +595,7 @@ test('restaurar sustituye los tests: una copia sin tests deja el dispositivo sin
     sessions: [],
     axisMemory: [],
     assessments: [],
+    scans: [],
   })
   assert.deepEqual(await repositories.assessments.list(), [])
 
@@ -602,6 +606,7 @@ test('restaurar sustituye los tests: una copia sin tests deja el dispositivo sin
     sessions: [],
     axisMemory: [],
     assessments: [completed('2026-08-01')],
+    scans: [],
   })
   assert.deepEqual((await repositories.assessments.list()).map((item) => item.dayKey), ['2026-08-01'])
 })

@@ -17,6 +17,8 @@
  */
 
 import { fixedPushUpVariant } from '../assessment/assessment'
+import { summarizeScan, type ScanPriority, type ScanZone } from '../scanner/summary'
+import { sortScans } from '../scanner/types'
 import { recommendedPushUpVariant } from '../assessment/protocol'
 import { assessmentStatusFor, type AxisAssessmentStatus } from './assessment'
 import type { TrainingGoal } from '../profile/types'
@@ -171,6 +173,25 @@ export type AxisBriefing = {
    * pregunta por él: AXIS no lo menciona por su cuenta.
    */
   assessment: BriefingAssessment
+  /**
+   * El último escaneo corporal (D-023), o `null` si no hay. Como el test, solo
+   * se usa cuando el usuario pregunta por él, y **nunca** se envía a la capa de
+   * lenguaje (`toAiBriefing` lo quita).
+   */
+  scan: BriefingScan | null
+}
+
+export type BriefingScan = {
+  dayKey: DayKey
+  index: number | null
+  /** La conclusión del resumen, en la voz de AXIS. */
+  overview: string
+  strongZones: ScanZone[]
+  weakZones: ScanZone[]
+  priority: ScanPriority | null
+  improvements: string[]
+  /** Los pasos de acción del resumen, solo el texto. */
+  actions: string[]
 }
 
 export type BriefingAssessment = {
@@ -288,6 +309,31 @@ export function buildBriefing(
       statedMinutes: context.availableMinutesToday ?? null,
     },
     assessment: briefingAssessment(context, facts, decision),
+    scan: briefingScan(context, sessions),
+  }
+}
+
+/** El último escaneo, resumido con el dominio del escáner y la fuerza y el entrenamiento de ahora. */
+function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[]): BriefingScan | null {
+  const last = sortScans(context.scans ?? [])[0]
+  if (!last) return null
+  const summary = summarizeScan({
+    shots: last.measurements,
+    assessments: context.assessments ?? [],
+    sessions,
+    experience: context.profile?.experience ?? null,
+    selfReport: last.selfReport,
+    today: last.dayKey,
+  })
+  return {
+    dayKey: last.dayKey,
+    index: summary.index,
+    overview: summary.overview,
+    strongZones: [...last.selfReport.strongZones],
+    weakZones: [...last.selfReport.weakZones],
+    priority: last.selfReport.priority,
+    improvements: summary.improvements,
+    actions: summary.actions.map((action) => action.text),
   }
 }
 

@@ -24,6 +24,8 @@ export type AxisIntent =
   | 'match_tomorrow'
   /** Preguntas por el test de evolución (D-021). Solo si el usuario pregunta. */
   | 'assessment'
+  /** Preguntas por el escáner corporal (D-023). Informa y ofrece opciones; el usuario decide. */
+  | 'scan'
   | 'week'
   | 'load'
   | 'goals'

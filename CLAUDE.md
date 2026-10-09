@@ -118,7 +118,7 @@ Claude should surface problems and propose improvements rather than silently cha
 - Tailwind CSS
 - shadcn/ui
 - Lucide React
-- IndexedDB for local persistence in Core v0.1 (schema v8, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
+- IndexedDB for local persistence in Core v0.1 (schema v9, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
 - Vercel for web hosting/deployment (D-014) — the page is prerendered as static HTML and served as an installable PWA with offline support; no static export (`output: 'export'`), because the route below needs a server
 - A single Next.js route handler as the only server-side piece: `app/api/axis-ai/route.ts` (Node.js runtime, `maxDuration = 10`), the AXIS language layer, deployed by Vercel as a function
 - AXIS language providers behind that route (D-016), both OpenAI-compatible REST via `fetch`, no SDK, free plans: **Cloudflare Workers AI** as primary (`@cf/google/gemma-4-26b-a4b-it`, `lib/ai/providers/cloudflare.ts`) and **Groq** as fallback (`openai/gpt-oss-120b`, `lib/ai/providers/groq.ts`), chained in `lib/ai/provider-chain.ts`
@@ -162,7 +162,7 @@ Core v0.1 is local-first.
 
 The application must work without an account and without a backend.
 
-IndexedDB is the current persistence layer, at schema **v8**. Stores: `profile`, `activities`, `recovery`, `sessions`, `axisMemory`, `activeWorkout`, `assessments` (D-021 evolution tests, kept apart from `sessions` on purpose). Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser. The v8 migration is forward-only: there is no going back to a build that opens v7. Backups are schema 2 (they carry the evolution tests) and schema-1 files still import.
+IndexedDB is the current persistence layer, at schema **v9**. Stores: `profile`, `activities`, `recovery`, `sessions`, `axisMemory`, `activeWorkout`, `assessments` (D-021 evolution tests, kept apart from `sessions` on purpose), `scans` (D-023 body scans: measurements, self-report and result; the only place where their photo thumbnails live). Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser. The v8 and v9 migrations are forward-only. Backups are schema 3 (they carry the evolution tests and the scan results, **never the scan photos**, P-016) and schema-1/2 files still import.
 
 What persists locally today: the profile and calendar activities, daily recovery inputs, completed and abandoned workout sessions, the workout in progress (a single row, resumed on the next start) and the AXIS memory, one record per day (`AxisDayMemory`): the confirmed session choice, the activities cancelled today, the loads the user reported, the conversation thread with the state of its action proposals, and where the conversation was (last intent, change mode, last change request), plus the D-022 reorganization of the day (minutes the user said they have, whether today's training moved to tomorrow, and what the last applied action changed, for undo). Records of previous days are kept; the only thing read from yesterday is its `movedTo` (D-022 amendment to D-011).
 
@@ -187,7 +187,8 @@ Claude Design is the preferred tool for the generative/visual design phase. Clau
 Current project phase: **FUNCTIONAL CORE v0.1**. The visual prototype was reviewed and approved (D-006) and the application is now real and deployed:
 
 - PWA on Vercel, installable and usable offline.
-- Local persistence in IndexedDB v8 through repositories.
+- Local persistence in IndexedDB v9 through repositories.
+- Body scanner (D-023): guided on-device scan next to the evolution test; MediaPipe pose model served from the app (`scripts/prepare-mediapipe.mjs`); photos never leave the device and never reach the language layer; AXIS informs and offers options, the user decides (P-017).
 - Recovery Score (D-002, D-009) and Training Load (D-008) computed from real data.
 - AXIS deterministic engine deciding the day, with explained recommendations.
 - AXIS conversation: negotiation of the day's session, typed action proposals that the user confirms, conversation persisted locally per day.

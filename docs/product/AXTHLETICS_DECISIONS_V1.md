@@ -1037,7 +1037,7 @@ Planificación semanal, copiar sesiones entre días, filtro inteligente por mate
 
 ## D-023 — Escáner corporal: índice de equilibrio
 
-**Fecha:** 2026-10-08 · **Estado:** aprobada (alcance, privacidad, índice y pesos) · **fórmulas de cada componente, diseño UX/UI y reglas del motor: PENDIENTES** (`P-015` a `P-017`). No se implementa ninguna pantalla hasta cerrarlos.
+**Fecha:** 2026-10-08 · **Estado:** aprobada e implementada en la app (2026-10-09) · `P-016` y `P-017` cerrados; `P-015` abierto: los umbrales son provisionales hasta validarlos con datos reales.
 
 El usuario hace un escaneo guiado de su cuerpo con la cámara del móvil y obtiene un **índice de equilibrio corporal de 0 a 100** con su desglose, un resumen de AXIS (puntos fuertes, áreas de mejora, pasos de acción) y entrenamientos que AXIS adapta con lo medido. Ningún documento anterior lo definía.
 
@@ -1115,7 +1115,7 @@ Aprobada por Alex. Lo que la foto no puede medir se pregunta, como en el onboard
 - Se presenta siempre como respuesta del usuario («te ves con menos espalda»), nunca como medido.
 - **Desarrollo muscular** combina esas respuestas con el entrenamiento real: si la zona que el usuario ve más floja es la que menos entrena, «tu historial lo confirma»; si la entrena a menudo, el consejo es progresar en carga. Las zonas flojas se convierten en un paso de acción con ejercicios del catálogo.
 - **Composición corporal** dice la complexión que describe el usuario y qué implica para su entrenamiento según su prioridad. **Nunca se deduce de la foto** y AXIS no habla de dietas, peso ni calorías: con la prioridad «que se note más el músculo» dice expresamente que la alimentación queda fuera de lo que valora.
-- Los pasos que dicen «AXIS dará prioridad…» describen las reglas del motor de `P-017`: se cumplen cuando se implementen.
+- Ningún paso promete que el motor cambie solo (`P-017`, cerrado): los pasos dicen qué hacer y que AXIS ofrece la opción cuando se le pregunta.
 
 ### Fuera de D-023 v1
 
@@ -1182,8 +1182,8 @@ Movida a `.claude/skills/` y corregidas sus referencias. Además se actualizó s
 **`P-015` — Fórmula de cada componente del índice.**
 Cómo se convierte cada medida (grados, proporciones, diferencias izquierda/derecha) en un 0–100 por componente, el margen de error a partir del cual una diferencia cuenta y qué hace el índice si falta un componente. Se decide con los datos del prototipo de medición, no antes.
 
-**`P-016` — Fotos en la copia de seguridad.**
-Las fotos se guardan solo en el dispositivo. Falta decidir si la copia de seguridad (D-015) las incluye, las incluye a elección del usuario o no las incluye nunca: el archivo pesaría mucho más y es un archivo sensible.
+**`P-016` — Fotos en la copia de seguridad. CERRADO (2026-10-09).**
+Decidido por Alex: se guarda **una miniatura por pose, solo en el dispositivo**, para comparar mes a mes. La copia de seguridad lleva los resultados (medidas, respuestas e índice) y **nunca las fotos**; un archivo que las traiga no las importa. El escaneo se puede borrar desde su detalle en Historial.
 
-**`P-017` — Reglas del motor con el escaneo.**
-Qué cambia exactamente en la propuesta del día (prioridad de grupos musculares, trabajo unilateral, ejercicios a evitar) a partir de cada resultado, con qué límites y cómo lo explica AXIS. Ninguna regla puede tratar un resultado del escáner como una lesión o una molestia.
+**`P-017` — Reglas del motor con el escaneo. CERRADO (2026-10-09).**
+Decidido por Alex: **AXIS informa y ofrece opciones; el usuario decide.** El motor no lee el escaneo y la decisión del día no cambia sola. Cuando el usuario pregunta por su escaneo, AXIS explica el resultado y enumera sus opciones; si hoy hay una sesión ya preparada por el motor que trabaja una zona que el usuario quiere desarrollar, la propone con su botón de confirmar, como cualquier otro cambio (D-012). Ningún resultado del escáner se trata como una lesión o una molestia.

@@ -161,7 +161,7 @@ test('cómo te ves: dicho como tuyo, y los datos lo confirman o lo matizan', () 
   assert.match(dev.text, /Te ves con menos pecho aunque la entrenas a menudo/)
   assert.ok(s.improvements.includes('Quieres más músculo en espalda y pecho'))
   const priority = s.actions[0]
-  assert.match(priority.text, /^Prioridad a espalda y pecho/)
+  assert.match(priority.text, /^Dar prioridad a espalda y pecho: .*pregúntale a AXIS/)
   for (const id of priority.exerciseIds) assert.ok(findExercise(id), id)
 })
 

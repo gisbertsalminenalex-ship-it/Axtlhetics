@@ -73,13 +73,17 @@ export function aiSystemPrompt(): string {
  * evolución son deterministas y no pasan por el modelo, así que sus fechas, motivos
  * y variante no tienen por qué salir del dispositivo. Si la propuesta del día
  * menciona el test, eso viaja dentro de `proposal`, como cualquier otra razón.
+ *
+ * Y se quita el bloque `scan` (D-023): el escaneo corporal es lo más personal que
+ * guarda la app. Las respuestas sobre él son deterministas y nada de él sale del
+ * dispositivo.
  */
-export type AxisAiBriefing = Omit<AxisBriefing, 'profile' | 'assessment'> & {
+export type AxisAiBriefing = Omit<AxisBriefing, 'profile' | 'assessment' | 'scan'> & {
   profile: Omit<NonNullable<AxisBriefing['profile']>, 'name'> | null
 }
 
 export function toAiBriefing(briefing: AxisBriefing): AxisAiBriefing {
-  const { assessment: _assessment, profile, ...shared } = briefing
+  const { assessment: _assessment, scan: _scan, profile, ...shared } = briefing
   if (!profile) return { ...shared, profile: null }
 
   const { name: _name, ...rest } = profile

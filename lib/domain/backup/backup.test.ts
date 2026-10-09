@@ -84,6 +84,7 @@ function fullContents(): BackupContents {
     sessions: [session],
     axisMemory: [emptyDayMemory('2026-09-22', NOW)],
     assessments: [completed('2026-09-20')],
+    scans: [],
   }
 }
 
@@ -128,6 +129,7 @@ test('una copia sin absolutamente nada se reconoce como vacía', () => {
     sessions: [],
     axisMemory: [],
     assessments: [],
+    scans: [],
   }
   assert.equal(isEmptyBackup(countsOf(empty)), true)
   assert.equal(isEmptyBackup(countsOf(fullContents())), false)
@@ -152,6 +154,7 @@ test('lo exportado se vuelve a leer igual', () => {
     sessions: 1,
     axisMemory: 1,
     assessments: 1,
+    scans: 0,
   })
 })
 
@@ -337,9 +340,9 @@ function schemaOneFile(): Record<string, unknown> {
   return { ...file, schema: 1 }
 }
 
-test('las copias nuevas son de schema 2', () => {
-  assert.equal(BACKUP_SCHEMA, 2)
-  assert.equal(buildBackup(fullContents(), { exportedAt: NOW, appSchema: 8 }).schema, 2)
+test('las copias nuevas son de schema 3', () => {
+  assert.equal(BACKUP_SCHEMA, 3)
+  assert.equal(buildBackup(fullContents(), { exportedAt: NOW, appSchema: 9 }).schema, 3)
 })
 
 test('una copia de schema 1 se sigue importando entera, sin tests', () => {
@@ -380,12 +383,13 @@ test('una copia con solo tests de evolución no cuenta como vacía', () => {
     sessions: [],
     axisMemory: [],
     assessments: [completed('2026-09-20')],
+    scans: [],
   }
   assert.equal(isEmptyBackup(countsOf(onlyTests)), false)
 })
 
-test('una copia de schema 3 no se interpreta a medias', () => {
-  const result = parseBackup({ ...(roundTrip(fullContents()) as object), schema: 3 })
+test('una copia de schema 4 no se interpreta a medias', () => {
+  const result = parseBackup({ ...(roundTrip(fullContents()) as object), schema: 4 })
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.reason, 'version_desconocida')
 })

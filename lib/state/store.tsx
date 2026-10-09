@@ -98,6 +98,7 @@ import { changeOpeningMessage } from '../domain/axis/conversation/negotiation'
 import type { AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
+import { useScans, type ScansApi } from './use-scans'
 import type { WorkoutSession } from '../domain/workouts/types'
 
 /** Cuántas sesiones carga la aplicación. Suficiente para historial y para AXIS. */
@@ -209,6 +210,8 @@ type AxtlheticsStore = {
    * interfaz. Nada del entrenamiento los lee.
    */
   assessments: AssessmentsApi
+  /** Los escaneos corporales (D-023). Nada del entrenamiento los lee: solo AXIS, para explicarlos. */
+  scans: ScansApi
 
   /** Briefing tipado que alimenta la conversación. Es null hasta que hay decisión. */
   briefing: AxisBriefing | null
@@ -290,6 +293,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   /** Los tests de evolución (D-021). Su propia capa: el store solo la expone. */
   const assessments = useAssessments()
   const resetAssessments = assessments.reset
+  const scans = useScans()
+  const resetScans = scans.reset
   /**
    * La memoria, de forma síncrona.
    *
@@ -472,6 +477,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       movedFromYesterday,
       // Modelos del dominio, ya validados por el repositorio: AXIS no ve el almacén.
       assessments: assessments.assessments,
+      scans: scans.scans,
     })
   }, [
     status,
@@ -484,6 +490,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     memory.availableMinutes,
     movedFromYesterday,
     assessments.assessments,
+    scans.scans,
   ])
 
   const decision = useMemo(
@@ -1131,12 +1138,13 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setActiveWorkout(null)
     setLastCompleted(null)
     resetAssessments()
+    resetScans()
     setAxisStatus('idle')
     setAxisError(null)
     setAxisUsedFallback(false)
     setError(null)
     setStatus('onboarding')
-  }, [resetAssessments])
+  }, [resetAssessments, resetScans])
 
   const value = useMemo<AxtlheticsStore>(
     () => ({
@@ -1167,6 +1175,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       exportBackup,
       importBackup,
       assessments,
+      scans,
       clearAllData,
       briefing,
       axisMessages: memory.messages,
@@ -1223,6 +1232,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       exportBackup,
       importBackup,
       assessments,
+      scans,
       clearAllData,
       briefing,
       memory.messages,

@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react'
 import Image from 'next/image'
 import { ChevronRight, Clock, Dumbbell } from 'lucide-react'
 import { AssessmentEntry } from '@/components/assessment/assessment-entry'
+import { ScanEntry } from '@/components/scanner/scan-entry'
 import { AxisMark } from '@/components/axis-mark'
 import { WeeklyActivity } from '@/components/weekly-activity'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
@@ -16,6 +17,7 @@ export function EntrenamientoScreen({
   onGoHistorial,
   onOpenAxis,
   onOpenTest,
+  onOpenScan,
 }: {
   onStart: () => void
   onGoRecuperacion: () => void
@@ -23,6 +25,8 @@ export function EntrenamientoScreen({
   onOpenAxis: () => void
   /** Abre el test de evolución (D-021). */
   onOpenTest: () => void
+  /** Abre el escáner corporal (D-023). */
+  onOpenScan: () => void
 }) {
   const { proposal, openChangeConversation, sessions, weeklyActivity, today, movedToTomorrow } =
     useAxtlhetics()
@@ -139,6 +143,8 @@ export function EntrenamientoScreen({
 
       {/* Test de evolución (D-021): secundario, después de la sesión de hoy y sus ejercicios. */}
       <AssessmentEntry onOpen={onOpenTest} />
+      {/* Escáner corporal (D-023): junto al test, con el mismo ritmo mensual. */}
+      <ScanEntry onOpen={onOpenScan} />
 
       {/* Planificación */}
       <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">Tu planificación</h3>

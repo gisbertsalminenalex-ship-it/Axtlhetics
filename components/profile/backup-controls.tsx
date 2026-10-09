@@ -68,7 +68,8 @@ export function BackupControls() {
 
       <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
         El archivo incluye tus entrenamientos, tu recuperación, tus tests de
-        evolución y tus conversaciones con AXIS. Es para ti, no para compartir.
+        evolución, los resultados de tus escaneos (sin fotos) y tus conversaciones
+        con AXIS. Es para ti, no para compartir.
       </p>
     </div>
   )
@@ -223,15 +224,16 @@ function RestoreConfirmation({
   onCancel: () => void
   onConfirm: () => void
 }) {
-  const { sessions, profile, assessments } = useAxtlhetics()
+  const { sessions, profile, assessments, scans } = useAxtlhetics()
   // Importar reemplaza (D-015): los tests de evolución de este dispositivo se
   // pierden aunque la copia sea de schema 1 y no traiga ninguno.
   const current = {
     sessions: sessions.length,
     assessments: assessments.assessments.length,
+    scans: scans.scans.length,
     profile: profile !== null,
   }
-  const hasSomethingToLose = current.sessions > 0 || current.assessments > 0 || current.profile
+  const hasSomethingToLose = current.sessions > 0 || current.assessments > 0 || current.scans > 0 || current.profile
 
   return (
     <div className="ax-enter mt-4 rounded-2xl border border-border bg-surface p-4">
@@ -305,6 +307,10 @@ function describe(counts: BackupCounts): string {
       counts.assessments === 1 ? '1 test de evolución' : `${counts.assessments} tests de evolución`,
     )
   }
+  // Escaneos corporales (D-023). Las copias anteriores a schema 3 no traen ninguno.
+  if (counts.scans > 0) {
+    parts.push(counts.scans === 1 ? '1 escaneo corporal' : `${counts.scans} escaneos corporales`)
+  }
   if (counts.profile) parts.push('tu perfil')
 
   if (parts.length === 0) return 'nada'
@@ -316,7 +322,7 @@ function describe(counts: BackupCounts): string {
  * Lo que hay ahora mismo y se va a perder: «tus 3 entrenamientos guardados, tus
  * 2 tests de evolución y tu perfil».
  */
-function describeCurrent(current: { sessions: number; assessments: number; profile: boolean }): string {
+function describeCurrent(current: { sessions: number; assessments: number; scans: number; profile: boolean }): string {
   const parts: string[] = []
 
   if (current.sessions > 0) {
@@ -332,6 +338,10 @@ function describeCurrent(current: { sessions: number; assessments: number; profi
         ? 'tu test de evolución'
         : `tus ${current.assessments} tests de evolución`,
     )
+  }
+  if (current.scans > 0) {
+    // Con sus fotos: las miniaturas no viajan en la copia, así que se pierden.
+    parts.push(current.scans === 1 ? 'tu escaneo corporal y sus fotos' : `tus ${current.scans} escaneos corporales y sus fotos`)
   }
   if (current.profile) parts.push('tu perfil')
 

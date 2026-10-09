@@ -398,7 +398,7 @@ function muscleDevelopment(input: ScanInput): Development {
     if (stuck.length) {
       parts.push(`En ${list(stuck)} no hay progreso respecto al test anterior, y es donde más margen tienes.`)
       improvements.push(`Tu fuerza no sube en ${list(stuck)}`)
-      actions.push({ text: `Más frecuencia y progresión de carga en ${list(stuck)}: AXIS les dará prioridad en tus próximas sesiones.`, exerciseIds: [] })
+      actions.push({ text: `Más frecuencia y progresión de carga en ${list(stuck)}: elígelas cuando AXIS te las ofrezca como opción.`, exerciseIds: [] })
     }
   } else if (done.length === 1) {
     parts.push('Tu primer test es la referencia: con el siguiente veremos qué zonas crecen más rápido.')
@@ -416,7 +416,7 @@ function muscleDevelopment(input: ScanInput): Development {
     if (most.n > least.n) {
       parts.push(`Has entrenado sobre todo ${MUSCLE_GROUP_LABELS[most.g].toLowerCase()} y poco ${MUSCLE_GROUP_LABELS[least.g].toLowerCase()}: para un desarrollo completo, ${MUSCLE_GROUP_LABELS[least.g].toLowerCase()} necesita más trabajo.`)
       improvements.push(`${MUSCLE_GROUP_LABELS[least.g]} es lo que menos has entrenado`)
-      actions.push({ text: `Más ${MUSCLE_GROUP_LABELS[least.g].toLowerCase()} en tus semanas: AXIS lo tendrá en cuenta al elegir el foco de cada sesión.`, exerciseIds: [] })
+      actions.push({ text: `Más ${MUSCLE_GROUP_LABELS[least.g].toLowerCase()} en tus semanas: elígelo cuando AXIS te lo ofrezca como opción.`, exerciseIds: [] })
     }
     const perWeek = recent.length / (TRAINING_WINDOW_DAYS / 7)
     if (perWeek >= 2.5) strengths.push(`Entrenas con constancia (${one(perWeek)} sesiones por semana)`)
@@ -445,7 +445,7 @@ function muscleDevelopment(input: ScanInput): Development {
       const zones = list(self.weakZones.map((z) => SCAN_ZONE_LABELS[z]))
       improvements.push(`Quieres más músculo en ${zones}`)
       actions.unshift({
-        text: `Prioridad a ${zones}: AXIS les dará más peso al elegir el foco y los ejercicios de tus sesiones.`,
+        text: `Dar prioridad a ${zones}: los días que tu sesión no lo trabaje, pregúntale a AXIS y te dirá qué opción lo hace.`,
         exerciseIds: Array.from(new Set(self.weakZones.flatMap((z) => ZONE_EXERCISES[z]))).slice(0, 4),
       })
     }
@@ -576,8 +576,8 @@ function compositionText(self: ScanSelfReport | null, bodyFatPct: number | null)
           : 'Para ganar músculo, lo que más cuenta es progresar en carga y entrenar cada zona con frecuencia: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.',
       definir:
         'Para que se note más el músculo, lo que AXIS puede hacer es mantener un volumen de trabajo alto y constante y ayudarte a ganar músculo; la alimentación queda fuera de lo que valora AXIS.',
-      fuerza: 'Para ganar fuerza, AXIS priorizará pocas repeticiones bien hechas con más carga y descansos completos.',
-      equilibrio: 'Para equilibrar el cuerpo, AXIS dará más peso al trabajo a una pierna y a un brazo y a lo que menos entrenas.',
+      fuerza: 'Para ganar fuerza, lo que más cuenta es ir subiendo la carga con pocas repeticiones bien hechas y descansar lo suficiente entre series.',
+      equilibrio: 'Para equilibrar el cuerpo, lo que más ayuda es el trabajo a una pierna y a un brazo y no dejar de lado lo que menos entrenas.',
     }
     parts.push(`Tu prioridad es ${priority}. ${plan[self.priority]}`)
   }

@@ -8,6 +8,7 @@
 import { sortAssessments } from '../../domain/assessment/assessment'
 import { isAssessment, type Assessment } from '../../domain/assessment/types'
 import { isAxisDayMemory, type AxisDayMemory } from '../../domain/axis/memory'
+import { isScanRecord, sortScans, withoutThumbnails, type ScanRecord } from '../../domain/scanner/types'
 import type { ScheduledActivity, UserProfile } from '../../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../../domain/profile/types'
 import type { RecoveryInputs } from '../../domain/recovery/types'
@@ -16,6 +17,7 @@ import type { WorkoutSession } from '../../domain/workouts/types'
 import type {
   ActiveWorkoutRepository,
   AssessmentRepository,
+  ScanRepository,
   BackupRepository,
   ActivityRepository,
   AxisMemoryRepository,
@@ -183,6 +185,23 @@ const assessmentRepository: AssessmentRepository = {
   },
 }
 
+const scanRepository: ScanRepository = {
+  async list() {
+    const stored = await read<unknown[]>(STORES.scans, (store) => store.getAll())
+    return sortScans(stored.filter(isScanRecord))
+  },
+  async save(scan: ScanRecord) {
+    await write(STORES.scans, (store) => {
+      store.put(scan)
+    })
+  },
+  async remove(id) {
+    await write(STORES.scans, (store) => {
+      store.delete(id)
+    })
+  },
+}
+
 /**
  * Copia de seguridad: leer todo y sustituirlo todo.
  *
@@ -192,13 +211,14 @@ const assessmentRepository: AssessmentRepository = {
  */
 const backupRepository: BackupRepository = {
   async readAll() {
-    const [profile, activities, recovery, sessions, axisMemory, assessments] = await Promise.all([
+    const [profile, activities, recovery, sessions, axisMemory, assessments, scans] = await Promise.all([
       profileRepository.get(),
       activityRepository.list(),
       read<RecoveryInputs[]>(STORES.recovery, (store) => store.getAll()),
       read<WorkoutSession[]>(STORES.sessions, (store) => store.getAll()),
       read<unknown[]>(STORES.axisMemory, (store) => store.getAll()),
       assessmentRepository.list(),
+      scanRepository.list(),
     ])
 
     return {
@@ -210,6 +230,8 @@ const backupRepository: BackupRepository = {
       axisMemory: axisMemory.filter(isAxisDayMemory),
       // Como la sesión en curso, un test a medias no viaja: es de ese día.
       assessments: assessments.filter((assessment) => assessment.status !== 'in_progress'),
+      // Los escaneos viajan sin miniaturas: las fotos no salen del dispositivo (P-016).
+      scans: scans.map(withoutThumbnails),
     }
   },
 
@@ -222,6 +244,7 @@ const backupRepository: BackupRepository = {
       STORES.axisMemory,
       STORES.activeWorkout,
       STORES.assessments,
+      STORES.scans,
     ] as const
 
     await writeAcross(stores, (get) => {
@@ -234,6 +257,8 @@ const backupRepository: BackupRepository = {
       for (const memory of contents.axisMemory) get(STORES.axisMemory).put(memory)
       // Importar reemplaza (D-015): una copia de schema 1 deja el dispositivo sin tests.
       for (const assessment of contents.assessments) get(STORES.assessments).put(assessment)
+      // Importar reemplaza: una copia sin escaneos deja el dispositivo sin escaneos.
+      for (const scan of contents.scans) get(STORES.scans).put(withoutThumbnails(scan))
       /*
        * La sesión en curso no viaja en la copia y tampoco sobrevive a una: lo
        * que hubiera a medias pertenecía a los datos que se acaban de sustituir.
@@ -251,6 +276,7 @@ export function createIndexedDbRepositories(): Repositories {
     axisMemory: axisMemoryRepository,
     activeWorkout: activeWorkoutRepository,
     assessments: assessmentRepository,
+    scans: scanRepository,
     backup: backupRepository,
   }
 }

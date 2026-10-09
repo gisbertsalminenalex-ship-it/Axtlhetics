@@ -7,6 +7,7 @@ import { formatTotalTime, formatVolume, HISTORY_RANGE_LABELS } from '@/lib/domai
 import { formatDuration, formatShortDate } from '@/lib/domain/shared/dates'
 import { safeDivide } from '@/lib/domain/shared/ids'
 import { AssessmentDetail, AssessmentHistoryList } from '@/components/assessment/assessment-history'
+import { ScanDetail, ScanHistoryList } from '@/components/scanner/scan-history'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -23,11 +24,14 @@ export function HistorialScreen() {
   const [range, setRange] = useState<HistoryRange>('semana')
   // El detalle de un test de evolución se abre en lugar del historial (D-021).
   const [openTestId, setOpenTestId] = useState<string | null>(null)
+  // Y el de un escaneo corporal (D-023).
+  const [openScanId, setOpenScanId] = useState<string | null>(null)
 
   const stats = historyStats(range)
   const recent = sessions.filter((session) => session.status === 'completed').slice(0, 5)
 
   if (openTestId) return <AssessmentDetail id={openTestId} onBack={() => setOpenTestId(null)} />
+  if (openScanId) return <ScanDetail id={openScanId} onBack={() => setOpenScanId(null)} />
 
   return (
     <div className="px-6 pb-10">
@@ -141,6 +145,8 @@ export function HistorialScreen() {
 
       {/* Tests de evolución (D-021): una sección más del historial. */}
       <AssessmentHistoryList onOpen={setOpenTestId} />
+      {/* Escáneres corporales (D-023). */}
+      <ScanHistoryList onOpen={setOpenScanId} />
     </div>
   )
 }

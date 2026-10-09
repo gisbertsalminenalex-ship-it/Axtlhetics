@@ -14,6 +14,7 @@ import { OnboardingScreen } from '@/components/screens/onboarding'
 import { PerfilScreen } from '@/components/screens/perfil'
 import { RecuperacionScreen } from '@/components/screens/recuperacion'
 import { TestEvolucionScreen } from '@/components/screens/test-evolucion'
+import { EscanerScreen } from '@/components/screens/escaner'
 import { useAxtlhetics } from '@/lib/state/store'
 
 export default function Page() {
@@ -23,6 +24,8 @@ export default function Page() {
   const [axisOpen, setAxisOpen] = useState(false)
   // El test de evolución (D-021): un flujo dentro de Entrenamiento, no una pestaña.
   const [testOpen, setTestOpen] = useState(false)
+  // El escáner corporal (D-023): otro flujo dentro de Entrenamiento.
+  const [scanOpen, setScanOpen] = useState(false)
 
   const goToRecuperacion = () => setTab('recuperacion')
 
@@ -40,7 +43,8 @@ export default function Page() {
     !inWorkout &&
     !inSummary &&
     (testOpen || store.assessments.active !== null || store.assessments.summary !== null)
-  const immersive = inWorkout || inSummary || inTest || perfilOpen || axisOpen || store.status !== 'ready'
+  const inScan = !inWorkout && !inSummary && !inTest && scanOpen
+  const immersive = inWorkout || inSummary || inTest || inScan || perfilOpen || axisOpen || store.status !== 'ready'
 
   /*
    * Todas las vistas comparten el mismo `main` con scroll. Sin esto, abrir el
@@ -50,7 +54,7 @@ export default function Page() {
   const testPhase = store.assessments.summary ? 'summary' : store.assessments.active ? 'active' : 'intro'
   const view = [
     store.status,
-    axisOpen ? 'axis' : perfilOpen ? 'perfil' : inWorkout ? 'workout' : inSummary ? 'summary' : inTest ? `test-${testPhase}` : tab,
+    axisOpen ? 'axis' : perfilOpen ? 'perfil' : inWorkout ? 'workout' : inSummary ? 'summary' : inTest ? `test-${testPhase}` : inScan ? 'scan' : tab,
   ].join(':')
   const mainRef = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -116,7 +120,18 @@ export default function Page() {
                 </div>
               )}
 
-              {!inWorkout && !inSummary && !inTest && (
+              {inScan && (
+                <div key="scan" className="ax-enter">
+                  <EscanerScreen
+                    onClose={() => {
+                      setScanOpen(false)
+                      setTab('entrenamiento')
+                    }}
+                  />
+                </div>
+              )}
+
+              {!inWorkout && !inSummary && !inTest && !inScan && (
                 <div key={tab} className="ax-enter">
                   {tab === 'inicio' && (
                     <InicioScreen
@@ -134,6 +149,7 @@ export default function Page() {
                       onGoHistorial={() => setTab('historial')}
                       onOpenAxis={() => setAxisOpen(true)}
                       onOpenTest={() => setTestOpen(true)}
+                      onOpenScan={() => setScanOpen(true)}
                     />
                   )}
                   {tab === 'recuperacion' && <RecuperacionScreen />}
@@ -150,12 +166,13 @@ export default function Page() {
           scroll, sin taparla. `main` es `flex-1`, de modo que el aviso le quita
           alto en vez de superponerse.
         */}
-        {(store.error || store.assessments.error) && (
+        {(store.error || store.assessments.error || store.scans.error) && (
           <div className="flex shrink-0 flex-col gap-2 px-6 pt-2 pb-3">
             {store.error && <ErrorBanner message={store.error} onDismiss={store.dismissError} />}
             {store.assessments.error && (
               <ErrorBanner message={store.assessments.error} onDismiss={store.assessments.dismissError} />
             )}
+            {store.scans.error && <ErrorBanner message={store.scans.error} onDismiss={store.scans.dismissError} />}
           </div>
         )}
 

@@ -34,6 +34,7 @@ import {
 } from './intents'
 import { matchName } from '../actions'
 import { answerAssessment, asksAboutAssessment } from './assessment-answer'
+import { answerScan, asksAboutScan } from './scan-answer'
 import {
   evaluateBlockReason,
   evaluateChange,
@@ -204,6 +205,8 @@ export function answerFromBriefing(
       return answerMatchTomorrow(briefing, detectIntensity(question))
     case 'assessment':
       return answerAssessment(question, briefing)
+    case 'scan':
+      return answerScan(briefing)
     case 'week':
       return answerWeek(briefing)
     case 'load':
@@ -608,6 +611,9 @@ function answerStatement(
 
   // El test de evolución, solo porque el usuario pregunta por él (D-021).
   if (asksAboutAssessment(question, memory?.lastIntent ?? null)) return answerAssessment(question, briefing)
+
+  // El escáner corporal, solo porque el usuario pregunta por él (D-023).
+  if (asksAboutScan(question, memory?.lastIntent ?? null)) return answerScan(briefing)
 
   // «Hoy no puedo porque mañana tengo partido» pide algo para hoy: eso negocia.
   const asksForToday = asksToMoveToTomorrow(question) || saysCannotTrainToday(question)
