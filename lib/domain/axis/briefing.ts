@@ -326,6 +326,7 @@ function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[])
     sessions,
     experience: context.profile?.experience ?? null,
     selfReport: last.selfReport,
+    previous: previous ?? null,
     today: last.dayKey,
   })
   return {

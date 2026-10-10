@@ -167,6 +167,50 @@ function shoulderToWaist(points: Point[], size: ImageSize, mask: Silhouette): nu
   return ratio >= 1 ? ratio : null
 }
 
+/**
+ * Anchura de la silueta atravesando un hueso por su punto medio, en
+ * perpendicular a él, dividida por la longitud del hueso: el «volumen relativo»
+ * de esa zona en la foto (D-023, enmienda de medidas por zona).
+ *
+ * Normalizar por el propio hueso elimina la distancia a la cámara. Se camina
+ * desde el centro del hueso hacia los dos lados mientras haya cuerpo; si se
+ * llega al tope sin salir (brazo pegado al tronco, piernas juntas), la zona está
+ * fundida con otra y no se mide: `null`.
+ */
+function relativeWidth(a: Point, b: Point, size: ImageSize, mask: Silhouette, maxRatio: number): number | null {
+  const length = distance(a, b)
+  if (length < 1) return null
+  const mid = midpoint(a, b)
+  // Normal unitaria al hueso, en píxeles de la imagen.
+  const nx = -(b.y - a.y) / length
+  const ny = (b.x - a.x) / length
+  const sx = mask.width / size.width
+  const sy = mask.height / size.height
+  const cap = length * maxRatio
+  const inBody = (d: number) => {
+    const x = Math.round((mid.x + nx * d) * sx)
+    const y = Math.round((mid.y + ny * d) * sy)
+    return x >= 0 && y >= 0 && x < mask.width && y < mask.height && mask.isBody(x, y)
+  }
+  if (!inBody(0)) return null
+  const step = Math.max(1, length / 200)
+  let left = 0
+  while (inBody(left + step)) {
+    left += step
+    if (left > cap) return null
+  }
+  let right = 0
+  while (inBody(-(right + step))) {
+    right += step
+    if (right > cap) return null
+  }
+  // El hueso va por dentro de la zona: si un lado se extiende mucho más que el
+  // otro, la silueta sigue por otra parte del cuerpo (piernas juntas, brazo
+  // pegado) y la anchura no es de esta zona.
+  if (Math.max(left, right) > 2.5 * Math.max(Math.min(left, right), step)) return null
+  return (left + right + step) / length
+}
+
 // ---------------------------------------------------------------------------
 // Medidas por pose
 // ---------------------------------------------------------------------------
@@ -222,8 +266,47 @@ export function measureFront(landmarks: readonly ScanLandmark[], size: ImageSize
       2,
     ),
     shoulderToWaist: vRatio,
+    ...zoneWidths(landmarks, size, mask),
   }
 }
+
+/**
+ * Anchura relativa de brazo, muslo y pantorrilla (media de los dos lados), y de
+ * los hombros respecto al tronco. Solo con silueta; sin ella, «sin silueta».
+ * Mide la forma en la foto, no qué es músculo y qué no: con ropa ancha, la ropa.
+ */
+function zoneWidths(landmarks: readonly ScanLandmark[], size: ImageSize, mask?: Silhouette): Measurements {
+  const zone = (pairs: [number, number][], maxRatio: number): MeasureValue => {
+    if (!mask) return { value: null, reason: 'no_silhouette' }
+    const values: number[] = []
+    for (const [from, to] of pairs) {
+      const bone = pick(landmarks, size, [from, to])
+      if (!bone.ok) return { value: null, reason: bone.reason }
+      const width = relativeWidth(bone.points[0], bone.points[1], size, mask, maxRatio)
+      if (width !== null) values.push(width)
+    }
+    // Basta con un lado bien medido; si ninguno, la zona está pegada a otra.
+    return values.length ? { value: round(mean(values), 3) } : { value: null, reason: 'no_silhouette' }
+  }
+  const shoulderWidth = (): MeasureValue => {
+    if (!mask) return { value: null, reason: 'no_silhouette' }
+    const torso = pick(landmarks, size, [LM.leftShoulder, LM.rightShoulder, LM.leftHip, LM.rightHip])
+    if (!torso.ok) return { value: null, reason: torso.reason }
+    const [ls, rs, lh, rh] = torso.points
+    const shoulders = midpoint(ls, rs)
+    const width = bodyWidthAt(mask, shoulders.x * (mask.width / size.width), shoulders.y * (mask.height / size.height)) / (mask.width / size.width)
+    const torsoLength = distance(shoulders, midpoint(lh, rh))
+    return width > 0 && torsoLength > 0 ? { value: round(width / torsoLength, 3) } : { value: null, reason: 'no_silhouette' }
+  }
+  return {
+    upperArmWidth: zone([[LM.leftShoulder, LM.leftElbow], [LM.rightShoulder, LM.rightElbow]], 0.45),
+    thighWidth: zone([[LM.leftHip, LM.leftKnee], [LM.rightHip, LM.rightKnee]], 0.5),
+    calfWidth: zone([[LM.leftKnee, LM.leftAnkle], [LM.rightKnee, LM.rightAnkle]], 0.4),
+    shoulderToTorso: shoulderWidth(),
+  }
+}
+
+const mean = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
 
 /**
  * De perfil, de pie.

@@ -86,9 +86,11 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
         sessions,
         experience: profile?.experience ?? null,
         selfReport,
+        // Frente al último escaneo guardado: cómo han cambiado las zonas.
+        previous: scans.scans[0] ?? null,
         today: todayKey(),
       }),
-    [measurements, assessments.assessments, sessions, profile?.experience, selfReport],
+    [measurements, assessments.assessments, sessions, profile?.experience, selfReport, scans.scans],
   )
 
   // Frente a tu último escaneo guardado, si lo hay.

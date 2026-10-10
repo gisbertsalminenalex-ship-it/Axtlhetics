@@ -69,6 +69,8 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
     )
   }
 
+  // Frente al escaneo anterior a este, si lo hay: la lista va del más reciente al más antiguo.
+  const older = scan ? scans.scans[scans.scans.findIndex((item) => item.id === scan.id) + 1] ?? null : null
   const summary = scan
     ? summarizeScan({
         shots: scan.measurements,
@@ -76,12 +78,11 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
         sessions,
         experience: profile?.experience ?? null,
         selfReport: scan.selfReport,
+        previous: older,
         today: scan.dayKey,
       })
     : null
 
-  // Frente al escaneo anterior a este, si lo hay: la lista va del más reciente al más antiguo.
-  const older = scan ? scans.scans[scans.scans.findIndex((item) => item.id === scan.id) + 1] ?? null : null
   const comparison =
     scan && summary && older
       ? compareScans({ shots: scan.measurements, index: summary.index, scores: Object.fromEntries(summary.categories.map((c) => [c.key, c.score])) }, older)

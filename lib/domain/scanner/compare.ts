@@ -104,6 +104,26 @@ const SPECS: readonly Spec[] = [
     better: 'tus dos brazos suben más igualados', worse: 'hay más diferencia entre tus brazos',
   },
   {
+    key: 'shoulderToTorso', label: 'Anchura de hombros', unit: '', direction: 'none', tolerance: STABILITY_TOLERANCE.shoulderToTorso,
+    read: (s) => stableValue(s, 'front', 'shoulderToTorso'),
+    better: '', worse: '',
+  },
+  {
+    key: 'upperArmWidth', label: 'Anchura del brazo', unit: '', direction: 'none', tolerance: STABILITY_TOLERANCE.upperArmWidth,
+    read: (s) => stableValue(s, 'front', 'upperArmWidth'),
+    better: '', worse: '',
+  },
+  {
+    key: 'thighWidth', label: 'Anchura del muslo', unit: '', direction: 'none', tolerance: STABILITY_TOLERANCE.thighWidth,
+    read: (s) => stableValue(s, 'front', 'thighWidth'),
+    better: '', worse: '',
+  },
+  {
+    key: 'calfWidth', label: 'Anchura de la pantorrilla', unit: '', direction: 'none', tolerance: STABILITY_TOLERANCE.calfWidth,
+    read: (s) => stableValue(s, 'front', 'calfWidth'),
+    better: '', worse: '',
+  },
+  {
     key: 'shoulderToWaist', label: 'Hombros / cintura', unit: '', direction: 'none', tolerance: STABILITY_TOLERANCE.shoulderToWaist,
     read: (s) => stableValue(s, 'front', 'shoulderToWaist'),
     better: '', worse: '',

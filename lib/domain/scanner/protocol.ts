@@ -8,7 +8,7 @@ import type { ScanPose } from './measure'
 export type ScanPoseGuide = { pose: ScanPose; name: string; how: string }
 
 export const SCAN_POSE_GUIDE: readonly ScanPoseGuide[] = [
-  { pose: 'front', name: 'De frente', how: 'De pie, mirando a la cámara, con los brazos un poco separados del cuerpo. Cuerpo entero en la foto y el móvil apoyado a la altura del pecho.' },
+  { pose: 'front', name: 'De frente', how: 'De pie, mirando a la cámara, con los brazos y las piernas un poco separados, sin que se toquen. Ropa ajustada, cuerpo entero en la foto y el móvil apoyado a la altura del pecho.' },
   { pose: 'side', name: 'De perfil', how: 'De pie, de lado a la cámara, mirando al frente y relajado. Cuerpo entero en la foto.' },
   { pose: 'squat_side', name: 'Sentadilla de perfil', how: 'De lado a la cámara, en el punto más bajo de tu sentadilla. Cuerpo entero en la foto.' },
   { pose: 'squat_front', name: 'Sentadilla de frente', how: 'Mirando a la cámara, en el punto más bajo de tu sentadilla. Piernas enteras en la foto.' },

@@ -62,6 +62,12 @@ export const STABILITY_TOLERANCE: Record<string, number> = {
   leftArmDeg: 8,
   rightArmDeg: 8,
   armsDiffDeg: 8,
+  // Anchuras relativas por zona (anchura / longitud del hueso). Provisionales: con
+  // fotos reales se ajustarán (P-015).
+  upperArmWidth: 0.03,
+  thighWidth: 0.03,
+  calfWidth: 0.025,
+  shoulderToTorso: 0.06,
 }
 
 /**

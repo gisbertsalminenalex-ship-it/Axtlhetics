@@ -202,3 +202,50 @@ test('en la voz de AXIS: sin exclamaciones, sin cumplido de apertura, sin diagn�
     for (const action of s.actions) for (const id of action.exerciseIds) assert.ok(findExercise(id), `existe ${id}`)
   }
 })
+
+// ---------------------------------------------------------------------------
+// Zonas medidas en la foto, cruzadas con la fuerza (D-023)
+// ---------------------------------------------------------------------------
+
+const withZones = (zones: Record<string, number>): PoseShots => ({
+  ...balanced(),
+  front: three({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, armAsymmetryPct: 1, legAsymmetryPct: 1, legToTorso: 1.4, shoulderToWaist: 1.35, ...zones }).map((shot) =>
+    Object.fromEntries(Object.entries(shot).map(([k, v]) => [k, k in zones ? { value: zones[k] } : v])),
+  ),
+})
+const devText = (s: ReturnType<typeof summarizeScan>) => s.categories.find((c) => c.key === 'muscleDevelopment')!.text
+
+test('primer escaneo con zonas: es la referencia, y dice cuándo será coherente con músculo', () => {
+  const s = summarizeScan({ shots: withZones({ upperArmWidth: 0.33, thighWidth: 0.4 }) })
+  assert.match(devText(s), /este escaneo es tu referencia/)
+  const details = s.categories.find((c) => c.key === 'muscleDevelopment')!.details
+  assert.ok(details.includes('Brazo: 33 % de su longitud de ancho (en la foto)'))
+})
+
+test('la zona crece y la fuerza de esa zona sube en los tests: coherente con más músculo', () => {
+  const previous = { measurements: withZones({ upperArmWidth: 0.3 }), dayKey: '2026-09-01' }
+  const later = completed('2026-09-01', { push: 14, core: 56, legs: 62, pull: [12, 14] })
+  const s = summarizeScan({ shots: withZones({ upperArmWidth: 0.36 }), previous, assessments: [completed('2026-08-01'), later] })
+  assert.match(devText(s), /Tu brazo ocupa más anchura que en tu escaneo anterior y tu fuerza de empuje y tirón ha subido: es coherente con más músculo\./)
+  assert.ok(s.strengths.includes('Tu brazo ha crecido junto con tu fuerza'))
+})
+
+test('la zona crece pero sin un test que lo respalde: no se atribuye a músculo', () => {
+  const previous = { measurements: withZones({ thighWidth: 0.36 }), dayKey: '2026-09-01' }
+  const s = summarizeScan({ shots: withZones({ thighWidth: 0.42 }), previous })
+  assert.match(devText(s), /Tu muslo ocupa más anchura que en tu escaneo anterior\. Sin un test que muestre más fuerza, no puedo saber si es músculo\./)
+})
+
+test('la zona crece pero la fuerza ahí no sube: tampoco se atribuye a músculo', () => {
+  const previous = { measurements: withZones({ thighWidth: 0.36 }), dayKey: '2026-09-01' }
+  const later = completed('2026-09-01', { push: 14, core: 56, legs: 50, pull: [12, 14] })
+  const s = summarizeScan({ shots: withZones({ thighWidth: 0.42 }), previous, assessments: [completed('2026-08-01'), later] })
+  assert.match(devText(s), /Tu muslo ocupa más anchura que en tu escaneo anterior, pero tu fuerza ahí no ha subido: no puedo atribuirlo a músculo\./)
+})
+
+test('un cambio dentro del margen no se cuenta como crecimiento, y nunca se habla de grasa', () => {
+  const previous = { measurements: withZones({ upperArmWidth: 0.33, thighWidth: 0.4 }), dayKey: '2026-09-01' }
+  const s = summarizeScan({ shots: withZones({ upperArmWidth: 0.34, thighWidth: 0.41 }), previous })
+  assert.match(devText(s), /no ha cambiado más que el margen de medida/)
+  assert.doesNotMatch(devText(s), /grasa|adelgaz|delgad|gord/i)
+})

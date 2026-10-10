@@ -101,6 +101,8 @@ export type ScanInput = {
   experience?: ExperienceLevel | null
   bodyFatPct?: number | null
   selfReport?: ScanSelfReport | null
+  /** El escaneo anterior, para ver cómo han cambiado las zonas. */
+  previous?: { measurements: PoseShots; dayKey: DayKey } | null
   /** Día de referencia para el historial de entrenamiento. */
   today?: DayKey
 }
@@ -369,8 +371,10 @@ function muscleDevelopment(input: ScanInput): Development {
 
   const self = input.selfReport
   const hasSelf = !!self && (self.strongZones.length > 0 || self.weakZones.length > 0)
+  const hasZones = ZONE_WIDTHS.some((z) => stableValue(input.shots, 'front', z.key) !== null)
+  let strengthUp: string[] = []
 
-  if (done.length === 0 && recent.length === 0 && !hasSelf) {
+  if (done.length === 0 && recent.length === 0 && !hasSelf && !hasZones) {
     return {
       category: {
         ...base,
@@ -398,6 +402,7 @@ function muscleDevelopment(input: ScanInput): Development {
   if (done.length >= 2) {
     const comparisons = compareAssessment(done[0], input.assessments ?? []) ?? []
     const up = comparisons.filter((c) => c.delta.kind !== 'baseline' && c.delta.trend === 'up').map((c) => AREA[c.test.key])
+    strengthUp = up
     const stuck = comparisons.filter((c) => c.delta.kind !== 'baseline' && (c.delta.trend === 'down' || c.delta.trend === 'same')).map((c) => AREA[c.test.key])
     for (const c of comparisons) details.push(`${AREA[c.test.key].charAt(0).toUpperCase() + AREA[c.test.key].slice(1)}: ${c.delta.kind === 'baseline' ? 'línea base' : c.delta.trend === 'up' ? 'sube' : c.delta.trend === 'down' ? 'baja' : c.delta.trend === 'same' ? 'igual' : 'mixto'}`)
     if (up.length) {
@@ -463,7 +468,73 @@ function muscleDevelopment(input: ScanInput): Development {
     }
   }
 
+  const zones = zoneDevelopment(input.shots, input.previous ?? null, strengthUp, done.length >= 2)
+  parts.push(...zones.parts)
+  details.push(...zones.details)
+  strengths.push(...zones.strengths)
+
   return { category: { ...base, text: parts.join(' '), details }, strengths, improvements, actions }
+}
+
+/**
+ * Zonas medidas en la foto (D-023, enmienda de medidas por zona): la anchura de
+ * la silueta respecto a su propio hueso. Es la forma en la foto, no lo que hay
+ * dentro: solo se habla de músculo si la zona crece **y** la fuerza de esa zona
+ * sube en los tests. Nunca se habla de grasa.
+ */
+const ZONE_WIDTHS: readonly { key: string; label: string; name: string; plural: boolean; areas: string[] }[] = [
+  { key: 'shoulderToTorso', label: 'Hombros', name: 'tus hombros', plural: true, areas: ['empuje'] },
+  { key: 'upperArmWidth', label: 'Brazo', name: 'tu brazo', plural: false, areas: ['empuje', 'tirón'] },
+  { key: 'thighWidth', label: 'Muslo', name: 'tu muslo', plural: false, areas: ['piernas'] },
+  { key: 'calfWidth', label: 'Pantorrilla', name: 'tu pantorrilla', plural: false, areas: ['piernas'] },
+]
+
+function zoneDevelopment(
+  shots: PoseShots,
+  previous: { measurements: PoseShots; dayKey: DayKey } | null,
+  strengthUp: readonly string[],
+  hasTestTrend: boolean,
+): { parts: string[]; details: string[]; strengths: string[] } {
+  const measured = ZONE_WIDTHS.map((z) => ({ ...z, value: stableValue(shots, 'front', z.key) })).filter((z) => z.value !== null) as (typeof ZONE_WIDTHS[number] & { value: number })[]
+  if (measured.length === 0) return { parts: [], details: [], strengths: [] }
+  const details = measured.map((z) => `${z.label}: ${Math.round(z.value * 100)} % de su longitud de ancho (en la foto)`)
+  const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+
+  if (!previous) {
+    return {
+      parts: ['En la foto mido la anchura de cada zona respecto a su propio hueso: este escaneo es tu referencia. En el próximo verás si crecen, y si tu fuerza sube a la vez, será coherente con más músculo.'],
+      details,
+      strengths: [],
+    }
+  }
+
+  const parts: string[] = []
+  const strengths: string[] = []
+  let compared = 0
+  for (const zone of measured) {
+    const before = stableValue(previous.measurements, 'front', zone.key)
+    if (before === null) continue
+    compared++
+    const delta = zone.value - before
+    const tolerance = STABILITY_TOLERANCE[zone.key] ?? 0
+    if (Math.abs(delta) <= tolerance) continue
+    const verb = zone.plural ? 'ocupan' : 'ocupa'
+    if (delta > 0) {
+      const backed = zone.areas.filter((a) => strengthUp.includes(a))
+      if (backed.length) {
+        parts.push(`${cap(zone.name)} ${verb} más anchura que en tu escaneo anterior y tu fuerza de ${list(backed)} ha subido: es coherente con más músculo.`)
+        strengths.push(`${cap(zone.name)} ${zone.plural ? 'han crecido' : 'ha crecido'} junto con tu fuerza`)
+      } else if (hasTestTrend) {
+        parts.push(`${cap(zone.name)} ${verb} más anchura que en tu escaneo anterior, pero tu fuerza ahí no ha subido: no puedo atribuirlo a músculo.`)
+      } else {
+        parts.push(`${cap(zone.name)} ${verb} más anchura que en tu escaneo anterior. Sin un test que muestre más fuerza, no puedo saber si es músculo.`)
+      }
+    } else {
+      parts.push(`${cap(zone.name)} ${verb} algo menos anchura que en tu escaneo anterior.`)
+    }
+  }
+  if (compared > 0 && parts.length === 0) parts.push('La anchura de tus zonas no ha cambiado más que el margen de medida desde tu escaneo anterior.')
+  return { parts, details, strengths }
 }
 
 // ---------------------------------------------------------------------------

@@ -1126,6 +1126,16 @@ Aprobada por Alex, a partir de lo que hacen apps como Critique AI.
 - Lo que tiene una dirección clara se dice como mejora o retroceso. La proporción hombros/cintura se dice tal cual, sin juzgarla ni interpretarla como grasa o músculo.
 - Aparece al terminar el escaneo (frente al último guardado), en el detalle del historial (frente al anterior a ese) y en lo que responde AXIS. Siempre con el recordatorio de que solo es fiable con el mismo montaje.
 
+### Enmienda (2026-10-10): medidas por zona en la foto
+
+Aprobada por Alex. En la foto de frente se mide la **anchura de la silueta de cada zona respecto a su propio hueso** (hombros respecto al tronco, brazo, muslo y pantorrilla): su «volumen relativo» en la foto. Normalizar por el propio esqueleto elimina la distancia a la cámara.
+
+- La anchura se mide en perpendicular al hueso, en su punto medio. Una zona pegada a otra (brazo contra el tronco, piernas juntas) **no se mide**: se descarta en lugar de dar un valor falso. Por eso la foto de frente pide brazos y piernas separados y ropa ajustada.
+- Es la **forma en la foto, no lo que hay dentro**. «Desarrollo muscular» solo dice «coherente con más músculo» cuando la zona crece más que su margen **y** la fuerza de esa zona sube en los tests de evolución. Si no hay test que lo respalde, lo dice. Nunca se habla de grasa.
+- Los márgenes de estas medidas son provisionales (`P-015`).
+
+**Descartado por no ser medible:** estimar el porcentaje de grasa por la textura, la suavidad del contorno o las sombras. Requiere un modelo entrenado con escáneres DEXA que no existe para usarlo en el dispositivo; sin él, cualquier cifra sería inventada.
+
 **Considerado y descartado por ahora (decisión de Alex):** la captura guiada en vivo con la cámara (silueta superpuesta, sensor de inclinación del móvil y disparo automático al estar bien colocado). La app sigue bloqueando la cámara en vivo (`Permissions-Policy: camera=()`) y las fotos se suben desde la galería. Retomarla exige cambiar esa cabecera y es una decisión de privacidad.
 
 **Descartado por no ser medible:** clasificar los cambios como «pérdida de grasa» o «ganancia de músculo» con nubes de puntos o profundidad estimada desde una foto. El S21 no tiene sensor de profundidad y una sola cámara no da volúmenes fiables.
