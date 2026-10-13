@@ -52,6 +52,7 @@ export const STABILITY_TOLERANCE: Record<string, number> = {
   legAsymmetryPct: 6,
   legToTorso: 0.12,
   shoulderToWaist: 0.12,
+  waistToHip: 0.05,
   headForwardPct: 6,
   headAngleDeg: 8,
   kneeAngleDeg: 10,
@@ -62,11 +63,17 @@ export const STABILITY_TOLERANCE: Record<string, number> = {
   leftArmDeg: 8,
   rightArmDeg: 8,
   armsDiffDeg: 8,
-  // Anchuras relativas por zona (anchura / longitud del hueso). Provisionales: con
-  // fotos reales se ajustarán (P-015).
-  upperArmWidth: 0.03,
-  thighWidth: 0.03,
-  calfWidth: 0.025,
+  // Por zona, respecto a la longitud del hueso: área media (`Mean`) y contorno
+  // máximo (`Peak`). El máximo sale de un solo corte y es más ruidoso que la
+  // media de once. Provisionales: con fotos reales se ajustarán (P-015).
+  upperArmMean: 0.025,
+  upperArmPeak: 0.035,
+  forearmMean: 0.025,
+  forearmPeak: 0.035,
+  thighMean: 0.025,
+  thighPeak: 0.035,
+  calfMean: 0.02,
+  calfPeak: 0.03,
   shoulderToTorso: 0.06,
 }
 

@@ -196,34 +196,71 @@ const BODY: [number, number, number, number][] = [
   [400, 1100, 480, 1450], // muslo derecho: 81 px
   [535, 1450, 585, 1800], // pantorrilla izquierda: 51 px
   [415, 1450, 465, 1800], // pantorrilla derecha: 51 px
+  [600, 900, 660, 1150], // antebrazo izquierdo: 61 px
+  [340, 900, 400, 1150], // antebrazo derecho: 61 px
 ]
 const ZONES = {
   ...FRONT,
   leftShoulder: [600, 600], rightShoulder: [400, 600],
   leftElbow: [630, 900], rightElbow: [370, 900],
+  leftWrist: [630, 1150], rightWrist: [370, 1150],
   leftHip: [560, 1100], rightHip: [440, 1100],
   leftKnee: [560, 1450], rightKnee: [440, 1450],
   leftAnkle: [560, 1800], rightAnkle: [440, 1800],
 } as const
 
-test('anchura relativa por zona: la silueta atravesando el hueso, dividida por su longitud', () => {
+const near = (actual: number | null, expected: number, margin: number, what: string) =>
+  assert.ok(actual !== null && Math.abs(actual - expected) < margin, `${what}: ${actual} frente a ${expected}`)
+
+test('área media por zona: la silueta cortada a lo largo del hueso, dividida por su longitud', () => {
   const m = measureFront(pose(ZONES), SIZE, rects(BODY))
   // Muslo: ~81 px de ancho sobre 350 px de hueso ≈ 0,23.
-  assert.ok(Math.abs((value(m.thighWidth) ?? 0) - 81 / 350) < 0.02, `muslo ${value(m.thighWidth)}`)
+  near(value(m.thighMean), 81 / 350, 0.01, 'muslo')
   // Pantorrilla: ~51 / 350 ≈ 0,15.
-  assert.ok(Math.abs((value(m.calfWidth) ?? 0) - 51 / 350) < 0.02, `pantorrilla ${value(m.calfWidth)}`)
-  assert.ok(value(m.upperArmWidth) !== null, 'el brazo separado se mide')
+  near(value(m.calfMean), 51 / 350, 0.01, 'pantorrilla')
+  // Antebrazo: ~61 / 250 ≈ 0,24.
+  near(value(m.forearmMean), 61 / 250, 0.01, 'antebrazo')
+  assert.ok(value(m.upperArmMean) !== null, 'el brazo separado se mide')
+  // Una zona de anchura constante no tiene «bulto»: máximo ≈ media.
+  near(value(m.thighPeak), value(m.thighMean)!, 0.01, 'muslo sin bulto')
+})
+
+test('el contorno máximo recoge el «bulto» de la zona', () => {
+  // Pantorrilla izquierda con un abultamiento de 71 px en su parte central.
+  const bulge = rects([...BODY, [525, 1580, 595, 1640]])
+  const m = measureFront(pose(ZONES), SIZE, bulge)
+  // Media de los dos lados: (71 + 51) / 2 sobre 350.
+  near(value(m.calfPeak), (71 + 51) / 2 / 350, 0.01, 'contorno máximo')
+  assert.ok(value(m.calfPeak)! > value(m.calfMean)!, 'el máximo supera a la media')
+})
+
+test('un pliegue en el centro del hueso apenas mueve el área media, a diferencia de un solo corte', () => {
+  // Pliegue de 121 px justo en el punto medio de los dos muslos (y = 1275).
+  const fold = rects([...BODY, [500, 1270, 620, 1280], [380, 1270, 500, 1280]])
+  const m = measureFront(pose(ZONES), SIZE, fold)
+  // Un solo corte en el medio leería ~121 / 350 ≈ 0,35; la media de once se queda cerca de 0,23.
+  near(value(m.thighMean), 81 / 350, 0.015, 'muslo con pliegue')
 })
 
 test('una zona pegada a otra no se mide: se descarta en vez de dar un valor falso', () => {
   // Piernas juntas: un solo bloque desde 400 hasta 600.
   const together: [number, number, number, number][] = [...BODY.filter((r) => r[1] !== 1100), [400, 1100, 600, 1450]]
   const m = measureFront(pose(ZONES), SIZE, rects(together))
-  assert.deepEqual(m.thighWidth, { value: null, reason: 'no_silhouette' })
+  assert.deepEqual(m.thighMean, { value: null, reason: 'no_silhouette' })
+  assert.deepEqual(m.thighPeak, { value: null, reason: 'no_silhouette' })
+})
+
+test('cintura respecto a la cadera: la cintura más estrecha frente a la cadera más ancha', () => {
+  // Tronco de 121 px y pelvis de 161 px, sin piernas pegadas.
+  const torso: [number, number, number, number][] = [[400, 580, 600, 640], [440, 640, 560, 1100], [420, 1060, 580, 1180]]
+  near(value(measureFront(pose(ZONES), SIZE, rects(torso)).waistToHip), 121 / 161, 0.01, 'cintura / cadera')
+  // Las manos pegadas a la cadera la ensanchan: fuera de rango, no se mide.
+  const hands = rects([...torso, [340, 1120, 660, 1140]])
+  assert.deepEqual(measureFront(pose(ZONES), SIZE, hands).waistToHip, { value: null, reason: 'no_silhouette' })
 })
 
 test('la distancia a la cámara no cambia la anchura relativa', () => {
-  const near = measureFront(pose(ZONES), SIZE, rects(BODY))
+  const closeUp = measureFront(pose(ZONES), SIZE, rects(BODY))
   // La misma persona a la mitad de tamaño en la misma foto.
   const half = (p: readonly [number, number]) => [500 + (p[0] - 500) / 2, 1000 + (p[1] - 1000) / 2] as const
   const far = measureFront(
@@ -231,10 +268,10 @@ test('la distancia a la cámara no cambia la anchura relativa', () => {
     SIZE,
     rects(BODY.map(([x0, y0, x1, y1]) => [500 + (x0 - 500) / 2, 1000 + (y0 - 1000) / 2, 500 + (x1 - 500) / 2, 1000 + (y1 - 1000) / 2])),
   )
-  assert.ok(Math.abs((value(near.thighWidth) ?? 0) - (value(far.thighWidth) ?? 0)) < 0.02)
+  near(value(far.thighMean), value(closeUp.thighMean)!, 0.02, 'muslo lejos')
 })
 
 test('sin silueta, las zonas no se rellenan', () => {
   const m = measureFront(pose(ZONES), SIZE)
-  for (const key of ['upperArmWidth', 'thighWidth', 'calfWidth', 'shoulderToTorso']) assert.deepEqual(m[key], { value: null, reason: 'no_silhouette' }, key)
+  for (const key of ['upperArmMean', 'upperArmPeak', 'forearmMean', 'thighMean', 'calfPeak', 'shoulderToTorso', 'waistToHip']) assert.deepEqual(m[key], { value: null, reason: 'no_silhouette' }, key)
 })

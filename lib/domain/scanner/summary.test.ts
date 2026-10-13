@@ -216,36 +216,69 @@ const withZones = (zones: Record<string, number>): PoseShots => ({
 const devText = (s: ReturnType<typeof summarizeScan>) => s.categories.find((c) => c.key === 'muscleDevelopment')!.text
 
 test('primer escaneo con zonas: es la referencia, y dice cuándo será coherente con músculo', () => {
-  const s = summarizeScan({ shots: withZones({ upperArmWidth: 0.33, thighWidth: 0.4 }) })
+  const s = summarizeScan({ shots: withZones({ upperArmMean: 0.33, thighMean: 0.4 }) })
   assert.match(devText(s), /este escaneo es tu referencia/)
   const details = s.categories.find((c) => c.key === 'muscleDevelopment')!.details
-  assert.ok(details.includes('Brazo: 33 % de su longitud de ancho (en la foto)'))
+  assert.ok(details.includes('Brazo: ancho medio 33 % de su longitud (en la foto)'))
 })
 
 test('la zona crece y la fuerza de esa zona sube en los tests: coherente con más músculo', () => {
-  const previous = { measurements: withZones({ upperArmWidth: 0.3 }), dayKey: '2026-09-01' }
+  const previous = { measurements: withZones({ upperArmMean: 0.3 }), dayKey: '2026-09-01' }
   const later = completed('2026-09-01', { push: 14, core: 56, legs: 62, pull: [12, 14] })
-  const s = summarizeScan({ shots: withZones({ upperArmWidth: 0.36 }), previous, assessments: [completed('2026-08-01'), later] })
+  const s = summarizeScan({ shots: withZones({ upperArmMean: 0.36 }), previous, assessments: [completed('2026-08-01'), later] })
   assert.match(devText(s), /Tu brazo ocupa más anchura que en tu escaneo anterior y tu fuerza de empuje y tirón ha subido: es coherente con más músculo\./)
   assert.ok(s.strengths.includes('Tu brazo ha crecido junto con tu fuerza'))
 })
 
 test('la zona crece pero sin un test que lo respalde: no se atribuye a músculo', () => {
-  const previous = { measurements: withZones({ thighWidth: 0.36 }), dayKey: '2026-09-01' }
-  const s = summarizeScan({ shots: withZones({ thighWidth: 0.42 }), previous })
+  const previous = { measurements: withZones({ thighMean: 0.36 }), dayKey: '2026-09-01' }
+  const s = summarizeScan({ shots: withZones({ thighMean: 0.42 }), previous })
   assert.match(devText(s), /Tu muslo ocupa más anchura que en tu escaneo anterior\. Sin un test que muestre más fuerza, no puedo saber si es músculo\./)
 })
 
 test('la zona crece pero la fuerza ahí no sube: tampoco se atribuye a músculo', () => {
-  const previous = { measurements: withZones({ thighWidth: 0.36 }), dayKey: '2026-09-01' }
+  const previous = { measurements: withZones({ thighMean: 0.36 }), dayKey: '2026-09-01' }
   const later = completed('2026-09-01', { push: 14, core: 56, legs: 50, pull: [12, 14] })
-  const s = summarizeScan({ shots: withZones({ thighWidth: 0.42 }), previous, assessments: [completed('2026-08-01'), later] })
+  const s = summarizeScan({ shots: withZones({ thighMean: 0.42 }), previous, assessments: [completed('2026-08-01'), later] })
   assert.match(devText(s), /Tu muslo ocupa más anchura que en tu escaneo anterior, pero tu fuerza ahí no ha subido: no puedo atribuirlo a músculo\./)
 })
 
 test('un cambio dentro del margen no se cuenta como crecimiento, y nunca se habla de grasa', () => {
-  const previous = { measurements: withZones({ upperArmWidth: 0.33, thighWidth: 0.4 }), dayKey: '2026-09-01' }
-  const s = summarizeScan({ shots: withZones({ upperArmWidth: 0.34, thighWidth: 0.41 }), previous })
+  const previous = { measurements: withZones({ upperArmMean: 0.33, thighMean: 0.4 }), dayKey: '2026-09-01' }
+  const s = summarizeScan({ shots: withZones({ upperArmMean: 0.34, thighMean: 0.41 }), previous })
   assert.match(devText(s), /no ha cambiado más que el margen de medida/)
   assert.doesNotMatch(devText(s), /grasa|adelgaz|delgad|gord/i)
+})
+
+test('el contorno máximo solo, por encima de su margen, también cuenta como crecer', () => {
+  const previous = { measurements: withZones({ calfMean: 0.15, calfPeak: 0.17 }), dayKey: '2026-09-01' }
+  const s = summarizeScan({ shots: withZones({ calfMean: 0.155, calfPeak: 0.21 }), previous })
+  assert.match(devText(s), /Tu pantorrilla ocupa más anchura que en tu escaneo anterior\./)
+})
+
+test('si la media sube y el contorno baja, no hay un cambio claro y no se dice nada de esa zona', () => {
+  const previous = { measurements: withZones({ thighMean: 0.36, thighPeak: 0.45 }), dayKey: '2026-09-01' }
+  const s = summarizeScan({ shots: withZones({ thighMean: 0.42, thighPeak: 0.4 }), previous })
+  assert.doesNotMatch(devText(s), /muslo/)
+})
+
+test('el antebrazo se mide como una zona más, con su media y su contorno', () => {
+  const s = summarizeScan({ shots: withZones({ forearmMean: 0.2, forearmPeak: 0.24 }) })
+  const details = s.categories.find((c) => c.key === 'muscleDevelopment')!.details
+  assert.ok(details.includes('Antebrazo: ancho medio 20 %, máximo 24 % de su longitud (en la foto)'), details.join(' | '))
+})
+
+test('un escaneo anterior sin estas medidas (otro método) no se compara: el nuevo es la referencia', () => {
+  const old = withZones({ upperArmWidth: 0.3 })
+  const s = summarizeScan({ shots: withZones({ upperArmMean: 0.36 }), previous: { measurements: old, dayKey: '2026-09-01' } })
+  assert.match(devText(s), /este escaneo es tu referencia/)
+  assert.doesNotMatch(devText(s), /más anchura/)
+})
+
+test('la cintura respecto a la cadera se dice tal cual, sin hablar de grasa', () => {
+  const s = summarizeScan({ shots: withZones({ waistToHip: 0.82 }) })
+  const proportion = s.categories.find((c) => c.key === 'proportion')!
+  assert.match(proportion.text, /En la foto, tu cintura mide un 82 % de la anchura de tu cadera\./)
+  assert.ok(proportion.details.includes('Cintura / cadera: 0,82'))
+  assert.doesNotMatch(proportion.text, /grasa|adelgaz|delgad|gord/i)
 })

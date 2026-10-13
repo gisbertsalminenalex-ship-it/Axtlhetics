@@ -371,7 +371,7 @@ function muscleDevelopment(input: ScanInput): Development {
 
   const self = input.selfReport
   const hasSelf = !!self && (self.strongZones.length > 0 || self.weakZones.length > 0)
-  const hasZones = ZONE_WIDTHS.some((z) => stableValue(input.shots, 'front', z.key) !== null)
+  const hasZones = ZONES_MEASURED.some((z) => z.keys.some((key) => stableValue(input.shots, 'front', key) !== null))
   let strengthUp: string[] = []
 
   if (done.length === 0 && recent.length === 0 && !hasSelf && !hasZones) {
@@ -477,17 +477,29 @@ function muscleDevelopment(input: ScanInput): Development {
 }
 
 /**
- * Zonas medidas en la foto (D-023, enmienda de medidas por zona): la anchura de
- * la silueta respecto a su propio hueso. Es la forma en la foto, no lo que hay
- * dentro: solo se habla de músculo si la zona crece **y** la fuerza de esa zona
- * sube en los tests. Nunca se habla de grasa.
+ * Zonas que se miden a lo largo de su hueso (D-023, enmienda del 2026-10-13):
+ * área media (`<key>Mean`) y contorno máximo (`<key>Peak`) de la silueta
+ * respecto al propio hueso.
  */
-const ZONE_WIDTHS: readonly { key: string; label: string; name: string; plural: boolean; areas: string[] }[] = [
-  { key: 'shoulderToTorso', label: 'Hombros', name: 'tus hombros', plural: true, areas: ['empuje'] },
-  { key: 'upperArmWidth', label: 'Brazo', name: 'tu brazo', plural: false, areas: ['empuje', 'tirón'] },
-  { key: 'thighWidth', label: 'Muslo', name: 'tu muslo', plural: false, areas: ['piernas'] },
-  { key: 'calfWidth', label: 'Pantorrilla', name: 'tu pantorrilla', plural: false, areas: ['piernas'] },
+export const ZONE_PROFILES: readonly { key: string; label: string; of: string; name: string; areas: string[] }[] = [
+  { key: 'upperArm', label: 'Brazo', of: 'del brazo', name: 'tu brazo', areas: ['empuje', 'tirón'] },
+  { key: 'forearm', label: 'Antebrazo', of: 'del antebrazo', name: 'tu antebrazo', areas: ['tirón'] },
+  { key: 'thigh', label: 'Muslo', of: 'del muslo', name: 'tu muslo', areas: ['piernas'] },
+  { key: 'calf', label: 'Pantorrilla', of: 'de la pantorrilla', name: 'tu pantorrilla', areas: ['piernas'] },
 ]
+
+/**
+ * Zonas medidas en la foto: los hombros respecto al tronco y cada zona respecto
+ * a su hueso. Es la forma en la foto, no lo que hay dentro: solo se habla de
+ * músculo si la zona crece **y** la fuerza de esa zona sube en los tests. Nunca
+ * se habla de grasa.
+ */
+const ZONES_MEASURED: readonly { label: string; name: string; plural: boolean; areas: string[]; keys: string[] }[] = [
+  { label: 'Hombros', name: 'tus hombros', plural: true, areas: ['empuje'], keys: ['shoulderToTorso'] },
+  ...ZONE_PROFILES.map((z) => ({ label: z.label, name: z.name, plural: false, areas: z.areas, keys: [`${z.key}Mean`, `${z.key}Peak`] })),
+]
+
+const pct = (n: number) => `${Math.round(n * 100)} %`
 
 function zoneDevelopment(
   shots: PoseShots,
@@ -495,31 +507,49 @@ function zoneDevelopment(
   strengthUp: readonly string[],
   hasTestTrend: boolean,
 ): { parts: string[]; details: string[]; strengths: string[] } {
-  const measured = ZONE_WIDTHS.map((z) => ({ ...z, value: stableValue(shots, 'front', z.key) })).filter((z) => z.value !== null) as (typeof ZONE_WIDTHS[number] & { value: number })[]
+  const measured = ZONES_MEASURED.map((z) => ({ ...z, values: z.keys.map((key) => stableValue(shots, 'front', key)) })).filter((z) =>
+    z.values.some((v) => v !== null),
+  )
   if (measured.length === 0) return { parts: [], details: [], strengths: [] }
-  const details = measured.map((z) => `${z.label}: ${Math.round(z.value * 100)} % de su longitud de ancho (en la foto)`)
+  const details = measured.map((z) => {
+    const [main, peak] = z.values
+    if (z.keys.length === 1) return `${z.label}: ${pct(main!)} de su longitud de ancho (en la foto)`
+    const shown = [main !== null ? `ancho medio ${pct(main)}` : null, peak !== null ? `máximo ${pct(peak)}` : null].filter(Boolean)
+    return `${z.label}: ${shown.join(', ')} de su longitud (en la foto)`
+  })
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
-
-  if (!previous) {
-    return {
-      parts: ['En la foto mido la anchura de cada zona respecto a su propio hueso: este escaneo es tu referencia. En el próximo verás si crecen, y si tu fuerza sube a la vez, será coherente con más músculo.'],
-      details,
-      strengths: [],
-    }
+  const reference = {
+    parts: ['En la foto mido el área y el contorno de cada zona respecto a su propio hueso: este escaneo es tu referencia. En el próximo verás si crecen, y si tu fuerza sube a la vez, será coherente con más músculo.'],
+    details,
+    strengths: [],
   }
+
+  if (!previous) return reference
 
   const parts: string[] = []
   const strengths: string[] = []
   let compared = 0
   for (const zone of measured) {
-    const before = stableValue(previous.measurements, 'front', zone.key)
-    if (before === null) continue
+    /*
+     * Cada medida de la zona se compara con su margen. Crece si alguna sube más
+     * que su margen y ninguna baja más que el suyo; al revés, decrece. Si una
+     * sube y otra baja, no hay un cambio claro y no se dice nada.
+     */
+    const deltas = zone.keys.flatMap((key, i) => {
+      const now = zone.values[i]
+      const before = stableValue(previous.measurements, 'front', key)
+      if (now === null || before === null) return []
+      const delta = now - before
+      const tolerance = STABILITY_TOLERANCE[key] ?? 0
+      return [Math.abs(delta) <= tolerance ? 0 : Math.sign(delta)]
+    })
+    if (deltas.length === 0) continue
     compared++
-    const delta = zone.value - before
-    const tolerance = STABILITY_TOLERANCE[zone.key] ?? 0
-    if (Math.abs(delta) <= tolerance) continue
+    const up = deltas.includes(1)
+    const down = deltas.includes(-1)
+    if (up === down) continue
     const verb = zone.plural ? 'ocupan' : 'ocupa'
-    if (delta > 0) {
+    if (up) {
       const backed = zone.areas.filter((a) => strengthUp.includes(a))
       if (backed.length) {
         parts.push(`${cap(zone.name)} ${verb} más anchura que en tu escaneo anterior y tu fuerza de ${list(backed)} ha subido: es coherente con más músculo.`)
@@ -533,7 +563,9 @@ function zoneDevelopment(
       parts.push(`${cap(zone.name)} ${verb} algo menos anchura que en tu escaneo anterior.`)
     }
   }
-  if (compared > 0 && parts.length === 0) parts.push('La anchura de tus zonas no ha cambiado más que el margen de medida desde tu escaneo anterior.')
+  // El escaneo anterior no tiene estas medidas (otro método): este es la referencia.
+  if (compared === 0) return reference
+  if (parts.length === 0) parts.push('La anchura de tus zonas no ha cambiado más que el margen de medida desde tu escaneo anterior.')
   return { parts, details, strengths }
 }
 
@@ -562,6 +594,9 @@ export function summarizeScan(input: ScanInput): ScanSummary {
 
   const v = combine(shots, 'front', 'shoulderToWaist', notes)
   const legs = combine(shots, 'front', 'legToTorso', notes)
+  // Cintura / cadera: forma en la foto, dicha tal cual; nunca se interpreta como grasa.
+  const waist = combine(shots, 'front', 'waistToHip', notes)
+  const two = (n: number) => (Math.round(n * 100) / 100).toString().replace('.', ',')
   const proportion: ScanCategory = {
     key: 'proportion',
     title: 'Proporciones',
@@ -569,10 +604,14 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     score: null,
     inIndex: true,
     text:
-      v !== null || legs !== null
-        ? `${v !== null ? `La relación entre la anchura de tus hombros y tu cintura es ${one(v)}. ` : ''}La espalda y los hombros son lo que más cambia esta relación al entrenar, así que la iremos siguiendo escaneo a escaneo. Cuando me digas qué zonas quieres desarrollar, también te diré cómo vas respecto a tu objetivo.`
+      v !== null || legs !== null || waist !== null
+        ? `${v !== null ? `La relación entre la anchura de tus hombros y tu cintura es ${one(v)}. ` : ''}${waist !== null ? `En la foto, tu cintura mide un ${pct(waist)} de la anchura de tu cadera. ` : ''}La espalda y los hombros son lo que más cambia estas relaciones al entrenar, así que las iremos siguiendo escaneo a escaneo. Cuando me digas qué zonas quieres desarrollar, también te diré cómo vas respecto a tu objetivo.`
         : 'Necesito una foto de frente con los brazos algo separados del cuerpo para medir tus proporciones.',
-    details: [...(v !== null ? [`Hombros / cintura: ${one(v)}`] : []), ...(legs !== null ? [`Piernas / tronco: ${one(legs)}`] : [])],
+    details: [
+      ...(v !== null ? [`Hombros / cintura: ${one(v)}`] : []),
+      ...(waist !== null ? [`Cintura / cadera: ${two(waist)}`] : []),
+      ...(legs !== null ? [`Piernas / tronco: ${one(legs)}`] : []),
+    ],
   }
 
   const composition: ScanCategory = {
