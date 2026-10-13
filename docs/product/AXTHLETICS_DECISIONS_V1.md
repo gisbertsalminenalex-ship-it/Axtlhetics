@@ -1140,6 +1140,18 @@ Aprobada por Alex. En la foto de frente se mide la **anchura de la silueta de ca
 
 **Descartado por no ser medible:** clasificar los cambios como «pérdida de grasa» o «ganancia de músculo» con nubes de puntos o profundidad estimada desde una foto. El S21 no tiene sensor de profundidad y una sola cámara no da volúmenes fiables.
 
+### Enmienda (2026-10-13): área y contorno de cada zona
+
+Aprobada por Alex. Sustituye el «en su punto medio» de la enmienda anterior.
+
+- **Área media:** cada zona se corta en perpendicular al hueso muchas veces a lo largo de su parte central (del 25 % al 75 % del hueso) y se toma la anchura media: el área del segmento dividida por la longitud del hueso. Un solo corte saltaba con un pliegue de ropa o un brazo algo doblado.
+- **Contorno máximo («bulto»):** de esos mismos cortes, la anchura mayor respecto al hueso (el pico del bíceps o de la pantorrilla).
+- **Zonas:** hombros, brazo, **antebrazo**, muslo y pantorrilla. La parte de la silueta que corresponde a cada zona sale del esqueleto, no de un segundo modelo de segmentación por partes.
+- **Cintura respecto a la cadera:** la anchura de la cintura en la silueta frente a la de la cadera, junto a la relación hombros/cintura ya existente. Se dice tal cual, como forma, nunca como grasa.
+- Si menos de la mitad de los cortes de una zona son válidos (zona pegada a otra), la zona no se mide.
+- Las medidas por zona tienen nombres nuevos: los escaneos anteriores no se comparan con ellas. El primer escaneo con este método es la referencia. Los escaneos de prueba se borran desde su detalle en Historial.
+- Lo demás no cambia: es la forma en la foto, «coherente con más músculo» solo si la fuerza de esa zona sube en los tests, y nunca se habla de grasa. El porcentaje de grasa por textura o sombras sigue descartado (enmienda del 2026-10-10). Márgenes provisionales (`P-015`).
+
 ### Fuera de D-023 v1
 
 Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal, comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.
