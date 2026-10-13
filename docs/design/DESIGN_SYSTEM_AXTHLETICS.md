@@ -255,7 +255,7 @@ Una elevación extremadamente sutil puede utilizarse únicamente cuando una inte
 
 Botón principal: **52 px** de altura.
 
-Área táctil mínima: **44 × 44 px**.
+Área táctil mínima: **44 × 44 px**. Única excepción aprobada: los vasos de hidratación (§19).
 
 La acción primaria debe dominar visualmente. Evitar múltiples CTAs primarios compitiendo.
 
@@ -520,6 +520,8 @@ Ejemplo visual: `5 / 8 vasos`.
 El vaso lleno utiliza el azul primario. El vaso vacío utiliza un borde neutral sutil.
 
 La hidratación debe ser claramente interactiva sin parecer un control complejo.
+
+**Excepción al área táctil mínima (aprobada por Alex, 2026-10-13).** Los 8 vasos van en una sola fila y ocho áreas de 44 px de ancho no caben en un móvil de 360 px (harían falta 352 px). Cada vaso mantiene **44 px de alto** y su ancho es el que le toca en la fila: unos 30 px en 360 px, unos 34 px en 390 px. No se pasa a dos filas ni se cambia el componente aprobado. Un toque en el vaso de al lado se corrige con otro toque, sin coste.
 
 ---
 
