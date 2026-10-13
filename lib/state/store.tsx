@@ -93,9 +93,9 @@ import {
   undoLastApplied,
   type AxisDayMemory,
 } from '../domain/axis/memory'
-import { createAxisConversation, suggestionsFor } from '../domain/axis/conversation'
+import { createAxisConversation, fallbackNoticeOf, suggestionsFor } from '../domain/axis/conversation'
 import { changeOpeningMessage } from '../domain/axis/conversation/negotiation'
-import type { AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
+import type { AxisFallbackNotice, AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
@@ -218,8 +218,8 @@ type AxtlheticsStore = {
   axisMessages: AxisMessage[]
   axisStatus: AxisChatStatus
   axisError: string | null
-  /** true si la última respuesta la dio el determinista tras fallar la IA. */
-  axisUsedFallback: boolean
+  /** Por qué la última respuesta la dio el determinista tras fallar la IA; `null` si no fue así. */
+  axisFallback: AxisFallbackNotice | null
   axisSuggestions: AxisSuggestion[]
   askAxis(question: string): Promise<void>
   clearAxisConversation(): void
@@ -327,7 +327,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const [axisError, setAxisError] = useState<string | null>(null)
   /** El entrenamiento de ayer se movió a hoy (D-022). Lo único que se lee de ayer. */
   const [movedFromYesterday, setMovedFromYesterday] = useState(false)
-  const [axisUsedFallback, setAxisUsedFallback] = useState(false)
+  const [axisFallback, setAxisFallback] = useState<AxisFallbackNotice | null>(null)
 
   /** Día con el que se cargaron los datos. Permite detectar que ha cambiado la fecha. */
   const loadedDayRef = useRef<DayKey>('1970-01-01')
@@ -905,7 +905,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
          */
         commitMemory((current) => rememberAnswer(current, answer, result))
 
-        setAxisUsedFallback(result.usedFallback)
+        setAxisFallback(fallbackNoticeOf(result, navigator.onLine))
         setAxisStatus('idle')
       } catch (cause) {
         // `conversation.ask` ya cae al determinista por su cuenta, así que llegar
@@ -1052,7 +1052,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const clearAxisConversation = useCallback(() => {
     setAxisStatus('idle')
     setAxisError(null)
-    setAxisUsedFallback(false)
+    setAxisFallback(null)
     commitMemory((current) => clearThread(current))
   }, [])
 
@@ -1141,7 +1141,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     resetScans()
     setAxisStatus('idle')
     setAxisError(null)
-    setAxisUsedFallback(false)
+    setAxisFallback(null)
     setError(null)
     setStatus('onboarding')
   }, [resetAssessments, resetScans])
@@ -1181,7 +1181,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       axisMessages: memory.messages,
       axisStatus,
       axisError,
-      axisUsedFallback,
+      axisFallback,
       axisSuggestions,
       askAxis,
       clearAxisConversation,
@@ -1238,7 +1238,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       memory.messages,
       axisStatus,
       axisError,
-      axisUsedFallback,
+      axisFallback,
       axisSuggestions,
       askAxis,
       clearAxisConversation,

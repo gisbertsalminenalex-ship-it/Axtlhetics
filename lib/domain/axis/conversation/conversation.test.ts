@@ -9,7 +9,7 @@ import { buildBriefing } from '../briefing'
 import { buildAxisContext } from '../context'
 import { decide } from '../engine'
 import type { AxisAiTransport } from './ai'
-import { createAxisConversation } from './index'
+import { createAxisConversation, fallbackNoticeOf } from './index'
 import { answerFromBriefing, suggestionsFor } from './deterministic'
 import { detectIntent } from './intents'
 
@@ -386,6 +386,30 @@ test('una respuesta vacía del proveedor también cae al determinista', async ()
   const result = await conversation.ask('¿Por qué me propones esto hoy?', briefing)
   assert.equal(result.usedFallback, true)
   assert.equal(result.intent, 'why')
+})
+
+test('solo se avisa de «sin conexión» cuando de verdad no hay red', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  const caida = createAxisConversation({
+    transport: transport({
+      send: async () => {
+        throw new Error('403 FORBIDDEN')
+      },
+    }),
+  })
+  const fallo = await caida.ask('¿Por qué me propones esto hoy?', briefing)
+
+  assert.equal(fallbackNoticeOf(fallo, false), 'offline')
+  assert.equal(fallbackNoticeOf(fallo, true), 'local', 'con red, un rechazo no es «sin conexión»')
+
+  const descartada = createAxisConversation({
+    transport: transport({ send: async () => ({ text: '   ' }) }),
+  })
+  const filtrada = await descartada.ask('¿Por qué me propones esto hoy?', briefing)
+  assert.equal(fallbackNoticeOf(filtrada, false), 'local', 'el modelo respondió: había red')
+
+  const local = await caida.ask('¿Cómo estoy recuperando?', briefing)
+  assert.equal(fallbackNoticeOf(local, false), null, 'una consulta de datos no es un fallback')
 })
 
 test('el transporte HTTP se declara no configurado sin endpoint', async () => {

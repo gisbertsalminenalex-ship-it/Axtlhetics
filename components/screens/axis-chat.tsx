@@ -19,7 +19,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
     axisMessages,
     axisStatus,
     axisError,
-    axisUsedFallback,
+    axisFallback,
     axisSuggestions,
     askAxis,
     briefing,
@@ -149,9 +149,11 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
       )}
 
       {/* Aviso honesto cuando la IA falla y responde el motor local */}
-      {axisUsedFallback && (
+      {axisFallback && (
         <p className="pb-2 text-center text-[12px] text-muted-foreground">
-          Respondiendo sin conexión con tus datos locales.
+          {axisFallback === 'offline'
+            ? 'Sin conexión: respondo con tus datos locales.'
+            : 'Respuesta directa con tus datos.'}
         </p>
       )}
 

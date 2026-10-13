@@ -57,6 +57,23 @@ export type AxisConversationResult = AxisAnswer & {
 }
 
 /**
+ * Qué aviso merece una respuesta, si merece alguno.
+ *
+ * `offline` solo cuando la IA no se alcanzó y el navegador dice que no hay red;
+ * cualquier otro motivo —la ruta la rechaza, los proveedores fallan, el filtro
+ * descarta el texto— es `local`: hay conexión, pero la respuesta es la del motor.
+ */
+export type AxisFallbackNotice = 'offline' | 'local'
+
+export function fallbackNoticeOf(
+  result: Pick<AxisConversationResult, 'usedFallback' | 'rejectedReason'>,
+  online: boolean,
+): AxisFallbackNotice | null {
+  if (!result.usedFallback) return null
+  return result.rejectedReason === 'transport_error' && !online ? 'offline' : 'local'
+}
+
+/**
  * Un motor compuesto: el determinista siempre está detrás.
  */
 export function createAxisConversation(
