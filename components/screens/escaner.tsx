@@ -25,6 +25,7 @@ import {
   type ScanSelfReport,
   type ScanZone,
 } from '@/lib/domain/scanner/summary'
+import type { ScanSex } from '@/lib/domain/scanner/body-fat'
 import { compareScans } from '@/lib/domain/scanner/compare'
 import { createScanRecord } from '@/lib/domain/scanner/types'
 import { createId } from '@/lib/domain/shared/ids'
@@ -32,8 +33,8 @@ import { formatDayInSentence, todayKey } from '@/lib/domain/shared/dates'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
-type Step = 'intro' | 'build' | 'strong' | 'weak' | 'priority' | ScanPose | 'summary'
-const STEPS: readonly Step[] = ['intro', 'build', 'strong', 'weak', 'priority', ...SCAN_POSE_GUIDE.map((g) => g.pose), 'summary']
+type Step = 'intro' | 'build' | 'sex' | 'strong' | 'weak' | 'priority' | ScanPose | 'summary'
+const STEPS: readonly Step[] = ['intro', 'build', 'sex', 'strong', 'weak', 'priority', ...SCAN_POSE_GUIDE.map((g) => g.pose), 'summary']
 
 type Photo = { id: string; result: AnalyzedPhoto }
 
@@ -41,6 +42,11 @@ const BUILDS: { id: ScanBuild; label: string }[] = [
   { id: 'delgada', label: 'Más bien delgada' },
   { id: 'media', label: 'Media' },
   { id: 'ancha', label: 'Más bien ancha' },
+]
+
+const SEXES: { id: ScanSex; label: string }[] = [
+  { id: 'hombre', label: 'Hombre' },
+  { id: 'mujer', label: 'Mujer' },
 ]
 
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -86,11 +92,12 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
         sessions,
         experience: profile?.experience ?? null,
         selfReport,
+        body: profile ? { heightCm: profile.heightCm, age: profile.age } : null,
         // Frente al último escaneo guardado: cómo han cambiado las zonas.
         previous: scans.scans[0] ?? null,
         today: todayKey(),
       }),
-    [measurements, assessments.assessments, sessions, profile?.experience, selfReport, scans.scans],
+    [measurements, assessments.assessments, sessions, profile, selfReport, scans.scans],
   )
 
   // Frente a tu último escaneo guardado, si lo hay.
@@ -98,7 +105,12 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
     const last = scans.scans[0]
     if (!last || Object.keys(measurements).length === 0) return null
     return compareScans(
-      { shots: measurements, index: summary.index, scores: Object.fromEntries(summary.categories.map((c) => [c.key, c.score])) },
+      {
+        shots: measurements,
+        index: summary.index,
+        scores: Object.fromEntries(summary.categories.map((c) => [c.key, c.score])),
+        bodyFatPct: summary.bodyFat?.pct ?? null,
+      },
       last,
     )
   }, [scans.scans, measurements, summary])
@@ -153,6 +165,20 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
           {BUILDS.map((b) => (
             <Chip key={b.id} selected={selfReport.build === b.id} onClick={() => setSelfReport((s) => ({ ...s, build: s.build === b.id ? null : b.id }))}>
               {b.label}
+            </Chip>
+          ))}
+        </Question>
+      )}
+
+      {step === 'sex' && (
+        <Question
+          title="¿Qué fórmula uso para estimar tu grasa?"
+          hint="La estimación del % de grasa es distinta para hombres y para mujeres. Solo se guarda con el escaneo, en tu móvil."
+          onNext={next}
+        >
+          {SEXES.map((option) => (
+            <Chip key={option.id} selected={selfReport.sex === option.id} onClick={() => setSelfReport((s) => ({ ...s, sex: s.sex === option.id ? null : option.id }))}>
+              {option.label}
             </Chip>
           ))}
         </Question>
@@ -236,7 +262,7 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
   return (
     <>
       <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Escáner corporal</h1>
-      <p className="mt-1.5 text-[15px] text-muted-foreground">4 preguntas y 5 fotos, más 1 opcional · 5–10 min</p>
+      <p className="mt-1.5 text-[15px] text-muted-foreground">5 preguntas y 5 fotos, más 1 opcional · 5–10 min</p>
       <p className="mt-4 text-[15px] leading-relaxed text-pretty">
         Mido tu simetría, tus proporciones, tu postura y tu movilidad, y lo combino con tu fuerza y tu entrenamiento.
         Te digo tus puntos fuertes, qué te hará avanzar más y qué opciones tienes.

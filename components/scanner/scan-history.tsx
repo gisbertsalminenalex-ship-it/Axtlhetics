@@ -78,6 +78,7 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
         sessions,
         experience: profile?.experience ?? null,
         selfReport: scan.selfReport,
+        body: profile ? { heightCm: profile.heightCm, age: profile.age } : null,
         previous: older,
         today: scan.dayKey,
       })
@@ -85,7 +86,16 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
   const comparison =
     scan && summary && older
-      ? compareScans({ shots: scan.measurements, index: summary.index, scores: Object.fromEntries(summary.categories.map((c) => [c.key, c.score])) }, older)
+      ? compareScans(
+          {
+            shots: scan.measurements,
+            index: summary.index,
+            scores: Object.fromEntries(summary.categories.map((c) => [c.key, c.score])),
+            // La grasa de ese día, tal como se guardó: no se recalcula con la altura de hoy.
+            bodyFatPct: scan.result.bodyFatPct ?? null,
+          },
+          older,
+        )
       : null
 
   return (

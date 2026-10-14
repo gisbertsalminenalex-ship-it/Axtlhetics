@@ -137,9 +137,9 @@ test('desarrollo muscular con fuerza y entrenamiento reales: lo que sube, lo que
   assert.ok(s.actions.some((a) => /core y piernas/.test(a.text)))
 })
 
-test('composición corporal: nunca se estima con la foto; solo el dato que da el usuario', () => {
+test('composición corporal: sin lo necesario para estimarla, se dice qué falta; el dato del usuario se recoge', () => {
   const without = summarizeScan({ shots: balanced() }).categories.find((c) => c.key === 'composition')!
-  assert.match(without.text, /no lo estimo/)
+  assert.match(without.text, /necesito saber qué fórmula usar/)
   assert.equal(without.score, null)
   const withData = summarizeScan({ shots: balanced(), bodyFatPct: 14.5 }).categories.find((c) => c.key === 'composition')!
   assert.match(withData.text, /14,5 %/)
@@ -172,16 +172,50 @@ test('solo con respuestas y sin datos: se dice que todavía no está confirmado'
   assert.match(dev.text, /Todavía no tengo tus tests ni tus sesiones para confirmarlo/)
 })
 
-test('composición: tu complexión y tu prioridad, con un plan de entrenamiento, sin dietas y sin estimar con la foto', () => {
+test('composición: tu complexión y tu prioridad, con un plan de entrenamiento', () => {
   const text = summarizeScan({ shots: balanced(), selfReport: { build: 'delgada', strongZones: [], weakZones: [], priority: 'musculo' } })
     .categories.find((c) => c.key === 'composition')!.text
-  assert.match(text, /^Describes tu complexión como más bien delgada\./)
+  assert.match(text, /Describes tu complexión como más bien delgada\./)
   assert.match(text, /Tu prioridad es ganar músculo\. Con una complexión delgada, lo que más te hará ganar músculo es progresar en carga/)
-  assert.match(text, /la foto no lo puede medir: no lo estimo/)
-  const define = summarizeScan({ shots: balanced(), selfReport: { build: 'media', strongZones: [], weakZones: [], priority: 'definir' } })
-    .categories.find((c) => c.key === 'composition')!.text
-  assert.match(define, /la alimentación queda fuera de lo que valora AXIS/)
-  assert.doesNotMatch(text + define, /[!¡]|dieta|calor[ií]as|prote[ií]na|kilos|peso corporal|adelgaz/i)
+  assert.doesNotMatch(text, /[!¡]|kilos|adelgaz/i)
+})
+
+/** Fotos de frente y de perfil de una persona de 178 cm: cuello 12 × 12 cm y cintura 30 × 24 cm. */
+function withFatSpans(): PoseShots {
+  const h = 178
+  const same = (values: Record<string, number>) => [1, 2, 3].map(() => m(values))
+  return {
+    ...balanced(),
+    front: same({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, legToTorso: 1.4, neckWidthH: 12 / h, waistWidthH: 30 / h }),
+    side: same({ headForwardPct: 2, headAngleDeg: 80, neckDepthH: 12 / h, waistDepthH: 24 / h }),
+  }
+}
+
+test('grasa estimada: con sexo, altura y las dos fotos, se da con su margen, su método y sus límites', () => {
+  const s = summarizeScan({
+    shots: withFatSpans(),
+    selfReport: { build: null, strongZones: [], weakZones: [], priority: null, sex: 'hombre' },
+    body: { heightCm: 178, age: 30 },
+  })
+  assert.ok(s.bodyFat, 'hay estimación')
+  const composition = s.categories.find((c) => c.key === 'composition')!
+  assert.ok(composition.text.includes(`Tu grasa corporal estimada es del ${String(s.bodyFat.pct).replace('.', ',')} % (±4 %)`), composition.text)
+  assert.match(composition.text, /fórmula de la Marina/)
+  assert.match(composition.text, /no una medida médica/)
+  assert.match(composition.text, /no ve la grasa interna/)
+  // No puntúa ni entra en el índice.
+  assert.equal(composition.score, null)
+  assert.equal(composition.inIndex, false)
+})
+
+test('grasa estimada: sin altura o sin la foto de perfil, no se estima y se dice qué falta', () => {
+  const self = { build: null, strongZones: [], weakZones: [], priority: null, sex: 'hombre' } as const
+  const noHeight = summarizeScan({ shots: withFatSpans(), selfReport: self })
+  assert.equal(noHeight.bodyFat, null)
+  assert.match(noHeight.categories.find((c) => c.key === 'composition')!.text, /necesito tu altura/)
+  const { side: _side, ...noSide } = withFatSpans()
+  const s = summarizeScan({ shots: noSide, selfReport: self, body: { heightCm: 178, age: 30 } })
+  assert.match(s.categories.find((c) => c.key === 'composition')!.text, /necesito la foto de perfil/)
 })
 
 test('en la voz de AXIS: sin exclamaciones, sin cumplido de apertura, sin diagnósticos y sin peso ni dietas', () => {

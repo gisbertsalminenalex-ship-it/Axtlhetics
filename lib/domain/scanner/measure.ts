@@ -15,7 +15,7 @@
  * derecha de la imagen). Las y de la imagen crecen hacia abajo.
  */
 
-import { CORE_LINE, MAX_TORSO_WIDTH_RATIO } from './scales'
+import { CORE_LINE, MAX_TORSO_WIDTH_RATIO, NAVY } from './scales'
 
 export type ScanLandmark = { x: number; y: number; visibility?: number }
 
@@ -24,6 +24,8 @@ export type ImageSize = { width: number; height: number }
 /** Índices del modelo de pose de MediaPipe (33 puntos). */
 export const LM = {
   nose: 0,
+  mouthLeft: 9,
+  mouthRight: 10,
   leftEar: 7,
   rightEar: 8,
   leftShoulder: 11,
@@ -274,6 +276,121 @@ const alongTorso = (shoulders: Point, hips: Point, t: number): Point => ({
 })
 
 /**
+ * Si la línea de algún brazo (hombro–codo–muñeca, en píxeles de la imagen) cruza
+ * la fila `y` dentro del tramo `run` (en píxeles de la silueta): el brazo está
+ * pegado y la anchura del tramo lo incluye.
+ */
+function armInsideRun(arms: readonly (readonly Point[])[], y: number, run: { left: number; right: number }, sx: number): boolean {
+  return arms.some((chain) =>
+    chain.slice(1).some((b, i) => {
+      const a = chain[i]
+      if ((y - a.y) * (y - b.y) > 0 || a.y === b.y) return false
+      const x = (a.x + ((b.x - a.x) * (y - a.y)) / (b.y - a.y)) * sx
+      return x >= run.left && x <= run.right
+    }),
+  )
+}
+
+/** Los brazos que se ven, con la mano prolongada más allá de la muñeca: la mano también puede tocar la cadera. */
+function visibleArms(landmarks: readonly ScanLandmark[], size: ImageSize): Point[][] {
+  return [
+    [LM.leftShoulder, LM.leftElbow, LM.leftWrist],
+    [LM.rightShoulder, LM.rightElbow, LM.rightWrist],
+  ].flatMap((ids) => {
+    const arm = pick(landmarks, size, ids)
+    if (!arm.ok) return []
+    const [shoulder, elbow, wrist] = arm.points
+    const hand = { x: wrist.x + (wrist.x - elbow.x) * 0.4, y: wrist.y + (wrist.y - elbow.y) * 0.4 }
+    return [[shoulder, elbow, wrist, hand]]
+  })
+}
+
+/**
+ * Altura del cuerpo en la foto, en píxeles de la imagen: de la primera a la
+ * última fila con cuerpo. `null` si el cuerpo toca el borde de arriba o de abajo
+ * (está cortado). Es la escala que, con la altura del perfil, pasa a centímetros.
+ */
+function bodyHeightPx(size: ImageSize, mask: Silhouette): number | null {
+  let top = -1
+  let bottom = -1
+  for (let y = 0; y < mask.height; y++) {
+    for (let x = 0; x < mask.width; x++) {
+      if (mask.isBody(x, y)) {
+        if (top < 0) top = y
+        bottom = y
+        break
+      }
+    }
+  }
+  if (top <= 0 || bottom < 0 || bottom >= mask.height - 1) return null
+  return (bottom - top + 1) / (mask.height / size.height)
+}
+
+/**
+ * Las anchuras de la silueta entre dos puntos, fila a fila, siguiendo la recta
+ * que los une, en píxeles de la imagen. Una fila que no es cuerpo (el hueco entre
+ * las piernas bajo la cadera) se salta; `null` si ninguna lo es o si un brazo cae
+ * dentro de alguna.
+ */
+function runWidths(
+  from: Point,
+  to: Point,
+  steps: number,
+  size: ImageSize,
+  mask: Silhouette,
+  arms: readonly (readonly Point[])[],
+): number[] | null {
+  const sx = mask.width / size.width
+  const sy = mask.height / size.height
+  const widths: number[] = []
+  for (let i = 0; i <= steps; i++) {
+    const t = steps === 0 ? 0 : i / steps
+    const p = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }
+    const run = bodyRunAt(mask, p.x * sx, p.y * sy)
+    if (!run) continue
+    if (armInsideRun(arms, p.y, run, sx)) return null
+    widths.push((run.right - run.left + 1) / sx)
+  }
+  return widths.length ? widths : null
+}
+
+/**
+ * Anchuras (de frente) o profundidades (de perfil) para estimar la grasa con la
+ * fórmula de la Marina (D-023, enmienda del 2026-10-14), divididas por la altura
+ * del cuerpo en la foto: así no dependen de la distancia a la cámara, y la altura
+ * del perfil las pasa a centímetros.
+ *
+ * - cuello: la parte más estrecha entre la cabeza (boca de frente, oreja de
+ *   perfil) y los hombros, lejos de la mandíbula y del trapecio;
+ * - cintura: a la altura del ombligo (`NAVY.navel`), y la más estrecha del tronco;
+ * - cadera: la más ancha desde los puntos de cadera hasta un 15 % del tronco por debajo.
+ */
+function bodyFatSpans(
+  prefix: 'Width' | 'Depth',
+  neckLine: { top: Point; shoulders: Point },
+  torso: { shoulders: Point; hips: Point },
+  size: ImageSize,
+  mask: Silhouette,
+  arms: readonly (readonly Point[])[],
+): Measurements {
+  const keys = ['neck', 'waist', 'waistNarrow', 'hip'].map((k) => `${k}${prefix}H`)
+  const height = bodyHeightPx(size, mask)
+  if (height === null) return Object.fromEntries(keys.map((k) => [k, { value: null, reason: 'out_of_frame' }]))
+  const at = (t: number) => alongTorso(torso.shoulders, torso.hips, t)
+  const value = (widths: number[] | null, pickOne: (...n: number[]) => number): MeasureValue =>
+    widths ? { value: round(pickOne(...widths) / height, 4) } : { value: null, reason: 'no_silhouette' }
+  // El cuello no cruza los brazos: no se comprueban.
+  // El cuello, del 20 % al 85 % del camino: lejos de la mandíbula y del trapecio.
+  const neckAt = (t: number) => ({ x: neckLine.top.x + (neckLine.shoulders.x - neckLine.top.x) * t, y: neckLine.top.y + (neckLine.shoulders.y - neckLine.top.y) * t })
+  return {
+    [keys[0]]: value(runWidths(neckAt(0.2), neckAt(0.85), 13, size, mask, []), Math.min),
+    [keys[1]]: value(runWidths(at(NAVY.navel), at(NAVY.navel), 0, size, mask, arms), Math.min),
+    [keys[2]]: value(runWidths(at(0.5), at(0.9), 20, size, mask, arms), Math.min),
+    [keys[3]]: value(runWidths(at(1), at(1.15), 15, size, mask, arms), Math.max),
+  }
+}
+
+/**
  * Flancos, de frente: cuánto sale la silueta del tronco, por cada lado, de la
  * recta que va de las costillas a la cresta ilíaca, en % de la longitud del
  * tronco. Positivo, hacia fuera (convexo); negativo, hacia dentro.
@@ -296,15 +413,7 @@ function flankBulge(points: Point[], size: ImageSize, mask: Silhouette, arms: re
     if (!run) return null
     const width = (run.right - run.left + 1) / sx
     if (width > torsoLength * MAX_TORSO_WIDTH_RATIO) return null
-    const armInside = arms.some((chain) =>
-      chain.slice(1).some((b, i) => {
-        const a = chain[i]
-        if ((p.y - a.y) * (p.y - b.y) > 0 || a.y === b.y) return false
-        const x = (a.x + ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y)) * sx
-        return x >= run.left && x <= run.right
-      }),
-    )
-    if (armInside) return null
+    if (armInsideRun(arms, p.y, run, sx)) return null
     widths.push(width)
   }
   // La anchura recoge los dos flancos: la mitad es lo que sale cada uno.
@@ -437,7 +546,20 @@ export function measureFront(landmarks: readonly ScanLandmark[], size: ImageSize
       return flankBulge(points, size, mask, chains)
     }),
     ...zoneWidths(landmarks, size, mask),
+    ...frontFatSpans(landmarks, size, mask),
   }
+}
+
+/** Anchuras de cuello, cintura y cadera de frente, para la grasa estimada. */
+function frontFatSpans(landmarks: readonly ScanLandmark[], size: ImageSize, mask?: Silhouette): Measurements {
+  const keys = ['neckWidthH', 'waistWidthH', 'waistNarrowWidthH', 'hipWidthH']
+  const missing = (reason: ZoneReason): Measurements => Object.fromEntries(keys.map((k) => [k, { value: null, reason }]))
+  const points = pick(landmarks, size, [LM.mouthLeft, LM.mouthRight, LM.leftShoulder, LM.rightShoulder, LM.leftHip, LM.rightHip])
+  if (!points.ok) return missing(points.reason)
+  if (!mask) return missing('no_silhouette')
+  const [ml, mr, ls, rs, lh, rh] = points.points
+  const shoulders = midpoint(ls, rs)
+  return bodyFatSpans('Width', { top: midpoint(ml, mr), shoulders }, { shoulders, hips: midpoint(lh, rh) }, size, mask, visibleArms(landmarks, size))
 }
 
 type ZoneReason = 'not_visible' | 'out_of_frame' | 'no_silhouette'
@@ -558,8 +680,17 @@ export function measureSide(landmarks: readonly ScanLandmark[], size: ImageSize,
     const bulge = mask ? bellyBulge([shoulder, hip, ear, nose], size, mask) : null
     return bulge === null ? { value: null, reason: 'no_silhouette' } : { value: round(bulge) }
   }
+  const fatSpans = (): Measurements => {
+    const keys = ['neckDepthH', 'waistDepthH', 'waistNarrowDepthH', 'hipDepthH']
+    if (!head.ok) return Object.fromEntries(keys.map((k) => [k, { value: null, reason: head.reason }]))
+    if (!mask) return Object.fromEntries(keys.map((k) => [k, { value: null, reason: 'no_silhouette' }]))
+    const [ear, shoulder, hip] = head.points
+    // De perfil los brazos caen junto al tronco, dentro de su profundidad: no se comprueban.
+    return bodyFatSpans('Depth', { top: ear, shoulders: shoulder }, { shoulders: shoulder, hips: hip }, size, mask, [])
+  }
   return {
     bellyBulgePct: belly(),
+    ...fatSpans(),
     headForwardPct: measure(head, ([ear, shoulder, hip, nose]) => {
       const facing = Math.sign(nose.x - ear.x) || 1
       return (((ear.x - shoulder.x) * facing) / distance(shoulder, hip)) * 100

@@ -90,3 +90,14 @@ test('cuándo toca el escáner: el primero, a los 28 días, o todavía no', () =
   if (recent.kind === 'recent') assert.equal(recent.nextDay, '2026-10-29')
   assert.equal(scanDue([scan('2026-09-10'), scan('2026-08-01')], '2026-10-08').kind, 'due')
 })
+
+test('el sexo para la fórmula y la grasa estimada se guardan; los escaneos anteriores, sin ellos, siguen valiendo', () => {
+  const withFat = scan('2026-10-14', {
+    selfReport: { build: 'media', strongZones: [], weakZones: [], priority: 'musculo', sex: 'hombre' },
+    result: { index: 70, scores: {}, bodyFatPct: 16.4 },
+  })
+  assert.equal(isScanRecord(withFat), true)
+  assert.equal(isScanRecord(scan('2026-10-08')), true, 'sin sexo ni grasa')
+  assert.equal(isScanRecord({ ...withFat, selfReport: { ...withFat.selfReport, sex: 'otro' } }), false)
+  assert.equal(isScanRecord({ ...withFat, result: { ...withFat.result, bodyFatPct: 140 } }), false)
+})

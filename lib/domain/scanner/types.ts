@@ -12,6 +12,7 @@
 
 import { addDays, daysBetween, type DayKey } from '../shared/dates'
 import { isRecord } from '../shared/guards'
+import { SCAN_SEXES, type ScanSex } from './body-fat'
 import type { Measurements, ScanPose } from './measure'
 import type { CategoryKey, ScanBuild, ScanPriority, ScanSelfReport, ScanZone } from './summary'
 
@@ -28,7 +29,12 @@ export type ScanRecord = {
   /** Por pose, las medidas de cada foto. Sin imágenes. */
   measurements: Partial<Record<ScanPose, Measurements[]>>
   /** El resultado tal como se vio al guardarlo: para el historial y la comparación. */
-  result: { index: number | null; scores: Partial<Record<CategoryKey, number | null>> }
+  result: {
+    index: number | null
+    scores: Partial<Record<CategoryKey, number | null>>
+    /** El % de grasa estimado al guardarlo (enmienda del 2026-10-14). Ausente en los anteriores. */
+    bodyFatPct?: number | null
+  }
   /** Una miniatura JPEG por pose. Solo en el dispositivo: nunca en la copia. */
   thumbnails?: Partial<Record<ScanPose, string>>
 }
@@ -48,7 +54,8 @@ export function isSelfReport(value: unknown): value is ScanSelfReport {
     (value.build === null || BUILDS.includes(value.build as ScanBuild)) &&
     (value.priority === null || PRIORITIES.includes(value.priority as ScanPriority)) &&
     isZoneList(value.strongZones) &&
-    isZoneList(value.weakZones)
+    isZoneList(value.weakZones) &&
+    (value.sex === undefined || value.sex === null || SCAN_SEXES.includes(value.sex as ScanSex))
   )
 }
 
@@ -77,6 +84,8 @@ export function isScanRecord(value: unknown): value is ScanRecord {
   }
   if (!isRecord(value.result) || !isScore(value.result.index) || !isRecord(value.result.scores)) return false
   if (!Object.values(value.result.scores).every(isScore)) return false
+  const fat = value.result.bodyFatPct
+  if (fat !== undefined && fat !== null && !(typeof fat === 'number' && Number.isFinite(fat) && fat > 0 && fat < 100)) return false
   if (value.thumbnails !== undefined) {
     if (!isRecord(value.thumbnails)) return false
     for (const [pose, src] of Object.entries(value.thumbnails)) {
@@ -113,7 +122,7 @@ export function createScanRecord(input: {
   now: Date
   selfReport: ScanSelfReport
   measurements: Partial<Record<ScanPose, Measurements[]>>
-  summary: { index: number | null; categories: readonly { key: CategoryKey; score: number | null }[] }
+  summary: { index: number | null; categories: readonly { key: CategoryKey; score: number | null }[]; bodyFat?: { pct: number } | null }
   thumbnails: Partial<Record<ScanPose, string>>
 }): ScanRecord {
   return {
@@ -126,6 +135,7 @@ export function createScanRecord(input: {
     result: {
       index: input.summary.index,
       scores: Object.fromEntries(input.summary.categories.map((c) => [c.key, c.score])),
+      bodyFatPct: input.summary.bodyFat?.pct ?? null,
     },
     thumbnails: input.thumbnails,
   }

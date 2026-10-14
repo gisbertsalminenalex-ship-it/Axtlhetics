@@ -82,6 +82,16 @@ export const STABILITY_TOLERANCE: Record<string, number> = {
   /** El core se mueve con la respiración: margen amplio. */
   flankBulgePct: 1.5,
   bellyBulgePct: 2,
+  // Grasa estimada: anchuras (de frente) y profundidades (de perfil), en fracción
+  // de la altura del cuerpo en la foto.
+  neckWidthH: 0.004,
+  neckDepthH: 0.004,
+  waistWidthH: 0.008,
+  waistNarrowWidthH: 0.008,
+  waistDepthH: 0.008,
+  waistNarrowDepthH: 0.008,
+  hipWidthH: 0.008,
+  hipDepthH: 0.008,
 }
 
 /**
@@ -98,6 +108,25 @@ export const CORE_LINE = { ribs: 0.55, crest: 0.85 } as const
  * brazos pegados o la silueta está rota: no se mide.
  */
 export const MAX_TORSO_WIDTH_RATIO = 1
+
+/**
+ * Estimación del % de grasa con la fórmula de la Marina de EE. UU. (D-023,
+ * enmienda del 2026-10-14). Provisionales (P-015).
+ *
+ * - `navel`: altura del ombligo sobre la línea hombros (0) → caderas (1), donde
+ *   la fórmula mide la cintura de los hombres. En las mujeres, la cintura es la
+ *   parte más estrecha.
+ * - `marginPct`: margen que se enseña siempre con la estimación.
+ * - `validPct`: fuera de este rango, la estimación no es creíble y no se da.
+ */
+export const NAVY = {
+  navel: 0.8,
+  marginPct: 4,
+  validPct: { min: 3, max: 60 },
+} as const
+
+/** Cuánto tiene que cambiar la grasa estimada entre escaneos para contarlo como cambio, en puntos. */
+export const BODY_FAT_CHANGE_PCT = 1.5
 
 /**
  * Cómo se lee el core respecto a la recta costillas–cresta, en % de la longitud

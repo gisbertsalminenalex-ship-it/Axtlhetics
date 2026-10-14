@@ -6,8 +6,11 @@
  * Determinista y honesto: cada frase sale de una medida o de un dato registrado.
  * - Simetría, proporciones y postura/movilidad salen de las fotos.
  * - El desarrollo muscular se estima con la fuerza y el entrenamiento reales
- *   (tests de evolución, sesiones, nivel): la cámara no ve cuánto músculo hay.
- * - La composición corporal no se deduce de una foto: solo un dato real del usuario.
+ *   (tests de evolución, sesiones, nivel) y con la forma de cada zona, el core y
+ *   los brazos en la foto, que se dice como forma, no como músculo.
+ * - La composición corporal es el % de grasa estimado con la fórmula de la Marina
+ *   a partir de perímetros y altura (`body-fat.ts`, enmienda del 2026-10-14),
+ *   siempre con su margen; nunca por texturas ni sombras.
  * Lo que no tiene datos fiables no se rellena.
  *
  * Voz de AXIS (`personality.ts`): primero la conclusión, sin exclamaciones, sin
@@ -20,6 +23,7 @@ import type { Assessment } from '../assessment/types'
 import { EXPERIENCE_LABELS, type ExperienceLevel } from '../profile/types'
 import { daysBetween, type DayKey } from '../shared/dates'
 import { MUSCLE_GROUP_LABELS, type MuscleGroup, type WorkoutSession } from '../workouts/types'
+import { estimateBodyFat, type BodyFatEstimate, type BodyFatMissing, type ScanSex } from './body-fat'
 import type { Measurements, ScanPose } from './measure'
 import {
   CORE_SHAPE,
@@ -61,6 +65,8 @@ export type ScanSummary = {
   actions: ScanAction[]
   /** Avisos sobre las fotos (inestables, giradas, una sola foto). */
   photoNotes: string[]
+  /** El % de grasa estimado (enmienda del 2026-10-14), si se pudo estimar. */
+  bodyFat: BodyFatEstimate | null
 }
 
 /** Zonas por las que se pregunta: las que un adolescente reconoce al mirarse. */
@@ -93,6 +99,8 @@ export type ScanSelfReport = {
   strongZones: readonly ScanZone[]
   weakZones: readonly ScanZone[]
   priority: ScanPriority | null
+  /** Solo para elegir la fórmula de la grasa estimada. Ausente en los escaneos anteriores. */
+  sex?: ScanSex | null
 }
 
 export type ScanInput = {
@@ -101,6 +109,8 @@ export type ScanInput = {
   sessions?: readonly WorkoutSession[]
   experience?: ExperienceLevel | null
   bodyFatPct?: number | null
+  /** Altura y edad del perfil: la altura da la escala de la grasa estimada. */
+  body?: { heightCm: number; age: number } | null
   selfReport?: ScanSelfReport | null
   /** El escaneo anterior, para ver cómo han cambiado las zonas. */
   previous?: { measurements: PoseShots; dayKey: DayKey } | null
@@ -701,13 +711,19 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     ],
   }
 
+  const fat = estimateBodyFat((pose, key) => combine(shots, pose, key, notes), input.selfReport?.sex, input.body?.heightCm)
   const composition: ScanCategory = {
     key: 'composition',
     title: 'Composición corporal',
     score: null,
     inIndex: false,
-    text: compositionText(input.selfReport ?? null, input.bodyFatPct ?? null),
-    details: [],
+    text: compositionText(input.selfReport ?? null, input.bodyFatPct ?? null, fat),
+    details: fat.ok
+      ? [
+          `Grasa estimada: ${one(fat.estimate.pct)} % (±${fat.estimate.marginPct} %)`,
+          `Perímetros estimados: cuello ${Math.round(fat.estimate.neckCm)} cm, cintura ${Math.round(fat.estimate.waistCm)} cm${fat.estimate.hipCm !== null ? `, cadera ${Math.round(fat.estimate.hipCm)} cm` : ''}`,
+        ]
+      : [],
   }
 
   const symmetry: ScanCategory = {
@@ -756,6 +772,7 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     improvements,
     actions: actions.slice(0, 4),
     photoNotes: Array.from(notes),
+    bodyFat: fat.ok ? fat.estimate : null,
   }
 }
 
@@ -766,12 +783,28 @@ const BUILD_TEXT: Record<ScanBuild, string> = {
 }
 
 /**
- * Composición corporal: nunca se deduce de la foto. Se dice cómo se describe el
- * usuario, qué implica para su entrenamiento según su prioridad, y el dato real
- * si lo ha dado. Sin peso, sin dietas: AXIS habla de entrenar.
+ * Composición corporal (enmienda del 2026-10-14): el % de grasa estimado con la
+ * fórmula de la Marina, siempre con su margen y sus límites, o qué falta para
+ * estimarlo. Nunca a partir de texturas ni sombras. Después, cómo se describe el
+ * usuario y qué implica para su entrenamiento según su prioridad.
  */
-function compositionText(self: ScanSelfReport | null, bodyFatPct: number | null): string {
+function compositionText(
+  self: ScanSelfReport | null,
+  bodyFatPct: number | null,
+  fat: { ok: true; estimate: BodyFatEstimate } | { ok: false; missing: BodyFatMissing },
+): string {
   const parts: string[] = []
+  if (fat.ok) {
+    const e = fat.estimate
+    const hip = e.hipCm !== null ? `, tu cadera (${Math.round(e.hipCm)} cm)` : ''
+    parts.push(
+      `Tu grasa corporal estimada es del ${one(e.pct)} % (±${e.marginPct} %). La calculo con la fórmula de la Marina de EE. UU. a partir del perímetro de tu cuello (${Math.round(e.neckCm)} cm), tu cintura (${Math.round(e.waistCm)} cm)${hip} y tu altura, medidos en tus fotos de frente y de perfil.`,
+      'Es una estimación, no una medida médica: la ropa y la postura la mueven y no ve la grasa interna. Lo que más vale es cómo cambia de un escaneo a otro con el mismo montaje.',
+    )
+  } else {
+    parts.push(BODY_FAT_MISSING[fat.missing])
+  }
+  if (typeof bodyFatPct === 'number') parts.push(`Tu dato registrado es ${one(bodyFatPct)} % de grasa corporal.`)
   if (self?.build) parts.push(`Describes tu complexión como ${BUILD_TEXT[self.build]}.`)
   if (self?.priority) {
     const priority = SCAN_PRIORITY_LABELS[self.priority]
@@ -780,20 +813,22 @@ function compositionText(self: ScanSelfReport | null, bodyFatPct: number | null)
         self.build === 'delgada'
           ? 'Con una complexión delgada, lo que más te hará ganar músculo es progresar en carga semana a semana con ejercicios grandes y ser constante: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.'
           : 'Para ganar músculo, lo que más cuenta es progresar en carga y entrenar cada zona con frecuencia: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.',
-      definir:
-        'Para que se note más el músculo, lo que AXIS puede hacer es mantener un volumen de trabajo alto y constante y ayudarte a ganar músculo; la alimentación queda fuera de lo que valora AXIS.',
+      definir: 'Para que se note más el músculo, lo que cuenta es mantener un volumen de trabajo alto y constante mientras ganas músculo.',
       fuerza: 'Para ganar fuerza, lo que más cuenta es ir subiendo la carga con pocas repeticiones bien hechas y descansar lo suficiente entre series.',
       equilibrio: 'Para equilibrar el cuerpo, lo que más ayuda es el trabajo a una pierna y a un brazo y no dejar de lado lo que menos entrenas.',
     }
     parts.push(`Tu prioridad es ${priority}. ${plan[self.priority]}`)
   }
-  if (typeof bodyFatPct === 'number') parts.push(`Tu dato registrado es ${one(bodyFatPct)} % de grasa corporal; lo uso solo para seguir tu evolución.`)
-  parts.push(
-    parts.length
-      ? 'Lo que es músculo y lo que no, la foto no lo puede medir: no lo estimo.'
-      : 'Una foto no permite saber qué parte es músculo y qué parte no, así que no lo estimo. Cuéntame tu complexión y tu prioridad, o añade un dato real de una báscula de composición o de una medición profesional.',
-  )
   return parts.join(' ')
+}
+
+/** Qué falta para estimar la grasa, dicho como lo que el usuario puede hacer. */
+const BODY_FAT_MISSING: Record<BodyFatMissing, string> = {
+  no_sex: 'Para estimar tu % de grasa necesito saber qué fórmula usar, la de hombre o la de mujer: contéstalo en las preguntas del escaneo.',
+  no_height: 'Para estimar tu % de grasa necesito tu altura: añádela en tu perfil.',
+  no_front: 'Para estimar tu % de grasa necesito la foto de frente con el cuerpo entero, los brazos separados y, mejor, sin camiseta.',
+  no_side: 'Para estimar tu % de grasa necesito la foto de perfil con el cuerpo entero y, mejor, sin camiseta.',
+  out_of_range: 'Las medidas de cuello y cintura de estas fotos no dan una estimación creíble de tu % de grasa. Repítelas de pie, sin camiseta y con buena luz.',
 }
 
 /** La primera frase es la conclusión: dónde estás y qué te hará avanzar más. */

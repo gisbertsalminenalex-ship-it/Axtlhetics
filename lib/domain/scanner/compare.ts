@@ -12,7 +12,7 @@
  */
 
 import { formatDayInSentence, type DayKey } from '../shared/dates'
-import { STABILITY_TOLERANCE } from './scales'
+import { BODY_FAT_CHANGE_PCT, STABILITY_TOLERANCE } from './scales'
 import { stableValue, ZONE_PROFILES, type CategoryKey, type PoseShots } from './summary'
 import type { ScanRecord } from './types'
 
@@ -182,7 +182,7 @@ function changeOf(spec: Spec, from: number, to: number): ScanChange {
 const CATEGORY_KEYS: readonly CategoryKey[] = ['symmetry', 'postureMobility', 'proportion']
 
 export function compareScans(
-  current: { shots: PoseShots; index: number | null; scores: Partial<Record<CategoryKey, number | null>> },
+  current: { shots: PoseShots; index: number | null; scores: Partial<Record<CategoryKey, number | null>>; bodyFatPct?: number | null },
   previous: ScanRecord,
 ): ScanComparison {
   const changes: ScanChange[] = []
@@ -190,6 +190,18 @@ export function compareScans(
     const from = spec.read(previous.measurements)
     const to = spec.read(current.shots)
     if (from !== null && to !== null) changes.push(changeOf(spec, from, to))
+  }
+  // La grasa estimada se guarda con el escaneo (depende de la altura y la fórmula de ese día).
+  const fatFrom = previous.result.bodyFatPct ?? null
+  const fatTo = current.bodyFatPct ?? null
+  if (fatFrom !== null && fatTo !== null) {
+    changes.push(
+      changeOf(
+        { key: 'bodyFat', label: 'Grasa estimada', unit: '%', direction: 'none', tolerance: BODY_FAT_CHANGE_PCT, read: () => null, better: '', worse: '' },
+        fatFrom,
+        fatTo,
+      ),
+    )
   }
 
   const better = changes.filter((c) => c.trend === 'better').length

@@ -336,3 +336,42 @@ test('bíceps flexionado: el brazo en cruz se mide respecto a su hueso', () => {
   near(value(m.flexArmMean), 61 / 200, 0.03, 'área media')
   near(value(m.flexArmPeak), (81 + 61) / 2 / 200, 0.01, 'pico')
 })
+
+// ---------------------------------------------------------------------------
+// Anchuras y profundidades para la grasa estimada (D-023, enmienda del 2026-10-14)
+// ---------------------------------------------------------------------------
+
+test('de frente: cuello, cintura y cadera como fracción de la altura del cuerpo en la foto', () => {
+  // Cabeza desde y = 300 y pies hasta y = 1800: 1501 px de altura. Cuello de 41 px; tronco de 121 px.
+  // Antebrazos más cortos, para que la mano quede lejos del muslo.
+  const arms = BODY.filter((r) => r[1] !== 900).concat([[600, 900, 660, 1060], [340, 900, 400, 1060]])
+  const body = rects([[460, 300, 540, 400], [480, 400, 520, 580], ...arms])
+  const m = measureFront(pose({ ...ZONES, leftWrist: [630, 1050], rightWrist: [370, 1050], mouthLeft: [520, 380], mouthRight: [480, 380] }), SIZE, body)
+  near(value(m.neckWidthH), 41 / 1501, 0.0005, 'cuello')
+  near(value(m.waistWidthH), 121 / 1501, 0.0005, 'cintura en el ombligo')
+  near(value(m.waistNarrowWidthH), 121 / 1501, 0.0005, 'cintura más estrecha')
+  // La cadera, la fila más ancha: donde el tronco se junta con los muslos (400–600). Más abajo,
+  // el centro cae en el hueco entre las piernas y esas filas se saltan.
+  near(value(m.hipWidthH), 201 / 1501, 0.0005, 'cadera')
+})
+
+test('de perfil: profundidad de cuello, cintura y cadera', () => {
+  const side = rects([[560, 300, 660, 400], [580, 400, 620, 580], [500, 580, 680, 1120], [540, 1120, 640, 1800]])
+  const m = measureSide(pose(SIDE_RIGHT), SIZE, side)
+  near(value(m.neckDepthH), 41 / 1501, 0.0005, 'cuello')
+  near(value(m.waistDepthH), 181 / 1501, 0.0005, 'cintura')
+  near(value(m.hipDepthH), 181 / 1501, 0.0005, 'cadera')
+})
+
+test('un cuerpo cortado por la foto no da escala: la grasa no se puede estimar', () => {
+  // Los pies tocan el borde de abajo.
+  const cut = rects([[560, 300, 660, 400], [580, 400, 620, 580], [500, 580, 680, 1120], [540, 1120, 640, SIZE.height - 1]])
+  assert.deepEqual(measureSide(pose(SIDE_RIGHT), SIZE, cut).waistDepthH, { value: null, reason: 'out_of_frame' })
+})
+
+test('con la mano pegada a la cadera, la cadera de frente no se mide', () => {
+  // Muñecas a la altura de la cadera y dentro del tronco.
+  const body = rects([[460, 300, 540, 400], [480, 400, 520, 580], ...BODY, [420, 1080, 580, 1160]])
+  const m = measureFront(pose({ ...ZONES, mouthLeft: [520, 380], mouthRight: [480, 380], leftWrist: [570, 1120], rightWrist: [430, 1120] }), SIZE, body)
+  assert.deepEqual(m.hipWidthH, { value: null, reason: 'no_silhouette' })
+})

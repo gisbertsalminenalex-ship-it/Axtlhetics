@@ -83,3 +83,16 @@ test('solo se compara lo que existe en los dos escaneos', () => {
   assert.match(c.headline, /^Comparado con tu escaneo del jueves 10 de septiembre. No hay medidas que se puedan comparar/)
   assert.match(c.note, /mismo montaje/)
 })
+
+test('la grasa estimada se compara con la guardada en el escaneo anterior, sin juzgarla', () => {
+  const before = { ...previous(BEFORE), result: { ...previous(BEFORE).result, bodyFatPct: 18 } }
+  const current = (pct: number | null) => ({ shots: BEFORE, index: 70, scores: {}, bodyFatPct: pct })
+  const fat = (pct: number | null) => compareScans(current(pct), before).changes.find((c) => c.key === 'bodyFat')
+  assert.equal(fat(16)?.trend, 'changed')
+  assert.match(fat(16)!.text, /^Grasa estimada: de 18 % a 16 %$/)
+  // Por debajo de su margen (1,5 puntos), sin cambio.
+  assert.equal(fat(17)?.trend, 'same')
+  // Sin estimación en uno de los dos, no se compara.
+  assert.equal(fat(null), undefined)
+  assert.equal(compareScans(current(16), previous(BEFORE)).changes.find((c) => c.key === 'bodyFat'), undefined)
+})

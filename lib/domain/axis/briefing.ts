@@ -326,6 +326,7 @@ function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[])
     sessions,
     experience: context.profile?.experience ?? null,
     selfReport: last.selfReport,
+    body: context.profile ? { heightCm: context.profile.heightCm, age: context.profile.age } : null,
     previous: previous ?? null,
     today: last.dayKey,
   })
@@ -341,7 +342,12 @@ function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[])
     comparison: previous
       ? (() => {
           const c = compareScans(
-            { shots: last.measurements, index: summary.index, scores: Object.fromEntries(summary.categories.map((x) => [x.key, x.score])) },
+            {
+              shots: last.measurements,
+              index: summary.index,
+              scores: Object.fromEntries(summary.categories.map((x) => [x.key, x.score])),
+              bodyFatPct: last.result.bodyFatPct ?? null,
+            },
             previous,
           )
           return { headline: c.headline, changes: c.changes.filter((x) => x.trend === 'better' || x.trend === 'worse').map((x) => x.text) }
