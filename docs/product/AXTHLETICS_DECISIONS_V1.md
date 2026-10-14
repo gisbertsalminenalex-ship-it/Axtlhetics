@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-08.
+**Última actualización:** 2026-10-14.
 
 ## Qué es este documento
 
@@ -1168,6 +1168,38 @@ Aprobada por Alex, tras consultar al creador de otro escáner cómo mide core, b
 ### Fuera de D-023 v1
 
 Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal medida a partir de la foto por textura o sombras (la estimación por perímetros de la enmienda del 2026-10-14 sí entra), comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.
+
+---
+
+## D-024 — Figura animada de cada ejercicio
+
+**Fecha:** 2026-10-14 · **Estado:** aprobada e implementada.
+
+Cada ejercicio se enseña con una **figura animada**: un maniquí que va de la pose inicial a la final y vuelve, en bucle, con los músculos que trabaja marcados en azul. Sirve para saber cómo se hace sin leer las instrucciones.
+
+### Por qué una figura dibujada y no imágenes
+
+Alex comparó las dos opciones (boceto: https://claude.ai/artifact/JwJbXnmU3vvWzqaL3mGFEs) y eligió la figura dibujada. Las imágenes realistas generadas con IA, en el estilo de `anatomy-upper.png`, cambiaban el cuerpo y la cámara entre la pose inicial y la final, no siempre hacían la pose pedida, pedían unas 86 imágenes que revisar y pesaban 10–15 MB.
+
+### Reglas
+
+- **Una figura por ejercicio del catálogo**, como datos (`lib/exercise-figure/poses.ts`): dos poses, o una sola para los ejercicios de mantener una posición. Un test falla si un ejercicio del catálogo no tiene figura o si una pose se sale del lienzo.
+- **Los músculos salen del catálogo**, nunca de una lista aparte: principales en azul, secundarios en azul suave. Los ejercicios de gemelos y de tobillo se marcan en la pantorrilla.
+- **Colores del Design System**, sin grises nuevos: cuerpo `--muted-nontext` (el lado lejano, a media opacidad), músculos `--primary` (los secundarios, a media opacidad), objetos `--track`, suelo `--border`.
+- Vista de lado salvo dos ejercicios que solo se entienden de frente (zancada lateral y ángeles en la pared); de frente, la espalda y los glúteos no se marcan porque no se ven.
+- Respeta «reducir movimiento»: con él, la figura se queda en la pose inicial.
+- Funciona sin conexión y sin descargar nada: se dibuja en el dispositivo.
+
+### Dónde
+
+En los huecos de imagen que ya tenía el diseño aprobado (D-006), sin cambiar composición:
+
+- **Ejercicio activo:** junto al nombre, animada.
+- **Siguiente ejercicio** y **resumen del entrenamiento:** en miniatura, quieta.
+
+### Fuera de D-024 v1
+
+Animación en la respuesta de AXIS («¿cómo se hace…?»), vistas desde varios ángulos, figura con el sexo o la complexión del usuario y vídeo.
 
 ---
 

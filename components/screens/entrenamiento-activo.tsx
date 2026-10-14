@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ArrowLeft, Check, ChevronRight, SkipForward, Undo2 } from 'lucide-react'
+import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
 import { Confirmation } from '@/components/workout/confirmation'
 import { RestTimer } from '@/components/workout/rest-timer'
 import { ValueStepper } from '@/components/workout/value-stepper'
@@ -200,16 +201,20 @@ export function EntrenamientoActivo() {
               </p>
               <LastTime entry={entry} sessions={sessions} />
             </div>
-            {entry.imageUrl && (
-              <div className="h-24 w-32 overflow-hidden rounded-2xl bg-surface">
-                <Image
-                  src={entry.imageUrl}
-                  alt={`Ejecución de ${entry.name.toLowerCase()}`}
-                  width={160}
-                  height={120}
-                  className="h-full w-full object-cover"
-                />
-              </div>
+            {hasExerciseFigure(entry.exerciseId) ? (
+              <ExerciseFigure exerciseId={entry.exerciseId} className="h-24 w-32 shrink-0 rounded-2xl bg-surface" />
+            ) : (
+              entry.imageUrl && (
+                <div className="h-24 w-32 overflow-hidden rounded-2xl bg-surface">
+                  <Image
+                    src={entry.imageUrl}
+                    alt={`Ejecución de ${entry.name.toLowerCase()}`}
+                    width={160}
+                    height={120}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )
             )}
           </div>
 
@@ -253,7 +258,9 @@ export function EntrenamientoActivo() {
             SIGUIENTE EJERCICIO
           </p>
           <div className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left">
-            {upcoming.imageUrl ? (
+            {hasExerciseFigure(upcoming.exerciseId) ? (
+              <ExerciseFigure exerciseId={upcoming.exerciseId} animate={false} className="h-12 w-12 shrink-0 rounded-xl bg-surface" />
+            ) : upcoming.imageUrl ? (
               <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface">
                 <Image
                   src={upcoming.imageUrl}

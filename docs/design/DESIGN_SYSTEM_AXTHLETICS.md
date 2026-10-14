@@ -612,6 +612,17 @@ Componentes principales previstos:
 
 No crear variantes aisladas sin razón real.
 
+### Exercise Figure (D-024)
+
+Figura animada de un ejercicio: un maniquí 2D que va de la pose inicial a la final y vuelve, con los músculos que trabaja marcados.
+
+- **Componente:** `components/exercise-figure.tsx`. Las poses son datos (`lib/exercise-figure/poses.ts`); los músculos salen del catálogo.
+- **Color:** cuerpo `--muted-nontext`, lado lejano el mismo a 50 % de opacidad; músculo principal `--primary`, secundario `--primary` a 45 %; objetos (caja, silla, pared) `--track`; suelo `--border`; pesa `--foreground`. Ningún color propio.
+- **Lienzo:** fondo `--surface`, con el radio del hueco donde va (`--radius-surface` en el ejercicio activo).
+- **Movimiento:** una repetición cada 2,8 s: quieto arriba, baja, quieto abajo, vuelve, con aceleración suave. Con «reducir movimiento», quieto en la pose inicial.
+- **Tamaños:** 128 × 96 px animada en el ejercicio activo; 48 px y 40 px quieta en «Siguiente ejercicio» y en el resumen.
+- **Accesibilidad:** `role="img"` con el nombre del ejercicio y sus músculos principales.
+
 ### Rest Timer (D-019)
 
 Descanso entre series dentro del ejercicio activo. Aprobado en D-019.

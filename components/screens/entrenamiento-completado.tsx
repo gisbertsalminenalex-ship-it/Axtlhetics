@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react'
 import Image from 'next/image'
 import { ArrowRight, Check, Pause } from 'lucide-react'
 import { AxisMark } from '@/components/axis-mark'
+import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
 import { closingMessage } from '@/lib/domain/axis/closing'
 import { formatVolume } from '@/lib/domain/history/stats'
 import { formatDuration } from '@/lib/domain/shared/dates'
@@ -131,7 +132,9 @@ export function EntrenamientoCompletado() {
                   style={{ '--ax-index': index } as CSSProperties}
                 >
                   <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-surface">
-                    {catalog?.imageUrl && (
+                    {hasExerciseFigure(exercise.exerciseId) ? (
+                      <ExerciseFigure exerciseId={exercise.exerciseId} animate={false} className="h-full w-full" />
+                    ) : catalog?.imageUrl && (
                       <Image
                         src={catalog.imageUrl}
                         alt={exercise.name}
