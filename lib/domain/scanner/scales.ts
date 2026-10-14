@@ -125,6 +125,38 @@ export const NAVY = {
   validPct: { min: 3, max: 60 },
 } as const
 
+/**
+ * Guía general de alimentación del escáner (D-023, enmienda del 2026-10-14).
+ * No es un plan: rangos de referencia habituales para gente que entrena.
+ *
+ * - `adultAge`: por debajo, nunca déficit ni cifras (ni calorías ni gramos).
+ * - `proteinPerKg`: gramos de proteína por kilo de peso y día, según la prioridad.
+ * - `surplusKcal` / `deficitKcal`: el «ligero» superávit o déficit diario.
+ * - `leanFatPct`: con la grasa estimada en o por debajo de esto, no se propone
+ *   déficit: lo que falta para que se note el músculo es músculo.
+ */
+export const NUTRITION = {
+  adultAge: 18,
+  proteinPerKg: {
+    musculo: [1.6, 2.0],
+    definir: [1.8, 2.2],
+    fuerza: [1.6, 2.0],
+    equilibrio: [1.4, 1.8],
+  },
+  surplusKcal: [200, 300],
+  deficitKcal: [300, 500],
+  leanFatPct: { hombre: 12, mujer: 20 },
+} as const
+
+/**
+ * Luz de las fotos (D-023, enmienda del 2026-10-14), sobre el cuerpo:
+ * - `minMeanLuma`: por debajo de este brillo medio (0–255), poca luz;
+ * - `maxSideRatio`: si una mitad del cuerpo es más brillante que la otra en más
+ *   de esta proporción, la luz viene de un lado.
+ * Provisionales (P-015).
+ */
+export const LIGHTING = { minMeanLuma: 60, maxSideRatio: 1.8 } as const
+
 /** Cuánto tiene que cambiar la grasa estimada entre escaneos para contarlo como cambio, en puntos. */
 export const BODY_FAT_CHANGE_PCT = 1.5
 

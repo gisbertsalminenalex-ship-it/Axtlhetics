@@ -11,6 +11,7 @@
  */
 
 import type { PoseLandmarker } from '@mediapipe/tasks-vision'
+import { lightingProblem, luma, type LightingProblem, type LightingStats } from '@/lib/domain/scanner/lighting'
 import { measurePose, type Measurements, type ScanLandmark, type ScanPose, type Silhouette } from '@/lib/domain/scanner/measure'
 
 const MODEL_PATH = '/mediapipe/pose_landmarker_full.task'
@@ -27,7 +28,7 @@ const BONES: [number, number][] = [
 
 export type AnalyzedPhoto =
   | { ok: true; measures: Measurements; thumbnail: string }
-  | { ok: false; reason: 'no_person' | 'unreadable'; thumbnail: string | null }
+  | { ok: false; reason: 'no_person' | 'unreadable' | LightingProblem; thumbnail: string | null }
 
 let landmarker: Promise<PoseLandmarker> | null = null
 
@@ -92,6 +93,39 @@ function thumbnailOf(source: HTMLCanvasElement, landmarks: ScanLandmark[] | null
   return canvas.toDataURL('image/jpeg', 0.7)
 }
 
+/**
+ * Brillo medio del cuerpo, y de su mitad izquierda y derecha en la imagen. Se
+ * muestrea uno de cada 4 píxeles en cada eje: sobra para una media.
+ */
+function lightingOf(canvas: HTMLCanvasElement, mask: Silhouette): LightingStats {
+  const { width, height } = canvas
+  const pixels = canvas.getContext('2d')!.getImageData(0, 0, width, height).data
+  const sx = mask.width / width
+  const sy = mask.height / height
+  let sum = 0
+  let count = 0
+  let sumX = 0
+  const samples: { x: number; l: number }[] = []
+  for (let y = 0; y < height; y += 4) {
+    for (let x = 0; x < width; x += 4) {
+      if (!mask.isBody(Math.min(mask.width - 1, Math.floor(x * sx)), Math.min(mask.height - 1, Math.floor(y * sy)))) continue
+      const i = (y * width + x) * 4
+      const l = luma(pixels[i], pixels[i + 1], pixels[i + 2])
+      samples.push({ x, l })
+      sum += l
+      sumX += x
+      count++
+    }
+  }
+  if (count === 0) return { meanLuma: 0, leftLuma: 0, rightLuma: 0 }
+  const centre = sumX / count
+  const side = (left: boolean) => {
+    const part = samples.filter((s) => (s.x < centre) === left)
+    return part.length ? part.reduce((acc, s) => acc + s.l, 0) / part.length : 0
+  }
+  return { meanLuma: sum / count, leftLuma: side(true), rightLuma: side(false) }
+}
+
 /** Lanza si el modelo no se puede cargar; una foto ilegible o sin persona se devuelve como resultado. */
 export async function analyzePhoto(file: File, pose: ScanPose): Promise<AnalyzedPhoto> {
   const model = await getLandmarker()
@@ -111,6 +145,9 @@ export async function analyzePhoto(file: File, pose: ScanPose): Promise<Analyzed
       const data = mask.getAsFloat32Array()
       const { width, height } = mask
       silhouette = { width, height, isBody: (x, y) => data[y * width + x] > 0.5 }
+      // Con poca luz o luz lateral fuerte, la silueta engaña: se avisa en vez de medir.
+      const problem = lightingProblem(lightingOf(canvas, silhouette))
+      if (problem) return { ok: false, reason: problem, thumbnail: thumbnailOf(canvas, landmarks) }
     }
     const measures = measurePose(pose, landmarks, { width: canvas.width, height: canvas.height }, silhouette)
     return { ok: true, measures, thumbnail: thumbnailOf(canvas, landmarks) }

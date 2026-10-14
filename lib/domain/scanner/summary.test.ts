@@ -66,7 +66,8 @@ test('puntuar: 100 hasta «bueno», 0 desde «mejorable», en los dos sentidos',
 test('un cuerpo equilibrado: base sólida, puntos fuertes y ninguna mejora inventada', () => {
   const s = summarizeScan({ shots: balanced() })
   assert.ok(s.index !== null && s.index >= 90, `índice ${s.index}`)
-  assert.match(s.overview, /^Partes de una base sólida \(\d+\/100\)/)
+  assert.match(s.overview, /^Partes de una base sólida: \d+\/100 en equilibrio corporal\./)
+  assert.match(s.overview, /Lo mejor: /)
   assert.ok(s.strengths.length >= 4)
   assert.deepEqual(s.improvements, [])
   assert.match(s.categories.find((c) => c.key === 'symmetry')!.text, /^Aquí estás bien/)
@@ -79,7 +80,7 @@ test('cada categoría medida es un párrafo: lo que está bien y lo que conviene
   const posture = s.categories.find((c) => c.key === 'postureMobility')!
   assert.match(posture.text, /La cabeza queda adelantada respecto a los hombros: .*espalda alta/)
   assert.match(posture.text, /Bajas bien en la sentadilla/)
-  assert.match(s.overview, /Lo que más te hará avanzar ahora: la cabeza queda adelantada/)
+  assert.match(s.overview, /Lo que más te hará avanzar ahora es trabajar esto: la cabeza queda adelantada/)
   assert.ok(s.actions.some((a) => /espalda alta/i.test(a.text)))
 })
 
@@ -88,7 +89,8 @@ test('la rodilla que se va hacia dentro se detecta con la medida nueva, y su pas
   shots.squat_front = three({ kneeAnkleRatio: 0.7, leftKneeInPct: 35, rightKneeInPct: 4 })
   const s = summarizeScan({ shots })
   assert.ok(s.improvements.some((t) => /rodilla izquierda se va hacia dentro/.test(t)))
-  assert.ok(s.improvements.some((t) => /una rodilla se mueve distinto/.test(t)))
+  // Las dos medidas de la rodilla dicen casi lo mismo: en la lista, solo la que nombra el lado.
+  assert.equal(s.improvements.filter((t) => /rodilla/.test(t)).length, 1)
   assert.ok(s.actions.some((a) => /Control de rodilla/.test(a.text)))
 })
 
@@ -353,4 +355,57 @@ test('brazo / antebrazo y el pico flexionado se cuentan como referencia, sin com
 test('sin medidas de core ni de brazos no se dice nada de ellos', () => {
   const text = development(balanced()).text
   assert.doesNotMatch(text, /abdomen|flancos|antebrazo/)
+})
+
+// ---------------------------------------------------------------------------
+// Resumen de entrenador (D-023, enmienda del 2026-10-14)
+// ---------------------------------------------------------------------------
+
+test('con una sola foto por pose, un único aviso en vez de uno por pose', () => {
+  const single: PoseShots = Object.fromEntries(Object.entries(balanced()).map(([pose, shots]) => [pose, shots!.slice(0, 1)]))
+  const notes = summarizeScan({ shots: single }).photoNotes.filter((n) => /una sola foto/.test(n))
+  assert.deepEqual(notes, ['Con una sola foto por pose no puedo comprobar que las medidas sean estables: la próxima vez, haz 2 o 3 de cada pose.'])
+})
+
+test('tres pasos: primero la prioridad del usuario, después lo que más le frena y la alimentación', () => {
+  const shots = balanced()
+  shots.squat_front = three({ kneeAnkleRatio: 0.7, leftKneeInPct: 35, rightKneeInPct: 4 })
+  const s = summarizeScan({
+    shots,
+    selfReport: { build: 'delgada', strongZones: [], weakZones: [], priority: 'musculo', sex: 'hombre' },
+    body: { heightCm: 178, age: 25, weightKg: 70 },
+  })
+  assert.equal(s.actions.length, 3)
+  assert.match(s.actions[0].text, /^Ganar músculo/)
+  assert.match(s.actions[1].text, /^Control de rodilla/)
+  assert.match(s.actions[2].text, /^Alimentación: .*ligero superávit.*110–140 g de proteína/)
+  for (const action of s.actions) for (const id of action.exerciseIds) assert.ok(findExercise(id), id)
+  // El resumen de entrada nombra la prioridad.
+  assert.match(s.overview, /ganar músculo, que es tu prioridad, y trabajar lo que más te frena: en la sentadilla, la rodilla izquierda se va hacia dentro./)
+})
+
+test('con zonas marcadas, el primer paso son esas zonas', () => {
+  const s = summarizeScan({
+    shots: balanced(),
+    selfReport: { build: null, strongZones: [], weakZones: ['espalda', 'hombros'], priority: 'musculo' },
+    body: { heightCm: 178, age: 25, weightKg: 70 },
+  })
+  assert.match(s.actions[0].text, /^Dar prioridad a espalda y hombros/)
+  assert.match(s.overview, /ganar músculo en espalda y hombros, que es lo que quieres priorizar/)
+})
+
+test('un menor recibe guía de alimentación sin déficit ni cifras', () => {
+  const s = summarizeScan({
+    shots: balanced(),
+    selfReport: { build: null, strongZones: [], weakZones: [], priority: 'definir', sex: 'hombre' },
+    body: { heightCm: 170, age: 15, weightKg: 60 },
+  })
+  const food = s.actions.find((a) => a.text.startsWith('Alimentación'))!
+  assert.match(food.text, /no hace falta comer menos/)
+  assert.doesNotMatch(food.text, /déficit|kcal|\d/)
+})
+
+test('sin prioridad no hay paso de alimentación', () => {
+  const s = summarizeScan({ shots: balanced(), body: { heightCm: 178, age: 25, weightKg: 70 } })
+  assert.ok(!s.actions.some((a) => a.text.startsWith('Alimentación')))
 })

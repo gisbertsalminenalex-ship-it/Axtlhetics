@@ -78,7 +78,7 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
         sessions,
         experience: profile?.experience ?? null,
         selfReport: scan.selfReport,
-        body: profile ? { heightCm: profile.heightCm, age: profile.age } : null,
+        body: profile ? { heightCm: profile.heightCm, age: profile.age, weightKg: profile.weightKg } : null,
         previous: older,
         today: scan.dayKey,
       })

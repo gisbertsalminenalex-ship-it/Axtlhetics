@@ -25,6 +25,7 @@ import { daysBetween, type DayKey } from '../shared/dates'
 import { MUSCLE_GROUP_LABELS, type MuscleGroup, type WorkoutSession } from '../workouts/types'
 import { estimateBodyFat, type BodyFatEstimate, type BodyFatMissing, type ScanSex } from './body-fat'
 import type { Measurements, ScanPose } from './measure'
+import { nutritionGuide } from './nutrition'
 import {
   CORE_SHAPE,
   IMPROVE_UNTIL,
@@ -110,7 +111,7 @@ export type ScanInput = {
   experience?: ExperienceLevel | null
   bodyFatPct?: number | null
   /** Altura y edad del perfil: la altura da la escala de la grasa estimada. */
-  body?: { heightCm: number; age: number } | null
+  body?: { heightCm: number; age: number; weightKg?: number } | null
   selfReport?: ScanSelfReport | null
   /** El escaneo anterior, para ver cómo han cambiado las zonas. */
   previous?: { measurements: PoseShots; dayKey: DayKey } | null
@@ -201,6 +202,10 @@ type Finding = {
   improvement: string
   why: string
   action?: ScanAction
+  /** Medidas que dicen casi lo mismo (las dos de la rodilla, las dos de brazos arriba): en las listas, solo una. */
+  group?: 'knees' | 'overhead'
+  /** La que se queda de su grupo, si está: la que nombra el lado. */
+  lead?: boolean
 }
 
 const ACTIONS = {
@@ -262,6 +267,8 @@ function symmetryFindings(shots: PoseShots, notes: Set<string>): Finding[] {
       improvement: `El brazo ${worse} sube menos que el otro (${one(Math.abs(arms))}°)`,
       why: 'un hombro que sube menos acaba compensando con la espalda en los ejercicios por encima de la cabeza',
       action: ACTIONS.shoulderMobility,
+      group: 'overhead',
+      lead: true,
     })
   }
   const left = combine(shots, 'squat_front', 'leftKneeInPct', notes)
@@ -275,6 +282,7 @@ function symmetryFindings(shots: PoseShots, notes: Set<string>): Finding[] {
       improvement: 'En la sentadilla, una rodilla se mueve distinto que la otra',
       why: 'cuando un lado controla peor, el otro carga más',
       action: ACTIONS.kneeControl,
+      group: 'knees',
     })
   }
   return out
@@ -330,6 +338,8 @@ function postureFindings(shots: PoseShots, notes: Set<string>): Finding[] {
       improvement: `En la sentadilla, la rodilla ${which} se va hacia dentro`,
       why: 'con más carga, una rodilla que se cierra trabaja peor; se corrige con control y glúteo',
       action: ACTIONS.kneeControl,
+      group: 'knees',
+      lead: true,
     })
   }
   const leftArm = combine(shots, 'arms_up', 'leftArmDeg', notes)
@@ -342,6 +352,7 @@ function postureFindings(shots: PoseShots, notes: Set<string>): Finding[] {
       improvement: 'Los brazos no llegan del todo arriba sin compensar',
       why: 'el rango de hombro es la base de cualquier press y de la espalda alta',
       action: ACTIONS.shoulderMobility,
+      group: 'overhead',
     })
   }
   return out
@@ -674,8 +685,11 @@ export function summarizeScan(input: ScanInput): ScanSummary {
   const notes = new Set<string>()
   const { shots } = input
 
-  for (const pose of Object.keys(shots) as ScanPose[]) {
-    if ((shots[pose]?.length ?? 0) === 1) notes.add(`${POSE_NAMES[pose]}: con una sola foto no puedo comprobar que la medida sea estable. Mejor 3 o más.`)
+  // Un solo aviso para todas las poses con una sola foto, no uno por pose.
+  const single = (Object.keys(shots) as ScanPose[]).filter((pose) => (shots[pose]?.length ?? 0) === 1)
+  if (single.length) {
+    const which = single.length === Object.keys(shots).length ? 'por pose' : `en ${list(single.map((p) => POSE_NAMES[p].toLowerCase()))}`
+    notes.add(`Con una sola foto ${which} no puedo comprobar que las medidas sean estables: la próxima vez, haz 2 o 3 de cada pose.`)
   }
   // La longitud de los huesos no se entrena: una diferencia grande delata una foto girada.
   for (const key of ['armAsymmetryPct', 'legAsymmetryPct']) {
@@ -755,22 +769,42 @@ export function summarizeScan(input: ScanInput): ScanSummary {
       : null
 
   const measured = [...sym, ...pm]
-  const weak = measured.filter((f) => f.score <= IMPROVE_UNTIL).sort((a, b) => a.score - b.score)
-  const strengths = [...measured.filter((f) => f.score >= STRENGTH_FROM).map((f) => f.strength), ...development.strengths]
+  // Dos medidas que dicen casi lo mismo (las dos de la rodilla, las dos de brazos
+  // arriba) no se repiten en las listas: se queda la más clara.
+  const weak = onePerGroup(measured.filter((f) => f.score <= IMPROVE_UNTIL).sort((a, b) => a.score - b.score))
+  const strong = onePerGroup(measured.filter((f) => f.score >= STRENGTH_FROM).sort((a, b) => b.score - a.score))
+  const strengths = [...strong.map((f) => f.strength), ...development.strengths]
   const improvements = [...weak.map((f) => f.improvement), ...development.improvements]
 
-  const actions: ScanAction[] = []
-  for (const action of [...weak.map((f) => f.action).filter((a): a is ScanAction => !!a), ...development.actions]) {
-    if (!actions.some((a) => a.text === action.text)) actions.push(action)
+  // Tres pasos: lo que el usuario quiere priorizar, lo que más le frena y, si hay
+  // prioridad, la alimentación.
+  const priority = input.selfReport?.priority ?? null
+  const hasZonePriority = (input.selfReport?.weakZones.length ?? 0) > 0
+  const training: ScanAction[] = []
+  for (const action of [
+    ...(priority && !hasZonePriority ? [PRIORITY_ACTIONS[priority]] : []),
+    ...development.actions.filter((a) => a.exerciseIds.length > 0),
+    ...weak.map((f) => f.action).filter((a): a is ScanAction => !!a),
+    ...development.actions.filter((a) => a.exerciseIds.length === 0),
+  ]) {
+    if (!training.some((a) => a.text === action.text)) training.push(action)
   }
+  const guide = nutritionGuide({
+    priority,
+    age: input.body?.age ?? null,
+    weightKg: input.body?.weightKg ?? null,
+    sex: input.selfReport?.sex ?? null,
+    bodyFatPct: fat.ok ? fat.estimate.pct : null,
+  })
+  const actions = guide ? [...training.slice(0, 2), { text: `Alimentación: ${guide}`, exerciseIds: [] }] : training.slice(0, 3)
 
   return {
     index,
-    overview: overviewText(index, symmetry, posture, weak, development),
+    overview: overviewText(index, strong, weak, input.selfReport ?? null, fat.ok ? fat.estimate : null),
     categories,
     strengths,
     improvements,
-    actions: actions.slice(0, 4),
+    actions,
     photoNotes: Array.from(notes),
     bodyFat: fat.ok ? fat.estimate : null,
   }
@@ -831,19 +865,73 @@ const BODY_FAT_MISSING: Record<BodyFatMissing, string> = {
   out_of_range: 'Las medidas de cuello y cintura de estas fotos no dan una estimación creíble de tu % de grasa. Repítelas de pie, sin camiseta y con buena luz.',
 }
 
-/** La primera frase es la conclusión: dónde estás y qué te hará avanzar más. */
-function overviewText(index: number | null, symmetry: ScanCategory, posture: ScanCategory, weak: Finding[], development: Development): string {
+/**
+ * Uno por grupo de medidas que dicen casi lo mismo: la principal del grupo si
+ * está en la lista; si no, la primera. Conserva el orden de la lista.
+ */
+function onePerGroup(findings: Finding[]): Finding[] {
+  const keep = new Map<string, Finding>()
+  for (const f of findings) {
+    if (!f.group) continue
+    const current = keep.get(f.group)
+    if (!current || (f.lead && !current.lead)) keep.set(f.group, f)
+  }
+  return findings.filter((f) => !f.group || keep.get(f.group) === f)
+}
+
+/** El paso de entrenamiento de cada prioridad, cuando no ha marcado zonas concretas. */
+const PRIORITY_ACTIONS: Record<ScanPriority, ScanAction> = {
+  musculo: {
+    text: 'Ganar músculo: ejercicios grandes con progresión, subiendo repeticiones y pasando a la variante más exigente cuando las domines, 3 o 4 días por semana.',
+    exerciseIds: ['zancada-bulgara', 'flexiones', 'remo-unilateral', 'sentadilla-con-pesa'],
+  },
+  definir: {
+    text: 'Que se note más el músculo: volumen alto y constante, con las últimas repeticiones de cada serie exigentes, y trabajo de core.',
+    exerciseIds: ['flexiones', 'remo-unilateral', 'zancada-bulgara', 'plancha'],
+  },
+  fuerza: {
+    text: 'Ganar fuerza: pocas repeticiones muy bien hechas en la variante más difícil que domines, con descanso completo entre series.',
+    exerciseIds: ['flexiones-diamante', 'peso-muerto-unilateral', 'zancada-bulgara', 'remo-unilateral'],
+  },
+  equilibrio: ACTIONS.sideBalance,
+}
+
+/**
+ * El resumen de entrada, como lo diría un entrenador: dónde estás, lo mejor que
+ * tienes, lo que más te hará avanzar y, si se pudo estimar, tu grasa. Primero la
+ * conclusión, sin exclamaciones ni cumplidos de apertura.
+ */
+function overviewText(
+  index: number | null,
+  strong: Finding[],
+  weak: Finding[],
+  self: ScanSelfReport | null,
+  bodyFat: BodyFatEstimate | null,
+): string {
   if (index === null) return 'Me faltan fotos para darte un resultado completo: necesito de frente, de perfil, la sentadilla y los brazos arriba.'
-  const solid = [symmetry, posture].filter((c) => (c.score ?? 0) >= STRENGTH_FROM).map((c) => c.title.toLowerCase())
-  const base =
+  const parts: string[] = [
     index >= STRENGTH_FROM
-      ? `Partes de una base sólida (${index}/100)${solid.length ? `, sobre todo en ${list(solid)}` : ''}.`
+      ? `Partes de una base sólida: ${index}/100 en equilibrio corporal.`
       : index > IMPROVE_UNTIL
-        ? `Tienes una base buena para construir (${index}/100)${solid.length ? `, con ${list(solid)} como punto fuerte` : ''}.`
-        : `Hay bastante margen de mejora (${index}/100), y eso significa que vas a notar los cambios pronto si entrenas con constancia.`
-  const focus = [
-    ...weak.slice(0, 2).map((f) => lowerFirst(f.improvement)),
-    ...(development.improvements.length ? [lowerFirst(development.improvements[0])] : []),
+        ? `Tienes una buena base para construir: ${index}/100 en equilibrio corporal.`
+        : `Tienes mucho margen para avanzar: ${index}/100 en equilibrio corporal, y eso significa que notarás los cambios pronto si entrenas con constancia.`,
   ]
-  return focus.length ? `${base} Lo que más te hará avanzar ahora: ${list(focus.slice(0, 2))}.` : `${base} No veo desequilibrios destacables: ahora toca seguir sumando fuerza.`
+  if (strong.length) parts.push(`Lo mejor: ${lowerFirst(list(strong.slice(0, 2).map((f, i) => (i === 0 ? f.strength : lowerFirst(f.strength)))))}.`)
+  const goal = self?.weakZones.length
+    ? `ganar músculo en ${list(self.weakZones.map((z) => SCAN_ZONE_LABELS[z]))}, que es lo que quieres priorizar`
+    : self?.priority
+      ? `${SCAN_PRIORITY_LABELS[self.priority]}, que es tu prioridad`
+      : null
+  const brake = weak[0] ? lowerFirst(weak[0].improvement) : null
+  parts.push(
+    goal && brake
+      ? `Lo que más te hará avanzar ahora: ${goal}, y trabajar lo que más te frena: ${brake}.`
+      : goal
+        ? `Lo que más te hará avanzar ahora: ${goal}.`
+        : brake
+          ? `Lo que más te hará avanzar ahora es trabajar esto: ${brake}.`
+          : 'No veo desequilibrios destacables: ahora toca seguir sumando fuerza.',
+  )
+  if (bodyFat) parts.push(`Tu grasa corporal estimada es del ${one(bodyFat.pct)} % (±${bodyFat.marginPct} %).`)
+  return parts.join(' ')
 }

@@ -92,7 +92,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
         sessions,
         experience: profile?.experience ?? null,
         selfReport,
-        body: profile ? { heightCm: profile.heightCm, age: profile.age } : null,
+        body: profile ? { heightCm: profile.heightCm, age: profile.age, weightKg: profile.weightKg } : null,
         // Frente al último escaneo guardado: cómo han cambiado las zonas.
         previous: scans.scans[0] ?? null,
         today: todayKey(),
@@ -318,9 +318,11 @@ function Chip({ selected, disabled, onClick, children }: { selected: boolean; di
   )
 }
 
-const PHOTO_PROBLEM: Record<'no_person' | 'unreadable', string> = {
+const PHOTO_PROBLEM: Record<'no_person' | 'unreadable' | 'dark' | 'side_light', string> = {
   no_person: 'No veo a ninguna persona',
   unreadable: 'No se pudo leer la foto',
+  dark: 'Poca luz: repítela con más luz',
+  side_light: 'Luz de un lado: repítela con la luz de frente',
 }
 
 function PoseStep({
@@ -380,7 +382,7 @@ function PoseStep({
             <li key={photo.id} className="relative">
               {photo.result.thumbnail ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={photo.result.thumbnail} alt={photo.result.ok ? 'Foto con los puntos detectados' : 'Foto sin persona detectada'} className="w-full rounded-xl" />
+                <img src={photo.result.thumbnail} alt={photo.result.ok ? 'Foto con los puntos detectados' : `Foto no válida: ${PHOTO_PROBLEM[photo.result.reason].toLowerCase()}`} className="w-full rounded-xl" />
               ) : (
                 <div className="aspect-[3/4] w-full rounded-xl bg-surface" />
               )}
