@@ -133,6 +133,27 @@ const SPECS: readonly Spec[] = [
     read: (s) => stableValue(s, 'front', 'waistToHip'),
     better: '', worse: '',
   },
+  // Enmienda del 2026-10-14: brazos y core. Forma en la foto, sin juzgar.
+  {
+    key: 'armToForearm', label: 'Brazo / antebrazo', unit: '', direction: 'none', tolerance: STABILITY_TOLERANCE.armToForearm,
+    read: (s) => stableValue(s, 'front', 'armToForearm'),
+    better: '', worse: '',
+  },
+  ...(['flexArmMean', 'flexArmPeak'] as const).map((key): Spec => ({
+    key, label: key === 'flexArmMean' ? 'Brazo flexionado, anchura media' : 'Brazo flexionado, pico', unit: '', direction: 'none', tolerance: STABILITY_TOLERANCE[key],
+    read: (s) => stableValue(s, 'flex', key),
+    better: '', worse: '',
+  })),
+  {
+    key: 'bellyBulgePct', label: 'Abdomen de perfil', unit: '%', direction: 'none', tolerance: STABILITY_TOLERANCE.bellyBulgePct,
+    read: (s) => stableValue(s, 'side', 'bellyBulgePct'),
+    better: '', worse: '',
+  },
+  {
+    key: 'flankBulgePct', label: 'Flancos', unit: '%', direction: 'none', tolerance: STABILITY_TOLERANCE.flankBulgePct,
+    read: (s) => stableValue(s, 'front', 'flankBulgePct'),
+    better: '', worse: '',
+  },
 ]
 
 const fmt = (n: number, unit: string) => {

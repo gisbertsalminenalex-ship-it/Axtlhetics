@@ -11,6 +11,7 @@ import {
   bodyWidthAt,
   LM,
   measureArmsUp,
+  measureFlex,
   measureFront,
   measureSide,
   measureSquatFront,
@@ -274,4 +275,64 @@ test('la distancia a la cámara no cambia la anchura relativa', () => {
 test('sin silueta, las zonas no se rellenan', () => {
   const m = measureFront(pose(ZONES), SIZE)
   for (const key of ['upperArmMean', 'upperArmPeak', 'forearmMean', 'thighMean', 'calfPeak', 'shoulderToTorso', 'waistToHip']) assert.deepEqual(m[key], { value: null, reason: 'no_silhouette' }, key)
+})
+
+// ---------------------------------------------------------------------------
+// Core y brazos (D-023, enmienda del 2026-10-14)
+// ---------------------------------------------------------------------------
+
+test('flancos: un tronco recto da 0 y uno que sale entre costillas y cresta, positivo por lado', () => {
+  // Tronco de 500 px (hombros y = 600, caderas y = 1100): los cortes del core van de y = 875 a y = 1025.
+  near(value(measureFront(pose(ZONES), SIZE, rects(BODY)).flankBulgePct), 0, 0.01, 'tronco recto')
+  // A media altura, 40 px más de anchura: 20 px por flanco sobre 500 → 4 %.
+  const bulge = rects([...BODY, [420, 930, 580, 970]])
+  near(value(measureFront(pose(ZONES), SIZE, bulge).flankBulgePct), 4, 0.3, 'flancos hacia fuera')
+})
+
+test('flancos: una cintura que entra da un valor negativo', () => {
+  const pinched: Silhouette = {
+    width: SIZE.width,
+    height: SIZE.height,
+    isBody: (x, y) => (y >= 930 && y <= 970 ? x >= 460 && x <= 540 : rects(BODY).isBody(x, y)),
+  }
+  near(value(measureFront(pose(ZONES), SIZE, pinched).flankBulgePct), -4, 0.3, 'flancos hacia dentro')
+})
+
+test('flancos: con los brazos pegados al tronco no se miden', () => {
+  const glued = rects([...BODY, [300, 640, 700, 1100]])
+  assert.deepEqual(measureFront(pose(ZONES), SIZE, glued).flankBulgePct, { value: null, reason: 'no_silhouette' })
+})
+
+const SIDE_RIGHT = { nose: [640, 380], leftEar: [600, 400], leftShoulder: [600, 600], leftHip: [600, 1100], rightEar: [0, 0, 0.1], rightShoulder: [0, 0, 0.1], rightHip: [0, 0, 0.1] } as const
+
+test('abdomen de perfil: recto da 0 y el que sale, positivo, mire a donde mire la persona', () => {
+  // Tronco de 500 px; el borde delantero, 80 px por delante del eje.
+  const flat = rects([[500, 580, 680, 1120]])
+  near(value(measureSide(pose(SIDE_RIGHT), SIZE, flat).bellyBulgePct), 0, 0.01, 'abdomen recto')
+  // 30 px más por delante a media altura → 6 %.
+  const out = rects([[500, 580, 680, 1120], [500, 930, 710, 970]])
+  near(value(measureSide(pose(SIDE_RIGHT), SIZE, out).bellyBulgePct), 6, 0.3, 'abdomen hacia fuera')
+  // La misma persona mirando a la izquierda: el delante es el otro lado.
+  const mirror = (x: number) => 1000 - x
+  const leftFacing = pose({ ...SIDE_RIGHT, nose: [mirror(640), 380], leftEar: [mirror(600), 400], leftShoulder: [mirror(600), 600], leftHip: [mirror(600), 1100] })
+  const outLeft = rects([[mirror(680), 580, mirror(500), 1120], [mirror(710), 930, mirror(500), 970]])
+  near(value(measureSide(leftFacing, SIZE, outLeft).bellyBulgePct), 6, 0.3, 'abdomen hacia fuera, mirando a la izquierda')
+  // Sin silueta no se rellena.
+  assert.deepEqual(measureSide(pose(SIDE_RIGHT), SIZE).bellyBulgePct, { value: null, reason: 'no_silhouette' })
+})
+
+test('brazo respecto a antebrazo: anchura media de uno entre la del otro', () => {
+  near(value(measureFront(pose(ZONES), SIZE, rects(BODY)).armToForearm), 1, 0.05, 'misma anchura')
+  // Brazos de 81 px y antebrazos de 61 px.
+  const wider = rects([...BODY.filter((r) => !(r[1] === 640 && r[3] === 900)), [575, 640, 655, 900], [345, 640, 425, 900]])
+  near(value(measureFront(pose(ZONES), SIZE, wider).armToForearm), 81 / 61, 0.07, 'brazo más ancho')
+})
+
+test('bíceps flexionado: el brazo en cruz se mide respecto a su hueso', () => {
+  const flex = pose({ leftShoulder: [600, 600], leftElbow: [800, 600], rightShoulder: [400, 600], rightElbow: [200, 600] })
+  // Brazos de 61 px sobre 200 px de hueso; el izquierdo con un pico de 81 px en el centro.
+  const mask = rects([[600, 570, 800, 630], [200, 570, 400, 630], [680, 560, 720, 640]])
+  const m = measureFlex(flex, SIZE, mask)
+  near(value(m.flexArmMean), 61 / 200, 0.03, 'área media')
+  near(value(m.flexArmPeak), (81 + 61) / 2 / 200, 0.01, 'pico')
 })

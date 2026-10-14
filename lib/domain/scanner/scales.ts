@@ -75,7 +75,39 @@ export const STABILITY_TOLERANCE: Record<string, number> = {
   calfMean: 0.02,
   calfPeak: 0.03,
   shoulderToTorso: 0.06,
+  // Enmienda del 2026-10-14: brazos y core. Provisionales (P-015).
+  armToForearm: 0.08,
+  flexArmMean: 0.03,
+  flexArmPeak: 0.04,
+  /** El core se mueve con la respiración: margen amplio. */
+  flankBulgePct: 1.5,
+  bellyBulgePct: 2,
 }
+
+/**
+ * Dónde caen las costillas flotantes y la cresta ilíaca sobre la línea que va de
+ * los hombros (0) a los puntos de cadera del modelo (1). El modelo de pose no
+ * tiene puntos para ellas: se sitúan por proporción, como hace el otro escáner
+ * (D-023, enmienda del 2026-10-14). Los puntos de cadera del modelo están en la
+ * articulación, por debajo de la cresta. Provisionales (P-015).
+ */
+export const CORE_LINE = { ribs: 0.55, crest: 0.85 } as const
+
+/**
+ * Una anchura del tronco mayor que esta fracción de su longitud incluye los
+ * brazos pegados o la silueta está rota: no se mide.
+ */
+export const MAX_TORSO_WIDTH_RATIO = 1
+
+/**
+ * Cómo se lee el core respecto a la recta costillas–cresta, en % de la longitud
+ * del tronco: hasta `flat` es recto (o hacia dentro); desde `out`, claramente
+ * hacia fuera. Es forma: puede ser músculo o grasa. Provisionales (P-015).
+ */
+export const CORE_SHAPE = {
+  belly: { flat: 1.5, out: 4 },
+  flanks: { flat: 1, out: 3 },
+} as const
 
 /**
  * Por encima de esta asimetría de longitud entre lados (%), lo más probable es

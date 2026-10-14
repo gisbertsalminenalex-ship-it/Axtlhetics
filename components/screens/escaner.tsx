@@ -236,7 +236,7 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
   return (
     <>
       <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Escáner corporal</h1>
-      <p className="mt-1.5 text-[15px] text-muted-foreground">4 preguntas y 5 fotos · 5–10 min</p>
+      <p className="mt-1.5 text-[15px] text-muted-foreground">4 preguntas y 5 fotos, más 1 opcional · 5–10 min</p>
       <p className="mt-4 text-[15px] leading-relaxed text-pretty">
         Mido tu simetría, tus proporciones, tu postura y tu movilidad, y lo combino con tu fuerza y tu entrenamiento.
         Te digo tus puntos fuertes, qué te hará avanzar más y qué opciones tienes.

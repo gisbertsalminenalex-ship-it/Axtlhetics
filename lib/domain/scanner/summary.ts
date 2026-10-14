@@ -22,6 +22,7 @@ import { daysBetween, type DayKey } from '../shared/dates'
 import { MUSCLE_GROUP_LABELS, type MuscleGroup, type WorkoutSession } from '../workouts/types'
 import type { Measurements, ScanPose } from './measure'
 import {
+  CORE_SHAPE,
   IMPROVE_UNTIL,
   LIMB_LENGTH_PHOTO_CHECK_PCT,
   POSTURE_SCALES,
@@ -130,6 +131,7 @@ const POSE_NAMES: Record<ScanPose, string> = {
   squat_side: 'Sentadilla de perfil',
   squat_front: 'Sentadilla de frente',
   arms_up: 'Brazos arriba',
+  flex: 'Bíceps flexionado',
 }
 
 const median = (values: number[]) => {
@@ -371,7 +373,9 @@ function muscleDevelopment(input: ScanInput): Development {
 
   const self = input.selfReport
   const hasSelf = !!self && (self.strongZones.length > 0 || self.weakZones.length > 0)
-  const hasZones = ZONES_MEASURED.some((z) => z.keys.some((key) => stableValue(input.shots, 'front', key) !== null))
+  const hasZones =
+    ZONES_MEASURED.some((z) => z.keys.some((key) => stableValue(input.shots, 'front', key) !== null)) ||
+    CORE_ARMS_KEYS.some(([pose, key]) => stableValue(input.shots, pose, key) !== null)
   let strengthUp: string[] = []
 
   if (done.length === 0 && recent.length === 0 && !hasSelf && !hasZones) {
@@ -473,6 +477,11 @@ function muscleDevelopment(input: ScanInput): Development {
   details.push(...zones.details)
   strengths.push(...zones.strengths)
 
+  const coreArms = coreAndArms(input.shots)
+  parts.push(...coreArms.parts)
+  details.push(...coreArms.details)
+  strengths.push(...coreArms.strengths)
+
   return { category: { ...base, text: parts.join(' '), details }, strengths, improvements, actions }
 }
 
@@ -566,6 +575,84 @@ function zoneDevelopment(
   // El escaneo anterior no tiene estas medidas (otro método): este es la referencia.
   if (compared === 0) return reference
   if (parts.length === 0) parts.push('La anchura de tus zonas no ha cambiado más que el margen de medida desde tu escaneo anterior.')
+  return { parts, details, strengths }
+}
+
+/** Medidas de core y brazos (enmienda del 2026-10-14), con la pose de la que salen. */
+const CORE_ARMS_KEYS: readonly [ScanPose, string][] = [
+  ['side', 'bellyBulgePct'],
+  ['front', 'flankBulgePct'],
+  ['front', 'armToForearm'],
+  ['flex', 'flexArmPeak'],
+]
+
+/** Recto, algo hacia fuera o claramente hacia fuera, según `CORE_SHAPE`. */
+function coreShape(value: number, scale: { flat: number; out: number }): 'flat' | 'some' | 'out' {
+  return value <= scale.flat ? 'flat' : value < scale.out ? 'some' : 'out'
+}
+
+/**
+ * Core y brazos (D-023, enmienda del 2026-10-14). El core es la forma de la
+ * silueta respecto a la recta costillas–cresta: puede ser músculo o grasa, y se
+ * dice así. Los brazos, cuánto más ancho es el brazo que el antebrazo y, con la
+ * pose flexionada, el pico del bíceps. Sin normas de población: es la referencia
+ * para compararte contigo mismo.
+ */
+function coreAndArms(shots: PoseShots): { parts: string[]; details: string[]; strengths: string[] } {
+  const parts: string[] = []
+  const details: string[] = []
+  const strengths: string[] = []
+
+  const belly = stableValue(shots, 'side', 'bellyBulgePct')
+  const flanks = stableValue(shots, 'front', 'flankBulgePct')
+  if (belly !== null || flanks !== null) {
+    const said: string[] = []
+    if (belly !== null) {
+      const shape = coreShape(belly, CORE_SHAPE.belly)
+      said.push(
+        shape === 'flat'
+          ? 'de perfil, tu abdomen queda recto respecto a la línea que va de las costillas a la cadera'
+          : shape === 'some'
+            ? `de perfil, tu abdomen sale algo de la línea que va de las costillas a la cadera (${one(belly)} % del tronco)`
+            : `de perfil, tu abdomen sale claramente de la línea que va de las costillas a la cadera (${one(belly)} % del tronco)`,
+      )
+      details.push(`Abdomen de perfil: ${one(belly)} % del tronco respecto a la línea costillas–cadera`)
+      if (shape === 'flat') strengths.push('Tu abdomen se ve recto de perfil')
+    }
+    if (flanks !== null) {
+      const shape = flanks < 0 ? 'in' : coreShape(flanks, CORE_SHAPE.flanks)
+      said.push(
+        shape === 'in'
+          ? 'de frente, tu cintura se estrecha entre las costillas y la cadera'
+          : shape === 'flat'
+            ? 'de frente, tus flancos van rectos de las costillas a la cadera'
+            : `de frente, tus flancos salen ${shape === 'some' ? 'algo' : 'claramente'} entre las costillas y la cadera`,
+      )
+      details.push(`Flancos: ${one(flanks)} % del tronco por lado respecto a la línea costillas–cadera`)
+    }
+    const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+    parts.push(`${cap(list(said))}. Es la forma en la foto: puede ser músculo o grasa, y con los próximos escaneos veremos hacia dónde va.`)
+  }
+
+  const ratio = stableValue(shots, 'front', 'armToForearm')
+  const flexPeak = stableValue(shots, 'flex', 'flexArmPeak')
+  const relaxedPeak = stableValue(shots, 'front', 'upperArmPeak')
+  if (ratio !== null) {
+    parts.push(
+      ratio > 1
+        ? `Tu brazo es un ${Math.round((ratio - 1) * 100)} % más ancho que tu antebrazo en la foto: el bíceps y el tríceps son los que más mueven esta relación.`
+        : 'Tu brazo y tu antebrazo tienen una anchura parecida en la foto: el bíceps y el tríceps son los que más pueden cambiar esa relación.',
+    )
+    details.push(`Brazo / antebrazo: ${(Math.round(ratio * 100) / 100).toString().replace('.', ',')}`)
+  }
+  if (flexPeak !== null) {
+    details.push(`Brazo flexionado, pico: ${pct(flexPeak)} de su longitud`)
+    if (relaxedPeak !== null && flexPeak > relaxedPeak) {
+      parts.push(`Al flexionar, el pico de tu brazo pasa del ${pct(relaxedPeak)} al ${pct(flexPeak)} de su longitud: es la medida que mejor seguirá cómo crece el bíceps.`)
+    } else {
+      parts.push(`Con el bíceps flexionado, el pico de tu brazo es el ${pct(flexPeak)} de su longitud: es la medida que mejor seguirá cómo crece.`)
+    }
+  }
   return { parts, details, strengths }
 }
 

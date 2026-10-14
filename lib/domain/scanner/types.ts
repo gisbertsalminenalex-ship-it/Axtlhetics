@@ -17,7 +17,7 @@ import type { CategoryKey, ScanBuild, ScanPriority, ScanSelfReport, ScanZone } f
 
 export const SCAN_PROTOCOL_VERSION = 1
 
-export const SCAN_POSES: readonly ScanPose[] = ['front', 'side', 'squat_side', 'squat_front', 'arms_up']
+export const SCAN_POSES: readonly ScanPose[] = ['front', 'side', 'squat_side', 'squat_front', 'arms_up', 'flex']
 
 export type ScanRecord = {
   id: string

@@ -15,6 +15,8 @@
  * derecha de la imagen). Las y de la imagen crecen hacia abajo.
  */
 
+import { CORE_LINE, MAX_TORSO_WIDTH_RATIO } from './scales'
+
 export type ScanLandmark = { x: number; y: number; visibility?: number }
 
 export type ImageSize = { width: number; height: number }
@@ -43,7 +45,7 @@ export const MIN_VISIBILITY = 0.6
 /** Margen dentro de la foto: un punto pegado al borde suele estar cortado. */
 export const EDGE_MARGIN = 0.01
 
-export type ScanPose = 'front' | 'side' | 'squat_side' | 'squat_front' | 'arms_up'
+export type ScanPose = 'front' | 'side' | 'squat_side' | 'squat_front' | 'arms_up' | 'flex'
 
 export type MeasureValue = { value: number } | { value: null; reason: 'not_visible' | 'out_of_frame' | 'no_silhouette' }
 
@@ -128,15 +130,21 @@ export type Silhouette = { width: number; height: number; isBody: (x: number, y:
 
 /** Anchura del tramo de cuerpo que contiene x en la fila y. 0 si x no es cuerpo. */
 export function bodyWidthAt(mask: Silhouette, x: number, y: number): number {
+  const run = bodyRunAt(mask, x, y)
+  return run ? run.right - run.left + 1 : 0
+}
+
+/** Primer y último píxel del tramo de cuerpo que contiene x en la fila y, en píxeles de la silueta. */
+function bodyRunAt(mask: Silhouette, x: number, y: number): { left: number; right: number } | null {
   const row = Math.round(y)
-  let cx = Math.round(x)
-  if (row < 0 || row >= mask.height || cx < 0 || cx >= mask.width) return 0
-  if (!mask.isBody(cx, row)) return 0
+  const cx = Math.round(x)
+  if (row < 0 || row >= mask.height || cx < 0 || cx >= mask.width) return null
+  if (!mask.isBody(cx, row)) return null
   let left = cx
   while (left > 0 && mask.isBody(left - 1, row)) left--
   let right = cx
   while (right < mask.width - 1 && mask.isBody(right + 1, row)) right++
-  return right - left + 1
+  return { left, right }
 }
 
 /**
@@ -221,14 +229,112 @@ const MIN_VALID_CUTS = 0.5
  * al tronco, piernas juntas) y se descarta. Con menos de la mitad de cortes
  * válidos, la zona no se mide: `null`.
  */
-function zoneProfile(a: Point, b: Point, size: ImageSize, mask: Silhouette, maxRatio: number): { mean: number; peak: number } | null {
+function zoneProfile(
+  a: Point,
+  b: Point,
+  size: ImageSize,
+  mask: Silhouette,
+  maxRatio: number,
+): { mean: number; peak: number; meanPx: number } | null {
   const length = distance(a, b)
   if (length < 1) return null
   const widths = ZONE_CUTS.map((t) => cutWidth({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, a, b, length, size, mask, maxRatio)).filter(
     (w): w is number => w !== null,
   )
   if (widths.length < ZONE_CUTS.length * MIN_VALID_CUTS) return null
-  return { mean: mean(widths) / length, peak: Math.max(...widths) / length }
+  return { mean: mean(widths) / length, peak: Math.max(...widths) / length, meanPx: mean(widths) }
+}
+
+// ---------------------------------------------------------------------------
+// Core: la silueta respecto a la recta costillas–cresta (enmienda del 2026-10-14)
+// ---------------------------------------------------------------------------
+
+/** Cortes del tronco entre las costillas y la cresta ilíaca, incluidos los extremos. */
+const CORE_CUTS = Array.from({ length: 13 }, (_, i) => CORE_LINE.ribs + ((CORE_LINE.crest - CORE_LINE.ribs) * i) / 12)
+
+/**
+ * La desviación más marcada de un perfil respecto a la recta que une su primer y
+ * su último valor, con signo: positiva hacia fuera, negativa hacia dentro.
+ */
+function lineDeviation(values: readonly number[]): number {
+  const first = values[0]
+  const last = values[values.length - 1]
+  let extreme = 0
+  for (let i = 1; i < values.length - 1; i++) {
+    const deviation = values[i] - (first + ((last - first) * i) / (values.length - 1))
+    if (Math.abs(deviation) > Math.abs(extreme)) extreme = deviation
+  }
+  return extreme
+}
+
+/** Punto de la línea hombros→caderas a la fracción `t`. */
+const alongTorso = (shoulders: Point, hips: Point, t: number): Point => ({
+  x: shoulders.x + (hips.x - shoulders.x) * t,
+  y: shoulders.y + (hips.y - shoulders.y) * t,
+})
+
+/**
+ * Flancos, de frente: cuánto sale la silueta del tronco, por cada lado, de la
+ * recta que va de las costillas a la cresta ilíaca, en % de la longitud del
+ * tronco. Positivo, hacia fuera (convexo); negativo, hacia dentro.
+ *
+ * Con un brazo pegado al tronco, la anchura lo incluiría: si la línea de un brazo
+ * (hombro–codo–muñeca) cae dentro del tramo del tronco a la altura de un corte,
+ * no se mide.
+ */
+function flankBulge(points: Point[], size: ImageSize, mask: Silhouette, arms: readonly (readonly Point[])[]): number | null {
+  const [ls, rs, lh, rh] = points
+  const shoulders = midpoint(ls, rs)
+  const hips = midpoint(lh, rh)
+  const torsoLength = distance(shoulders, hips)
+  const sx = mask.width / size.width
+  const sy = mask.height / size.height
+  const widths: number[] = []
+  for (const t of CORE_CUTS) {
+    const p = alongTorso(shoulders, hips, t)
+    const run = bodyRunAt(mask, p.x * sx, p.y * sy)
+    if (!run) return null
+    const width = (run.right - run.left + 1) / sx
+    if (width > torsoLength * MAX_TORSO_WIDTH_RATIO) return null
+    const armInside = arms.some((chain) =>
+      chain.slice(1).some((b, i) => {
+        const a = chain[i]
+        if ((p.y - a.y) * (p.y - b.y) > 0 || a.y === b.y) return false
+        const x = (a.x + ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y)) * sx
+        return x >= run.left && x <= run.right
+      }),
+    )
+    if (armInside) return null
+    widths.push(width)
+  }
+  // La anchura recoge los dos flancos: la mitad es lo que sale cada uno.
+  return (lineDeviation(widths) / 2 / torsoLength) * 100
+}
+
+/**
+ * Abdomen, de perfil: cuánto sale el borde delantero de la silueta de la recta
+ * costillas–cresta, en % de la longitud del tronco. Positivo, hacia fuera. El
+ * «delante» se deduce de hacia dónde apunta la nariz.
+ */
+function bellyBulge([shoulder, hip, ear, nose]: Point[], size: ImageSize, mask: Silhouette): number | null {
+  const torsoLength = distance(shoulder, hip)
+  const facing = Math.sign(nose.x - ear.x) || 1
+  const sx = mask.width / size.width
+  const sy = mask.height / size.height
+  const fronts: number[] = []
+  for (const t of CORE_CUTS) {
+    const p = alongTorso(shoulder, hip, t)
+    const x0 = Math.round(p.x * sx)
+    const y = Math.round(p.y * sy)
+    if (y < 0 || y >= mask.height || x0 < 0 || x0 >= mask.width || !mask.isBody(x0, y)) return null
+    let x = x0
+    while (x + facing >= 0 && x + facing < mask.width && mask.isBody(x + facing, y)) {
+      x += facing
+      if (Math.abs(x - x0) / sx > torsoLength * MAX_TORSO_WIDTH_RATIO) return null
+    }
+    fronts.push(Math.abs(x - x0) / sx)
+  }
+  return (lineDeviation(fronts) / torsoLength) * 100
 }
 
 /** Anchura de la silueta en un corte perpendicular al hueso, en píxeles de la imagen. */
@@ -319,8 +425,78 @@ export function measureFront(landmarks: readonly ScanLandmark[], size: ImageSize
     ),
     shoulderToWaist: fromSilhouette(shoulderToWaist),
     waistToHip: fromSilhouette(waistToHip),
+    flankBulgePct: fromSilhouette((points, size, mask) => {
+      // Solo los brazos que se ven: uno que no se ve no puede comprobarse, y no impide medir.
+      const chains = [
+        [LM.leftShoulder, LM.leftElbow, LM.leftWrist],
+        [LM.rightShoulder, LM.rightElbow, LM.rightWrist],
+      ].flatMap((ids) => {
+        const arm = pick(landmarks, size, ids)
+        return arm.ok ? [arm.points] : []
+      })
+      return flankBulge(points, size, mask, chains)
+    }),
     ...zoneWidths(landmarks, size, mask),
   }
+}
+
+type ZoneReason = 'not_visible' | 'out_of_frame' | 'no_silhouette'
+
+/**
+ * Área media y contorno máximo de una zona (media de los lados medidos). Basta
+ * con un lado bien medido; si ninguno, la zona está pegada a otra.
+ */
+function zoneMeasure(
+  landmarks: readonly ScanLandmark[],
+  size: ImageSize,
+  mask: Silhouette | undefined,
+  key: string,
+  pairs: [number, number][],
+  maxRatio: number,
+): Measurements {
+  const missing = (reason: ZoneReason): Measurements => ({
+    [`${key}Mean`]: { value: null, reason },
+    [`${key}Peak`]: { value: null, reason },
+  })
+  if (!mask) return missing('no_silhouette')
+  const profiles: { mean: number; peak: number }[] = []
+  for (const [from, to] of pairs) {
+    const bone = pick(landmarks, size, [from, to])
+    if (!bone.ok) return missing(bone.reason)
+    const profile = zoneProfile(bone.points[0], bone.points[1], size, mask, maxRatio)
+    if (profile) profiles.push(profile)
+  }
+  if (profiles.length === 0) return missing('no_silhouette')
+  return {
+    [`${key}Mean`]: { value: round(mean(profiles.map((p) => p.mean)), 3) },
+    [`${key}Peak`]: { value: round(mean(profiles.map((p) => p.peak)), 3) },
+  }
+}
+
+/** Topes de cada corte, en fracción de la longitud del hueso. */
+const ZONE_MAX_RATIO = { upperArm: 0.45, forearm: 0.4, thigh: 0.5, calf: 0.4, flexArm: 0.6 } as const
+
+/**
+ * Brazo respecto a antebrazo (enmienda del 2026-10-14): anchura media del brazo
+ * entre la del antebrazo, del mismo lado, en píxeles. Solo cuentan los lados con
+ * las dos zonas medidas.
+ */
+function armToForearm(landmarks: readonly ScanLandmark[], size: ImageSize, mask?: Silhouette): MeasureValue {
+  if (!mask) return { value: null, reason: 'no_silhouette' }
+  const ratios: number[] = []
+  let reason: ZoneReason = 'no_silhouette'
+  for (const ids of [[LM.leftShoulder, LM.leftElbow, LM.leftWrist], [LM.rightShoulder, LM.rightElbow, LM.rightWrist]]) {
+    const arm = pick(landmarks, size, ids)
+    if (!arm.ok) {
+      reason = arm.reason
+      continue
+    }
+    const [shoulder, elbow, wrist] = arm.points
+    const upper = zoneProfile(shoulder, elbow, size, mask, ZONE_MAX_RATIO.upperArm)
+    const fore = zoneProfile(elbow, wrist, size, mask, ZONE_MAX_RATIO.forearm)
+    if (upper && fore) ratios.push(upper.meanPx / fore.meanPx)
+  }
+  return ratios.length ? { value: round(mean(ratios), 2) } : { value: null, reason }
 }
 
 /**
@@ -330,26 +506,7 @@ export function measureFront(landmarks: readonly ScanLandmark[], size: ImageSize
  * y qué no: con ropa ancha, la ropa.
  */
 function zoneWidths(landmarks: readonly ScanLandmark[], size: ImageSize, mask?: Silhouette): Measurements {
-  const zone = (key: string, pairs: [number, number][], maxRatio: number): Measurements => {
-    const missing = (reason: 'not_visible' | 'out_of_frame' | 'no_silhouette'): Measurements => ({
-      [`${key}Mean`]: { value: null, reason },
-      [`${key}Peak`]: { value: null, reason },
-    })
-    if (!mask) return missing('no_silhouette')
-    const profiles: { mean: number; peak: number }[] = []
-    for (const [from, to] of pairs) {
-      const bone = pick(landmarks, size, [from, to])
-      if (!bone.ok) return missing(bone.reason)
-      const profile = zoneProfile(bone.points[0], bone.points[1], size, mask, maxRatio)
-      if (profile) profiles.push(profile)
-    }
-    // Basta con un lado bien medido; si ninguno, la zona está pegada a otra.
-    if (profiles.length === 0) return missing('no_silhouette')
-    return {
-      [`${key}Mean`]: { value: round(mean(profiles.map((p) => p.mean)), 3) },
-      [`${key}Peak`]: { value: round(mean(profiles.map((p) => p.peak)), 3) },
-    }
-  }
+  const zone = (key: keyof typeof ZONE_MAX_RATIO, pairs: [number, number][]) => zoneMeasure(landmarks, size, mask, key, pairs, ZONE_MAX_RATIO[key])
   const shoulderWidth = (): MeasureValue => {
     if (!mask) return { value: null, reason: 'no_silhouette' }
     const torso = pick(landmarks, size, [LM.leftShoulder, LM.rightShoulder, LM.leftHip, LM.rightHip])
@@ -361,12 +518,22 @@ function zoneWidths(landmarks: readonly ScanLandmark[], size: ImageSize, mask?: 
     return width > 0 && torsoLength > 0 ? { value: round(width / torsoLength, 3) } : { value: null, reason: 'no_silhouette' }
   }
   return {
-    ...zone('upperArm', [[LM.leftShoulder, LM.leftElbow], [LM.rightShoulder, LM.rightElbow]], 0.45),
-    ...zone('forearm', [[LM.leftElbow, LM.leftWrist], [LM.rightElbow, LM.rightWrist]], 0.4),
-    ...zone('thigh', [[LM.leftHip, LM.leftKnee], [LM.rightHip, LM.rightKnee]], 0.5),
-    ...zone('calf', [[LM.leftKnee, LM.leftAnkle], [LM.rightKnee, LM.rightAnkle]], 0.4),
+    ...zone('upperArm', [[LM.leftShoulder, LM.leftElbow], [LM.rightShoulder, LM.rightElbow]]),
+    ...zone('forearm', [[LM.leftElbow, LM.leftWrist], [LM.rightElbow, LM.rightWrist]]),
+    ...zone('thigh', [[LM.leftHip, LM.leftKnee], [LM.rightHip, LM.rightKnee]]),
+    ...zone('calf', [[LM.leftKnee, LM.leftAnkle], [LM.rightKnee, LM.rightAnkle]]),
     shoulderToTorso: shoulderWidth(),
+    armToForearm: armToForearm(landmarks, size, mask),
   }
+}
+
+/**
+ * Bíceps flexionado, de frente (pose opcional, enmienda del 2026-10-14): los
+ * brazos en cruz con los codos doblados y el puño hacia arriba. Área media y
+ * contorno máximo del brazo respecto a su hueso, en tensión, donde el pico se ve.
+ */
+export function measureFlex(landmarks: readonly ScanLandmark[], size: ImageSize, mask?: Silhouette): Measurements {
+  return zoneMeasure(landmarks, size, mask, 'flexArm', [[LM.leftShoulder, LM.leftElbow], [LM.rightShoulder, LM.rightElbow]], ZONE_MAX_RATIO.flexArm)
 }
 
 const mean = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
@@ -379,12 +546,20 @@ const mean = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.le
  *   hacia dónde apunta la nariz.
  * - `headAngleDeg`: ángulo de la recta hombro→oreja con la horizontal; más alto,
  *   cabeza más vertical sobre el hombro.
+ * - `bellyBulgePct`: el abdomen respecto a la recta costillas–cresta, si hay silueta.
  */
-export function measureSide(landmarks: readonly ScanLandmark[], size: ImageSize): Measurements {
+export function measureSide(landmarks: readonly ScanLandmark[], size: ImageSize, mask?: Silhouette): Measurements {
   const side = visibleSide(landmarks, [LM.leftEar, LM.leftShoulder, LM.leftHip], [LM.rightEar, LM.rightShoulder, LM.rightHip])
   const ids = side === 'left' ? [LM.leftEar, LM.leftShoulder, LM.leftHip, LM.nose] : [LM.rightEar, LM.rightShoulder, LM.rightHip, LM.nose]
   const head = pick(landmarks, size, ids)
+  const belly = (): MeasureValue => {
+    if (!head.ok) return { value: null, reason: head.reason }
+    const [ear, shoulder, hip, nose] = head.points
+    const bulge = mask ? bellyBulge([shoulder, hip, ear, nose], size, mask) : null
+    return bulge === null ? { value: null, reason: 'no_silhouette' } : { value: round(bulge) }
+  }
   return {
+    bellyBulgePct: belly(),
     headForwardPct: measure(head, ([ear, shoulder, hip, nose]) => {
       const facing = Math.sign(nose.x - ear.x) || 1
       return (((ear.x - shoulder.x) * facing) / distance(shoulder, hip)) * 100
@@ -456,13 +631,15 @@ export function measurePose(pose: ScanPose, landmarks: readonly ScanLandmark[], 
     case 'front':
       return measureFront(landmarks, size, mask)
     case 'side':
-      return measureSide(landmarks, size)
+      return measureSide(landmarks, size, mask)
     case 'squat_side':
       return measureSquatSide(landmarks, size)
     case 'squat_front':
       return measureSquatFront(landmarks, size)
     case 'arms_up':
       return measureArmsUp(landmarks, size)
+    case 'flex':
+      return measureFlex(landmarks, size, mask)
   }
 }
 

@@ -282,3 +282,41 @@ test('la cintura respecto a la cadera se dice tal cual, sin hablar de grasa', ()
   assert.ok(proportion.details.includes('Cintura / cadera: 0,82'))
   assert.doesNotMatch(proportion.text, /grasa|adelgaz|delgad|gord/i)
 })
+
+// ---------------------------------------------------------------------------
+// Core y brazos (D-023, enmienda del 2026-10-14)
+// ---------------------------------------------------------------------------
+
+const development = (shots: PoseShots) => summarizeScan({ shots }).categories.find((c) => c.key === 'muscleDevelopment')!
+
+test('el abdomen de perfil se describe por su forma y se dice que puede ser músculo o grasa', () => {
+  const flat = development({ ...balanced(), side: three({ headForwardPct: 2, headAngleDeg: 80, bellyBulgePct: 0.5 }) })
+  assert.match(flat.text, /tu abdomen queda recto/)
+  assert.match(flat.text, /puede ser músculo o grasa/)
+  const out = development({ ...balanced(), side: three({ headForwardPct: 2, headAngleDeg: 80, bellyBulgePct: 6 }) })
+  assert.match(out.text, /sale claramente/)
+  assert.ok(out.details.some((d) => d.startsWith('Abdomen de perfil: 6 %')))
+})
+
+test('unos flancos que entran se dicen como una cintura que se estrecha', () => {
+  const shots = { ...balanced(), front: three({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, legToTorso: 1.4, flankBulgePct: -2 }) }
+  assert.match(development(shots).text, /tu cintura se estrecha/)
+})
+
+test('brazo / antebrazo y el pico flexionado se cuentan como referencia, sin comparar con nadie', () => {
+  const shots: PoseShots = {
+    ...balanced(),
+    // Proporciones pequeñas: tres fotos iguales, para no salirse de su margen.
+    front: [1, 2, 3].map(() => m({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, legToTorso: 1.4, armToForearm: 1.3, upperArmPeak: 0.3 })),
+    flex: [1, 2, 3].map(() => m({ flexArmMean: 0.3, flexArmPeak: 0.36 })),
+  }
+  const text = development(shots).text
+  assert.match(text, /un 30 % más ancho que tu antebrazo/)
+  assert.match(text, /Al flexionar, el pico de tu brazo pasa del 30 % al 36 %/)
+  assert.doesNotMatch(text, /media|población|normal/)
+})
+
+test('sin medidas de core ni de brazos no se dice nada de ellos', () => {
+  const text = development(balanced()).text
+  assert.doesNotMatch(text, /abdomen|flancos|antebrazo/)
+})
