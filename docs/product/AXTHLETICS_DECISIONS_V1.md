@@ -1152,9 +1152,22 @@ Aprobada por Alex. Sustituye el «en su punto medio» de la enmienda anterior.
 - Las medidas por zona tienen nombres nuevos: los escaneos anteriores no se comparan con ellas. El primer escaneo con este método es la referencia. Los escaneos de prueba se borran desde su detalle en Historial.
 - Lo demás no cambia: es la forma en la foto, «coherente con más músculo» solo si la fuerza de esa zona sube en los tests, y nunca se habla de grasa. El porcentaje de grasa por textura o sombras sigue descartado (enmienda del 2026-10-10). Márgenes provisionales (`P-015`).
 
+### Enmienda (2026-10-14): core, brazos, grasa estimada y alimentación
+
+Aprobada por Alex, tras consultar al creador de otro escáner cómo mide core, brazos y grasa. **Supera** a las enmiendas anteriores en dos puntos: la composición corporal deja de quedar fuera y AXIS puede dar una guía general de alimentación.
+
+- **Brazos.** Además del área y el contorno de cada zona, la **relación brazo/antebrazo** (anchura media del brazo frente a la del antebrazo). Una pose nueva y **opcional**, **bíceps flexionado** de frente, mide el contorno del brazo en tensión, donde el pico se ve de verdad.
+- **Core.** Las costillas flotantes y la cresta ilíaca no tienen punto en el modelo de pose: se sitúan por **proporción** sobre la línea hombros–caderas, como hace el otro escáner. Se mide cuánto sale la silueta de la recta que las une: de **perfil**, el abdomen; de **frente**, los flancos. Convexo, recto o cóncavo. Es forma: puede ser músculo o grasa, y se dice así. La respiración la mueve mucho: necesita fotos estables.
+- **Porcentaje de grasa estimado: fórmula de la Marina de EE. UU.** (Hodgdon y Beckett). Usa los perímetros de cuello y cintura (y cadera en mujeres) y la altura del perfil. Cada perímetro se estima como una **elipse** con la anchura de frente y la profundidad de perfil; la altura del perfil da la escala en centímetros. Todo en el dispositivo. Pide **sexo** (para elegir la fórmula), preguntado en el escaneo y guardado solo con él. Siempre se presenta como **estimación con su margen (±4 %)**, nunca como medida médica, y con su límite: no ve la grasa interna.
+- **Descartado:** el porcentaje por textura, sombras o una IA que mire la foto. El otro escáner usa un **modelo propio entrenado con fotos medidas por DEXA**, que AXTHLETICS no tiene; sin él, el número sería inventado. Tampoco se envían fotos a una IA externa.
+- **Fotos.** Se recomienda hacerlas **sin camiseta** (la ropa, incluso ajustada, falsea el contorno) y se comprueba la luz: con sombras laterales fuertes o poca luz se avisa en vez de medir. Siguen sin salir del dispositivo.
+- **Alimentación.** Con la prioridad y la grasa estimada, AXIS da una **guía general**: proteína suficiente y, según el objetivo, un ligero superávit o un ligero déficit. **Menores de 18 años** (edad del perfil): nunca déficit ni cifras de calorías; sí «come algo más de lo habitual» si quieren ganar músculo, y comer suficiente para entrenar y crecer. No sustituye a un profesional y se dice.
+- **Resumen.** Tono de entrenador, con las cuatro categorías con contenido real y tres pasos de acción según la prioridad, siempre con ejercicios del catálogo (D-008).
+- Constantes de proporción, márgenes y umbrales: en `lib/domain/scanner/scales.ts`, provisionales (`P-015`).
+
 ### Fuera de D-023 v1
 
-Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal, comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.
+Análisis por IA externa de las fotos, nota de atractivo o de «físico», composición corporal medida a partir de la foto por textura o sombras (la estimación por perímetros de la enmienda del 2026-10-14 sí entra), comparación con otras personas, gamificación y vídeo continuo durante el entrenamiento.
 
 ---
 
