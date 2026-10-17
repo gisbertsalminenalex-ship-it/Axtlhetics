@@ -1298,7 +1298,38 @@ Una llamada más por pregunta de datos, dentro de los planes gratuitos de D-016.
 
 ### Fuera de D-027
 
-Pedir al modelo que reescriba un mensaje que el determinista no entiende (paso 3). Necesita su propia decisión.
+Pedir al modelo que reescriba un mensaje que el determinista no entiende (paso 3, D-028). Necesita su propia decisión.
+
+---
+
+## D-028 — El modelo reescribe lo que el determinista no entiende
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 3 de la propuesta de Alex de que AXIS use su IA «como Finax» (D-026, D-027).
+
+### El problema
+
+Con las faltas corregidas (D-026), lo que el determinista no reconoce son las formas de decir: «ando fundido», «estoy ko», «me pesa todo el cuerpo». No hay palabra clave que corregir, y la respuesta era «No he entendido a qué te refieres».
+
+### La solución: el modelo traduce, el determinista responde
+
+Cuando un mensaje sigue sin entenderse después de corregir las faltas, se le pide al modelo **una sola cosa: reescribirlo** como una frase clara, en primera persona, sin añadir nada (`lib/domain/axis/conversation/reinterpret.ts`). Esa frase vuelve al determinista, que es quien responde, con sus reglas de siempre: lo médico sigue llevando a la respuesta segura y cualquier cambio sigue necesitando su botón de confirmar (D-012). El prompt incluye frases que el determinista entiende, para que el modelo reescriba hacia ellas; un test comprueba que ninguna deja de entenderse.
+
+AXIS dice cómo lo ha entendido, al final de la respuesta para que la primera frase siga siendo el veredicto: «… Te he entendido como «Estoy muy cansado»». Es una interpretación y se presenta como tal.
+
+### Qué sale del dispositivo
+
+**Solo el mensaje.** Sin briefing: para reescribir una frase no hace falta saber nada del usuario. Es menos de lo que sale en cualquier otra llamada a la capa de lenguaje, por la misma ruta y a los mismos proveedores (D-016).
+
+### Límites
+
+- La frase reescrita no vale si es larga, trae emojis o saltos de línea, o **una cifra que el usuario no escribió** («tengo poco rato» no puede volver como «tengo 20 minutos»). Si no vale, responde el determinista con el «no he entendido» de siempre.
+- Si el modelo tampoco lo entiende, o el mensaje no va de AXTHLETICS, contesta `NO_ENTIENDO` y queda la respuesta de siempre, sin aviso: no es un fallo.
+- **De una reinterpretación no se aprende nada**: si la respuesta a la frase reescrita registrara una actividad cancelada o una carga contada, se descarta. Son suposiciones, no algo que el usuario haya dicho.
+- La respuesta a la frase reescrita no se vuelve a redactar con el modelo: una llamada por mensaje.
+
+### Fuera de D-028
+
+Que el modelo responda directamente a lo que el determinista no sabe responder.
 
 ---
 

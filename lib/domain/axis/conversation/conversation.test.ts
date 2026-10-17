@@ -920,3 +920,83 @@ test('recurrente y partido futuro a la vez: nombra los dos, cada uno con su cuá
   assert.match(answer.text, /Baloncesto los miércoles/)
   assert.match(answer.text, /Partido el domingo 13 de septiembre/)
 })
+
+// ---------------------------------------------------------------------------
+// D-028: lo que el determinista no entiende lo reescribe el modelo
+// ---------------------------------------------------------------------------
+
+test('D-028: un mensaje no entendido lo reescribe el modelo y lo responde el determinista', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  const enviados: { question: string; briefing: unknown }[] = []
+  const conversation = createAxisConversation({
+    transport: transport({
+      send: async (request) => {
+        enviados.push({ question: request.question, briefing: request.briefing })
+        return { text: 'Estoy muy cansado.' }
+      },
+    }),
+  })
+  const result = await conversation.ask('ando fundido', briefing)
+  const direct = answerFromBriefing('Estoy muy cansado.', briefing)
+
+  assert.deepEqual(enviados, [{ question: 'ando fundido', briefing: {} }], 'una llamada, solo con el mensaje')
+  assert.equal(result.intent, direct.intent)
+  assert.notEqual(result.intent, 'unknown')
+  assert.equal(result.text, `${direct.text} Te he entendido como «Estoy muy cansado».`)
+  assert.equal(result.reinterpretedAs, 'Estoy muy cansado.')
+  assert.match(result.engineId, /ai/)
+  assert.equal(result.usedFallback, false)
+})
+
+test('D-028: si el modelo tampoco lo entiende, o su frase sigue sin entenderse, queda el «no he entendido»', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  const local = answerFromBriefing('blablabla', briefing)
+
+  for (const reply of ['NO_ENTIENDO', 'Blablabla.']) {
+    const conversation = createAxisConversation({ transport: transport({ send: async () => ({ text: reply }) }) })
+    const result = await conversation.ask('blablabla', briefing)
+    assert.equal(result.intent, 'unknown', reply)
+    assert.equal(result.text, local.text, reply)
+    assert.equal(result.usedFallback, false, `${reply}: no es un fallo, es la misma respuesta`)
+  }
+})
+
+test('D-028: una reescritura que no vale o un proveedor caído dejan la respuesta local, con su motivo', async () => {
+  const { briefing } = briefingWith({}, [session()])
+
+  const inventa = createAxisConversation({ transport: transport({ send: async () => ({ text: 'Solo tengo 15 minutos.' }) }) })
+  const invented = await inventa.ask('ando fundido', briefing)
+  assert.equal(invented.intent, 'unknown')
+  assert.equal(invented.usedFallback, true)
+  assert.equal(invented.rejectedReason, 'invalid_reinterpretation')
+
+  const caida = createAxisConversation({
+    transport: transport({
+      send: async () => {
+        throw new Error('red')
+      },
+    }),
+  })
+  const down = await caida.ask('ando fundido', briefing)
+  assert.equal(down.intent, 'unknown')
+  assert.equal(down.usedFallback, true)
+  assert.equal(down.rejectedReason, 'transport_error')
+})
+
+test('D-028: lo que el determinista ya entiende no se reescribe', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  const sistemas: string[] = []
+  const conversation = createAxisConversation({
+    transport: transport({
+      send: async (request) => {
+        sistemas.push(request.system)
+        return { text: 'Respuesta del modelo.' }
+      },
+    }),
+  })
+  await conversation.ask('Me duele la rodilla', briefing)
+  await conversation.ask('¿Por qué me propones esto hoy?', briefing)
+
+  assert.equal(sistemas.length, 1, 'lo médico no llama; la explicación llama una vez, para redactar')
+  assert.doesNotMatch(sistemas[0], /NO_ENTIENDO/)
+})

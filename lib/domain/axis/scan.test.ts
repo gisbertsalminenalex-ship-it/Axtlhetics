@@ -14,7 +14,7 @@ import type { WorkoutSession } from '../workouts/types'
 import { proposeAction } from './action-engine'
 import { buildBriefing } from './briefing'
 import { buildAxisContext } from './context'
-import { toAiBriefing, type AxisAiRequest, type AxisAiTransport } from './conversation/ai'
+import { toAiBriefing, type AxisAiTransportRequest, type AxisAiTransport } from './conversation/ai'
 import { answerFromBriefing } from './conversation/deterministic'
 import { createAxisConversation } from './conversation/index'
 import { decide } from './engine'
@@ -122,7 +122,7 @@ test('el escaneo nunca sale hacia la capa de lenguaje: ni la clave ni sus datos'
   assert.equal('scan' in sent, false)
   assert.doesNotMatch(JSON.stringify(sent), /data:image|2026-09-03|weakZones|espalda.*musculo/)
 
-  const requests: AxisAiRequest[] = []
+  const requests: AxisAiTransportRequest[] = []
   const transport: AxisAiTransport = { isConfigured: () => true, async send(request) { requests.push(request); return { text: 'Hoy toca tren superior.' } } }
   const conversation = createAxisConversation({ transport })
   // Una pregunta que sí puede pasar por el modelo: su briefing no lleva el escaneo.
@@ -135,7 +135,7 @@ test('el escaneo nunca sale hacia la capa de lenguaje: ni la clave ni sus datos'
 
 test('las preguntas sobre el escaneo nunca llegan al proveedor', async () => {
   const { briefing } = setup([scan(['espalda'])])
-  const requests: AxisAiRequest[] = []
+  const requests: AxisAiTransportRequest[] = []
   const transport: AxisAiTransport = { isConfigured: () => true, async send(request) { requests.push(request); return { text: 'No debería llamarse.' } } }
   const conversation = createAxisConversation({ transport })
   for (const question of ['¿Qué dice mi escaneo?', '¿cómo está mi simetría?', '¿qué tal mi físico?']) {

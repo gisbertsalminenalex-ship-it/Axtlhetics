@@ -26,6 +26,7 @@ import type { AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
 import { AXIS_PERSONALITY, AXIS_SYSTEM_PROMPT } from '../personality'
 import { checkModelText, DATA_ANSWER_INTENTS, type ModelTextRejection } from '../safety'
+import type { AxisAiReinterpretRequest } from './reinterpret'
 import type { AxisAnswer, AxisConversationEngine, AxisIntent } from './types'
 
 export const AI_CONVERSATION_ID = 'axis-conversation-ai-v1'
@@ -104,6 +105,9 @@ export type AxisAiRequest = {
   briefing: AxisAiBriefing
   domain: AxisAiDomainAnswer
 }
+
+/** Lo que viaja a la ruta: pedir una redacción o, sin briefing, reescribir un mensaje (D-028). */
+export type AxisAiTransportRequest = AxisAiRequest | AxisAiReinterpretRequest
 
 /** Lo único que el modelo puede sugerir. Sigue teniendo que pasar por el dominio. */
 export type AxisAiAction = {
@@ -229,7 +233,12 @@ export function reconcileTarget(
 // Rechazar lo que el modelo devuelve
 // ---------------------------------------------------------------------------
 
-export type AiRejectionReason = ModelTextRejection | 'model_disagreed' | 'transport_error'
+export type AiRejectionReason =
+  | ModelTextRejection
+  | 'model_disagreed'
+  | 'transport_error'
+  /** La reescritura de un mensaje no entendido no vale: larga, rara o con una cifra nueva (D-028). */
+  | 'invalid_reinterpretation'
 
 /**
  * El modelo ha respondido, pero lo que ha dicho no se puede enseñar.
@@ -263,7 +272,7 @@ export class AxisAiRejection extends Error {
 export type AxisAiTransport = {
   /** `false` mientras no haya endpoint configurado. */
   isConfigured(): boolean
-  send(request: AxisAiRequest, signal?: AbortSignal): Promise<AxisAiResponse>
+  send(request: AxisAiTransportRequest, signal?: AbortSignal): Promise<AxisAiResponse>
 }
 
 /** Cuánto se espera al modelo antes de responder con el determinista. */

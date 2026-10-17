@@ -24,7 +24,7 @@ import {
   parseAiResponse,
   reconcileTarget,
   toAiBriefing,
-  type AxisAiRequest,
+  type AxisAiTransportRequest,
   type AxisAiTransport,
 } from './ai'
 import { answerFromBriefing } from './deterministic'
@@ -102,8 +102,8 @@ function setup() {
 const CHANGE_MODE = { lastIntent: 'change' as const, changeMode: true }
 
 /** Un transporte que devuelve lo que se le diga y recuerda lo que recibió. */
-function fakeTransport(reply: (request: AxisAiRequest) => { text: string; action?: unknown }) {
-  const requests: AxisAiRequest[] = []
+function fakeTransport(reply: (request: AxisAiTransportRequest) => { text: string; action?: unknown }) {
+  const requests: AxisAiTransportRequest[] = []
   const transport: AxisAiTransport = {
     isConfigured: () => true,
     async send(request) {

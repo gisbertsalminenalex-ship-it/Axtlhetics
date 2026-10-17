@@ -13,6 +13,8 @@
  * 2. **No se llama al modelo por costumbre.** Solo en las preguntas de
  *    `AI_WORTHY_INTENTS`: explicaciones y, desde D-027, respuestas de datos. Lo
  *    médico, lo ajeno, el test y el escáner se quedan siempre en el determinista.
+ *    Y, desde D-028, en lo que el determinista no entiende: ahí el modelo no
+ *    redacta, reescribe el mensaje para que el determinista lo responda.
  */
 
 import type { AxisBriefing } from '../briefing'
@@ -27,6 +29,12 @@ import {
 } from './ai'
 import { answerFromBriefing, createDeterministicConversation } from './deterministic'
 import { matchIntent } from './intents'
+import {
+  buildReinterpretRequest,
+  presentReinterpreted,
+  readReinterpretation,
+  REINTERPRET_NONE,
+} from './reinterpret'
 import { understandMessage } from './understand'
 import type { AxisAnswer, AxisConversationEngine, AxisConversationMemory } from './types'
 
@@ -55,6 +63,8 @@ export type AxisConversationResult = AxisAnswer & {
   modelDisagreed: boolean
   /** Por qué se descartó la respuesta del modelo, si se descartó. */
   rejectedReason: AiRejectionReason | null
+  /** Cómo reescribió el modelo un mensaje que el determinista no entendía (D-028). */
+  reinterpretedAs?: string
 }
 
 /**
@@ -91,6 +101,51 @@ export function createAxisConversation(
   const transport = options.transport ?? createHttpTransport(options.aiEndpoint ?? null)
   const ai = createAiConversation(transport, answerFromBriefing)
 
+  /*
+   * El modelo solo traduce el mensaje; quien responde es el determinista. Si no
+   * vuelve una frase que valga, o el determinista sigue sin entenderla, se queda
+   * el «no he entendido» de siempre.
+   */
+  async function reinterpret(
+    question: string,
+    briefing: AxisBriefing,
+    memory: AxisConversationMemory | undefined,
+    local: AxisAnswer,
+  ): Promise<AxisConversationResult> {
+    const fallback = (usedFallback: boolean, rejectedReason: AiRejectionReason | null) => ({
+      ...local,
+      engineId: deterministic.id,
+      usedFallback,
+      modelDisagreed: false,
+      rejectedReason,
+    })
+
+    let text: string
+    try {
+      text = (await transport.send(buildReinterpretRequest(question, local))).text
+    } catch {
+      return fallback(true, 'transport_error')
+    }
+
+    // El modelo dice que no lo entiende: no es un fallo, es la misma respuesta.
+    if (text.trim() === REINTERPRET_NONE) return fallback(false, null)
+
+    const rewritten = readReinterpretation(question, text)
+    if (rewritten === null) return fallback(true, 'invalid_reinterpretation')
+
+    const answer = answerFromBriefing(rewritten, briefing, memory)
+    if (answer.intent === 'unknown') return fallback(false, null)
+
+    return {
+      ...presentReinterpreted(answer, rewritten),
+      engineId: ai.id,
+      usedFallback: false,
+      modelDisagreed: false,
+      rejectedReason: null,
+      reinterpretedAs: rewritten,
+    }
+  }
+
   async function ask(
     question: string,
     briefing: AxisBriefing,
@@ -108,6 +163,12 @@ export function createAxisConversation(
      * justo donde el modelo podría convertir una ausencia en un hecho.
      */
     const intent = matchIntent(understandMessage(question, briefing), memory?.lastIntent ?? null).intent
+
+    // Lo que ni corregido se entiende lo reescribe el modelo y lo responde el determinista (D-028).
+    if (intent === 'unknown' && local.intent === 'unknown' && (await ai.isAvailable())) {
+      return reinterpret(question, briefing, memory, local)
+    }
+
     const noData = local.unknown === true && DATA_ANSWER_INTENTS.includes(local.intent)
     const worthIt = benefitsFromAi(local.intent) && benefitsFromAi(intent) && !noData
 
