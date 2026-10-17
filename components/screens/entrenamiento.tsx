@@ -7,6 +7,9 @@ import { AssessmentEntry } from '@/components/assessment/assessment-entry'
 import { ScanEntry } from '@/components/scanner/scan-entry'
 import { AxisMark } from '@/components/axis-mark'
 import { WeeklyActivity } from '@/components/weekly-activity'
+import { WeeklyVolume } from '@/components/weekly-volume'
+import { EXERCISE_CATALOG } from '@/lib/domain/workouts/catalog'
+import { weeklyVolume } from '@/lib/domain/workouts/weekly-volume'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
 import { formatDuration, formatRelativeDay } from '@/lib/domain/shared/dates'
 import { EXERCISE_PHASE_LABELS } from '@/lib/domain/workouts/types'
@@ -29,12 +32,14 @@ export function EntrenamientoScreen({
   /** Abre el escáner corporal (D-023). */
   onOpenScan: () => void
 }) {
-  const { proposal, openChangeConversation, sessions, weeklyActivity, today, movedToTomorrow } =
+  const { proposal, openChangeConversation, sessions, weeklyActivity, today, movedToTomorrow, profile } =
     useAxtlhetics()
 
   const trains = proposal ? isTrainingRecommendation(proposal.type) : false
   const session = proposal?.session ?? null
   const lastSession = sessions.find((item) => item.status === 'completed') ?? null
+  // Series de la semana por grupo frente al objetivo (D-034).
+  const volumes = weeklyVolume(sessions, today, EXERCISE_CATALOG, profile?.experience ?? 'intermedio')
 
   return (
     <div className="px-6 pb-10">
@@ -190,6 +195,7 @@ export function EntrenamientoScreen({
         today={weeklyActivity.todayIndex}
         className="mt-4"
       />
+      <WeeklyVolume volumes={volumes} className="mt-6" />
 
       {/* Ver historial */}
       <button

@@ -9,6 +9,9 @@ import { assessmentDayFacts } from './assessment'
 import { activityOccursOn, isAvailableOn } from '../profile/types'
 import { addDays, daysBetween, weekdayOfKey } from '../shared/dates'
 import type { MuscleGroup } from '../workouts/types'
+import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { computeTrainingLoad } from '../workouts/load'
+import { fulfilmentOf, weeklyVolume } from '../workouts/weekly-volume'
 import type { ScheduledActivity } from '../profile/types'
 import type { AxisContext, AxisFacts } from './types'
 
@@ -115,6 +118,18 @@ export function deriveFacts(context: AxisContext): AxisFacts {
     tomorrowActivities: [...tomorrowActivities],
     minutesUntilActivity,
     availableMinutes,
+    weeklyFulfilment: Object.fromEntries(
+      weeklyVolume(
+        recentSessions,
+        dayKey,
+        context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG,
+        profile?.experience ?? 'intermedio',
+      ).map((volume) => [volume.group, fulfilmentOf(volume)]),
+    ) as Record<MuscleGroup, number>,
+    trainingLoadBand: (() => {
+      const load = computeTrainingLoad(recentSessions, dayKey)
+      return load.status === 'ok' ? load.band : null
+    })(),
   }
 }
 

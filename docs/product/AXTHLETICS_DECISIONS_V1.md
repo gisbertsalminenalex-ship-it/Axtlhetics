@@ -1493,6 +1493,28 @@ Trabajo de agilidad con conos o escalera, sprints y resistencia: necesitan espac
 
 ---
 
+## D-034 — Plan semanal: volumen por músculo y carga
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 4 del plan de Alex para que AXTHLETICS sea el entrenador ideal.
+
+### Volumen por músculo
+
+AXIS cuenta las **series de la semana natural** (de lunes a hoy) de cada grupo muscular: una serie cuenta entera para los músculos principales del ejercicio y media para los secundarios. Solo el entrenamiento: ni el calentamiento ni la vuelta a la calma (D-032) ni la movilidad. El **objetivo semanal** por grupo depende de la experiencia: 8 series (principiante), 12 (intermedio) o 16 (avanzado).
+
+- **Qué zona toca:** al elegir el foco del día, entre zonas parecidas gana la que más va por detrás de su objetivo. Lo trabajado en los últimos días y lo que carga un deporte de hoy siguen pesando más.
+- **Lo que dice AXIS:** a «¿qué tal la semana?» añade la zona más atrasada: «Lo que más va por detrás: pecho, con 3 de 12 series esta semana».
+- **Lo que se ve:** en Entrenamiento, bajo «Esta semana», una fila por grupo con las series hechas, el objetivo y una barra (Design System, «Weekly Volume»).
+
+### Carga alta: más suave, no descanso
+
+Con la **Carga de los últimos 7 días en «alta»** (D-008) y la recuperación registrada, AXIS propone una **sesión ligera** para asimilarla (`high_training_load`). No manda descansar: eso lo siguen decidiendo la recuperación y el calendario. Alex había preferido no añadir una regla de descanso por carga; esta versión suave es la que entra en el plan semanal que aprobó después.
+
+### Fuera de D-034
+
+Un calendario de la semana con las sesiones previstas día a día: AXIS decide cada día con los datos de ese día, y adelantar la semana entera sería inventar lo que aún no sabe.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

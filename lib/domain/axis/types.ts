@@ -13,6 +13,7 @@ import type { ScanRecord } from '../scanner/types'
 import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
 import type { DayKey } from '../shared/dates'
 import type { Exercise, MuscleGroup, PlannedSession, WorkoutSession } from '../workouts/types'
+import type { TrainingLoadBand } from '../workouts/load'
 
 export type AxisRecommendationType =
   | 'TRAINING'
@@ -50,6 +51,8 @@ export type AxisFactorKey =
   | 'progression'
   /** Semana de descarga tras varias semanas cargadas (D-031). */
   | 'deload_week'
+  /** Carga de los últimos 7 días alta (D-034). */
+  | 'training_load'
 
 /**
  * `supports` empuja hacia entrenar más, `limits` hacia entrenar menos.
@@ -186,4 +189,11 @@ export type AxisFacts = {
   minutesUntilActivity: number | null
   /** Minutos realmente disponibles para entrenar hoy. */
   availableMinutes: number
+  /**
+   * Cuánto lleva cada grupo de su objetivo semanal de series, de 0 en adelante
+   * (1 = cumplido). Ordena qué zona toca (D-034).
+   */
+  weeklyFulfilment: Record<MuscleGroup, number>
+  /** Banda de la Carga de los últimos 7 días (D-008), o `null` sin sesiones en la ventana. */
+  trainingLoadBand: TrainingLoadBand | null
 }

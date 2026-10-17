@@ -32,7 +32,9 @@ import { formatMinutesOfDay, type DayKey } from '../shared/dates'
 import { findExercise } from '../workouts/catalog'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
 import type { SessionFocus, WorkoutSession } from '../workouts/types'
-import { isMainExercise } from '../workouts/types'
+import { isMainExercise, MUSCLE_GROUP_LABELS } from '../workouts/types'
+import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { laggingGroup, weeklyVolume } from '../workouts/weekly-volume'
 import { deriveFacts } from './facts'
 import type { ReportedLoadMemory } from './memory'
 import type { AxisContext, AxisDecision, AxisFacts, AxisProposal, AxisRecommendationType } from './types'
@@ -130,6 +132,11 @@ export type BriefingWeek = {
   totalVolumeKg: number
   /** Variación respecto a la semana anterior. `null` si no hay con qué comparar. */
   performancePercent: number | null
+  /**
+   * El grupo que más va por detrás de su objetivo semanal de series (D-034), o
+   * `null` si todos lo han cumplido. Las series pueden ser medias.
+   */
+  lagging: { group: string; sets: number; target: number } | null
 }
 
 export type AxisBriefing = {
@@ -298,6 +305,17 @@ export function buildBriefing(
       totalSeconds: week.totalSeconds,
       totalVolumeKg: week.totalVolumeKg,
       performancePercent: week.performance.available ? week.performance.percent : null,
+      lagging: (() => {
+        const behind = laggingGroup(
+          weeklyVolume(
+            sessions,
+            context.dayKey,
+            context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG,
+            context.profile?.experience ?? 'intermedio',
+          ),
+        )
+        return behind ? { group: MUSCLE_GROUP_LABELS[behind.group], sets: behind.sets, target: behind.target } : null
+      })(),
     },
     activitiesToday: facts.todayActivities.map((activity) =>
       toBriefingActivity(activity, facts.minutesUntilActivity, context.minuteOfDay),

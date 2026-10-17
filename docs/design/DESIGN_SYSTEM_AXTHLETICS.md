@@ -635,6 +635,16 @@ Descanso entre series dentro del ejercicio activo. Aprobado en D-019.
 - **Fin:** al llegar a cero vuelve sola a la serie. Sin sonido ni vibración en Core v0.1.
 - **Persistencia:** el descanso se guarda con la sesión en curso; al recargar, sigue donde iba.
 
+### Weekly Volume (D-034)
+
+Series de la semana por grupo muscular frente a su objetivo, en Entrenamiento, bajo «Esta semana».
+
+- **Componente:** `components/weekly-volume.tsx`. Los datos salen del dominio (`lib/domain/workouts/weekly-volume.ts`).
+- **Composición:** una fila por grupo: nombre a la izquierda (13,5 px, medio), `hechas / objetivo series` a la derecha en `muted-foreground` con cifras tabulares, y debajo una barra de 6 px de alto con radio completo.
+- **Color:** pista `--track` y progreso `--primary`, el mismo lenguaje que la Circular Metric. Sin colores de estado: ir por detrás no es un error.
+- **Techo:** cumplido el objetivo, la barra se queda llena. Pasarse no se premia.
+- **Sin tarjeta:** va directamente sobre el lienzo; la tipografía y el espacio dan la jerarquía.
+
 ---
 
 ## 24. Reglas para Claude Code

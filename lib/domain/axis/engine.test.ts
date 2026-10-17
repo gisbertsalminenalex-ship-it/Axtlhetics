@@ -721,3 +721,28 @@ test('D-033: los deportes de salto se reconocen por el nombre de la actividad, s
   }
   assert.equal(practicesJumpSport([]), false)
 })
+
+// ---------------------------------------------------------------------------
+// D-034: plan semanal
+// ---------------------------------------------------------------------------
+
+test('D-034: con la carga de la semana alta y buena recuperación, la sesión es ligera', () => {
+  // Cinco sesiones largas e intensas en los últimos días, ninguna de ayer ni de hoy.
+  const heavy = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05'].map((dayKey) =>
+    session({ id: `h-${dayKey}`, dayKey, durationSeconds: 5400, intensity: 'alta', totalVolumeKg: 6000, effort: 5 }),
+  )
+  const facts = deriveFacts(contextWith({ recentSessions: heavy }))
+  assert.equal(facts.trainingLoadBand, 'alta')
+  const decision = decide(contextWith({ recentSessions: heavy }))
+  assert.equal(decision.primary.type, 'LIGHT_TRAINING')
+  assert.equal(decision.primary.rule, 'high_training_load')
+})
+
+test('D-034: entre zonas parecidas, gana la que más va por detrás en la semana', async () => {
+  const { chooseFocus } = await import('./rules')
+  const facts = deriveFacts(contextWith())
+  const behindLegs = { ...facts, weeklyFulfilment: { ...facts.weeklyFulfilment, pecho: 1, espalda: 1, hombros: 1, brazos: 1, piernas: 0, gluteos: 0, core: 1 } }
+  const behindUpper = { ...facts, weeklyFulfilment: { ...facts.weeklyFulfilment, pecho: 0, espalda: 0, hombros: 0, brazos: 0, piernas: 1, gluteos: 1, core: 1 } }
+  assert.equal(chooseFocus(behindLegs), 'tren_inferior')
+  assert.equal(chooseFocus(behindUpper), 'tren_superior')
+})

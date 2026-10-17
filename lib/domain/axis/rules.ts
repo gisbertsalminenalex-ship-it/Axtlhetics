@@ -234,6 +234,29 @@ const notEnoughTime: Rule = {
   },
 }
 
+/**
+ * Carga de los últimos 7 días alta (D-034): hoy una sesión más suave para
+ * asimilarla. No manda descansar: eso lo deciden la recuperación y el calendario.
+ */
+const highTrainingLoad: Rule = {
+  id: 'high_training_load',
+  evaluate(facts) {
+    if (facts.trainingLoadBand !== 'alta' || !facts.recoveryKnown) return null
+    return {
+      type: 'LIGHT_TRAINING',
+      rule: 'high_training_load',
+      factors: [
+        {
+          key: 'training_load',
+          label: 'Carga alta',
+          detail: 'Tu carga de los últimos 7 días está alta: hoy, una sesión más suave para asimilarla.',
+          direction: 'limits',
+        },
+      ],
+    }
+  },
+}
+
 const unknownRecovery: Rule = {
   id: 'unknown_recovery',
   evaluate(facts) {
@@ -332,6 +355,7 @@ export const AXIS_RULES: readonly Rule[] = [
   demandingActivityToday,
   demandingActivityTomorrow,
   notEnoughTime,
+  highTrainingLoad,
   unknownRecovery,
   moderateRecovery,
   goodRecovery,
@@ -357,9 +381,13 @@ const FOCUS_ROTATION: readonly SessionFocus[] = [
   'cuerpo_completo',
 ]
 
+/** Cuánto pesa ir por delante del objetivo semanal frente a haber trabajado la zona hace poco (D-034). */
+const WEEKLY_WEIGHT = 1.5
+
 /**
  * Elige el foco cuyos grupos musculares llevan más tiempo sin trabajarse, y evita
- * los grupos que carga una actividad fija de hoy.
+ * los grupos que carga una actividad fija de hoy. Desde D-034, entre focos
+ * parecidos gana el que más va por detrás de su objetivo semanal de series.
  */
 export function chooseFocus(facts: AxisFacts): SessionFocus {
   const avoid = muscleGroupsToAvoid(facts)
@@ -370,7 +398,10 @@ export function chooseFocus(facts: AxisFacts): SessionFocus {
       facts.recentMuscleGroups.includes(group),
     ).length
     const conflict = groups.filter((group) => avoid.includes(group)).length
-    return { focus, penalty: recentOverlap + conflict * 10 }
+    // Media de lo cumplido de la semana en esos grupos, con techo: pasarse no resta más.
+    const weekly =
+      groups.reduce((total, group) => total + Math.min(facts.weeklyFulfilment?.[group] ?? 0, 1.5), 0) / groups.length
+    return { focus, penalty: recentOverlap + conflict * 10 + weekly * WEEKLY_WEIGHT }
   })
 
   scored.sort((a, b) => a.penalty - b.penalty)

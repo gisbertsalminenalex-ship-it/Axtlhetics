@@ -331,6 +331,8 @@ Every strength session opens with a warm-up and closes with a cool-down (D-032, 
 
 With a jump or change-of-direction sport in the calendar (D-033, `practicesJumpSport` in the engine, `JUMP_SPORT_TERMS` in knowledge), every strength warm-up adds single-leg balance and lower-body or full-body sessions at normal intensity open the training with one rotating plyometric exercise that takes a strength slot. The `pliometria` category is reachable only through that block, never through a focus.
 
+Weekly plan (D-034, `lib/domain/workouts/weekly-volume.ts`): sets per muscle group in the calendar week (primary 1, secondary 0.5, training only) against a target by experience (8/12/16). `chooseFocus` adds the week's fulfilment as a weighted penalty after recent work and today's sport; the week answer names the lagging group; Entrenamiento shows it under «Esta semana». A high 7-day Training Load with known recovery makes the day light (`high_training_load`), never rest.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity

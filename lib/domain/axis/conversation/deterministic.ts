@@ -813,6 +813,12 @@ function answerWeek(briefing: AxisBriefing): AxisAnswer {
       ? 'Todavía no tengo semana anterior con la que compararlo.'
       : `Respecto a la semana pasada: ${week.performancePercent > 0 ? '+' : ''}${week.performancePercent} % de volumen.`,
   )
+  // Lo que más falta de la semana, en series (D-034): es lo próximo que conviene trabajar.
+  if (week.lagging) {
+    parts.push(
+      `Lo que más va por detrás: ${week.lagging.group.toLowerCase()}, con ${formatSetCount(week.lagging.sets)} de ${week.lagging.target} series esta semana.`,
+    )
+  }
 
   return say('week', parts)
 }
@@ -948,6 +954,11 @@ function contentWords(text: string): string[] {
     .replace(/[̀-ͯ]/g, '')
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 3)
+}
+
+/** Series de la semana, que pueden ser medias: «7,5». */
+function formatSetCount(sets: number): string {
+  return sets.toLocaleString('es-ES', { maximumFractionDigits: 1 })
 }
 
 function say(intent: AxisIntent, parts: string[], isUnknown = false): AxisAnswer {

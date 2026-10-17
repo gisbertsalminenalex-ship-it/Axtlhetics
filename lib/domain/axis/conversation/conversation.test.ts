@@ -1000,3 +1000,19 @@ test('D-028: lo que el determinista ya entiende no se reescribe', async () => {
   assert.equal(sistemas.length, 1, 'lo médico no llama; la explicación llama una vez, para redactar')
   assert.doesNotMatch(sistemas[0], /NO_ENTIENDO/)
 })
+
+test('D-034: «¿qué tal la semana?» dice qué zona va más por detrás de su objetivo de series', () => {
+  const today = session({
+    id: 'session-week',
+    dayKey: MONDAY_KEY,
+    startedAt: '2026-09-07T06:00:00.000Z',
+    completedAt: '2026-09-07T07:00:00.000Z',
+    exercises: [{ exerciseId: 'sentadilla', name: 'Sentadilla', sets: [1, 2, 3].map(() => ({ reps: 12, weightKg: null, completed: true })) }],
+  })
+  const { briefing } = briefingWith({}, [today])
+  assert.ok(briefing.week.lagging, 'con piernas hechas, otra zona va por detrás')
+  assert.notEqual(briefing.week.lagging!.group, 'Piernas')
+
+  const answer = answerFromBriefing('¿Qué tal la semana?', briefing)
+  assert.match(answer.text, /Lo que más va por detrás: [a-zúé]+, con 0 de \d+ series esta semana\./)
+})
