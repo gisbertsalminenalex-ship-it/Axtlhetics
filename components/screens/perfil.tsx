@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { GoalTargets } from '@/components/profile/goal-targets'
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { BackupControls } from '@/components/profile/backup-controls'
 import {
@@ -324,6 +325,9 @@ export function PerfilScreen({
       </ul>
 
       <ActivityForm today={today} onAdd={addActivity} />
+
+      {/* Objetivos medibles (D-035): necesitan un perfil guardado donde vivir. */}
+      {!isOnboarding && <GoalTargets />}
 
       <div className="mt-9">
         <PrimaryButton onClick={() => void handleSave()} disabled={!canSave || saving}>

@@ -53,6 +53,7 @@ import { computeHistoryStats, weeklyActivityFor, type HistoryRange, type History
 import {
   withActivityChanges,
   type ActivityChanges,
+  type GoalTarget,
   type ScheduledActivity,
   type UserProfile,
   type UserProfileDraft,
@@ -97,6 +98,7 @@ import { createAxisConversation, fallbackNoticeOf, suggestionsFor } from '../dom
 import { changeOpeningMessage } from '../domain/axis/conversation/negotiation'
 import type { AxisFallbackNotice, AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
+import { bestSetOf } from '../domain/workouts/targets'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
 import type { WorkoutSession } from '../domain/workouts/types'
@@ -172,6 +174,9 @@ type AxtlheticsStore = {
   historyStats(range: HistoryRange): HistoryStats
 
   saveProfile(draft: UserProfileDraft): Promise<void>
+  /** Añade un objetivo medible (D-035). Su punto de partida es la mejor serie de hoy. */
+  addTarget(draft: { exerciseId: string; target: number; deadline: DayKey }): Promise<void>
+  removeTarget(id: string): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
   updateActivity(id: string, changes: ActivityChanges): Promise<void>
   removeActivity(id: string): Promise<void>
@@ -561,6 +566,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       const timestamp = nowIso()
       const next: UserProfile = {
         ...draft,
+        // El formulario no edita los objetivos medibles: se conservan (D-035).
+        ...(profile?.targets ? { targets: profile.targets } : {}),
         id: PRIMARY_PROFILE_ID,
         createdAt: profile?.createdAt ?? timestamp,
         updatedAt: timestamp,
@@ -573,7 +580,40 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setError('No se pudo guardar tu perfil en este dispositivo.')
       }
     },
-    [profile?.createdAt],
+    [profile?.createdAt, profile?.targets],
+  )
+
+  /** Guarda el perfil con sus objetivos cambiados. Sin perfil no hay dónde guardarlos. */
+  const saveTargets = useCallback(
+    async (change: (current: GoalTarget[]) => GoalTarget[]) => {
+      if (!profile) return
+      const next: UserProfile = { ...profile, targets: change(profile.targets ?? []), updatedAt: nowIso() }
+      setProfile(next)
+      try {
+        await getRepositories().profile.save(next)
+      } catch {
+        setError('No se pudo guardar el objetivo en este dispositivo.')
+      }
+    },
+    [profile],
+  )
+
+  const addTarget = useCallback(
+    async (draft: { exerciseId: string; target: number; deadline: DayKey }) => {
+      const target: GoalTarget = {
+        id: createId(),
+        ...draft,
+        startValue: bestSetOf(draft.exerciseId, sessions),
+        createdAt: nowIso(),
+      }
+      await saveTargets((current) => [...current, target])
+    },
+    [saveTargets, sessions],
+  )
+
+  const removeTarget = useCallback(
+    (id: string) => saveTargets((current) => current.filter((target) => target.id !== id)),
+    [saveTargets],
   )
 
   const addActivity = useCallback(async (draft: ActivityDraft) => {
@@ -1165,6 +1205,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       weeklyActivity,
       historyStats,
       saveProfile,
+      addTarget,
+      removeTarget,
       addActivity,
       updateActivity,
       removeActivity,
@@ -1222,6 +1264,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       weeklyActivity,
       historyStats,
       saveProfile,
+      addTarget,
+      removeTarget,
       addActivity,
       updateActivity,
       removeActivity,

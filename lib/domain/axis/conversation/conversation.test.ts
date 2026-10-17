@@ -1016,3 +1016,10 @@ test('D-034: «¿qué tal la semana?» dice qué zona va más por detrás de su 
   const answer = answerFromBriefing('¿Qué tal la semana?', briefing)
   assert.match(answer.text, /Lo que más va por detrás: [a-zúé]+, con 0 de \d+ series esta semana\./)
 })
+
+test('D-035: «¿cuáles son mis objetivos?» incluye los medibles con cómo van', () => {
+  const target = { id: 't', exerciseId: 'flexiones', target: 15, deadline: '2026-12-01', startValue: 0, createdAt: '2026-09-01T09:00:00.000Z' }
+  const { briefing } = briefingWith({ profile: profile({ targets: [target] }) }, [])
+  const answer = answerFromBriefing('¿Cuáles son mis objetivos?', briefing)
+  assert.match(answer.text, /Flexiones, 15 reps antes del [a-záé]+, 1 dic: llevas 0, /)
+})

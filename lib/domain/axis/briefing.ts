@@ -29,11 +29,11 @@ import type { RecoveryBand } from '../recovery/types'
 import { computeHistoryStats } from '../history/stats'
 import { RECOVERY_FACTOR_LABELS } from '../recovery/types'
 import { formatMinutesOfDay, type DayKey } from '../shared/dates'
-import { findExercise } from '../workouts/catalog'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
 import type { SessionFocus, WorkoutSession } from '../workouts/types'
 import { isMainExercise, MUSCLE_GROUP_LABELS } from '../workouts/types'
-import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { EXERCISE_CATALOG, findExercise } from '../workouts/catalog'
+import { targetProgress, type TargetStatus } from '../workouts/targets'
 import { laggingGroup, weeklyVolume } from '../workouts/weekly-volume'
 import { deriveFacts } from './facts'
 import type { ReportedLoadMemory } from './memory'
@@ -151,6 +151,15 @@ export type AxisBriefing = {
     typicalSessionMinutes: number
     availableMinutesToday: number
     sports: { name: string; weekdays: number[]; intensity: string }[]
+    /** Objetivos medibles con su progreso (D-035): la mejor serie frente a la cifra. */
+    targets: {
+      exercise: string
+      unit: 'reps' | 's'
+      target: number
+      current: number
+      deadline: DayKey
+      status: TargetStatus
+    }[]
   } | null
   recovery: BriefingRecovery
   load: BriefingLoad
@@ -285,6 +294,18 @@ export function buildBriefing(
             weekdays: [...sport.weekdays],
             intensity: sport.intensity,
           })),
+          targets: (context.profile.targets ?? []).map((target) => {
+            const progress = targetProgress(target, sessions, context.dayKey)
+            const exercise = findExercise(target.exerciseId)
+            return {
+              exercise: exercise?.name ?? target.exerciseId,
+              unit: exercise?.work.isTimed ? ('s' as const) : ('reps' as const),
+              target: target.target,
+              current: progress.current,
+              deadline: target.deadline,
+              status: progress.status,
+            }
+          }),
         }
       : null,
     recovery: briefingRecovery(context),

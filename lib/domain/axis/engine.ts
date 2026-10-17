@@ -10,6 +10,7 @@ import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
+import { isOpenTarget, targetProgress } from '../workouts/targets'
 import type { PlannedSession, SessionFocus } from '../workouts/types'
 import { SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
@@ -119,6 +120,11 @@ function planSession(
     today: context.dayKey,
     deload: isDeloadWeek(context.recentSessions, context.dayKey),
     jumpSport: practicesJumpSport(context.activities),
+    // Los objetivos medibles abiertos tienen preferencia en su zona (D-035).
+    priorityExerciseIds: (context.profile?.targets ?? [])
+      .map((target) => targetProgress(target, context.recentSessions, context.dayKey))
+      .filter(isOpenTarget)
+      .map((progress) => progress.target.exerciseId),
   })
 }
 

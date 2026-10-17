@@ -1515,6 +1515,34 @@ Un calendario de la semana con las sesiones previstas día a día: AXIS decide c
 
 ---
 
+## D-035 — Objetivos medibles
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 5 del plan de Alex para que AXTHLETICS sea el entrenador ideal.
+
+### Qué es
+
+Un objetivo medible es **un ejercicio, una cifra y una fecha**: «12 flexiones seguidas antes del 10 de diciembre», «60 s de plancha en 8 semanas». Convive con los objetivos generales del perfil (hipertrofia, fuerza…), que no cambian.
+
+- **Se mide con la mejor serie registrada** del ejercicio —repeticiones, o segundos si es isométrico— en sesiones completadas. El calentamiento no cuenta (D-032).
+- **Cómo vas:** se traza una línea recta desde la mejor serie al crearlo hasta la cifra en la fecha. Por encima de la línea, o a menos de una repetición o un 10 % del camino, **vas bien**; por debajo, **vas por detrás**. Llegar es **conseguido**; pasar la fecha sin llegar, **fecha pasada**.
+- Cualquier ejercicio del catálogo salvo la movilidad, que no se mide en marcas.
+
+### Dónde
+
+- **Perfil**, sección «Objetivos medibles», después de los deportes: la lista con cómo vas y «Añadir objetivo» (ejercicio, cifra y plazo en semanas, con pulsadores). Se borran desde la lista. No aparece en el onboarding: necesita un perfil guardado. Guardar el formulario del perfil no los toca.
+- **En las sesiones:** el ejercicio de un objetivo abierto entra en las sesiones de su zona, en el hueco del último elegido (o del de su misma familia). Se entrena lo que se quiere mejorar.
+- **AXIS:** a «¿cuáles son mis objetivos?» añade cada objetivo medible con lo que llevas y cómo vas. El modelo de lenguaje los recibe en el briefing, sin el nombre del usuario.
+
+### Datos
+
+Se guardan dentro del perfil (`UserProfile.targets`, opcional), sin migración. Viajan en la copia de seguridad con el perfil; un objetivo mal formado invalida el perfil importado, como cualquier otro campo.
+
+### Fuera de D-035
+
+Objetivos de peso corporal o de composición (el escáner ya los mide, D-023), de carga (con una pesa de 5 kg no hay recorrido) y de frecuencia. Su gráfica, en la pestaña Progreso (paso 6).
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

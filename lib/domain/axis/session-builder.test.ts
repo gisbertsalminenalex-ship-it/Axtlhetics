@@ -707,3 +707,19 @@ test('D-033: los saltos rotan: el último usado no repite', () => {
   assert.equal(categoryOf(second), 'pliometria')
   assert.notEqual(second, first)
 })
+
+// ---------------------------------------------------------------------------
+// D-035: objetivos medibles
+// ---------------------------------------------------------------------------
+
+test('D-035: el ejercicio de un objetivo abierto entra en la sesión de su zona', () => {
+  const plain = ids(buildSession({ ...ROTATION, focus: 'tren_superior' }))
+  const candidate = ['flexiones', 'curl-biceps-unilateral', 'superman'].find((id) => !plain.includes(id))!
+  const withTarget = ids(buildSession({ ...ROTATION, focus: 'tren_superior', priorityExerciseIds: [candidate] }))
+  assert.ok(withTarget.includes(candidate), `${candidate} debía entrar`)
+  assert.equal(withTarget.length, plain.length, 'sustituye, no añade')
+
+  // De otra zona, no entra.
+  const legs = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', priorityExerciseIds: [candidate] }))
+  assert.ok(!legs.includes(candidate))
+})

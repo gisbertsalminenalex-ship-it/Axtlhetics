@@ -333,6 +333,8 @@ With a jump or change-of-direction sport in the calendar (D-033, `practicesJumpS
 
 Weekly plan (D-034, `lib/domain/workouts/weekly-volume.ts`): sets per muscle group in the calendar week (primary 1, secondary 0.5, training only) against a target by experience (8/12/16). `chooseFocus` adds the week's fulfilment as a weighted penalty after recent work and today's sport; the week answer names the lagging group; Entrenamiento shows it under «Esta semana». A high 7-day Training Load with known recovery makes the day light (`high_training_load`), never rest.
 
+Measurable goals (D-035): `UserProfile.targets` (exercise, number, deadline, start value), progress in `lib/domain/workouts/targets.ts` from the best completed set (training only) against a straight line to the deadline. Managed in Perfil (`components/profile/goal-targets.tsx`, own store actions `addTarget`/`removeTarget`; `saveProfile` keeps them). Open targets get their exercise into sessions of its focus (`priorityExerciseIds`), and the goals answer lists them.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity

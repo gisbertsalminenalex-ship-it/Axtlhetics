@@ -153,6 +153,11 @@ export type SessionBuildOptions = {
    * normal, un ejercicio de salto al empezar.
    */
   jumpSport?: boolean
+  /**
+   * Ejercicios de objetivos medibles abiertos (D-035): si son de la zona y se
+   * pueden hacer hoy, entran en la sesión en lugar del último elegido.
+   */
+  priorityExerciseIds?: readonly string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +182,37 @@ export const COOLDOWN_EXERCISES: Record<SessionFocus, readonly string[]> = {
   tren_inferior: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
   cuerpo_completo: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
   core_movilidad: [],
+}
+
+/**
+ * La selección con los ejercicios prioritarios dentro (D-035). Cada uno que sea
+ * de la zona, esté permitido hoy y no esté ya, sustituye al último elegido que
+ * no sea prioritario; si comparte familia con otro elegido, sustituye a ese,
+ * para no juntar dos variantes del mismo patrón (D-020.1).
+ */
+function withPriority(
+  selected: readonly Exercise[],
+  pool: readonly Exercise[],
+  priorityIds: readonly string[],
+): Exercise[] {
+  const result = [...selected]
+  for (const id of priorityIds) {
+    if (result.some((exercise) => exercise.id === id)) continue
+    const wanted = pool.find((exercise) => exercise.id === id)
+    if (!wanted) continue
+    const sameFamily = wanted.family ? result.findIndex((exercise) => exercise.family === wanted.family) : -1
+    let slot = sameFamily
+    if (slot < 0) {
+      for (let i = result.length - 1; i >= 0; i--) {
+        if (!priorityIds.includes(result[i].id)) {
+          slot = i
+          break
+        }
+      }
+    }
+    if (slot >= 0) result[slot] = wanted
+  }
+  return result
 }
 
 // ---------------------------------------------------------------------------
@@ -548,6 +584,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     today,
     deload = false,
     jumpSport = false,
+    priorityExerciseIds = [],
   } = options
 
   // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
@@ -586,8 +623,11 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     usage,
   )
 
+  // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
+  const prioritized = withPriority(selected, pool, priorityExerciseIds)
+
   // El salto va primero: con las piernas frescas sale mejor y con menos riesgo (D-033).
-  const main = jump ? [jump, ...selected] : selected
+  const main = jump ? [jump, ...prioritized] : prioritized
 
   const exercises: PlannedExercise[] = main.map((exercise) => {
     const work = suggestWorkFor(exercise, { intensity, goals, experience, history, deload })

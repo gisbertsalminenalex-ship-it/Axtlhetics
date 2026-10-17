@@ -159,8 +159,39 @@ export type UserProfile = {
   availableWeekdays: Weekday[]
   /** Duración habitual disponible por sesión, en minutos. */
   typicalSessionMinutes: number
+  /**
+   * Objetivos medibles (D-035): un ejercicio, una cifra y una fecha. Ausente en
+   * los perfiles anteriores. El formulario de perfil no los toca: tienen sus
+   * propias acciones.
+   */
+  targets?: GoalTarget[]
   createdAt: string
   updatedAt: string
+}
+
+/**
+ * Un objetivo medible (D-035): «12 flexiones seguidas antes del 1 de marzo».
+ * Se mide con la mejor serie registrada del ejercicio: repeticiones, o segundos
+ * si el ejercicio es isométrico.
+ */
+export type GoalTarget = {
+  id: string
+  exerciseId: string
+  /** Repeticiones (o segundos) en una sola serie. */
+  target: number
+  /** Hasta cuándo. */
+  deadline: DayKey
+  /** La mejor serie al crearlo: el punto de partida de la línea de progreso. */
+  startValue: number
+  createdAt: string
+}
+
+export function isGoalTarget(value: unknown): value is GoalTarget {
+  if (!isRecord(value)) return false
+  if (typeof value.id !== 'string' || typeof value.exerciseId !== 'string') return false
+  if (!isFiniteNumber(value.target) || value.target <= 0) return false
+  if (!isFiniteNumber(value.startValue) || value.startValue < 0) return false
+  return isDayKey(value.deadline) && isIsoDate(value.createdAt)
 }
 
 export type UserProfileDraft = Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>
@@ -299,6 +330,7 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (!isArrayOf(value.goals, isTrainingGoal) || value.goals.length === 0) return false
   if (!isOneOf(value.experience, EXPERIENCE_ORDER)) return false
   if (!isArrayOf(value.availableWeekdays, isWeekday)) return false
+  if (value.targets !== undefined && !isArrayOf(value.targets, isGoalTarget)) return false
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }
 

@@ -17,7 +17,7 @@
 import { ACTIVITY_INTENSITY_LABELS, TRAINING_GOAL_LABELS, type ActivityIntensity } from '../../profile/types'
 import { RECOVERY_BAND_LABELS } from '../../recovery/types'
 import { formatTotalTime, formatVolume } from '../../history/stats'
-import { addDays, formatDayInSentence, formatDuration, formatRelativeDay, WEEKDAY_LABELS } from '../../shared/dates'
+import { addDays, formatDayInSentence, formatDuration, formatRelativeDay, formatShortDate, WEEKDAY_LABELS } from '../../shared/dates'
 import { listNames } from '../../shared/text'
 import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { describeFocus, type SessionFocus } from '../knowledge/focus'
@@ -844,6 +844,7 @@ function answerGoals(briefing: AxisBriefing): AxisAnswer {
   return say('goals', [
     `Tus objetivos son ${listNames(goals.map((goal) => TRAINING_GOAL_LABELS[goal].toLowerCase()))}.`,
     'Los tengo todos en cuenta a la vez al preparar la sesión, sin dar prioridad a ninguno.',
+    ...(briefing.profile?.targets ?? []).map(describeTarget),
   ])
 }
 
@@ -954,6 +955,17 @@ function contentWords(text: string): string[] {
     .replace(/[̀-ͯ]/g, '')
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 3)
+}
+
+/** Un objetivo medible y cómo va (D-035): «Flexiones, 12 reps antes del lun, 1 mar: llevas 9, vas bien». */
+function describeTarget(target: NonNullable<AxisBriefing['profile']>['targets'][number]): string {
+  const status = {
+    achieved: 'conseguido',
+    on_track: 'vas bien',
+    behind: 'vas por detrás de lo que tocaría a estas alturas',
+    expired: 'la fecha ya pasó sin llegar',
+  }[target.status]
+  return `${target.exercise}, ${target.target} ${target.unit} antes del ${formatShortDate(target.deadline).toLowerCase()}: llevas ${target.current}, ${status}.`
 }
 
 /** Series de la semana, que pueden ser medias: «7,5». */
