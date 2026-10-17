@@ -1543,6 +1543,30 @@ Objetivos de peso corporal o de composición (el escáner ya los mide, D-023), d
 
 ---
 
+## D-036 — Pestaña Progreso
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 6 del plan de Alex. **Cambia la navegación aprobada**: Alex eligió una pestaña nueva en vez de una sección dentro de Historial.
+
+### Navegación
+
+Cinco pestañas: Inicio, Entrenamiento, Recuperación, **Progreso** y Historial. Icono de tendencia (`TrendingUp`). Perfil sigue sin ser pestaña.
+
+### Qué enseña
+
+Cómo avanzas hacia tus objetivos, en tres bloques, de lo más personal a lo más general:
+
+- **Tus objetivos** (D-035): cada objetivo medible con una barra de lo hecho hacia la cifra, una marca fina de dónde tocaría estar hoy y su estado («Vas bien» en azul; «Vas por detrás» en el color del texto, sin rojo: ir por detrás no es un error). Debajo, cuánto llevas, cuánto tocaría y hasta cuándo.
+- **Tu fuerza:** eliges un ejercicio que hayas hecho (del más hecho al menos) y una línea enseña **la mejor serie de cada sesión completada** en el tiempo. Una sola serie, sin leyenda: línea de 2 px en el azul primario, puntos con aro del lienzo, guías discretas y un techo redondo. Tocar un punto lo fija: línea vertical y su fecha y valor arriba. «Ver los datos» abre la misma información en una tabla.
+- **Series por semana:** barras de las últimas 8 semanas en el lenguaje del gráfico del Historial (D-003); tocar una enseña su semana y sus series. Debajo, el volumen por músculo de esta semana (D-034).
+
+Solo sesiones completadas y solo el entrenamiento: ni las interrumpidas ni el calentamiento (D-032) son marcas. Sin datos, cada bloque dice qué hacer para que aparezcan.
+
+### Fuera de D-036
+
+Comparar periodos, exportar las gráficas y curvas de peso corporal (el escáner, D-023, ya tiene su historial).
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
