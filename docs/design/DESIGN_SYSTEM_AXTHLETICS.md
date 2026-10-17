@@ -369,7 +369,8 @@ Debe guiar decisiones, no pedir al usuario que interprete un dashboard.
 
 ### Identidad visual
 
-- símbolo abstracto **X** como marca;
+- marca de AXTHLETICS (D-029): una **«A» con una flecha que sube**, `docs/design/AXTHLETICS_LOGO.svg`. Sustituye a la X abstracta;
+- dentro de la app va en un solo color, el del texto (`AxisMark`); a color —«A» `#111111`, flecha `#0A61F8`, sobre `#F8F8F8`— solo en el icono de la app;
 - en el header principal, símbolo pequeño antes de `AXIS`;
 - dentro de una AXIS Card, símbolo secundario y discreto;
 - presencia reconocible pero nunca dominante;

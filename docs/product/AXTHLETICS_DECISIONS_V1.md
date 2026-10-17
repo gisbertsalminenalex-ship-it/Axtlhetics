@@ -1333,6 +1333,31 @@ Que el modelo responda directamente a lo que el determinista no sabe responder.
 
 ---
 
+## D-029 — Nuevo logo: la «A» con la flecha que sube
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Decidido por Alex, que aporta el logo.
+
+### Qué cambia
+
+La X abstracta deja de ser la marca. La nueva es una **«A» negra atravesada por una flecha azul que sube**, el logo de Alex. Cambia en los dos sitios donde estaba la X:
+
+- **El icono de la app** —pantalla de inicio, pestaña del navegador e icono de Apple—: el logo a color tal cual, «A» `#111111` y flecha `#0A61F8` sobre `#F8F8F8`, el blanco roto del original. El fondo deja de ser azul: sobre azul, la flecha desaparecería. El icono *maskable* de Android lleva más margen para que el recorte circular no corte el logo.
+- **La marca dentro de la app** (`AxisMark`, en la cabecera de AXIS y en sus tarjetas): el mismo dibujo **en un solo color**, el del texto que la rodea, como la X: azul en las tarjetas, blanco sobre azul. Los huecos entre la flecha y la «A» la hacen legible en un color.
+
+### Fuente
+
+El logo original es un PNG (`docs/design/AXTHLETICS_LOGO_SOURCE.png`). Se ha trazado a vectores, `docs/design/AXTHLETICS_LOGO.svg`, que coincide con el original en más de un 99 % de su superficie. Los iconos y la marca salen de ese SVG.
+
+### Caché
+
+Los iconos nuevos se llaman igual que los viejos y el service worker los sirve de caché: se sube su versión (`axtlhetics-v2`) para que una app ya instalada no se quede con el icono anterior. El icono de la pantalla de inicio de una app ya instalada lo cambia el sistema cuando quiere; reinstalarla lo cambia al momento.
+
+### Lo que no cambia
+
+El nombre, el color primario y la palabra «AXIS» junto a la marca. Se retiran los logos de la plantilla inicial que nadie usaba (`icon.svg`, `icon-light-32x32.png`, `icon-dark-32x32.png`, `placeholder-logo.*`).
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
