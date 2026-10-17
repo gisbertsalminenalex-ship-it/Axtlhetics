@@ -10,13 +10,13 @@
  * 1. **La conversación nunca se queda muerta.** Si no hay IA configurada, o falla,
  *    o tarda demasiado, responde el determinista. Nunca se le enseña un error al
  *    usuario como respuesta.
- * 2. **No se llama al modelo por costumbre.** Solo en las preguntas donde una
- *    redacción natural aporta algo. Cuál es tu Recovery Score lo resuelve el
- *    dominio: pasarlo por un modelo solo añade latencia, coste y una ocasión de
- *    equivocarse.
+ * 2. **No se llama al modelo por costumbre.** Solo en las preguntas de
+ *    `AI_WORTHY_INTENTS`: explicaciones y, desde D-027, respuestas de datos. Lo
+ *    médico, lo ajeno, el test y el escáner se quedan siempre en el determinista.
  */
 
 import type { AxisBriefing } from '../briefing'
+import { DATA_ANSWER_INTENTS } from '../safety'
 import {
   AxisAiRejection,
   benefitsFromAi,
@@ -99,15 +99,17 @@ export function createAxisConversation(
     const local = answerFromBriefing(question, briefing, memory)
 
     /*
-     * Se mira la intención antes de gastar una llamada. Las preguntas que son una
-     * consulta de datos ya tienen su respuesta exacta; las que piden una
-     * explicación son las que se benefician de que las escriba un modelo.
+     * Se mira la intención antes de gastar una llamada: solo las de
+     * `AI_WORTHY_INTENTS` pasan por el modelo.
      *
      * Las respuestas de ámbito médico o fuera de AXTHLETICS se quedan siempre en
-     * el determinista: ahí la redacción no aporta y el riesgo sí.
+     * el determinista: ahí la redacción no aporta y el riesgo sí. Y también una
+     * respuesta de datos sin datos (D-027): no hay cifras que redactar, y es
+     * justo donde el modelo podría convertir una ausencia en un hecho.
      */
     const intent = matchIntent(understandMessage(question, briefing), memory?.lastIntent ?? null).intent
-    const worthIt = benefitsFromAi(local.intent) && benefitsFromAi(intent)
+    const noData = local.unknown === true && DATA_ANSWER_INTENTS.includes(local.intent)
+    const worthIt = benefitsFromAi(local.intent) && benefitsFromAi(intent) && !noData
 
     if (!worthIt || !(await ai.isAvailable())) {
       return {

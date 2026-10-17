@@ -362,7 +362,74 @@ test('una pregunta mal escrita que merece redacción llega al modelo, tal como s
   assert.deepEqual(preguntas, ['porqe me propones esto oy'], 'el modelo entiende las faltas: recibe el original')
 })
 
-test('una consulta de datos no gasta una llamada al modelo', async () => {
+test('D-027: las respuestas de datos las redacta el modelo, con las cifras del dominio', async () => {
+  // Una sesión de esta semana, para que la semana tenga datos; 1.250 kg lleva punto de millares.
+  const today = session({
+    id: 'session-2',
+    dayKey: MONDAY_KEY,
+    startedAt: '2026-09-07T06:00:00.000Z',
+    completedAt: '2026-09-07T07:00:00.000Z',
+    totalVolumeKg: 1250,
+  })
+  const { briefing } = briefingWith({}, [session(), today])
+  const dominios: string[] = []
+  const conversation = createAxisConversation({
+    transport: transport({
+      // Un modelo que copia el texto del dominio: conserva todas las cifras.
+      send: async (request) => {
+        dominios.push(request.domain.intent)
+        return { text: request.domain.text }
+      },
+    }),
+  })
+
+  for (const [pregunta, intent] of [
+    ['¿Cómo estoy recuperando?', 'recovery'],
+    ['¿Cómo va mi carga?', 'load'],
+    ['¿Qué entrené ayer?', 'last_session'],
+    ['¿Qué tal la semana?', 'week'],
+  ]) {
+    const result = await conversation.ask(pregunta, briefing)
+    assert.equal(result.intent, intent, pregunta)
+    assert.match(result.engineId, /ai/, pregunta)
+    assert.equal(result.usedFallback, false, pregunta)
+  }
+  assert.deepEqual(dominios, ['recovery', 'load', 'last_session', 'week'])
+})
+
+test('D-027: si el modelo se deja una cifra de una respuesta de datos, responde el determinista', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  const conversation = createAxisConversation({
+    transport: transport({ send: async () => ({ text: 'Tu carga va bien, sin nada que destacar.' }) }),
+  })
+  const result = await conversation.ask('¿Cómo va mi carga?', briefing)
+
+  assert.match(result.engineId, /deterministic/)
+  assert.equal(result.usedFallback, true)
+  assert.equal(result.rejectedReason, 'omitted_number')
+  assert.match(result.text, /d/, 'el texto del dominio, con sus cifras')
+})
+
+test('D-027: una respuesta de datos sin datos no gasta una llamada al modelo', async () => {
+  const { briefing } = briefingWith({}, [])
+  let llamadas = 0
+  const conversation = createAxisConversation({
+    transport: transport({
+      send: async () => {
+        llamadas += 1
+        return { text: 'Respuesta del modelo.' }
+      },
+    }),
+  })
+
+  for (const pregunta of ['¿Qué entrené ayer?', '¿Qué tal la semana?', '¿Cómo va mi carga?']) {
+    const result = await conversation.ask(pregunta, briefing)
+    assert.match(result.engineId, /deterministic/, pregunta)
+  }
+  assert.equal(llamadas, 0)
+})
+
+test('lo que decide, lo médico, el test y el escáner no gastan una llamada al modelo', async () => {
   const { briefing } = briefingWith({}, [session()])
   let llamadas = 0
   const conversation = createAxisConversation({
@@ -375,18 +442,17 @@ test('una consulta de datos no gasta una llamada al modelo', async () => {
   })
 
   for (const pregunta of [
-    '¿Cómo estoy recuperando?',
     '¿Qué entrenamiento tengo hoy?',
-    '¿Cuánta carga llevo?',
-    '¿Qué entrené ayer?',
-    '¿Qué tal la semana?',
+    'Me duele la rodilla',
+    '¿Cuándo me toca el test?',
+    '¿Qué tal mi escaneo?',
   ]) {
     const result = await conversation.ask(pregunta, briefing)
     assert.match(result.engineId, /deterministic/, pregunta)
-    assert.equal(result.usedFallback, false, 'no es un fallback: el dominio ya lo sabe')
+    assert.equal(result.usedFallback, false, pregunta)
   }
 
-  assert.equal(llamadas, 0, 'el dominio responde solo a lo que ya sabe')
+  assert.equal(llamadas, 0)
 })
 
 test('lo médico y lo ajeno a AXTHLETICS nunca pasan por el modelo', async () => {
@@ -455,8 +521,8 @@ test('solo se avisa de «sin conexión» cuando de verdad no hay red', async () 
   const filtrada = await descartada.ask('¿Por qué me propones esto hoy?', briefing)
   assert.equal(fallbackNoticeOf(filtrada, false), 'local', 'el modelo respondió: había red')
 
-  const local = await caida.ask('¿Cómo estoy recuperando?', briefing)
-  assert.equal(fallbackNoticeOf(local, false), null, 'una consulta de datos no es un fallback')
+  const local = await caida.ask('¿Qué entrenamiento tengo hoy?', briefing)
+  assert.equal(fallbackNoticeOf(local, false), null, 'lo que responde siempre el determinista no es un fallback')
 })
 
 test('el transporte HTTP se declara no configurado sin endpoint', async () => {

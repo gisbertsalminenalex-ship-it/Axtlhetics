@@ -7,7 +7,7 @@ import { buildBriefing } from './briefing'
 import { buildAxisContext } from './context'
 import { decide } from './engine'
 import { AXIS_PERSONALITY } from './personality'
-import { checkModelText, countSentences, type DomainAnswerForSafety } from './safety'
+import { checkModelText, countSentences, findOmittedNumber, type DomainAnswerForSafety } from './safety'
 
 const PLAIN: DomainAnswerForSafety = {
   text: 'Hoy toca tren inferior.',
@@ -342,4 +342,40 @@ test('las respuestas de negociación del propio dominio no tropiezan con la form
     // no una redacción externa. Todo lo demás, sí.
     if (!check.ok) assert.equal(check.reason, 'too_long', `«${message}» → ${check.reason}: ${verdict.text}`)
   }
+})
+
+// ---------------------------------------------------------------------------
+// D-027: una respuesta de datos no pierde cifras al redactarse
+// ---------------------------------------------------------------------------
+
+const RECOVERY_DOMAIN = 'Tu recuperación de hoy está en 72 sobre 100: moderada. Has registrado 7,5 h de sueño. Vas por 5 de 8 vasos.'
+
+test('D-027: las cifras del dominio se pueden decir de otra forma, pero no dejar', () => {
+  assert.equal(findOmittedNumber('Hoy estás en 72/100, moderada: dormiste 7.5 h y llevas 5 vasos.', RECOVERY_DOMAIN), null)
+  assert.equal(findOmittedNumber('Hoy estás en 72/100 y dormiste 7,5 h.', RECOVERY_DOMAIN), '5')
+  assert.equal(findOmittedNumber('Tu recuperación es moderada.', RECOVERY_DOMAIN), '72')
+})
+
+test('D-027: dejarse una cifra solo se rechaza en las respuestas de datos', () => {
+  const omitted = checkModelText('Tu recuperación de hoy es moderada.', { text: RECOVERY_DOMAIN, intent: 'recovery' })
+  assert.equal(omitted.ok, false)
+  assert.equal(!omitted.ok && omitted.reason, 'omitted_number')
+
+  // En una explicación el modelo puede resumir: lo que no puede es inventar.
+  const why = checkModelText('Hoy toca algo suave porque tu recuperación es moderada.', { text: RECOVERY_DOMAIN, intent: 'why' })
+  assert.equal(why.ok, true)
+})
+
+test('D-027: el punto de millares del volumen es millares, no decimales', () => {
+  const week = 'Esta semana llevas 3 entrenamientos, 2h 15m y 12.450 kg de volumen.'
+
+  assert.equal(findOmittedNumber('Llevas 3 entrenamientos: 2h 15m y 12450 kg.', week), null)
+  assert.equal(findOmittedNumber('Llevas 3 entrenamientos: 2h 15m y 12.450 kg.', week), null)
+  // «12,45 kg» es otra cifra: mil veces menos volumen.
+  assert.equal(findOmittedNumber('Llevas 3 entrenamientos: 2h 15m y 12,45 kg.', week), '12.450')
+
+  const wrong = checkModelText('Llevas 3 entrenamientos: 2h 15m y 12,45 kg.', { text: week, intent: 'week' })
+  assert.equal(wrong.ok, false)
+  const right = checkModelText('Llevas 3 entrenamientos: 2h 15m y 12450 kg.', { text: week, intent: 'week' })
+  assert.equal(right.ok, true, JSON.stringify(right))
 })

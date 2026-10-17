@@ -25,7 +25,7 @@
 import type { AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
 import { AXIS_PERSONALITY, AXIS_SYSTEM_PROMPT } from '../personality'
-import { checkModelText, type ModelTextRejection } from '../safety'
+import { checkModelText, DATA_ANSWER_INTENTS, type ModelTextRejection } from '../safety'
 import type { AxisAnswer, AxisConversationEngine, AxisIntent } from './types'
 
 export const AI_CONVERSATION_ID = 'axis-conversation-ai-v1'
@@ -49,6 +49,7 @@ export function aiSystemPrompt(): string {
     'CÓMO RESPONDER.',
     'Recibes un JSON con `briefing` (los datos reales del usuario), `question` (lo que ha escrito) y `domain` (lo que el motor determinista ya ha concluido).',
     '`domain.text` es la respuesta correcta en cuanto al fondo. Tu trabajo es decirla mejor: más natural, más clara, sin perder ni un dato y sin añadir ninguno.',
+    'Conserva todas las cifras de `domain.text` escritas con dígitos, tal cual (no «siete horas», sino «7 h»). Si falta una, tu respuesta se descarta.',
     'No contradigas `domain`. Si el motor ha dicho que no, tú dices que no.',
     'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text` o en `briefing`. Que un dato no aparezca no significa que no haya ocurrido: di que no está registrado, nunca lo conviertas en un hecho.',
     `Responde en ${AXIS_PERSONALITY.limits.targetSentences}. Nunca más de ${AXIS_PERSONALITY.limits.maxSentences}.`,
@@ -120,14 +121,19 @@ export type AxisAiResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Preguntas donde el lenguaje aporta algo.
+ * Preguntas que redacta el modelo.
  *
- * Explicar por qué hoy no tocan piernas se beneficia de una redacción natural.
- * Decir cuál es tu Recovery Score, no: es un número que el dominio ya tiene, y
- * pasarlo por un modelo solo añade latencia, coste y una oportunidad de que se
- * equivoque.
+ * Las explicaciones —por qué hoy no tocan piernas, qué pasa con un cambio— y,
+ * desde D-027, las respuestas de datos: recuperación, semana, carga y último
+ * entrenamiento. Las cifras siguen saliendo del dominio y la puerta de
+ * seguridad comprueba que el texto no invente ninguna ni se deje ninguna.
+ *
+ * Se quedan en el determinista lo médico, lo que queda fuera de AXTHLETICS, el
+ * test de evolución y el escáner (nada de ellos sale del dispositivo), y lo que
+ * es una decisión o una pregunta sin respuesta clara.
  */
 export const AI_WORTHY_INTENTS: readonly AxisIntent[] = [
+  ...DATA_ANSWER_INTENTS,
   'why',
   'why_not',
   'factors',

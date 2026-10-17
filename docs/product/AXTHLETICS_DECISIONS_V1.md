@@ -1264,7 +1264,41 @@ La respuesta médica también aguanta faltas y formas del verbo: cualquier forma
 
 ### Fuera de D-026
 
-Que la IA redacte también las respuestas de datos —recuperación, semana, carga, última sesión— (paso 2 de la propuesta) y pedir al modelo que reescriba un mensaje que el determinista no entiende (paso 3). Cada uno necesita su propia decisión.
+Que la IA redacte también las respuestas de datos —recuperación, semana, carga, última sesión— (paso 2 de la propuesta, D-027) y pedir al modelo que reescriba un mensaje que el determinista no entiende (paso 3). Cada uno necesita su propia decisión.
+
+---
+
+## D-027 — La IA redacta también las respuestas de datos
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 2 de la propuesta de Alex de que AXIS use su IA «como Finax» (D-026).
+
+### Qué cambia
+
+Las preguntas de datos —recuperación (`recovery`), semana (`week`), carga (`load`) y último entrenamiento (`last_session`)— dejan de responderse siempre con el texto fijo del determinista: **las redacta el modelo**, como ya hacía con las explicaciones (D-016). Las cifras siguen saliendo del dominio; el modelo solo las dice de forma más natural.
+
+### Qué no cambia
+
+- **El dominio calcula, el modelo redacta.** El modelo recibe la respuesta del dominio y el mismo briefing recortado de siempre: sin nombre, sin test de evolución y sin escáner. No sale del dispositivo ningún dato nuevo.
+- Si el modelo falla, tarda o su texto no pasa la puerta de seguridad, se muestra la respuesta determinista, como en cualquier otra pregunta.
+- Lo médico, lo ajeno a AXTHLETICS, el test de evolución, el escáner y lo que decide la sesión siguen sin pasar por el modelo.
+
+### Ninguna cifra se pierde
+
+En una respuesta de datos el contenido son las cifras, así que la puerta de seguridad añade una comprobación: el texto del modelo debe **conservar todas las cifras de la respuesta del dominio** (`omitted_number`). Puede decirlas de otra forma —«72 sobre 100» como «72/100», «7,5» como «7.5», «12.450 kg» como «12450 kg»—, pero no dejar ninguna. Las de siempre siguen valiendo: ninguna cifra inventada (`invented_number`) ni afirmaciones sin respaldo (`unsupported_claim`). En las explicaciones el modelo puede seguir resumiendo.
+
+El volumen se escribe con punto de millares («12.450 kg»), y la puerta lo lee como millares: un texto que dijera «12,45 kg» es otra cifra y se rechaza.
+
+### Sin datos, sin modelo
+
+Cuando la respuesta de datos es que **no hay datos** («esta semana todavía no has completado ningún entrenamiento»), contesta el determinista sin llamar al modelo: no hay cifras que redactar, y es justo donde el modelo podría convertir una ausencia en un hecho.
+
+### Coste
+
+Una llamada más por pregunta de datos, dentro de los planes gratuitos de D-016. Una pregunta de datos tarda lo que tarde el modelo, con el mismo límite de tiempo que las demás.
+
+### Fuera de D-027
+
+Pedir al modelo que reescriba un mensaje que el determinista no entiende (paso 3). Necesita su propia decisión.
 
 ---
 

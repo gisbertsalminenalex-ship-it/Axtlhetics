@@ -17,7 +17,7 @@
  */
 
 import { normalizeQuestion } from './conversation/intents'
-import type { AxisAnswer } from './conversation/types'
+import type { AxisAnswer, AxisIntent } from './conversation/types'
 import { HYDRATION_GLASS_COUNT } from '../recovery/types'
 import { FOCUS_TERMS, type SessionFocus } from './knowledge/focus'
 import { AXIS_PERSONALITY, type AxisPersonality } from './personality'
@@ -40,6 +40,8 @@ export type ModelTextRejection =
    * preferencias— que no está en la respuesta del dominio ni en el briefing.
    */
   | 'unsupported_claim'
+  /** En una respuesta de datos, el texto se deja una cifra que el dominio sí dio (D-027). */
+  | 'omitted_number'
 
 export type ModelTextCheck =
   | { ok: true }
@@ -137,8 +139,18 @@ function announcedFocus(text: string): SessionFocus | null {
 // Números
 // ---------------------------------------------------------------------------
 
-/** Una cifra escrita: entera o con decimales, con punto o con coma. */
-const NUMBER = /\d+(?:[.,]\d+)?/g
+/**
+ * Una cifra escrita: entera o con decimales, con punto o con coma, o con punto
+ * de millares español («12.450», como escribe `formatVolume`).
+ */
+const NUMBER = /\d{1,3}(?:\.\d{3})+(?![.,]?\d)|\d+(?:[.,]\d+)?/g
+
+/** Grupos de tres tras un punto: millares, no decimales. «12.450» son 12450 kg. */
+const THOUSANDS = /^\d{1,3}(?:\.\d{3})+$/
+
+function parseNumber(raw: string): number {
+  return THOUSANDS.test(raw) ? Number(raw.replace(/\./g, '')) : Number(raw.replace(',', '.'))
+}
 
 /**
  * Referencias de escala que no son un dato del usuario: el «/100» del Recovery
@@ -161,7 +173,7 @@ function numberKey(value: number): string {
 }
 
 function numbersIn(text: string): number[] {
-  return (text.match(NUMBER) ?? []).map((raw) => Number(raw.replace(',', '.')))
+  return (text.match(NUMBER) ?? []).map(parseNumber)
 }
 
 /**
@@ -216,7 +228,29 @@ export function findInventedNumber(text: string, domainText: string, briefing: u
   if (found.length === 0) return null
 
   const supported = supportedNumbers(domainText, briefing)
-  return found.find((raw) => !supported.has(numberKey(Number(raw.replace(',', '.'))))) ?? null
+  return found.find((raw) => !supported.has(numberKey(parseNumber(raw)))) ?? null
+}
+
+/**
+ * Respuestas de datos (D-027): recuperación, semana, carga y último
+ * entrenamiento. El modelo las redacta, pero su contenido son las cifras, así
+ * que no se puede dejar ninguna.
+ */
+export const DATA_ANSWER_INTENTS: readonly AxisIntent[] = ['recovery', 'week', 'load', 'last_session']
+
+/** Escalas que el dominio escribe y el modelo puede decir de otra forma («sobre 100» → «/100»). */
+const DOMAIN_SCALES: readonly RegExp[] = [...SCALE_REFERENCES, /\bsobre\s+100\b/gi]
+
+/**
+ * La primera cifra de la respuesta del dominio que el texto no conserva, o
+ * `null` si están todas. Se comparan como en `findInventedNumber`: «7,5» y
+ * «7.5» son la misma cifra, «12.450» y «12450» también, y «−12 %» y «12 %».
+ */
+export function findOmittedNumber(text: string, domainText: string): string | null {
+  let stripped = domainText
+  for (const scale of DOMAIN_SCALES) stripped = stripped.replace(scale, ' ')
+  const kept = new Set(numbersIn(text).map(numberKey))
+  return (stripped.match(NUMBER) ?? []).find((raw) => !kept.has(numberKey(parseNumber(raw)))) ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -453,6 +487,18 @@ export function checkModelText(
       ok: false,
       reason: 'invented_number',
       detail: `El texto dice «${invented}», una cifra que no está en el briefing ni en la respuesta del dominio.`,
+    }
+  }
+
+  // Fondo: una respuesta de datos no pierde ninguna cifra al redactarse (D-027).
+  if (DATA_ANSWER_INTENTS.includes(domain.intent)) {
+    const omitted = findOmittedNumber(trimmed, domain.text)
+    if (omitted !== null) {
+      return {
+        ok: false,
+        reason: 'omitted_number',
+        detail: `El dominio da «${omitted}» y el texto no lo conserva.`,
+      }
     }
   }
 
