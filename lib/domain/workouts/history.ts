@@ -24,6 +24,24 @@ export type LastPerformance = {
    */
   allSetsCompleted: boolean
   sets: number
+  /**
+   * Cuánto costó la sesión en que se hizo, 1–5 (D-019). `null` si no se
+   * valoró. Modula el paso de la progresión (D-031).
+   */
+  effort: number | null
+}
+
+/** La sesión completada más reciente que tiene el ejercicio, y el ejercicio tal como se hizo en ella. */
+function lastPerformedEntry(
+  exerciseId: string,
+  history: readonly WorkoutSession[],
+): { session: WorkoutSession; performed: PerformedExercise } | null {
+  for (const session of history) {
+    if (session.status !== 'completed') continue
+    const performed = session.exercises.find((item) => item.exerciseId === exerciseId)
+    if (performed && performed.sets.length > 0) return { session, performed }
+  }
+  return null
 }
 
 /** El ejercicio tal y como se hizo en la sesión completada más reciente que lo tenga. */
@@ -31,26 +49,23 @@ export function lastPerformedExercise(
   exerciseId: string,
   history: readonly WorkoutSession[],
 ): PerformedExercise | null {
-  for (const session of history) {
-    if (session.status !== 'completed') continue
-    const performed = session.exercises.find((item) => item.exerciseId === exerciseId)
-    if (performed && performed.sets.length > 0) return performed
-  }
-  return null
+  return lastPerformedEntry(exerciseId, history)?.performed ?? null
 }
 
 export function lastPerformanceOf(
   exerciseId: string,
   history: readonly WorkoutSession[],
 ): LastPerformance | null {
-  const performed = lastPerformedExercise(exerciseId, history)
-  if (!performed) return null
+  const entry = lastPerformedEntry(exerciseId, history)
+  if (!entry) return null
+  const { session, performed } = entry
 
   return {
     weightKg: maxWeight(performed.sets),
     reps: Math.max(...performed.sets.map((set) => set.reps)),
     allSetsCompleted: metTarget(performed),
     sets: performed.sets.length,
+    effort: session.effort ?? null,
   }
 }
 

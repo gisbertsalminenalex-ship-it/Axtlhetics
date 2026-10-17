@@ -87,6 +87,7 @@ export function snapshotOf(proposal: AxisProposal): ProposalSnapshot {
     reason: proposal.reason,
     focus: proposal.session?.focus ?? null,
     intensity: proposal.session?.intensity ?? null,
+    ...(proposal.session?.deload ? { deload: true } : {}),
   }
 }
 

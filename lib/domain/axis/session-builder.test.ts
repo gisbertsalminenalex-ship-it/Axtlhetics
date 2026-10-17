@@ -564,3 +564,49 @@ test('con familias la selección sigue siendo determinista', () => {
   const b = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', history, today: TODAY }))
   assert.deepEqual(a, b)
 })
+
+// ---------------------------------------------------------------------------
+// D-031: el esfuerzo modula la progresión, y la semana de descarga
+// ---------------------------------------------------------------------------
+
+const DONE = [
+  { reps: 12, weightKg: null, completed: true },
+  { reps: 12, weightKg: null, completed: true },
+  { reps: 12, weightKg: null, completed: true },
+]
+
+test('D-031: la última ejecución recuerda cuánto costó la sesión', () => {
+  assert.equal(lastPerformanceOf('flexiones', [performed('flexiones', DONE, { effort: 4 })])?.effort, 4)
+  assert.equal(lastPerformanceOf('flexiones', [performed('flexiones', DONE)])?.effort, null)
+})
+
+test('D-031: «al límite» repite aunque se completara todo; «fácil» dobla el paso', () => {
+  const flexiones = exercise('flexiones')
+  const normal = suggestWorkFor(flexiones, { ...BASE, history: [performed('flexiones', DONE, { effort: 3 })] })
+  const limite = suggestWorkFor(flexiones, { ...BASE, history: [performed('flexiones', DONE, { effort: 5 })] })
+  const facil = suggestWorkFor(flexiones, { ...BASE, history: [performed('flexiones', DONE, { effort: 2 })] })
+  const sinValorar = suggestWorkFor(flexiones, { ...BASE, history: [performed('flexiones', DONE)] })
+
+  assert.equal(limite.reps, 12, 'al límite: mismas repeticiones')
+  assert.ok(normal.reps > 12, 'moderado: sube')
+  assert.equal(sinValorar.reps, normal.reps, 'sin valorar, como siempre')
+  assert.ok(facil.reps > normal.reps || facil.reps === repCapFor(flexiones), 'fácil: sube más, sin pasar el techo')
+})
+
+test('D-031: en descarga, una serie menos (nunca menos de 2) y sin subir', () => {
+  const flexiones = exercise('flexiones')
+  const history = [performed('flexiones', DONE, { effort: 2 })]
+  const normal = suggestWorkFor(flexiones, { ...BASE, history })
+  const descarga = suggestWorkFor(flexiones, { ...BASE, history, deload: true })
+
+  assert.equal(descarga.sets, Math.max(2, normal.sets - 1))
+  assert.equal(descarga.reps, 12, 'no se sube en descarga')
+  assert.ok(suggestWorkFor(flexiones, { ...BASE, intensity: 'ligera', deload: true }).sets >= 2)
+})
+
+test('D-031: una sesión de descarga lo lleva marcado', () => {
+  const descarga = buildSession({ ...BASE, focus: 'tren_superior', availableMinutes: 45, deload: true })
+  const normal = buildSession({ ...BASE, focus: 'tren_superior', availableMinutes: 45 })
+  assert.equal(descarga.deload, true)
+  assert.equal('deload' in normal, false)
+})

@@ -48,6 +48,8 @@ export type AxisFactorKey =
   | 'goal'
   | 'session_duration'
   | 'progression'
+  /** Semana de descarga tras varias semanas cargadas (D-031). */
+  | 'deload_week'
 
 /**
  * `supports` empuja hacia entrenar más, `limits` hacia entrenar menos.

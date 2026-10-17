@@ -116,6 +116,11 @@ export const REP_PROGRESSION_STEP = 2
 /** En isométricos se progresa en segundos. */
 export const HOLD_PROGRESSION_STEP = 5
 
+/** Esfuerzo de la sesión (D-019) a partir del cual no se sube: «al límite» (D-031). */
+export const AT_LIMIT_EFFORT = 5
+/** Esfuerzo hasta el que el paso se dobla: «muy fácil» y «fácil» (D-031). */
+export const EASY_EFFORT = 2
+
 /**
  * Techo de repeticiones antes de considerar el ejercicio dominado. A partir de ahí
  * la progresión deja de ser «más repeticiones» y pasa a ser «variante más difícil».
@@ -139,6 +144,8 @@ export type SessionBuildOptions = {
    * caduque (D-020). Sin él, la señal no caduca.
    */
   today?: DayKey
+  /** Semana de descarga (D-031): una serie menos, sin subir ni pasar a una variante más difícil. */
+  deload?: boolean
 }
 
 export function exerciseCountFor(availableMinutes: number): number {
@@ -196,9 +203,13 @@ export type SuggestedWork = {
  * Progresión, en este orden:
  *
  * 1. Si la última vez no se completó todo → se repiten los mismos parámetros.
- * 2. Si el ejercicio usa pesa y aún queda margen de carga → sube la carga.
- * 3. En cualquier otro caso → sube repeticiones (o segundos en los isométricos).
+ * 2. Si la última vez fue «al límite» → también se repite: hecho, pero sin
+ *    margen para subir (D-031).
+ * 3. Si el ejercicio usa pesa y aún queda margen de carga → sube la carga.
+ * 4. En cualquier otro caso → sube repeticiones (o segundos en los
+ *    isométricos), el doble si la última vez fue fácil o muy fácil (D-031).
  *
+ * En una semana de descarga (D-031) hay una serie menos y no se sube nada.
  * Nunca se sugiere una carga por encima de la pesa que existe.
  */
 export function suggestWorkFor(
@@ -208,12 +219,14 @@ export function suggestWorkFor(
     goals: readonly TrainingGoal[]
     experience: ExperienceLevel
     history?: readonly WorkoutSession[]
+    deload?: boolean
   },
 ): SuggestedWork {
-  const { intensity, goals, experience, history = [] } = options
+  const { intensity, goals, experience, history = [], deload = false } = options
 
   const maxSets = MAX_SETS_BY_EXPERIENCE[experience] ?? MAX_SETS_BY_EXPERIENCE[DEFAULT_EXPERIENCE]
-  const sets = clamp(exercise.work.sets + SET_SHIFT[intensity], MIN_SETS, maxSets)
+  const normalSets = clamp(exercise.work.sets + SET_SHIFT[intensity], MIN_SETS, maxSets)
+  const sets = deload ? Math.max(MIN_SETS, normalSets - 1) : normalSets
 
   const repFactor = blendedRepFactor(goals)
   // Los isométricos se miden en segundos: el objetivo no debe recortarlos como si
@@ -233,7 +246,7 @@ export function suggestWorkFor(
   const lastWeight = loaded ? (last.weightKg ?? baseWeight) : null
   const lastReps = Math.max(baseReps, last.reps)
 
-  if (!last.allSetsCompleted) {
+  if (!last.allSetsCompleted || deload || (last.effort !== null && last.effort >= AT_LIMIT_EFFORT)) {
     return { sets, reps: lastReps, weightKg: lastWeight }
   }
 
@@ -245,7 +258,9 @@ export function suggestWorkFor(
     }
   }
 
-  const step = exercise.work.isTimed ? HOLD_PROGRESSION_STEP : REP_PROGRESSION_STEP
+  const baseStep = exercise.work.isTimed ? HOLD_PROGRESSION_STEP : REP_PROGRESSION_STEP
+  const easy = last.effort !== null && last.effort <= EASY_EFFORT
+  const step = easy ? baseStep * 2 : baseStep
   return {
     sets,
     reps: Math.min(lastReps + step, repCapFor(exercise)),
@@ -438,6 +453,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     equipment = AVAILABLE_EQUIPMENT,
     history = [],
     today,
+    deload = false,
   } = options
 
   // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
@@ -459,13 +475,14 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     pool,
     focus,
     count,
-    (exercise) => adaptDifficulty(exercise, target, { history, catalog, equipment }),
+    // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
+    (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, equipment }),
     target,
     usage,
   )
 
   const exercises: PlannedExercise[] = selected.map((exercise) => {
-    const work = suggestWorkFor(exercise, { intensity, goals, experience, history })
+    const work = suggestWorkFor(exercise, { intensity, goals, experience, history, deload })
     return {
       exerciseId: exercise.id,
       name: exercise.name,
@@ -487,6 +504,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     estimatedMinutes: Math.max(20, Math.round(availableMinutes / 5) * 5),
     muscleGroups: dedupeGroups(selected, focus),
     exercises,
+    ...(deload ? { deload: true } : {}),
   }
 }
 

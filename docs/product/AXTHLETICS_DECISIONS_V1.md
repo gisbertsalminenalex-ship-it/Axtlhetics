@@ -1395,6 +1395,32 @@ Que el motor deje de proponer lo que propone: la recomendación del día sigue s
 
 ---
 
+## D-031 — Progresión según el esfuerzo y semanas de descarga
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Primer paso del plan de Alex para que AXTHLETICS sea el entrenador ideal. El material no cambia: una pesa de 5 kg (D-008).
+
+### El esfuerzo modula el paso
+
+La progresión ya repetía si un ejercicio quedaba a medias (D-019). Ahora también mira **cuánto costó la sesión** en que se hizo por última vez, el esfuerzo de 1 a 5 que se valora al terminar (D-019):
+
+- **Al límite (5):** se repite lo mismo, aunque se completara todo. Hecho, pero sin margen para subir.
+- **Duro o moderado (3–4), o sin valorar:** el paso de siempre.
+- **Fácil o muy fácil (1–2):** el paso se dobla —el doble de repeticiones o de segundos—, sin pasar el techo del ejercicio. La carga, con una sola pesa, sigue igual.
+
+### Semana de descarga
+
+Tras **4 semanas naturales seguidas cargadas** —al menos 2 sesiones completadas y ninguna de descarga—, la semana siguiente es de **descarga**: una serie menos por ejercicio (nunca menos de 2), sin subir repeticiones ni carga y sin pasar a una variante más difícil. Es parte del plan, no un descanso: se entrena igual, con menos volumen, para asimilar lo acumulado.
+
+- AXIS lo explica en primer lugar en el motivo del día: «Llevas 4 semanas seguidas entrenando con regularidad: esta semana es de descarga…».
+- Es determinista y por semanas de lunes a domingo: cualquier día de la semana da la misma respuesta.
+- Las sesiones de una semana de descarga lo guardan en su instantánea (`ProposalSnapshot.deload`), así que esa semana corta la cuenta y nunca se encadenan dos. Una semana floja (menos de 2 sesiones) también la corta.
+
+### Datos
+
+Sin migración: `deload` es opcional en la sesión planificada y en la instantánea. Las sesiones anteriores no lo tienen y cuentan como semanas normales.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

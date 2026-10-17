@@ -683,3 +683,30 @@ test('cambiar los días disponibles cambia qué días se entrena', () => {
   assert.equal(saturday.rule, 'not_available_today')
   assert.equal(friday.type, 'TRAINING')
 })
+
+// ---------------------------------------------------------------------------
+// D-031: semana de descarga
+// ---------------------------------------------------------------------------
+
+test('D-031: tras cuatro semanas cargadas, AXIS lo explica primero y la sesión va en descarga', async () => {
+  const { addDays } = await import('../shared/dates')
+  const { snapshotOf } = await import('../workouts/active-workout')
+  // Dos sesiones por semana en las cuatro semanas anteriores al lunes 7 de septiembre.
+  const history = [1, 2, 3, 4].flatMap((back) =>
+    [0, 2].map((offset) => {
+      const dayKey = addDays(addDays(MONDAY_KEY, -7 * back), offset)
+      return session({ id: `s-${dayKey}`, dayKey })
+    }),
+  )
+  const decision = decide(contextWith({ recentSessions: history }))
+
+  assert.ok(isTrainingRecommendation(decision.primary.type))
+  assert.equal(decision.primary.factors[0].key, 'deload_week')
+  assert.match(decision.primary.reason, /descarga/)
+  assert.equal(decision.primary.session?.deload, true)
+  assert.equal(snapshotOf(decision.primary).deload, true, 'la sesión guardada lo lleva, para no encadenar dos')
+
+  const fresh = decide(contextWith({ recentSessions: history.slice(0, 2) }))
+  assert.notEqual(fresh.primary.factors[0]?.key, 'deload_week')
+  assert.equal(fresh.primary.session?.deload, undefined)
+})

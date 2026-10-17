@@ -8,6 +8,7 @@
 
 import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
 import type { PlannedSession, SessionFocus } from '../workouts/types'
 import { SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
@@ -46,7 +47,13 @@ export function decide(context: AxisContext): AxisDecision {
   const facts = deriveFacts(context)
   const outcome = evaluateRules(facts)
 
-  const primary = buildProposal(context, facts, outcome.type, outcome.factors, 'Recomendada', outcome.rule)
+  // La descarga no cambia qué se decide hoy, sino cuánto: se explica la primera (D-031).
+  const factors =
+    isDeloadWeek(context.recentSessions, context.dayKey) && isTrainingRecommendation(outcome.type)
+      ? [deloadFactor(), ...outcome.factors]
+      : outcome.factors
+
+  const primary = buildProposal(context, facts, outcome.type, factors, 'Recomendada', outcome.rule)
   const alternatives = buildAlternatives(context, facts, outcome.type)
 
   return { primary, alternatives }
@@ -109,6 +116,7 @@ function planSession(
     history: context.recentSessions,
     // Para que la señal de un ejercicio saltado caduque en la rotación (D-020).
     today: context.dayKey,
+    deload: isDeloadWeek(context.recentSessions, context.dayKey),
   })
 }
 
@@ -226,6 +234,15 @@ function lighterFactors(): AxisFactor[] {
       direction: 'neutral',
     },
   ]
+}
+
+function deloadFactor(): AxisFactor {
+  return {
+    key: 'deload_week',
+    label: 'Semana de descarga',
+    detail: `Llevas ${DELOAD_AFTER_WEEKS} semanas seguidas entrenando con regularidad: esta semana es de descarga, con una serie menos por ejercicio y sin subir, para asimilar lo acumulado.`,
+    direction: 'limits',
+  }
 }
 
 function harderFactors(): AxisFactor[] {

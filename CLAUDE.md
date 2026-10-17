@@ -325,6 +325,8 @@ These weights must live in a **single centralized place in the code** so they ca
 
 Training Load is implemented alongside it (`lib/domain/workouts/load.ts`, D-008): a 0–100 index over the last 7 days, shown as «—» when there is no completed session in the window.
 
+Progression (`suggestWorkFor` in `lib/domain/axis/session-builder.ts`, D-019, D-031) repeats an exercise left unfinished or done in a session rated «al límite», takes the normal step otherwise and doubles it after an easy session. After 4 loaded calendar weeks in a row (≥ 2 completed sessions, none of them deload) the week is a deload week (`lib/domain/workouts/deload.ts`): one set less (never under 2), no progression, explained first in the day's reason, and marked in the session snapshot so two never chain.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity

@@ -160,6 +160,8 @@ export type PlannedSession = {
   estimatedMinutes: number
   muscleGroups: MuscleGroup[]
   exercises: PlannedExercise[]
+  /** `true` en una semana de descarga (D-031): una serie menos y sin subir. */
+  deload?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -229,6 +231,11 @@ export type ProposalSnapshot = {
   reason: string
   focus: SessionFocus | null
   intensity: SessionIntensity | null
+  /**
+   * `true` si la sesión era de una semana de descarga (D-031). Es lo que
+   * permite reconocerla después y no encadenar dos. Ausente en las anteriores.
+   */
+  deload?: boolean
 }
 
 export type WorkoutSessionStatus = 'completed' | 'abandoned'
@@ -344,7 +351,8 @@ function isProposalSnapshotValue(value: unknown): value is ProposalSnapshot {
     typeof value.proposalId === 'string' &&
     typeof value.type === 'string' &&
     typeof value.headline === 'string' &&
-    typeof value.reason === 'string'
+    typeof value.reason === 'string' &&
+    (value.deload === undefined || typeof value.deload === 'boolean')
   )
 }
 
