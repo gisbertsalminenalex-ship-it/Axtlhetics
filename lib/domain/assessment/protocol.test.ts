@@ -55,8 +55,10 @@ test('la única carga es la pesa de 5 kg del remo, dentro del material de D-008'
 })
 
 test('las variantes de flexiones son de la familia del catálogo y excluyen las negativas', () => {
+  // D-025 añade las de rodillas.
   assert.deepEqual(PUSH_UP_VARIANT_IDS, [
     'flexiones-inclinadas',
+    'flexiones-rodillas',
     'flexiones',
     'flexiones-declinadas',
     'flexiones-diamante',

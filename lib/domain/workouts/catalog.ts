@@ -227,6 +227,25 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     work: { sets: 3, reps: 10, restSeconds: 60, isTimed: false, tempo: null },
     imageUrl: null,
   },
+  {
+    // D-025. Flexión de iniciación sin material: hermana de las inclinadas, no las sustituye.
+    id: 'flexiones-rodillas',
+    name: 'Flexiones con rodillas',
+    family: 'flexion',
+    category: 'empuje',
+    primaryMuscles: ['pecho'],
+    secondaryMuscles: ['hombros', 'brazos'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: 'flexiones-negativas',
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Rodillas apoyadas en el suelo y manos bajo los hombros. Cuerpo en línea de las rodillas a la cabeza; baja el pecho controlando y empuja arriba sin hundir la cadera.',
+    work: { sets: 3, reps: 10, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
 
   // ---------------------------------------------------------------------------
   // TIRÓN

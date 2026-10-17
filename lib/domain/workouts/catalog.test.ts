@@ -225,9 +225,23 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 43 ejercicios: 23 de D-008, 16 de D-020 y 4 de D-020.1', () => {
-  // D-020.1 amplía el catálogo a propósito; antes este test fijaba 39.
-  assert.equal(EXERCISE_CATALOG.length, 43)
+test('el catálogo tiene 44 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1 y 1 de D-025', () => {
+  // Cada ampliación es una decisión: antes este test fijaba 39 y luego 43.
+  assert.equal(EXERCISE_CATALOG.length, 44)
+})
+
+test('las flexiones con rodillas (D-025): iniciación sin material, sin tocar la cadena de las flexiones', () => {
+  const knee = findExercise('flexiones-rodillas')
+  assert.ok(knee)
+  assert.equal(knee!.name, 'Flexiones con rodillas')
+  assert.equal(knee!.category, 'empuje')
+  assert.equal(knee!.family, 'flexion')
+  assert.equal(knee!.difficulty, 1)
+  assert.deepEqual(knee!.equipment, ['ninguno'])
+  assert.equal(knee!.unilateral, false)
+  assert.equal(knee!.regressionId, null)
+  assert.equal(knee!.progressionId, 'flexiones-negativas')
+  assert.ok(isAvailable(knee!))
 })
 
 test('los ejercicios de D-008 conservan su id: el historial y la progresión dependen de ellos', () => {

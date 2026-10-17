@@ -58,7 +58,7 @@ const HINGE_SUPPORT: LimbSpec = { to: [176, 141], bend: -1 }
 const HINGE_LEGS: LimbSpec = { a: 12, b: -6 }
 
 // ---------------------------------------------------------------------------
-// Los 43 ejercicios
+// Los 44 ejercicios
 // ---------------------------------------------------------------------------
 
 const incline = (() => {
@@ -69,6 +69,16 @@ const incline = (() => {
 })()
 
 const floorPushUp: FigureSpec = { frames: pushUp(PUSH_TOP, PUSH_BOTTOM, PUSH_HAND) }
+
+/** Con las rodillas en el suelo: el cuerpo en línea desde la rodilla y las espinillas apoyadas detrás. */
+const kneePushUp = (() => {
+  const knee: Point = [70, 190]
+  const body = (angle: number) => ({ hip: along(knee, angle, BONES.thigh), torso: angle, leg: { a: angle - 180, b: -90 } })
+  const top = body(120.7)
+  const hand = along(along(top.hip, top.torso, BONES.torso), 3, 53.5)
+  const pose = (at: ReturnType<typeof body>): Keyframe => ({ ...at, arm: { to: hand, bend: 1 }, foot: -95 })
+  return { frames: [pose(top), pose(body(98.8))] } satisfies FigureSpec
+})()
 
 const decline = (() => {
   const ankle: Point = [40, 140]
@@ -139,6 +149,7 @@ const calfRaise = (extra: Partial<Keyframe> = {}): FigureSpec['frames'] => [
 export const FIGURES: Readonly<Record<string, FigureSpec>> = {
   // --- Empuje ----------------------------------------------------------------
   'flexiones-inclinadas': incline,
+  'flexiones-rodillas': kneePushUp,
   'flexiones-negativas': floorPushUp,
   flexiones: floorPushUp,
   'flexiones-diamante': floorPushUp,

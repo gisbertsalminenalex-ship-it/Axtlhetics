@@ -35,7 +35,7 @@ const RULES: readonly IntentRule[] = [
   },
   {
     intent: 'medical',
-    any: ['lesion', 'lesión', 'me duele', 'dolor', 'molestia', 'medico', 'médico', 'fisio', 'estoy enfermo', 'rodilla', 'hombro me'],
+    any: ['lesion', 'lesión', 'me duele', 'dolor', 'molest', 'medico', 'médico', 'fisio', 'estoy enfermo', 'rodilla', 'hombro me'],
   },
 
   // Antes que 'change': preguntar qué se cambió no es pedir otro cambio.
@@ -255,6 +255,37 @@ const NAME_STOPWORDS: ReadonlySet<string> = new Set([
   'sin', 'sobre', 'u', 'un', 'una', 'unas', 'uno', 'unos', 'y',
 ])
 
+/**
+ * El nombre de cada ejercicio como frase: sus palabras seguidas, con plurales
+ * sencillos y cualquier artículo o preposición entre ellas («flexión de
+ * rodillas», «flexiones con las rodillas»). Las palabras sueltas y separadas no
+ * son el nombre: «las rodillas me molestan con las flexiones» no lo contiene.
+ * Del nombre más largo al más corto, para que «Flexiones» no se coma el
+ * principio de «Flexiones con rodillas».
+ */
+const EXERCISE_NAME_PATTERNS: readonly RegExp[] = [...EXERCISE_CATALOG]
+  .sort((a, b) => b.name.length - a.name.length)
+  .map((exercise) => {
+    const words = normalizeQuestion(exercise.name)
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 0 && !NAME_STOPWORDS.has(word))
+    const between = `(?:[^a-z0-9]+(?:${[...NAME_STOPWORDS].join('|')}))*[^a-z0-9]+`
+    const body = words
+      .map((word) => `${word.length >= 4 ? word.replace(/(es|s)$/, '') : word}(?:es|s)?`)
+      .join(between)
+    return new RegExp(`(^|[^a-z0-9])${body}(?![a-z0-9])`, 'g')
+  })
+
+/**
+ * El texto sin los nombres de ejercicio que contiene. Lo usa la regla médica:
+ * «rodilla» en «flexiones con rodillas» es el nombre de un ejercicio, no una
+ * molestia (D-025). Lo dicho fuera del nombre sigue contando: «me duele la
+ * rodilla con las flexiones con rodillas» es médico.
+ */
+function withoutExerciseNames(text: string): string {
+  return EXERCISE_NAME_PATTERNS.reduce((rest, pattern) => rest.replace(pattern, '$1 '), text)
+}
+
 /** Con más candidatos igual de probables, la pregunta es demasiado vaga para preguntar «¿cuál?». */
 const MAX_AMBIGUOUS_OPTIONS = 3
 
@@ -403,7 +434,9 @@ export function matchIntent(
   if (text.length === 0) return { intent: 'unknown', focus, isFollowUp: false }
 
   for (const rule of RULES) {
-    const matchesAny = rule.any.some((term) => text.includes(normalizeQuestion(term)))
+    // Una parte del cuerpo dentro del nombre de un ejercicio no es una molestia.
+    const haystack = rule.intent === 'medical' ? withoutExerciseNames(text) : text
+    const matchesAny = rule.any.some((term) => haystack.includes(normalizeQuestion(term)))
     if (!matchesAny) continue
     if (rule.and && !rule.and.some((term) => text.includes(normalizeQuestion(term)))) continue
 

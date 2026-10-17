@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-14.
+**Última actualización:** 2026-10-17.
 
 ## Qué es este documento
 
@@ -289,7 +289,7 @@ El equipamiento vive en una constante (`AVAILABLE_EQUIPMENT`): cambiarla cambia 
 
 ### Catálogo
 
-Cierra `P-004`. Son 23 ejercicios con metadatos completos: categoría (empuje / tirón / piernas / core), músculos principales y secundarios, equipamiento, unilateral o no, dificultad 1–5, progresión, regresión, tipo de estímulo, instrucciones y parámetros de trabajo. *(Ampliado por D-020: 39 ejercicios y una quinta categoría, movilidad.)*
+Cierra `P-004`. Son 23 ejercicios con metadatos completos: categoría (empuje / tirón / piernas / core), músculos principales y secundarios, equipamiento, unilateral o no, dificultad 1–5, progresión, regresión, tipo de estímulo, instrucciones y parámetros de trabajo. *(Ampliado por D-020: 39 ejercicios y una quinta categoría, movilidad; por D-020.1 a 43 y por D-025 a 44.)*
 
 Sigue siendo **dato reemplazable**: añadir o quitar ejercicios no obliga a tocar la lógica, solo a rellenar los metadatos.
 
@@ -1200,6 +1200,42 @@ En los huecos de imagen que ya tenía el diseño aprobado (D-006), sin cambiar c
 ### Fuera de D-024 v1
 
 Animación en la respuesta de AXIS («¿cómo se hace…?»), vistas desde varios ángulos, figura con el sexo o la complexión del usuario y vídeo.
+
+---
+
+## D-025 — Flexiones con rodillas
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Amplía D-020.1 (catálogo: 43 → 44).
+
+Alex pide añadir las **flexiones con rodillas** al catálogo, con su figura animada. D-020.1 cerró el catálogo en 43 («no se añade nada más»); esta decisión lo amplía en uno.
+
+### El ejercicio
+
+| Campo | Valor |
+|---|---|
+| id | `flexiones-rodillas` |
+| Categoría / familia | empuje / `flexion` |
+| Músculos | pecho; secundarios hombros y brazos |
+| Material | ninguno |
+| Dificultad | 1 |
+| Trabajo | 3 × 10, 75 s de descanso |
+| Progresión / regresión | → Flexiones negativas / ninguna |
+
+- Es la flexión de iniciación **sin material**: hermana de las inclinadas (que necesitan una superficie elevada), no su sustituta. Por ser de la familia `flexion`, nunca coincide con otra flexión en la misma sesión (D-020.1).
+- **Las relaciones de los demás ejercicios no cambian**: las negativas siguen regresando a las inclinadas y «una variante más ligera» de las flexiones sigue siendo las negativas. Las de rodillas entran por la rotación del nivel principiante.
+- **Es variante elegible del test de evolución** (amplía D-021, aprobado por Alex el 2026-10-17): inclinadas, con rodillas, estándar, declinadas y diamante. Son repeticiones completas, comparables entre tests como las demás; las negativas siguen fuera. La recomendación del primer test no cambia (principiante → inclinadas) y, como cualquier variante, elegirla empieza una línea base propia.
+
+### Figura (D-024)
+
+De lado, con rodillas y espinillas apoyadas en el suelo y el cuerpo en línea de la rodilla a la cabeza; las manos fijas bajo los hombros y el pecho baja hasta cerca del suelo.
+
+### AXIS reconoce el nombre
+
+«Rodilla» está entre las palabras que llevan a la respuesta médica segura. Para que «¿cómo hago las flexiones con rodillas?» se responda como pregunta de ejercicio, la regla médica **ignora una parte del cuerpo solo cuando forma parte del nombre completo de un ejercicio**, escrito seguido (admite singular/plural y «con»/«de»/«con las»). Todo lo demás sigue siendo médico: «me duele la rodilla», «tengo un problema con las rodillas», «las rodillas me molestan con las flexiones» o «me duele hacer flexiones con rodillas». Un test fija los dos lados.
+
+### «Me molesta» es una molestia
+
+Aprobado por Alex el 2026-10-17. La respuesta médica segura reconocía «molestia» pero no «me molesta», «me molestan» ni «molestias en…»: «me molesta el hombro» no llegaba a ella. Ahora cualquier forma de «molestar» lleva a la respuesta segura, que, como siempre (D-022), nunca modifica el entrenamiento por sí sola.
 
 ---
 

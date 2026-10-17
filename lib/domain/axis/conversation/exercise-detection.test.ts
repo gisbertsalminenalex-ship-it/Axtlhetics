@@ -224,3 +224,28 @@ test('D-020.1: los cuatro ejercicios nuevos se reconocen sin chocar con los que 
     'ambiguo:estiramiento-flexor-cadera|estiramiento-isquiotibiales',
   )
 })
+
+test('D-025: las flexiones con rodillas se reconocen, y una molestia de rodilla sigue siendo médica', () => {
+  const asked: [string, string][] = [
+    ['¿Cómo hago las flexiones con rodillas?', 'flexiones-rodillas'],
+    ['¿Cómo hago las flexiones de rodillas?', 'flexiones-rodillas'],
+    ['¿Cómo se hace la flexión con rodilla?', 'flexiones-rodillas'],
+    ['¿Cómo hago las flexiones con las rodillas?', 'flexiones-rodillas'],
+    ['¿Cómo hago las flexiones?', 'flexiones'], // el básico no cambia
+  ]
+  for (const [question, id] of asked) {
+    assert.equal(matchIntent(question).intent, 'exercise', question)
+    assert.equal(resolved(question), id, question)
+  }
+
+  // Lo que cuenta una molestia, o nombra la rodilla fuera del nombre, sigue siendo médico.
+  for (const question of [
+    'Me duele la rodilla',
+    'Tengo un problema con las rodillas',
+    'Las rodillas me molestan con las flexiones',
+    'Me duele la rodilla al hacer flexiones con rodillas',
+    'Me duele hacer flexiones con rodillas',
+  ]) {
+    assert.equal(matchIntent(question).intent, 'medical', question)
+  }
+})

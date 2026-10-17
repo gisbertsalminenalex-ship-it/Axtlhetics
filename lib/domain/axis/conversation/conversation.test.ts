@@ -219,6 +219,22 @@ test('AXIS no opina sobre salud ni diagnostica', () => {
   assert.match(answer.text, /no soy m[eé]dico/i)
 })
 
+test('«me molesta» también es una molestia: respuesta segura, sin tocar el entrenamiento', () => {
+  const { briefing } = briefingWith()
+  for (const question of [
+    'Me molesta el hombro',
+    'Me molestan las rodillas',
+    'Las flexiones con rodillas me molestan',
+    'Tengo molestias en la espalda',
+    'El hombro me molesta un poco cuando hago press',
+  ]) {
+    const answer = answerFromBriefing(question, briefing)
+    assert.equal(answer.intent, 'medical', question)
+    assert.ok(!answer.proposedTarget && !answer.proposedEffect, question)
+    assert.match(answer.text, /no soy m[eé]dico/i, question)
+  }
+})
+
 // ---------------------------------------------------------------------------
 // Respuestas con datos
 // ---------------------------------------------------------------------------

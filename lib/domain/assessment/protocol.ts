@@ -91,11 +91,14 @@ export const ASSESSMENT_PROTOCOL: readonly AssessmentTest[] = [
 ]
 
 /**
- * Las variantes de flexiones que se pueden elegir. Las negativas no: son solo la
- * bajada controlada y sus repeticiones no se comparan con las demás.
+ * Las variantes de flexiones que se pueden elegir, de más fácil a más difícil.
+ * Las negativas no: son solo la bajada controlada y sus repeticiones no se
+ * comparan con las demás. Las de rodillas, sí (D-025): son repeticiones
+ * completas, la opción de quien no tiene una superficie elevada a mano.
  */
 export const PUSH_UP_VARIANT_IDS: readonly string[] = [
   'flexiones-inclinadas',
+  'flexiones-rodillas',
   'flexiones',
   'flexiones-declinadas',
   'flexiones-diamante',
