@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { GoalTargets } from '@/components/profile/goal-targets'
 import { DislikedExercises } from '@/components/profile/disliked-exercises'
+import { DailyReminder } from '@/components/profile/daily-reminder'
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { BackupControls } from '@/components/profile/backup-controls'
 import {
@@ -330,6 +331,7 @@ export function PerfilScreen({
       {/* Objetivos medibles (D-035): necesitan un perfil guardado donde vivir. */}
       {!isOnboarding && <GoalTargets />}
       {!isOnboarding && <DislikedExercises />}
+      {!isOnboarding && <DailyReminder />}
 
       <div className="mt-9">
         <PrimaryButton onClick={() => void handleSave()} disabled={!canSave || saving}>

@@ -340,6 +340,8 @@ Cross-day memory (D-037, `conversation/preferences.ts`): «no me gustan las zanc
 
 AXIS speaks first (D-038, `lib/domain/axis/proactive.ts`): one deterministic note at a time, by priority — yesterday's discomfort, Monday's last-week summary, the first day of a deload week, a measurable goal behind, today's recovery not registered. Shown under the AXIS card on Inicio (opens the chat) and in the empty chat; never decides or proposes actions.
 
+Daily reminder (D-039): Perfil generates a recurring daily iCalendar event on the device (`lib/domain/reminders/ics.ts`, floating time, fixed UID) that the phone calendar fires with the app closed. No push notifications, no server.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity

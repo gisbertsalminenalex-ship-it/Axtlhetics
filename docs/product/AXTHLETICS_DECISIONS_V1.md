@@ -1618,6 +1618,27 @@ Avisos con la app cerrada: es el recordatorio diario (paso 9), que necesita su p
 
 ---
 
+## D-039 — Recordatorio diario en el calendario
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 9 y último del plan de Alex. Alex eligió el evento de calendario frente a la notificación push, que habría necesitado guardar datos en un servidor.
+
+### Qué es
+
+En Perfil, **«Recordatorio diario»**: se elige la hora (de 5:00 a 23:30, cada media hora; por defecto las 8:00) y «Añadir al calendario» descarga un archivo `.ics` con un evento que **se repite cada día** y **avisa a esa hora**: «AXTHLETICS · Registra tu recuperación», con el enlace a la app.
+
+### Por qué así
+
+- **Avisa con la app cerrada** en iPhone y Android: lo da el calendario del móvil.
+- **Sin servidor y sin datos fuera del móvil**: el archivo se genera en el dispositivo (`lib/domain/reminders/ics.ts`) y no lleva nada del usuario.
+- **Hora flotante**, sin zona horaria: suena a las 8:00 de donde esté el usuario.
+- **Siempre el mismo identificador**: volver a añadirlo con otra hora actualiza el evento en lugar de duplicarlo, en los calendarios que lo respetan.
+
+### Fuera de D-039
+
+Notificaciones push de la propia app; quitar o cambiar el evento se hace desde el calendario.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
