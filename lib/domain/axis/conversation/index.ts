@@ -27,6 +27,7 @@ import {
 } from './ai'
 import { answerFromBriefing, createDeterministicConversation } from './deterministic'
 import { matchIntent } from './intents'
+import { understandMessage } from './understand'
 import type { AxisAnswer, AxisConversationEngine, AxisConversationMemory } from './types'
 
 export type AxisConversationOptions = {
@@ -105,7 +106,7 @@ export function createAxisConversation(
      * Las respuestas de ámbito médico o fuera de AXTHLETICS se quedan siempre en
      * el determinista: ahí la redacción no aporta y el riesgo sí.
      */
-    const intent = matchIntent(question, memory?.lastIntent ?? null).intent
+    const intent = matchIntent(understandMessage(question, briefing), memory?.lastIntent ?? null).intent
     const worthIt = benefitsFromAi(local.intent) && benefitsFromAi(intent)
 
     if (!worthIt || !(await ai.isAvailable())) {

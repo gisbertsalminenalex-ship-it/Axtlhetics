@@ -189,3 +189,20 @@ export function detectIntensity(message: string): ActivityIntensity | null {
   const text = normalizeQuestion(message)
   return INTENSITY_TERMS.find((entry) => entry.pattern.test(text))?.intensity ?? null
 }
+
+/** Lo que reconoce la reorganización, como vocabulario del corrector de faltas (D-026). */
+export const REORGANIZATION_VOCABULARY: readonly (string | RegExp)[] = [
+  ...SPOKEN_DURATIONS.map((entry) => entry.pattern),
+  ...CANNOT_TODAY_PATTERNS,
+  MOVE_VERBS,
+  PLANNED_TERMS,
+  TIME_TERMS,
+  ZONE_TERMS,
+  MATERIAL_TERMS,
+  OTHER_TERMS,
+  ...TIRED_PATTERNS,
+  ...MISSED_YESTERDAY_PATTERNS,
+  MATCH_TERMS,
+  ...INTENSITY_TERMS.map((entry) => entry.pattern),
+  'minutos manana juego',
+]

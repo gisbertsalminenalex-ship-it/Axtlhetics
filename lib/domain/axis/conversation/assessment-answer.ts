@@ -164,3 +164,6 @@ export function assessmentEntryReason(assessment: BriefingAssessment): string | 
       return null
   }
 }
+
+/** Lo que reconoce la respuesta sobre el test, como vocabulario del corrector de faltas (D-026). */
+export const ASSESSMENT_VOCABULARY: readonly RegExp[] = [ASSESSMENT_TERM, FOLLOW_UP, HOW_TERMS]

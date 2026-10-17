@@ -133,6 +133,12 @@ const CANCELLED_TERMS = [
 /** Marcas de que el usuario está contando algo que hizo, no preguntando. */
 const REPORT_TERMS = ['hice', 'he hecho', 'hicimos', 'estuve', 'me hice', 'ayer', 'esta manana', 'esta mañana', 'antes', 'vengo de', 'acabo de']
 
+/** Lo que reconoce la negociación, como vocabulario del corrector de faltas (D-026). */
+export const NEGOTIATION_VOCABULARY: readonly string[] = [
+  ...AVOID_TERMS, ...WANT_TERMS, ...SHORTER_TERMS, ...EASIER_TERMS, ...HARDER_TERMS,
+  ...REST_TERMS, ...TRAIN_ANYWAY_TERMS, ...CANCELLED_TERMS, ...REPORT_TERMS,
+]
+
 function includesAny(text: string, terms: readonly string[]): boolean {
   return terms.some((term) => text.includes(normalizeQuestion(term)))
 }

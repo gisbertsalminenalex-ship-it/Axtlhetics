@@ -101,3 +101,6 @@ export function answerScan(briefing: AxisBriefing): AxisAnswer {
     proposedReason: proposed ? 'Trabaja una zona que quieres desarrollar según tu escaneo corporal.' : undefined,
   }
 }
+
+/** Lo que reconoce la respuesta sobre el escáner, como vocabulario del corrector de faltas (D-026). */
+export const SCAN_VOCABULARY: readonly RegExp[] = [SCAN_TERMS, FOLLOW_UP]

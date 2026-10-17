@@ -35,6 +35,7 @@ import {
 import { matchName } from '../actions'
 import { answerAssessment, asksAboutAssessment } from './assessment-answer'
 import { answerScan, asksAboutScan } from './scan-answer'
+import { understandMessage } from './understand'
 import {
   evaluateBlockReason,
   evaluateChange,
@@ -79,10 +80,12 @@ export function createDeterministicConversation(): AxisConversationEngine {
 }
 
 export function answerFromBriefing(
-  question: string,
+  message: string,
   briefing: AxisBriefing,
   memory?: AxisConversationMemory,
 ): AxisAnswer {
+  // Todos los detectores leen el mensaje con las faltas corregidas (D-026).
+  const question = understandMessage(message, briefing)
   const match = matchIntent(question, memory?.lastIntent ?? null)
 
   /*

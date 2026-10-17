@@ -1239,6 +1239,35 @@ Aprobado por Alex el 2026-10-17. La respuesta médica segura reconocía «molest
 
 ---
 
+## D-026 — AXIS entiende las faltas de ortografía
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 1 de la propuesta de Alex de que AXIS use su IA «como Finax».
+
+### El problema
+
+Los detectores de AXIS reconocen palabras clave exactas, y **la capa de lenguaje solo se llama cuando el determinista ya reconoció la intención** (D-016). Con una falta, el mensaje no se reconocía y la pregunta ni llegaba al modelo, que sí entiende las faltas: «estoy cansao» o «toy reventao» no eran cansancio, «porqe hoy piernas» no era un «por qué», «como va mi semnaa» no era la semana y «me duel el hombro» no llegaba a la respuesta segura.
+
+### La solución: corregir al entrar, sin IA
+
+El mensaje se corrige **una sola vez, al entrar**, antes de cualquier detector (`lib/domain/axis/conversation/spelling.ts` y `understand.ts`). Determinista, en el dispositivo, sin red ni coste.
+
+- **Abreviaturas de chat:** «xq», «pq», «porqe» → «por que»; «q», «k» → «que»; «toy» → «estoy»; «oy» → «hoy»; «pa» → «para»…
+- **Misma pronunciación** (desde 4 letras): ll/y, c/s/z, qu/k, b/v, h muda y «-ao» por «-ado» («rodiya», «kiero», «cansao»).
+- **Una letra de diferencia**, según el largo: desde 7 letras, una letra cambiada, quitada, de más o dos cruzadas; en las de 6, también la letra que falta; en las de 5 y 6, dos letras cruzadas. En las cortas no se cambia una letra: «hombre» no es «hombro».
+- Solo se corrige con **un único candidato**; con dos igual de cerca, no se adivina. No se tocan las palabras que ya se reconocen, las que empiezan por un término conocido («tranquilo»), las que llevan cifras («3x10») ni los nombres de las actividades del usuario.
+- **El vocabulario sale de las listas de cada detector** (intenciones, negociación, reorganización, test, escáner, conocimiento y catálogo): un término nuevo en cualquiera de ellas es tolerante a faltas sin una segunda lista que mantener.
+- **El modelo recibe el mensaje original**: lo entiende igual y redacta sobre la respuesta del dominio calculada con el texto corregido. La conversación guardada muestra lo que el usuario escribió.
+
+### Seguridad
+
+La respuesta médica también aguanta faltas y formas del verbo: cualquier forma de «doler» («me duel», «me dolió», «me duelen») lleva a ella, como ya pasaba con «molestar» (D-025). Ante la duda, la respuesta segura.
+
+### Fuera de D-026
+
+Que la IA redacte también las respuestas de datos —recuperación, semana, carga, última sesión— (paso 2 de la propuesta) y pedir al modelo que reescriba un mensaje que el determinista no entiende (paso 3). Cada uno necesita su propia decisión.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -35,7 +35,7 @@ const RULES: readonly IntentRule[] = [
   },
   {
     intent: 'medical',
-    any: ['lesion', 'lesión', 'me duele', 'dolor', 'molest', 'medico', 'médico', 'fisio', 'estoy enfermo', 'rodilla', 'hombro me'],
+    any: ['lesion', 'lesión', 'duel', 'doli', 'dolor', 'molest', 'medico', 'médico', 'fisio', 'estoy enfermo', 'rodilla', 'hombro me'],
   },
 
   // Antes que 'change': preguntar qué se cambió no es pedir otro cambio.
@@ -412,6 +412,21 @@ export function resolveExercise(
   }
   return notFound()
 }
+
+/**
+ * Todo lo que reconocen los detectores de este módulo, como vocabulario del
+ * corrector de faltas (D-026). Los nombres de ejercicio los añade el corrector.
+ */
+export const INTENT_VOCABULARY: readonly (string | RegExp)[] = [
+  ...RULES.flatMap((rule) => [...rule.any, ...(rule.and ?? [])]),
+  ...FOLLOW_UP_MARKERS,
+  ...GREETINGS,
+  ...QUESTION_OPENERS,
+  ...REQUEST_MARKERS,
+  ...MORE_TIME_TERMS,
+  ...MORE_MINUTES_PATTERNS,
+  EXERCISE_QUESTION,
+]
 
 /** El ejercicio que nombra el mensaje, solo si no hay dudas. */
 export function detectExercise(question: string, catalog: readonly Exercise[] = EXERCISE_CATALOG): Exercise | null {

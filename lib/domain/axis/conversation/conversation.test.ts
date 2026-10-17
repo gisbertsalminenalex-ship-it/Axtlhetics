@@ -331,6 +331,37 @@ test('con proveedor configurado, el modelo redacta las preguntas que lo merecen'
   assert.equal(result.usedFallback, false)
 })
 
+test('con una falta, AXIS responde lo mismo que bien escrito (D-026)', () => {
+  const { briefing } = briefingWith({}, [session()])
+  for (const [written, correct] of [
+    ['estoy cansao', 'estoy cansado'],
+    ['porqe me propones esto oy', 'por qué me propones esto hoy'],
+    ['q tal la semnaa', 'qué tal la semana'],
+  ]) {
+    const typo = answerFromBriefing(written, briefing)
+    const right = answerFromBriefing(correct, briefing)
+    assert.equal(typo.intent, right.intent, written)
+    assert.equal(typo.text, right.text, written)
+  }
+})
+
+test('una pregunta mal escrita que merece redacción llega al modelo, tal como se escribió (D-026)', async () => {
+  const { briefing } = briefingWith({}, [session()])
+  const preguntas: string[] = []
+  const conversation = createAxisConversation({
+    transport: transport({
+      send: async (request) => {
+        preguntas.push(request.question)
+        return { text: 'Respuesta del modelo.' }
+      },
+    }),
+  })
+  const result = await conversation.ask('porqe me propones esto oy', briefing)
+
+  assert.match(result.engineId, /ai/)
+  assert.deepEqual(preguntas, ['porqe me propones esto oy'], 'el modelo entiende las faltas: recibe el original')
+})
+
 test('una consulta de datos no gasta una llamada al modelo', async () => {
   const { briefing } = briefingWith({}, [session()])
   let llamadas = 0
