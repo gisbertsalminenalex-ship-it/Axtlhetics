@@ -1592,6 +1592,32 @@ Sin migración: `dislikedExercises` es opcional en el perfil y viaja en la copia
 
 ---
 
+## D-038 — AXIS habla primero
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 8 del plan de Alex para que AXTHLETICS sea el entrenador ideal.
+
+### Qué cambia
+
+Hasta ahora AXIS solo respondía. Ahora, cuando tiene algo que decir, lo dice: **una nota corta en Inicio, debajo de su recomendación**, sin tarjeta, con la marca de AXIS y el texto en gris; tocarla abre la conversación, donde la misma nota aparece bajo la presentación mientras el hilo está vacío. **Una sola nota, la más importante** (`lib/domain/axis/proactive.ts`):
+
+1. **Una molestia contada ayer** (D-037): «Ayer me contaste una molestia en la rodilla. ¿Cómo va? Si sigue, mejor que lo vea un profesional». Nunca diagnostica ni cambia la sesión.
+2. **El lunes, la semana pasada:** sesiones, series (las mismas que Progreso, D-036) y la zona que más se quedó atrás (D-034).
+3. **El primer día de una semana de descarga** (D-031), hasta que se entrena esa semana.
+4. **Un objetivo medible que va por detrás** (D-035): cuánto llevas y cuánto tocaría.
+5. **La recuperación de hoy sin registrar.**
+
+### Reglas
+
+- Determinista, en el dispositivo y sin red: sale de lo que la app ya sabe. No pasa por el modelo de lenguaje.
+- No decide nada ni propone acciones: como mucho, invita a hablar.
+- Sin nada que decir, no hay nota.
+
+### Fuera de D-038
+
+Avisos con la app cerrada: es el recordatorio diario (paso 9), que necesita su propia decisión porque pide una pieza en el servidor.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

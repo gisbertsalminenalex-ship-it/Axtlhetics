@@ -65,6 +65,7 @@ export function InicioScreen({
     trainingLoad,
     weeklyActivity,
     movedToTomorrow,
+    axisNote,
   } = useAxtlhetics()
 
   const copy = proposal ? DAY_TITLES[proposal.type] : DAY_TITLES.LIGHT_TRAINING
@@ -155,6 +156,22 @@ export function InicioScreen({
             </button>
           )}
         </section>
+      )}
+
+      {/*
+        AXIS habla primero (D-038): una nota, sin tarjeta, con el patrón de la
+        razón de AXIS en Entrenamiento. Tocarla abre la conversación.
+      */}
+      {axisNote && (
+        <button
+          type="button"
+          onClick={onOpenAxis}
+          className="ax-enter ax-press mt-4 flex min-h-11 w-full items-start gap-2 text-left"
+        >
+          <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="flex-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">{axisNote.text}</span>
+          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
       )}
 
       {/* Estado de hoy */}

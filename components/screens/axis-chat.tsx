@@ -23,6 +23,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
     axisSuggestions,
     askAxis,
     briefing,
+    axisNote,
   } = useAxtlhetics()
 
   const [draft, setDraft] = useState('')
@@ -81,6 +82,14 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
             Respondo con tus datos: tu recuperación, tu historial, tu calendario y la
             sesión que te he propuesto. Si no tengo un dato, te lo digo.
           </p>
+
+          {/* Lo que AXIS quería decirte (D-038): el punto de partida de la conversación. */}
+          {axisNote && (
+            <p className="mt-5 flex items-start gap-2 text-[14px] leading-relaxed text-foreground text-pretty">
+              <AxisMark className="mt-1 h-3.5 w-3.5 shrink-0 text-primary" />
+              <span>{axisNote.text}</span>
+            </p>
+          )}
 
           {axisSuggestions.length > 0 && (
             <ul className="mt-7 space-y-2.5">

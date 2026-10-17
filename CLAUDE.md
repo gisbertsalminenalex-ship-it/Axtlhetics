@@ -338,6 +338,8 @@ Measurable goals (D-035): `UserProfile.targets` (exercise, number, deadline, sta
 
 Cross-day memory (D-037, `conversation/preferences.ts`): «no me gustan las zancadas» stores the exercise in `UserProfile.dislikedExercises` (undone by «ya me gustan…»), and an exercise skipped twice in 30 days counts the same (`frequentlySkipped`); the builder leaves them out while enough alternatives remain, but a measurable goal still gets in. Yesterday's reported loads still count in today's negotiation. Medical answers record the body zone in the day memory (`discomforts`) without touching the training.
 
+AXIS speaks first (D-038, `lib/domain/axis/proactive.ts`): one deterministic note at a time, by priority — yesterday's discomfort, Monday's last-week summary, the first day of a deload week, a measurable goal behind, today's recovery not registered. Shown under the AXIS card on Inicio (opens the chat) and in the empty chat; never decides or proposes actions.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity

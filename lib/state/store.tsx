@@ -99,6 +99,8 @@ import { changeOpeningMessage } from '../domain/axis/conversation/negotiation'
 import type { AxisFallbackNotice, AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { bestSetOf } from '../domain/workouts/targets'
+import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
+import { EXERCISE_CATALOG } from '../domain/workouts/catalog'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
 import type { WorkoutSession } from '../domain/workouts/types'
@@ -177,6 +179,8 @@ type AxtlheticsStore = {
   /** Añade un objetivo medible (D-035). Su punto de partida es la mejor serie de hoy. */
   addTarget(draft: { exerciseId: string; target: number; deadline: DayKey }): Promise<void>
   removeTarget(id: string): Promise<void>
+  /** Lo que AXIS dice sin que se lo pregunten (D-038), o `null` si no hay nada. */
+  axisNote: ProactiveNote | null
   /** Apunta o quita un ejercicio que no gusta (D-037). */
   setExerciseDisliked(exerciseId: string, disliked: boolean): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
@@ -550,6 +554,22 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       memory.movedTo ?? null,
     )
   }, [axisContext, decision, proposal, sessions, memory.override, memory.reportedLoads, memory.movedTo, yesterdayMemory])
+
+  // AXIS habla primero (D-038): una nota, la más importante, con lo que la app ya sabe.
+  const axisNote = useMemo(
+    () =>
+      status === 'ready'
+        ? proactiveNote({
+            dayKey: today,
+            profile,
+            sessions,
+            catalog: EXERCISE_CATALOG,
+            discomfortsYesterday: (yesterdayMemory?.discomforts ?? []).map((item) => item.zone),
+            recoveryRegistered: recoveryScore.status === 'ok',
+          })
+        : null,
+    [status, today, profile, sessions, yesterdayMemory, recoveryScore.status],
+  )
 
   const axisSuggestions = useMemo(
     () => (briefing ? suggestionsFor(briefing) : []),
@@ -1239,6 +1259,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       saveProfile,
       addTarget,
       setExerciseDisliked,
+      axisNote,
       removeTarget,
       addActivity,
       updateActivity,
@@ -1299,6 +1320,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       saveProfile,
       addTarget,
       setExerciseDisliked,
+      axisNote,
       removeTarget,
       addActivity,
       updateActivity,
