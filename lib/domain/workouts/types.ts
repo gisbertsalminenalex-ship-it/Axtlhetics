@@ -135,6 +135,27 @@ export function usesLoad(exercise: Exercise): boolean {
   return exercise.equipment.includes('pesa')
 }
 
+/**
+ * El calentamiento y la vuelta a la calma (D-032): ejercicios de movilidad que
+ * abren y cierran la sesión. Preparan y relajan; no son el entrenamiento, así
+ * que no progresan ni cuentan para la rotación, los récords o los saltados.
+ */
+export type ExercisePhase = 'calentamiento' | 'vuelta_calma'
+
+export const EXERCISE_PHASE_LABELS: Record<ExercisePhase, string> = {
+  calentamiento: 'Calentamiento',
+  vuelta_calma: 'Vuelta a la calma',
+}
+
+export function isExercisePhase(value: unknown): value is ExercisePhase {
+  return value === 'calentamiento' || value === 'vuelta_calma'
+}
+
+/** `true` si el ejercicio es parte del entrenamiento y no del calentamiento o la vuelta a la calma. */
+export function isMainExercise(exercise: { phase?: ExercisePhase }): boolean {
+  return exercise.phase === undefined
+}
+
 /** Un ejercicio tal y como AXIS lo propone. */
 export type PlannedExercise = {
   exerciseId: string
@@ -149,6 +170,8 @@ export type PlannedExercise = {
   unilateral: boolean
   tempo: string | null
   imageUrl: string | null
+  /** Ausente en el entrenamiento; presente en el calentamiento y la vuelta a la calma (D-032). */
+  phase?: ExercisePhase
 }
 
 /** Una sesión concreta y estructurada, no un titular. */
@@ -185,6 +208,8 @@ export type PerformedExercise = {
    */
   targetSets?: number
   targetReps?: number
+  /** Calentamiento o vuelta a la calma (D-032). Ausente en el entrenamiento y en las sesiones anteriores. */
+  phase?: ExercisePhase
 }
 
 /**
@@ -331,7 +356,8 @@ function isPerformedExercise(value: unknown): value is PerformedExercise {
     typeof value.name === 'string' &&
     isArrayOf(value.sets, isCompletedSetValue) &&
     isOptionalCount(value.targetSets) &&
-    isOptionalCount(value.targetReps)
+    isOptionalCount(value.targetReps) &&
+    (value.phase === undefined || isExercisePhase(value.phase))
   )
 }
 

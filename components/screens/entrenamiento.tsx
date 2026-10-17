@@ -9,6 +9,7 @@ import { AxisMark } from '@/components/axis-mark'
 import { WeeklyActivity } from '@/components/weekly-activity'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
 import { formatDuration, formatRelativeDay } from '@/lib/domain/shared/dates'
+import { EXERCISE_PHASE_LABELS } from '@/lib/domain/workouts/types'
 import { useAxtlhetics } from '@/lib/state/store'
 
 export function EntrenamientoScreen({
@@ -122,14 +123,21 @@ export function EntrenamientoScreen({
           <ul className="mt-3 divide-y divide-border">
             {session.exercises.map((exercise, index) => (
               <li
-                key={exercise.exerciseId}
+                key={`${exercise.exerciseId}-${index}`}
                 className="ax-stagger flex items-center gap-3 py-3"
                 style={{ '--ax-index': index } as CSSProperties}
               >
                 <span className="w-4 text-[13px] font-semibold tabular-nums text-muted-foreground">
                   {index + 1}
                 </span>
-                <span className="flex-1 text-[15px] font-medium">{exercise.name}</span>
+                <span className="flex-1">
+                  <span className="block text-[15px] font-medium">{exercise.name}</span>
+                  {exercise.phase && (
+                    <span className="block text-[12.5px] text-muted-foreground">
+                      {EXERCISE_PHASE_LABELS[exercise.phase]}
+                    </span>
+                  )}
+                </span>
                 <span className="text-[13px] tabular-nums text-muted-foreground">
                   {exercise.sets} × {exercise.reps}
                   {exercise.isTimed ? ' s' : ''}

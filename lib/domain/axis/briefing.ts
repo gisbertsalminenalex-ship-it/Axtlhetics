@@ -32,6 +32,7 @@ import { formatMinutesOfDay, type DayKey } from '../shared/dates'
 import { findExercise } from '../workouts/catalog'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
 import type { SessionFocus, WorkoutSession } from '../workouts/types'
+import { isMainExercise } from '../workouts/types'
 import { deriveFacts } from './facts'
 import type { ReportedLoadMemory } from './memory'
 import type { AxisContext, AxisDecision, AxisFacts, AxisProposal, AxisRecommendationType } from './types'
@@ -93,7 +94,11 @@ export type BriefingProposal = {
     title: string
     focus: SessionFocus
     estimatedMinutes: number
+    /** El entrenamiento, sin el calentamiento ni la vuelta a la calma (D-032). */
     exercises: { name: string; sets: number; reps: number; isTimed: boolean; weightKg: number | null }[]
+    /** Nombres del calentamiento y de la vuelta a la calma, sin series: no son datos que razonar (D-032). */
+    warmup: string[]
+    cooldown: string[]
   } | null
   /**
    * Las alternativas que AXIS ya ha preparado, con lo necesario para poder
@@ -423,13 +428,16 @@ function briefingProposal(
           title: primary.session.title,
           focus: primary.session.focus,
           estimatedMinutes: primary.session.estimatedMinutes,
-          exercises: primary.session.exercises.map((exercise) => ({
+          // El entrenamiento; el calentamiento y la vuelta a la calma no son datos que razonar (D-032).
+          exercises: primary.session.exercises.filter(isMainExercise).map((exercise) => ({
             name: exercise.name,
             sets: exercise.sets,
             reps: exercise.reps,
             isTimed: exercise.isTimed,
             weightKg: exercise.suggestedWeightKg,
           })),
+          warmup: primary.session.exercises.filter((exercise) => exercise.phase === 'calentamiento').map((exercise) => exercise.name),
+          cooldown: primary.session.exercises.filter((exercise) => exercise.phase === 'vuelta_calma').map((exercise) => exercise.name),
         }
       : null,
     // Todo lo que no es la sesión activa. Si el usuario ya cambió a una de las
@@ -456,7 +464,7 @@ function briefingSession(session: WorkoutSession): BriefingSession {
     focus: session.focus,
     durationSeconds: session.durationSeconds,
     totalVolumeKg: session.totalVolumeKg,
-    exerciseCount: session.exercises.length,
+    exerciseCount: session.exercises.filter(isMainExercise).length,
     modifications: session.modifications.map((modification) => modification.detail),
   }
 }

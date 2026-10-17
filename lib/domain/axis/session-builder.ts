@@ -31,6 +31,7 @@ import type {
   Equipment,
   Exercise,
   ExerciseCategory,
+  ExercisePhase,
   MuscleGroup,
   PlannedExercise,
   PlannedSession,
@@ -146,6 +147,61 @@ export type SessionBuildOptions = {
   today?: DayKey
   /** Semana de descarga (D-031): una serie menos, sin subir ni pasar a una variante más difícil. */
   deload?: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Calentamiento y vuelta a la calma (D-032)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo que abre la sesión, por zona: movilidad de lo que se va a cargar. Tobillo
+ * y columna antes de piernas; hombro y columna torácica antes de tren superior.
+ * La sesión de movilidad no lleva: ya lo es.
+ */
+export const WARMUP_EXERCISES: Record<SessionFocus, readonly string[]> = {
+  tren_superior: ['angeles-pared', 'rotacion-toracica'],
+  tren_inferior: ['tobillo-pared', 'gato-camello'],
+  cuerpo_completo: ['gato-camello', 'tobillo-pared'],
+  core_movilidad: [],
+}
+
+/** Lo que la cierra: estirar y soltar lo trabajado. */
+export const COOLDOWN_EXERCISES: Record<SessionFocus, readonly string[]> = {
+  tren_superior: ['gato-camello'],
+  tren_inferior: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
+  cuerpo_completo: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
+  core_movilidad: [],
+}
+
+/** Minutos que ocupa cada ejercicio de calentamiento o vuelta a la calma: salen del tiempo disponible. */
+export const PHASE_EXERCISE_MINUTES = 2
+
+/**
+ * Los ejercicios de una fase, tal como se proponen: una serie, las
+ * repeticiones o segundos del catálogo, sin carga, sin descanso y sin
+ * progresión. Un id que el catálogo no tenga se omite.
+ */
+function phaseExercises(
+  ids: readonly string[],
+  phase: ExercisePhase,
+  catalog: readonly Exercise[],
+): PlannedExercise[] {
+  return ids
+    .map((id) => catalog.find((exercise) => exercise.id === id))
+    .filter((exercise): exercise is Exercise => exercise !== undefined)
+    .map((exercise) => ({
+      exerciseId: exercise.id,
+      name: exercise.name,
+      sets: 1,
+      reps: exercise.work.reps,
+      isTimed: exercise.work.isTimed,
+      suggestedWeightKg: null,
+      restSeconds: 0,
+      unilateral: exercise.unilateral,
+      tempo: null,
+      imageUrl: exercise.imageUrl,
+      phase,
+    }))
 }
 
 export function exerciseCountFor(availableMinutes: number): number {
@@ -469,7 +525,12 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const pool = allowed.length >= MIN_EXERCISES ? allowed : executable
 
   const target = targetDifficultyFor(experience, intensity)
-  const count = exerciseCountFor(availableMinutes)
+  // El calentamiento y la vuelta a la calma salen del mismo tiempo (D-032).
+  const phaseCatalog = catalog ?? EXERCISE_CATALOG
+  const warmup = phaseExercises(WARMUP_EXERCISES[focus], 'calentamiento', phaseCatalog)
+  const cooldown = phaseExercises(COOLDOWN_EXERCISES[focus], 'vuelta_calma', phaseCatalog)
+  const phaseMinutes = (warmup.length + cooldown.length) * PHASE_EXERCISE_MINUTES
+  const count = exerciseCountFor(availableMinutes - phaseMinutes)
 
   const selected = selectExercises(
     pool,
@@ -503,7 +564,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     intensity,
     estimatedMinutes: Math.max(20, Math.round(availableMinutes / 5) * 5),
     muscleGroups: dedupeGroups(selected, focus),
-    exercises,
+    exercises: [...warmup, ...exercises, ...cooldown],
     ...(deload ? { deload: true } : {}),
   }
 }

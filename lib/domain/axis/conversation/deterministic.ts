@@ -253,9 +253,11 @@ function answerToday(briefing: AxisBriefing): AxisAnswer {
 
   const parts = [proposal.headline, proposal.reason]
   if (proposal.session) {
-    parts.push(
-      `Serían unos ${proposal.session.estimatedMinutes} minutos: ${listExercises(proposal.session.exercises)}.`,
-    )
+    const { exercises, warmup, cooldown } = proposal.session
+    parts.push(`Serían unos ${proposal.session.estimatedMinutes} minutos: ${listExercises(exercises)}.`)
+    // El calentamiento y la vuelta a la calma se nombran aparte, sin series (D-032).
+    if (warmup.length > 0) parts.push(`Antes, calienta con ${listNames(warmup.map((name) => name.toLowerCase()))}.`)
+    if (cooldown.length > 0) parts.push(`Al acabar, ${listNames(cooldown.map((name) => name.toLowerCase()))} para soltar.`)
   }
   return say('today', parts)
 }

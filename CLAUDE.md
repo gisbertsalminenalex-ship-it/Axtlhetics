@@ -327,6 +327,8 @@ Training Load is implemented alongside it (`lib/domain/workouts/load.ts`, D-008)
 
 Progression (`suggestWorkFor` in `lib/domain/axis/session-builder.ts`, D-019, D-031) repeats an exercise left unfinished or done in a session rated «al límite», takes the normal step otherwise and doubles it after an easy session. After 4 loaded calendar weeks in a row (≥ 2 completed sessions, none of them deload) the week is a deload week (`lib/domain/workouts/deload.ts`): one set less (never under 2), no progression, explained first in the day's reason, and marked in the session snapshot so two never chain.
 
+Every strength session opens with a warm-up and closes with a cool-down (D-032, `WARMUP_EXERCISES` / `COOLDOWN_EXERCISES` in the session builder): mobility exercises inside the same session, marked with `phase`, one set, no load, no rest, taken from the available minutes. They are not training: `isMainExercise` keeps them out of progression, last performance, records, rotation, skips and the shortened-session check, and the AXIS briefing lists only their names.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity

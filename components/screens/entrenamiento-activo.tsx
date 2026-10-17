@@ -21,6 +21,7 @@ import {
   type RestState,
 } from '@/lib/domain/workouts/active-workout'
 import { formatKg, formatSets, lastPerformedExercise } from '@/lib/domain/workouts/history'
+import { EXERCISE_PHASE_LABELS } from '@/lib/domain/workouts/types'
 import { formatDuration } from '@/lib/domain/shared/dates'
 import { formatVolume } from '@/lib/domain/history/stats'
 import { useAxtlhetics } from '@/lib/state/store'
@@ -187,7 +188,7 @@ export function EntrenamientoActivo() {
         <>
           {/* Current exercise */}
           <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">
-            EJERCICIO ACTUAL
+            {entry.phase ? EXERCISE_PHASE_LABELS[entry.phase].toUpperCase() : 'EJERCICIO ACTUAL'}
           </p>
           <div key={entry.exerciseId} className="ax-enter mt-3 flex items-start justify-between gap-3">
             <div>
@@ -276,8 +277,9 @@ export function EntrenamientoActivo() {
             <span className="flex-1">
               <span className="block text-[15px] font-semibold">{upcoming.name}</span>
               <span className="block text-[12.5px] text-muted-foreground tabular-nums">
-                {upcoming.targetSets} series × {upcoming.targetReps}{' '}
-                {upcoming.isTimed ? 'seg' : 'reps'}
+                {upcoming.phase
+                  ? `${EXERCISE_PHASE_LABELS[upcoming.phase]} · ${upcoming.targetReps} ${upcoming.isTimed ? 'seg' : 'reps'}`
+                  : `${upcoming.targetSets} series × ${upcoming.targetReps} ${upcoming.isTimed ? 'seg' : 'reps'}`}
               </span>
             </span>
           </div>
@@ -320,7 +322,12 @@ export function EntrenamientoActivo() {
                 >
                   {index + 1}
                 </span>
-                <span className="flex-1 text-[14.5px] font-medium">{item.name}</span>
+                <span className="flex-1">
+                  <span className="block text-[14.5px] font-medium">{item.name}</span>
+                  {item.phase && (
+                    <span className="block text-[12px] text-muted-foreground">{EXERCISE_PHASE_LABELS[item.phase]}</span>
+                  )}
+                </span>
                 <span className="text-[13px] tabular-nums text-muted-foreground">
                   {item.sets.length}/{item.targetSets} series
                 </span>
@@ -349,6 +356,8 @@ function LastTime({
   entry: ActiveExerciseEntry
   sessions: Parameters<typeof lastPerformedExercise>[1]
 }) {
+  // En el calentamiento no hay marca que comparar (D-032).
+  if (entry.phase) return null
   const last = lastPerformedExercise(entry.exerciseId, sessions)
   if (!last) return null
   return (

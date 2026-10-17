@@ -23,6 +23,7 @@ import {
 } from '../shared/rest'
 import type {
   CompletedSet,
+  ExercisePhase,
   PerformedExercise,
   PlannedSession,
   ProposalSnapshot,
@@ -30,7 +31,7 @@ import type {
   WorkoutSession,
   WorkoutSessionStatus,
 } from './types'
-import { volumeOfSession } from './types'
+import { isExercisePhase, isMainExercise, volumeOfSession } from './types'
 
 /** Escalón del selector de carga, en kg. */
 export const WEIGHT_STEP_KG = 0.5
@@ -54,6 +55,8 @@ export type ActiveExerciseEntry = {
   weightKg: number | null
   /** Series ya completadas. */
   sets: CompletedSet[]
+  /** Calentamiento o vuelta a la calma (D-032). Ausente en el entrenamiento. */
+  phase?: ExercisePhase
 }
 
 export type ActiveWorkout = {
@@ -115,6 +118,7 @@ export function startWorkout(
       reps: exercise.reps,
       weightKg: exercise.suggestedWeightKg,
       sets: [],
+      ...(exercise.phase ? { phase: exercise.phase } : {}),
     })),
     exerciseIndex: 0,
     modifications: [],
@@ -206,13 +210,16 @@ export function skipExercise(workout: ActiveWorkout): ActiveWorkout {
   const entry = currentEntry(workout)
   if (!entry) return workout
 
+  // El calentamiento y la vuelta a la calma se pueden saltar sin dejar rastro:
+  // no son el entrenamiento, y saltarlos no es rechazar un ejercicio (D-032).
+  const skipped = entry.phase
+    ? []
+    : [{ kind: 'exercise_skipped' as const, detail: `${entry.name} sin completar.` }]
+
   return {
     ...workout,
     exerciseIndex: workout.exerciseIndex + 1,
-    modifications: [
-      ...workout.modifications,
-      { kind: 'exercise_skipped', detail: `${entry.name} sin completar.` },
-    ],
+    modifications: [...workout.modifications, ...skipped],
     // Saltar cierra lo que hubiera pendiente: ni descanso ni serie que deshacer.
     rest: null,
     lastSet: null,
@@ -288,6 +295,7 @@ export function performedExercises(workout: ActiveWorkout): PerformedExercise[] 
       // El objetivo viaja con lo hecho: es lo que dirá si se completó (D-019).
       targetSets: entry.targetSets,
       targetReps: entry.targetReps,
+      ...(entry.phase ? { phase: entry.phase } : {}),
     }))
 }
 
@@ -318,11 +326,16 @@ export function toWorkoutSession(
   const modifications = [...workout.modifications]
   if (options.status === 'abandoned') {
     modifications.push({ kind: 'session_abandoned', detail: 'Sesión interrumpida antes de terminar.' })
-  } else if (exercises.length < workout.entries.length) {
-    modifications.push({
-      kind: 'session_shortened',
-      detail: `Se completaron ${exercises.length} de ${workout.entries.length} ejercicios.`,
-    })
+  } else {
+    // Solo cuenta el entrenamiento: saltarse la vuelta a la calma no acorta la sesión (D-032).
+    const done = exercises.filter(isMainExercise).length
+    const planned = workout.entries.filter(isMainExercise).length
+    if (done < planned) {
+      modifications.push({
+        kind: 'session_shortened',
+        detail: `Se completaron ${done} de ${planned} ejercicios.`,
+      })
+    }
   }
 
   const durationSeconds = Math.max(
@@ -402,7 +415,8 @@ function isActiveEntry(value: unknown): value is ActiveExerciseEntry {
     typeof value.reps === 'number' &&
     (value.weightKg === null || typeof value.weightKg === 'number') &&
     Array.isArray(value.sets) &&
-    value.sets.every(isCompletedSet)
+    value.sets.every(isCompletedSet) &&
+    (value.phase === undefined || isExercisePhase(value.phase))
   )
 }
 

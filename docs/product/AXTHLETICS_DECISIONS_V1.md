@@ -1421,6 +1421,44 @@ Sin migración: `deload` es opcional en la sesión planificada y en la instantá
 
 ---
 
+## D-032 — Calentamiento y vuelta a la calma
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 2 del plan de Alex para que AXTHLETICS sea el entrenador ideal.
+
+### Qué cambia
+
+Cada sesión de fuerza **abre con un calentamiento y cierra con una vuelta a la calma**, con ejercicios de movilidad del catálogo elegidos según la zona:
+
+- **Tren superior:** calentamiento con ángeles en la pared y rotación torácica; al acabar, gato-camello.
+- **Tren inferior y cuerpo completo:** calentamiento con tobillo a la pared y gato-camello; al acabar, estiramiento de flexor de cadera y de isquiotibiales.
+- **Movilidad:** no lleva; ya lo es.
+
+### Cómo se hace
+
+- Son ejercicios de la propia sesión, marcados con su fase (`PlannedExercise.phase`): el entrenamiento activo los recorre como cualquier otro, sin pantalla nueva. Donde pone «EJERCICIO ACTUAL» dice «CALENTAMIENTO» o «VUELTA A LA CALMA», y en las listas el nombre lleva su fase debajo.
+- **Una serie**, las repeticiones o segundos del catálogo, sin carga y sin descanso.
+- **Salen del tiempo disponible:** 2 minutos cada uno. Una sesión de 45 minutos pasa de 4 a 3 ejercicios de fuerza más 3 de movilidad, y sigue durando lo mismo.
+
+### No es el entrenamiento
+
+El calentamiento y la vuelta a la calma preparan y relajan, así que no cuentan como entrenamiento:
+
+- No progresan y no cuentan como «la última vez» de un ejercicio, ni en la pantalla ni para la progresión.
+- No fijan ni baten récords.
+- No gastan un ejercicio para la rotación (D-020).
+- **Se pueden saltar sin dejar rastro:** no aparecen como «sin completar» ni acortan la sesión.
+- AXIS describe la sesión del día por su entrenamiento y nombra aparte el calentamiento y la vuelta a la calma («Antes, calienta con… Al acabar, … para soltar»); el modelo de lenguaje solo recibe los nombres, sin series.
+
+### Datos
+
+Sin migración: `phase` es opcional en el ejercicio planificado, en la sesión en curso y en el realizado. Las sesiones anteriores no lo tienen y todo su contenido cuenta como entrenamiento, como hasta ahora.
+
+### Fuera de D-032
+
+El trabajo específico de baloncesto —saltos, agilidad y prevención de rodilla y tobillo—, que es el paso siguiente.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

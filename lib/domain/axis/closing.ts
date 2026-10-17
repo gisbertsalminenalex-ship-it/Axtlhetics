@@ -13,7 +13,7 @@
 import { listNames } from '../shared/text'
 import type { PersonalRecord } from '../workouts/history'
 import type { WorkoutSession } from '../workouts/types'
-import { metTarget } from '../workouts/types'
+import { isMainExercise, metTarget } from '../workouts/types'
 
 export function closingMessage(
   session: WorkoutSession,
@@ -30,7 +30,7 @@ export function closingMessage(
     return parts.join(' ')
   }
 
-  const short = session.exercises.filter((exercise) => !metTarget(exercise)).map((e) => e.name)
+  const short = session.exercises.filter((exercise) => isMainExercise(exercise) && !metTarget(exercise)).map((e) => e.name)
   const skipped = session.modifications.some(
     (modification) => modification.kind === 'exercise_skipped' || modification.kind === 'session_shortened',
   )

@@ -12,7 +12,7 @@ import test from 'node:test'
 
 import { EXERCISE_CATALOG, findExercise, LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
 import type { CompletedSet, Exercise, WorkoutSession } from '../workouts/types'
-import { FOCUS_CATEGORIES, usesLoad } from '../workouts/types'
+import { FOCUS_CATEGORIES, isMainExercise, usesLoad, type ExercisePhase } from '../workouts/types'
 import {
   adjustReps,
   completeSet,
@@ -209,7 +209,7 @@ test('el número de ejercicios sale de los minutos, entre 3 y 6', () => {
 
 test('una sesión solo contiene ejercicios del foco, sin repetir y ejecutables con lo que hay', () => {
   const session = buildSession({ focus: 'tren_superior', intensity: 'moderada', availableMinutes: 60, goals: ['hipertrofia'], experience: 'intermedio' })
-  const ids = session.exercises.map((item) => item.exerciseId)
+  const ids = session.exercises.filter(isMainExercise).map((item) => item.exerciseId)
   assert.equal(new Set(ids).size, ids.length, 'sin repetidos')
   assert.ok(ids.length >= 3)
   for (const id of ids) {
@@ -223,11 +223,13 @@ test('una sesión solo contiene ejercicios del foco, sin repetir y ejecutables c
 
 test('evitar grupos los deja fuera, salvo que la sesión quedara demasiado corta', () => {
   const session = buildSession({ focus: 'cuerpo_completo', intensity: 'moderada', availableMinutes: 60, goals: ['hipertrofia'], experience: 'intermedio', avoidMuscleGroups: ['piernas', 'gluteos'] })
-  for (const item of session.exercises) {
+  // El calentamiento moviliza el tobillo, pero no carga piernas: solo cuenta el entrenamiento.
+  const main = session.exercises.filter(isMainExercise)
+  for (const item of main) {
     const found = exercise(item.exerciseId)
     assert.ok(!found.primaryMuscles.includes('piernas'), `${item.exerciseId} carga piernas`)
   }
-  assert.ok(session.exercises.length >= 3)
+  assert.ok(main.length >= 3)
 })
 
 test('ninguna sesión sugiere más carga que la pesa disponible', () => {
@@ -347,8 +349,9 @@ function day(
   }
 }
 
-function ids(session: { exercises: readonly { exerciseId: string }[] }): string[] {
-  return session.exercises.map((item) => item.exerciseId)
+/** Los ejercicios del entrenamiento, sin el calentamiento ni la vuelta a la calma (D-032). */
+function ids(session: { exercises: readonly { exerciseId: string; phase?: ExercisePhase }[] }): string[] {
+  return session.exercises.filter(isMainExercise).map((item) => item.exerciseId)
 }
 
 /** Varias sesiones seguidas del mismo foco, cada una hecha entera y añadida al historial. */
@@ -370,9 +373,8 @@ function weeks(
 
 test('sin historial la selección es la de siempre: sin uso registrado, manda la dificultad', () => {
   const session = buildSession({ ...ROTATION, focus: 'tren_superior' })
-  assert.deepEqual(ids(session), [
-    'flexiones-negativas', 'remo-unilateral', 'press-hombro-unilateral', 'pullover-con-pesa',
-  ])
+  // 45 min menos los 6 del calentamiento y la vuelta a la calma: caben tres (D-032).
+  assert.deepEqual(ids(session), ['flexiones-negativas', 'remo-unilateral', 'press-hombro-unilateral'])
 })
 
 test('con el mismo historial sale siempre la misma sesión', () => {
@@ -609,4 +611,48 @@ test('D-031: una sesión de descarga lo lleva marcado', () => {
   const normal = buildSession({ ...BASE, focus: 'tren_superior', availableMinutes: 45 })
   assert.equal(descarga.deload, true)
   assert.equal('deload' in normal, false)
+})
+
+// ---------------------------------------------------------------------------
+// D-032: calentamiento y vuelta a la calma
+// ---------------------------------------------------------------------------
+
+test('D-032: cada sesión de fuerza abre con calentamiento y cierra con vuelta a la calma', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
+    const session = buildSession({ ...ROTATION, focus })
+    const phases = session.exercises.map((item) => item.phase ?? 'entrenamiento')
+    const first = phases.indexOf('entrenamiento')
+    const last = phases.lastIndexOf('entrenamiento')
+
+    assert.ok(first > 0, `${focus}: empieza calentando`)
+    assert.ok(phases.slice(0, first).every((phase) => phase === 'calentamiento'))
+    assert.ok(last < phases.length - 1, `${focus}: termina con la vuelta a la calma`)
+    assert.ok(phases.slice(last + 1).every((phase) => phase === 'vuelta_calma'))
+    assert.ok(phases.slice(first, last + 1).every((phase) => phase === 'entrenamiento'), 'en medio, solo el entrenamiento')
+  }
+})
+
+test('D-032: las fases son movilidad, una serie, sin carga ni descanso', () => {
+  const session = buildSession({ ...ROTATION, focus: 'tren_inferior' })
+  for (const item of session.exercises.filter((entry) => !isMainExercise(entry))) {
+    assert.equal(exercise(item.exerciseId).category, 'movilidad', item.exerciseId)
+    assert.equal(item.sets, 1)
+    assert.equal(item.suggestedWeightKg, null)
+    assert.equal(item.restSeconds, 0)
+  }
+})
+
+test('D-032: la sesión de movilidad no lleva calentamiento: ya lo es', () => {
+  const session = buildSession({ ...ROTATION, focus: 'core_movilidad' })
+  assert.ok(session.exercises.every(isMainExercise))
+})
+
+test('D-032: el calentamiento no cuenta como última vez, ni para la rotación', () => {
+  const warmupOnly = performed('gato-camello', [{ reps: 10, weightKg: null, completed: true }])
+  warmupOnly.exercises = [{ ...warmupOnly.exercises[0], phase: 'calentamiento' }]
+  assert.equal(lastPerformanceOf('gato-camello', [warmupOnly]), null)
+
+  const session = buildSession({ ...ROTATION, focus: 'core_movilidad', history: [warmupOnly], today: TODAY })
+  const fresh = buildSession({ ...ROTATION, focus: 'core_movilidad', today: TODAY })
+  assert.deepEqual(ids(session), ids(fresh), 'la rotación no lo da por usado')
 })

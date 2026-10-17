@@ -564,3 +564,37 @@ test('un ejercicio a medias no cuenta como hecho, aunque cada serie se registrar
   full = completeSet(full, at(100))
   assert.equal(metTarget(performedExercises(full)[0]), true)
 })
+
+// ---------------------------------------------------------------------------
+// D-032: calentamiento y vuelta a la calma
+// ---------------------------------------------------------------------------
+
+test('D-032: saltar el calentamiento no deja rastro ni acorta la sesión', async () => {
+  const { decide } = await import('../axis/engine')
+  const { buildAxisContext } = await import('../axis/context')
+  const { startWorkout, skipExercise, completeSet, toWorkoutSession } = await import('./active-workout')
+  const context = buildAxisContext({
+    profile: null,
+    recoveryInputs: null,
+    recentSessions: [],
+    activities: [],
+    now: new Date(2026, 8, 7, 10, 0),
+  })
+  const proposal = decide(context).primary
+  let workout = startWorkout(proposal)!
+  assert.ok(workout.entries[0].phase === 'calentamiento', 'la sesión empieza calentando')
+
+  // Se salta el calentamiento y se hace todo lo demás.
+  while (workout.exerciseIndex < workout.entries.length) {
+    const entry = workout.entries[workout.exerciseIndex]
+    if (entry.phase) {
+      workout = skipExercise(workout)
+      continue
+    }
+    for (let i = 0; i < entry.targetSets; i++) workout = completeSet(workout)
+  }
+
+  const session = toWorkoutSession(workout, { status: 'completed' })
+  assert.equal(session.modifications.length, 0, `sin «sin completar» ni sesión acortada: ${JSON.stringify(session.modifications)}`)
+  assert.ok(session.exercises.every((item) => item.phase === undefined), 'lo hecho es el entrenamiento')
+})

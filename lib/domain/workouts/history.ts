@@ -13,7 +13,7 @@
 
 import { daysBetween, type DayKey } from '../shared/dates'
 import type { CompletedSet, Exercise, PerformedExercise, WorkoutSession } from './types'
-import { metTarget } from './types'
+import { isMainExercise, metTarget } from './types'
 
 export type LastPerformance = {
   weightKg: number | null
@@ -38,7 +38,8 @@ function lastPerformedEntry(
 ): { session: WorkoutSession; performed: PerformedExercise } | null {
   for (const session of history) {
     if (session.status !== 'completed') continue
-    const performed = session.exercises.find((item) => item.exerciseId === exerciseId)
+    // El calentamiento no dice de qué es capaz el usuario: no cuenta como última vez (D-032).
+    const performed = session.exercises.find((item) => item.exerciseId === exerciseId && isMainExercise(item))
     if (performed && performed.sets.length > 0) return { session, performed }
   }
   return null
@@ -138,12 +139,12 @@ export function personalRecords(
   const previous = history.filter((item) => item.id !== session.id && item.status === 'completed')
   const records: PersonalRecord[] = []
 
-  for (const exercise of session.exercises) {
+  for (const exercise of session.exercises.filter(isMainExercise)) {
     const now = bestOf(exercise.sets)
     if (!now) continue
 
     const before = previous
-      .flatMap((item) => item.exercises.filter((done) => done.exerciseId === exercise.exerciseId))
+      .flatMap((item) => item.exercises.filter((done) => done.exerciseId === exercise.exerciseId && isMainExercise(done)))
       .map((done) => bestOf(done.sets))
       .filter((best): best is Best => best !== null)
     if (before.length === 0) continue
@@ -233,7 +234,8 @@ export function exerciseUsage(
 
   for (const session of history) {
     const used = new Set<string>()
-    for (const exercise of session.exercises) {
+    // El calentamiento no gasta un ejercicio para la rotación (D-032).
+    for (const exercise of session.exercises.filter(isMainExercise)) {
       if (exercise.sets.length > 0) used.add(exercise.exerciseId)
     }
 
