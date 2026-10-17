@@ -40,6 +40,8 @@ export type AxisIntent =
   | 'out_of_scope'
   /** Pregunta por un ejercicio del catálogo: para qué sirve, qué trabaja, cómo se hace. */
   | 'exercise'
+  /** «No me gustan las zancadas» (D-037): una preferencia sobre un ejercicio. */
+  | 'preference'
   | 'unknown'
 
 export type AxisMessageRole = 'user' | 'axis'
@@ -130,6 +132,17 @@ export type AxisAnswer = {
    * piernas para un partido que se ha cancelado es decidir con datos falsos.
    */
   cancelledActivities?: string[]
+  /**
+   * Un ejercicio que el usuario dice que no le gusta, o que ya sí (D-037). La
+   * aplicación lo guarda en el perfil y AXIS deja de proponerlo mientras haya
+   * alternativas.
+   */
+  preference?: { exerciseId: string; liked: boolean } | null
+  /**
+   * La zona de una molestia que el usuario ha contado (D-037). Se apunta en la
+   * memoria del día; no cambia el entrenamiento.
+   */
+  discomfort?: string | null
 }
 
 /**

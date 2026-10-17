@@ -158,6 +158,11 @@ export type SessionBuildOptions = {
    * pueden hacer hoy, entran en la sesión en lugar del último elegido.
    */
   priorityExerciseIds?: readonly string[]
+  /**
+   * Ejercicios que no gustan, dichos o deducidos de los saltos (D-037): fuera
+   * de la sesión mientras queden suficientes alternativas.
+   */
+  dislikedExerciseIds?: readonly string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -234,8 +239,11 @@ function jumpExerciseFor(
   equipment: readonly Equipment[],
   target: Difficulty,
   usage: ReadonlyMap<string, ExerciseUsage>,
+  disliked: readonly string[] = [],
 ): Exercise | null {
-  const candidates = catalog.filter((exercise) => exercise.category === 'pliometria' && isAvailable(exercise, equipment))
+  const jumps = catalog.filter((exercise) => exercise.category === 'pliometria' && isAvailable(exercise, equipment))
+  const liked = jumps.filter((exercise) => !disliked.includes(exercise.id))
+  const candidates = liked.length > 0 ? liked : jumps
   if (candidates.length === 0) return null
   const lastUse = (exercise: Exercise) => usage.get(exercise.id)?.lastUse ?? ''
   return [...candidates].sort(
@@ -585,6 +593,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     deload = false,
     jumpSport = false,
     priorityExerciseIds = [],
+    dislikedExerciseIds = [],
   } = options
 
   // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
@@ -597,7 +606,10 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
 
   // Si evitar grupos deja la sesión demasiado corta, es mejor una sesión completa
   // que ninguna: decidir no entrenar es competencia de las reglas, no del constructor.
-  const pool = allowed.length >= MIN_EXERCISES ? allowed : executable
+  const usable = allowed.length >= MIN_EXERCISES ? allowed : executable
+  // Lo que no gusta se aparta si quedan suficientes; antes una sesión completa que una corta (D-037).
+  const liked = usable.filter((exercise) => !dislikedExerciseIds.includes(exercise.id))
+  const pool = liked.length >= MIN_EXERCISES ? liked : usable
 
   const target = targetDifficultyFor(experience, intensity)
   // El calentamiento y la vuelta a la calma salen del mismo tiempo (D-032).
@@ -609,7 +621,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   // Con un deporte de salto, un ejercicio de salto abre el entrenamiento y ocupa un hueco (D-033).
   const jump =
     jumpSport && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
-      ? jumpExerciseFor(phaseCatalog, equipment, target, usage)
+      ? jumpExerciseFor(phaseCatalog, equipment, target, usage, dislikedExerciseIds)
       : null
   const count = exerciseCountFor(availableMinutes - phaseMinutes) - (jump ? 1 : 0)
 
@@ -624,7 +636,8 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   )
 
   // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
-  const prioritized = withPriority(selected, pool, priorityExerciseIds)
+  // Un objetivo lo pidió el usuario: entra aunque el ejercicio esté entre los que no gustan.
+  const prioritized = withPriority(selected, usable, priorityExerciseIds)
 
   // El salto va primero: con las piernas frescas sale mejor y con menos riesgo (D-033).
   const main = jump ? [jump, ...prioritized] : prioritized

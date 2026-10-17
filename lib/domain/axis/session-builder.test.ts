@@ -723,3 +723,28 @@ test('D-035: el ejercicio de un objetivo abierto entra en la sesión de su zona'
   const legs = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', priorityExerciseIds: [candidate] }))
   assert.ok(!legs.includes(candidate))
 })
+
+// ---------------------------------------------------------------------------
+// D-037: lo que no gusta
+// ---------------------------------------------------------------------------
+
+test('D-037: un ejercicio que no gusta no entra mientras haya alternativas; un objetivo sí', () => {
+  const plain = ids(buildSession({ ...ROTATION, focus: 'tren_superior' }))
+  const disliked = plain[0]
+  const without = ids(buildSession({ ...ROTATION, focus: 'tren_superior', dislikedExerciseIds: [disliked] }))
+  assert.ok(!without.includes(disliked), `${disliked} no debía entrar`)
+  assert.equal(without.length, plain.length)
+
+  const goal = ids(buildSession({ ...ROTATION, focus: 'tren_superior', dislikedExerciseIds: [disliked], priorityExerciseIds: [disliked] }))
+  assert.ok(goal.includes(disliked), 'el objetivo lo pidió el usuario')
+})
+
+test('D-037: saltar un ejercicio dos veces en un mes se lee como que no gusta', async () => {
+  const { frequentlySkipped } = await import('../workouts/history')
+  const once = [day('2026-09-19', [], { skipped: ['zancadas'] })]
+  const twice = [day('2026-09-19', [], { skipped: ['zancadas'] }), day('2026-09-12', [], { skipped: ['zancadas'] })]
+  const old = [day('2026-09-19', [], { skipped: ['zancadas'] }), day('2026-07-01', [], { skipped: ['zancadas'] })]
+  assert.deepEqual(frequentlySkipped(once, TODAY, EXERCISE_CATALOG), [])
+  assert.deepEqual(frequentlySkipped(twice, TODAY, EXERCISE_CATALOG), ['zancadas'])
+  assert.deepEqual(frequentlySkipped(old, TODAY, EXERCISE_CATALOG), [], 'fuera de los 30 días no cuenta')
+})

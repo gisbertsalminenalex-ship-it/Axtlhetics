@@ -336,6 +336,8 @@ Weekly plan (D-034, `lib/domain/workouts/weekly-volume.ts`): sets per muscle gro
 
 Measurable goals (D-035): `UserProfile.targets` (exercise, number, deadline, start value), progress in `lib/domain/workouts/targets.ts` from the best completed set (training only) against a straight line to the deadline. Managed in Perfil (`components/profile/goal-targets.tsx`, own store actions `addTarget`/`removeTarget`; `saveProfile` keeps them). Open targets get their exercise into sessions of its focus (`priorityExerciseIds`), and the goals answer lists them.
 
+Cross-day memory (D-037, `conversation/preferences.ts`): «no me gustan las zancadas» stores the exercise in `UserProfile.dislikedExercises` (undone by «ya me gustan…»), and an exercise skipped twice in 30 days counts the same (`frequentlySkipped`); the builder leaves them out while enough alternatives remain, but a measurable goal still gets in. Yesterday's reported loads still count in today's negotiation. Medical answers record the body zone in the day memory (`discomforts`) without touching the training.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity

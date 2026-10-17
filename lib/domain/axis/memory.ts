@@ -86,6 +86,12 @@ export type AxisDayMemory = {
   movedTo?: DayKey | null
   /** Lo necesario para deshacer la última acción aplicada hoy (D-022). */
   lastApplied?: LastApplied | null
+  /**
+   * Molestias que el usuario ha contado hoy, por zona (D-037). No cambian el
+   * entrenamiento: AXIS las recuerda para preguntar cómo van. Ausente en los
+   * registros anteriores.
+   */
+  discomforts?: { zone: string; at: string }[]
 
   updatedAt: string
 }
@@ -186,6 +192,12 @@ export function isAxisDayMemory(value: unknown): value is AxisDayMemory {
   if (!isOptionalMinutes(value.availableMinutes)) return false
   if (!isOptionalDay(value.movedTo)) return false
   if (!isLastAppliedShape(value.lastApplied)) return false
+  if (
+    value.discomforts !== undefined &&
+    !(Array.isArray(value.discomforts) && value.discomforts.every((item) => isRecord(item) && typeof item.zone === 'string' && typeof item.at === 'string'))
+  ) {
+    return false
+  }
   if (typeof value.dayKey !== 'string' || value.schema !== AXIS_MEMORY_SCHEMA) return false
   if (value.override !== null && !isRecord(value.override)) return false
   if (!Array.isArray(value.cancelledActivities)) return false
@@ -231,6 +243,8 @@ export type AnswerOutcome = {
   changeRequest?: { kind: string; focus: string | null } | null
   cancelledActivities?: readonly string[]
   reportedLoad?: ReportedLoad | null
+  /** La zona de una molestia contada (D-037). */
+  discomfort?: string | null
 }
 
 /**
@@ -264,12 +278,20 @@ export function rememberAnswer(
       ? [...memory.reportedLoads, { ...load, reportedAt: now, messageId: message.id }]
       : memory.reportedLoads
 
+  // Una molestia se apunta una vez por zona y día (D-037).
+  const zone = outcome.discomfort ?? null
+  const discomforts =
+    zone !== null && !(memory.discomforts ?? []).some((item) => item.zone === zone)
+      ? [...(memory.discomforts ?? []), { zone, at: now }]
+      : memory.discomforts
+
   return touch(
     {
       ...memory,
       messages: [...memory.messages, message],
       cancelledActivities,
       reportedLoads,
+      ...(discomforts ? { discomforts } : {}),
       thread: {
         ...memory.thread,
         lastIntent: outcome.intent,

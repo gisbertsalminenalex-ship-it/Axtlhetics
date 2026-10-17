@@ -1023,3 +1023,20 @@ test('D-035: «¿cuáles son mis objetivos?» incluye los medibles con cómo van
   const answer = answerFromBriefing('¿Cuáles son mis objetivos?', briefing)
   assert.match(answer.text, /Flexiones, 15 reps antes del [a-záé]+, 1 dic: llevas 0, /)
 })
+
+test('D-037: AXIS apunta lo que no gusta, sin cambiar la sesión de hoy, y lo médico guarda la zona', () => {
+  const { briefing } = briefingWith({}, [session()])
+  const dislike = answerFromBriefing('no me gustan las zancadas', briefing)
+  assert.equal(dislike.intent, 'preference')
+  assert.deepEqual(dislike.preference, { exerciseId: 'zancadas', liked: false })
+  assert.equal(dislike.proposedTarget ?? null, null)
+  assert.match(dislike.text, /^Apuntado: no te propondré zancadas mientras tenga alternativas/)
+
+  // En plena negociación también se apunta, en vez de leerse como un cambio.
+  const inChange = answerFromBriefing('no me gustan las zancadas', briefing, { lastIntent: 'change', changeMode: true })
+  assert.equal(inChange.intent, 'preference')
+
+  const medical = answerFromBriefing('me duele la rodilla', briefing)
+  assert.equal(medical.intent, 'medical')
+  assert.equal(medical.discomfort, 'rodilla')
+})

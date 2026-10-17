@@ -11,6 +11,7 @@ import { EXERCISE_CATALOG } from '../workouts/catalog'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
 import { isOpenTarget, targetProgress } from '../workouts/targets'
+import { frequentlySkipped } from '../workouts/history'
 import type { PlannedSession, SessionFocus } from '../workouts/types'
 import { SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
@@ -125,6 +126,11 @@ function planSession(
       .map((target) => targetProgress(target, context.recentSessions, context.dayKey))
       .filter(isOpenTarget)
       .map((progress) => progress.target.exerciseId),
+    // Lo que no gusta: lo dicho y lo que se salta a menudo (D-037).
+    dislikedExerciseIds: [
+      ...(context.profile?.dislikedExercises ?? []),
+      ...frequentlySkipped(context.recentSessions, context.dayKey, context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG),
+    ],
   })
 }
 

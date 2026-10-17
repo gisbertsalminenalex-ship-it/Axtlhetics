@@ -177,6 +177,8 @@ type AxtlheticsStore = {
   /** Añade un objetivo medible (D-035). Su punto de partida es la mejor serie de hoy. */
   addTarget(draft: { exerciseId: string; target: number; deadline: DayKey }): Promise<void>
   removeTarget(id: string): Promise<void>
+  /** Apunta o quita un ejercicio que no gusta (D-037). */
+  setExerciseDisliked(exerciseId: string, disliked: boolean): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
   updateActivity(id: string, changes: ActivityChanges): Promise<void>
   removeActivity(id: string): Promise<void>
@@ -332,6 +334,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const [axisError, setAxisError] = useState<string | null>(null)
   /** El entrenamiento de ayer se movió a hoy (D-022). Lo único que se lee de ayer. */
   const [movedFromYesterday, setMovedFromYesterday] = useState(false)
+  /**
+   * Lo que el usuario contó ayer (D-037): sus cargas siguen contando hoy al
+   * negociar, y sus molestias permiten preguntar cómo van.
+   */
+  const [yesterdayMemory, setYesterdayMemory] = useState<AxisDayMemory | null>(null)
   const [axisFallback, setAxisFallback] = useState<AxisFallbackNotice | null>(null)
 
   /** Día con el que se cargaron los datos. Permite detectar que ha cambiado la fecha. */
@@ -418,6 +425,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             : emptyDayMemory(dayKey),
         )
         setMovedFromYesterday(movedFromDayBefore(storedYesterday, dayKey))
+        setYesterdayMemory(storedYesterday && storedYesterday.dayKey === addDays(dayKey, -1) ? storedYesterday : null)
         setStatus(storedProfile ? 'ready' : 'onboarding')
       } catch (cause) {
         if (cancelled) return
@@ -537,10 +545,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       sessions,
       proposal,
       memory.override,
-      memory.reportedLoads,
+      // Lo contado ayer sigue siendo cierto hoy; lo de hoy va después y, si hay, manda (D-037).
+      [...(yesterdayMemory?.reportedLoads ?? []), ...memory.reportedLoads],
       memory.movedTo ?? null,
     )
-  }, [axisContext, decision, proposal, sessions, memory.override, memory.reportedLoads, memory.movedTo])
+  }, [axisContext, decision, proposal, sessions, memory.override, memory.reportedLoads, memory.movedTo, yesterdayMemory])
 
   const axisSuggestions = useMemo(
     () => (briefing ? suggestionsFor(briefing) : []),
@@ -566,8 +575,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       const timestamp = nowIso()
       const next: UserProfile = {
         ...draft,
-        // El formulario no edita los objetivos medibles: se conservan (D-035).
+        // El formulario no edita los objetivos (D-035) ni lo que no gusta (D-037): se conservan.
         ...(profile?.targets ? { targets: profile.targets } : {}),
+        ...(profile?.dislikedExercises ? { dislikedExercises: profile.dislikedExercises } : {}),
         id: PRIMARY_PROFILE_ID,
         createdAt: profile?.createdAt ?? timestamp,
         updatedAt: timestamp,
@@ -580,22 +590,42 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setError('No se pudo guardar tu perfil en este dispositivo.')
       }
     },
-    [profile?.createdAt, profile?.targets],
+    [profile?.createdAt, profile?.targets, profile?.dislikedExercises],
   )
 
-  /** Guarda el perfil con sus objetivos cambiados. Sin perfil no hay dónde guardarlos. */
-  const saveTargets = useCallback(
-    async (change: (current: GoalTarget[]) => GoalTarget[]) => {
+  /**
+   * Guarda un cambio del perfil que no pasa por su formulario: objetivos
+   * medibles (D-035) y ejercicios que no gustan (D-037). Sin perfil no hay
+   * dónde guardarlo.
+   */
+  const updateProfile = useCallback(
+    async (change: (current: UserProfile) => UserProfile, failure: string) => {
       if (!profile) return
-      const next: UserProfile = { ...profile, targets: change(profile.targets ?? []), updatedAt: nowIso() }
+      const next: UserProfile = { ...change(profile), updatedAt: nowIso() }
       setProfile(next)
       try {
         await getRepositories().profile.save(next)
       } catch {
-        setError('No se pudo guardar el objetivo en este dispositivo.')
+        setError(failure)
       }
     },
     [profile],
+  )
+
+  const saveTargets = useCallback(
+    (change: (current: GoalTarget[]) => GoalTarget[]) =>
+      updateProfile((current) => ({ ...current, targets: change(current.targets ?? []) }), 'No se pudo guardar el objetivo en este dispositivo.'),
+    [updateProfile],
+  )
+
+  /** Apunta o quita un ejercicio que no gusta (D-037). */
+  const setExerciseDisliked = useCallback(
+    (exerciseId: string, disliked: boolean) =>
+      updateProfile((current) => {
+        const list = (current.dislikedExercises ?? []).filter((id) => id !== exerciseId)
+        return { ...current, dislikedExercises: disliked ? [...list, exerciseId] : list }
+      }, 'No se pudo guardar la preferencia en este dispositivo.'),
+    [updateProfile],
   )
 
   const addTarget = useCallback(
@@ -944,6 +974,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
          * contado, que seguirá contando en las peticiones siguientes.
          */
         commitMemory((current) => rememberAnswer(current, answer, result))
+        // «No me gustan las zancadas» queda en el perfil (D-037).
+        if (result.preference) void setExerciseDisliked(result.preference.exerciseId, !result.preference.liked)
 
         setAxisFallback(fallbackNoticeOf(result, navigator.onLine))
         setAxisStatus('idle')
@@ -956,7 +988,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setAxisStatus('error')
       }
     },
-    [briefing, memory, day, commitMemory],
+    [briefing, memory, day, commitMemory, setExerciseDisliked],
   )
 
   /** Acciones que se están ejecutando ahora mismo, para no lanzar dos veces la misma. */
@@ -1206,6 +1238,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       historyStats,
       saveProfile,
       addTarget,
+      setExerciseDisliked,
       removeTarget,
       addActivity,
       updateActivity,
@@ -1265,6 +1298,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       historyStats,
       saveProfile,
       addTarget,
+      setExerciseDisliked,
       removeTarget,
       addActivity,
       updateActivity,

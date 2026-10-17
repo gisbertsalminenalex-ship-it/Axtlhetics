@@ -1567,6 +1567,31 @@ Comparar periodos, exportar las gráficas y curvas de peso corporal (el escáner
 
 ---
 
+## D-037 — AXIS recuerda de un día para otro
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 7 del plan de Alex. Amplía D-011: de la memoria de ayer ya no solo se lee `movedTo`.
+
+### Lo que no te gusta
+
+- **Dicho:** «no me gustan las zancadas», «odio el superman», «no soporto la plancha». AXIS lo apunta en el perfil (`dislikedExercises`) y lo confirma: «Apuntado: no te propondré zancadas mientras tenga alternativas». La sesión de hoy no cambia; para quitarlo hoy se pide el cambio. «Ya me gustan las zancadas» lo deshace. Se reconoce también en plena negociación, antes de leerlo como una petición de cambio.
+- **Deducido:** un ejercicio saltado **2 veces en 30 días** se trata igual, sin guardar nada: caduca solo cuando se deja de saltar.
+- **Efecto:** el constructor de sesiones los aparta **mientras queden suficientes alternativas** (antes una sesión completa que una corta). Un objetivo medible (D-035) sí entra aunque el ejercicio esté en la lista: lo pidió el usuario.
+- **En Perfil:** «Ejercicios que evito proponerte», con lo dicho (que se puede quitar) y lo deducido.
+
+### Lo que contaste ayer
+
+Las cargas que el usuario contó ayer («hoy he corrido 10 km») **siguen contando hoy** al negociar el entrenamiento, como si las hubiera contado hoy. Lo de hoy, si lo hay, manda. El motor sigue sin leer cargas contadas (D-011).
+
+### Molestias
+
+Cuando el usuario cuenta una molestia («me duele la rodilla»), la respuesta sigue siendo la segura y **no cambia el entrenamiento** (D-022). Lo nuevo es que la memoria del día apunta la zona (`discomforts`), una vez por zona y día, para poder preguntar después cómo va (paso 8).
+
+### Datos
+
+Sin migración: `dislikedExercises` es opcional en el perfil y viaja en la copia de seguridad; `discomforts` es opcional en la memoria del día. La unión de las cargas de ayer y de hoy se hace en el store al construir el briefing; los detectores y la memoria tienen sus tests.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

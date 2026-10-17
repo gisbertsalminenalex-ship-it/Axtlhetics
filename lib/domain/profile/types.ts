@@ -165,6 +165,11 @@ export type UserProfile = {
    * propias acciones.
    */
   targets?: GoalTarget[]
+  /**
+   * Ejercicios que el usuario ha dicho que no le gustan (D-037). AXIS no los
+   * propone mientras haya alternativas. Ausente en los perfiles anteriores.
+   */
+  dislikedExercises?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -331,6 +336,9 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (!isOneOf(value.experience, EXPERIENCE_ORDER)) return false
   if (!isArrayOf(value.availableWeekdays, isWeekday)) return false
   if (value.targets !== undefined && !isArrayOf(value.targets, isGoalTarget)) return false
+  if (value.dislikedExercises !== undefined && !isArrayOf(value.dislikedExercises, (item): item is string => typeof item === 'string')) {
+    return false
+  }
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }
 

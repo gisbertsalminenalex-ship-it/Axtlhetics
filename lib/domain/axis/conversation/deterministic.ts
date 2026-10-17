@@ -36,6 +36,7 @@ import { matchName } from '../actions'
 import { answerAssessment, asksAboutAssessment } from './assessment-answer'
 import { answerScan, asksAboutScan } from './scan-answer'
 import { understandMessage } from './understand'
+import { detectDiscomfortZone, detectPreference, type ExercisePreference } from './preferences'
 import {
   evaluateBlockReason,
   evaluateChange,
@@ -95,6 +96,10 @@ export function answerFromBriefing(
    * ajeno siguen yendo antes.
    */
   if (match.intent !== 'medical' && match.intent !== 'out_of_scope') {
+    // «No me gustan las zancadas»: se apunta antes de leerlo como un cambio (D-037).
+    const preference = detectPreference(question)
+    if (preference) return answerPreference(preference)
+
     const statement = answerStatement(question, briefing, memory)
     if (statement) return statement
   }
@@ -233,9 +238,11 @@ export function answerFromBriefing(
     case 'exercise':
       return answerExercise(briefing, match.exercise ?? resolveExercise(question))
     case 'medical':
-      return answerMedical()
+      return { ...answerMedical(), discomfort: detectDiscomfortZone(question) }
     case 'out_of_scope':
       return answerOutOfScope()
+    // Las preferencias se reconocen antes de llegar aquí (D-037).
+    case 'preference':
     case 'unknown':
       return answerUnknown()
   }
@@ -857,6 +864,19 @@ function answerMedical(): AxisAnswer {
     'medical',
     'Eso no puedo evaluarlo: no soy médico y no interpreto dolores ni lesiones. Si te preocupa, consúltalo con un profesional. Puedo ayudarte con la carga y la recuperación cuando quieras retomarlo.',
   )
+}
+
+/** Una preferencia sobre un ejercicio (D-037). Se apunta; no cambia la sesión de hoy. */
+function answerPreference(preference: ExercisePreference): AxisAnswer {
+  const name = preference.name.toLowerCase()
+  return {
+    text: preference.liked
+      ? `Hecho: ${name} vuelve a entrar en tus sesiones cuando toque.`
+      : `Apuntado: no te propondré ${name} mientras tenga alternativas. La sesión de hoy no cambia; si quieres quitarlo ya, pídeme el cambio. Y si cambias de idea, dime «ya me gusta ${name}».`,
+    intent: 'preference',
+    unknown: false,
+    preference: { exerciseId: preference.exerciseId, liked: preference.liked },
+  }
 }
 
 function answerOutOfScope(): AxisAnswer {

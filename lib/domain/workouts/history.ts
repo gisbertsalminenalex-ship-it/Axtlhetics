@@ -206,6 +206,33 @@ export function skippedExerciseNames(session: WorkoutSession): string[] {
     .filter((name): name is string => name !== null)
 }
 
+/** Saltos en esta ventana que hacen pensar que un ejercicio no gusta (D-037). */
+export const DISLIKE_SKIPS = 2
+export const DISLIKE_WINDOW_DAYS = 30
+
+/**
+ * Los ejercicios saltados `DISLIKE_SKIPS` veces o más en los últimos
+ * `DISLIKE_WINDOW_DAYS` días (D-037): AXIS lo lee como que no gustan, sin que
+ * el usuario tenga que decirlo. Por id.
+ */
+export function frequentlySkipped(
+  history: readonly WorkoutSession[],
+  today: DayKey,
+  catalog: readonly Exercise[],
+): string[] {
+  const idByName = new Map(catalog.map((exercise) => [exercise.name, exercise.id]))
+  const counts = new Map<string, number>()
+  for (const session of history) {
+    const age = daysBetween(session.dayKey, today)
+    if (age < 0 || age > DISLIKE_WINDOW_DAYS) continue
+    for (const name of skippedExerciseNames(session)) {
+      const id = idByName.get(name)
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+  }
+  return [...counts].filter(([, count]) => count >= DISLIKE_SKIPS).map(([id]) => id)
+}
+
 /** El uso de un ejercicio para la rotación: cuándo fue la última vez y cuántas. */
 export type ExerciseUsage = {
   lastUse: DayKey
