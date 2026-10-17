@@ -1459,6 +1459,40 @@ El trabajo específico de baloncesto —saltos, agilidad y prevención de rodill
 
 ---
 
+## D-033 — Deportes de salto: potencia y prevención
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Paso 3 del plan de Alex, que juega a baloncesto. Amplía el catálogo (D-020.1, D-025): 44 → 49.
+
+### Cuándo
+
+Solo si en el calendario hay un **deporte de salto o de cambio de dirección**: baloncesto (básquet, basket), vóley, balonmano, fútbol, tenis o pádel. Se reconoce por el nombre de la actividad, sin tildes ni mayúsculas (`JUMP_SPORT_TERMS`). Sin ese deporte, nada cambia.
+
+### Qué cambia
+
+- **Prevención en el calentamiento (D-032):** todas las sesiones de fuerza añaden **equilibrio a una pierna**, para el tobillo y la rodilla.
+- **Potencia en las sesiones de piernas:** las de tren inferior y cuerpo completo **de intensidad normal** abren el entrenamiento con **un ejercicio de salto**, con las piernas frescas. Ocupa el hueco de un ejercicio de fuerza: la sesión no se alarga. Los saltos rotan: primero el que hace más que no sale.
+- **Nunca** en una sesión ligera, adaptada o de recuperación, y por tanto tampoco el día antes de un partido ni el mismo día de un deporte exigente (D-008): esas sesiones ya no son de intensidad normal.
+
+### Los ejercicios (sin material)
+
+| Ejercicio | Categoría | Para qué | Trabajo |
+|---|---|---|---|
+| Saltos de tobillo | pliometría | Rebote y rigidez del tobillo | 3 × 20 |
+| Aterrizaje controlado | pliometría | Caer con las rodillas alineadas | 3 × 6 |
+| Sentadilla con salto | pliometría | Salto vertical | 3 × 8 |
+| Saltos de patinador | pliometría | Salto lateral y cambio de dirección (por lado) | 3 × 10 |
+| Equilibrio a una pierna | movilidad (estabilidad) | Prevención de tobillo y rodilla | 2 × 30 s por lado |
+
+- **Pliometría** es una categoría nueva que **ningún foco elige por sí solo**: solo la añade el bloque de deporte.
+- El aterrizaje controlado progresa a la sentadilla con salto (familia `salto-vertical`). Los saltos de tobillo y el equilibrio se marcan en la pantorrilla.
+- Cada uno tiene su **figura animada** (D-024).
+
+### Fuera de D-033
+
+Trabajo de agilidad con conos o escalera, sprints y resistencia: necesitan espacio o material, y la pista ya los da.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

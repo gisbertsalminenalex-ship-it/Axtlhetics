@@ -656,3 +656,54 @@ test('D-032: el calentamiento no cuenta como última vez, ni para la rotación',
   const fresh = buildSession({ ...ROTATION, focus: 'core_movilidad', today: TODAY })
   assert.deepEqual(ids(session), ids(fresh), 'la rotación no lo da por usado')
 })
+
+// ---------------------------------------------------------------------------
+// D-033: deportes de salto
+// ---------------------------------------------------------------------------
+
+const categoryOf = (id: string) => exercise(id).category
+
+test('D-033: con un deporte de salto, la sesión de piernas abre el entrenamiento con un salto', () => {
+  for (const focus of ['tren_inferior', 'cuerpo_completo'] as const) {
+    const session = buildSession({ ...ROTATION, focus, jumpSport: true })
+    const main = ids(session)
+    assert.equal(categoryOf(main[0]), 'pliometria', `${focus}: el salto va primero`)
+    assert.equal(main.filter((id) => categoryOf(id) === 'pliometria').length, 1, 'uno solo')
+    assert.ok(session.exercises.some((item) => item.exerciseId === 'equilibrio-una-pierna' && item.phase === 'calentamiento'))
+  }
+})
+
+test('D-033: sin deporte de salto, ni saltos ni equilibrio', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
+    const session = buildSession({ ...ROTATION, focus })
+    assert.ok(session.exercises.every((item) => categoryOf(item.exerciseId) !== 'pliometria'))
+    assert.ok(session.exercises.every((item) => item.exerciseId !== 'equilibrio-una-pierna'))
+  }
+})
+
+test('D-033: tren superior y sesiones ligeras no llevan salto; el equilibrio del calentamiento, sí', () => {
+  const upper = buildSession({ ...ROTATION, focus: 'tren_superior', jumpSport: true })
+  const light = buildSession({ ...ROTATION, focus: 'tren_inferior', intensity: 'ligera', jumpSport: true })
+  for (const session of [upper, light]) {
+    assert.ok(session.exercises.every((item) => categoryOf(item.exerciseId) !== 'pliometria'))
+    assert.ok(session.exercises.some((item) => item.exerciseId === 'equilibrio-una-pierna'))
+  }
+  const mobility = buildSession({ ...ROTATION, focus: 'core_movilidad', jumpSport: true })
+  assert.ok(mobility.exercises.every(isMainExercise), 'la movilidad sigue sin calentamiento')
+})
+
+test('D-033: el salto ocupa un hueco, no alarga la sesión', () => {
+  const plain = buildSession({ ...ROTATION, focus: 'tren_inferior' })
+  const jumping = buildSession({ ...ROTATION, focus: 'tren_inferior', jumpSport: true })
+  // El equilibrio añade 2 minutos al calentamiento: como mucho, un ejercicio de fuerza menos.
+  assert.ok(ids(jumping).length <= ids(plain).length)
+  assert.equal(jumping.estimatedMinutes, plain.estimatedMinutes)
+})
+
+test('D-033: los saltos rotan: el último usado no repite', () => {
+  const first = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', jumpSport: true, today: TODAY }))[0]
+  const history = [day('2026-09-19', [first])]
+  const second = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', jumpSport: true, history, today: TODAY }))[0]
+  assert.equal(categoryOf(second), 'pliometria')
+  assert.notEqual(second, first)
+})

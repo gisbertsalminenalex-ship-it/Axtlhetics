@@ -58,7 +58,7 @@ const HINGE_SUPPORT: LimbSpec = { to: [176, 141], bend: -1 }
 const HINGE_LEGS: LimbSpec = { a: 12, b: -6 }
 
 // ---------------------------------------------------------------------------
-// Los 44 ejercicios
+// Los 49 ejercicios
 // ---------------------------------------------------------------------------
 
 const incline = (() => {
@@ -303,6 +303,34 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
     ],
   },
 
+  // --- Pliometría (D-033) ----------------------------------------------------
+  // En el aire, la cadera sube y los pies se despegan del suelo.
+  'saltos-tobillo': {
+    frames: [
+      { hip: [118, STAND_HIP_Y - 8], torso: 180, arm: { a: 20, b: 70 }, leg: straight, foot: 38 },
+      { hip: [118, STAND_HIP_Y - 28], torso: 180, arm: { a: 20, b: 70 }, leg: straight, foot: 20 },
+    ],
+  },
+  'aterrizaje-controlado': {
+    frames: [
+      { hip: [118, STAND_HIP_Y - 18], torso: 180, arm: { a: 170, b: 175 }, leg: straight, foot: 25 },
+      { hip: [104, 146], torso: 152, head: 158, arm: { a: 95, b: 100 }, leg: { a: 67.5, b: -35 }, foot: 90 },
+    ],
+  },
+  'sentadilla-salto': {
+    frames: [
+      { hip: [101, 153], torso: 142, head: 146, arm: { a: -25, b: -15 }, leg: { a: 79, b: -34 }, foot: 90 },
+      { hip: [118, STAND_HIP_Y - 30], torso: 180, arm: { a: 170, b: 175 }, leg: straight, foot: 20 },
+    ],
+  },
+  'saltos-patinador': {
+    view: 'front',
+    frames: [
+      { hip: [96, 118], torso: 172, arm: { a: -30, b: -20 }, farArm: { a: -60, b: -40 }, leg: { a: -20, b: -60 }, farLeg: { a: -10, b: -5 }, foot: 70, farFoot: -70 },
+      { hip: [144, 118], torso: 188, arm: { a: 60, b: 40 }, farArm: { a: 30, b: 20 }, leg: { a: 10, b: 5 }, farLeg: { a: 20, b: 60 }, foot: 70, farFoot: -70 },
+    ],
+  },
+
   // --- Movilidad -------------------------------------------------------------
   'gato-camello': { frames: [quadruped({ arch: 8, head: 50 }), quadruped({ arch: -5, head: 125 })] },
   'rotacion-toracica': {
@@ -323,6 +351,9 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
       { hip: [132, 150], torso: 180, arm: { a: 80, b: 85 }, leg: { to: [176, 194], bend: -1 }, farLeg: { a: -20, b: -90 }, foot: 90, farFoot: -90 },
       { hip: [140, 152], torso: 180, arm: { a: 80, b: 85 }, leg: { to: [176, 194], bend: -1 }, farLeg: { a: -20, b: -90 }, foot: 90, farFoot: -90 },
     ],
+  },
+  'equilibrio-una-pierna': {
+    frames: [{ hip: [118, STAND_HIP_Y], torso: 180, arm: { a: 55, b: 70 }, farArm: { a: 55, b: 70 }, leg: { a: 2, b: -4 }, farLeg: { a: 95, b: 0 }, foot: 90, farFoot: 90 }],
   },
   'angeles-pared': {
     view: 'front',

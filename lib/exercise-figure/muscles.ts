@@ -20,7 +20,7 @@ const OVERLAYS: Record<MuscleGroup, Overlay> = {
 
 /** Ejercicios de piernas que trabajan sobre todo la pantorrilla o el tobillo, no el muslo. */
 const LOWER_LEG_FAMILIES = new Set(['gemelos'])
-const LOWER_LEG_IDS = new Set(['tobillo-pared'])
+const LOWER_LEG_IDS = new Set(['tobillo-pared', 'saltos-tobillo', 'equilibrio-una-pierna'])
 
 function overlayOf(exercise: Pick<Exercise, 'id' | 'family'>, group: MuscleGroup): Overlay {
   if (group === 'piernas' && (LOWER_LEG_IDS.has(exercise.id) || (exercise.family && LOWER_LEG_FAMILIES.has(exercise.family)))) return 'shin'

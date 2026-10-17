@@ -76,7 +76,7 @@ export type Equipment = 'ninguno' | 'pesa' | 'superficie_elevada'
  * `movilidad` (D-020) no carga: moviliza. Existía el objetivo «Mejorar
  * movilidad» y el foco «Core y movilidad», pero ningún ejercicio que lo fuera.
  */
-export type ExerciseCategory = 'empuje' | 'tiron' | 'piernas' | 'core' | 'movilidad'
+export type ExerciseCategory = 'empuje' | 'tiron' | 'piernas' | 'core' | 'movilidad' | 'pliometria'
 
 export const FOCUS_CATEGORIES: Record<SessionFocus, ExerciseCategory[]> = {
   tren_superior: ['empuje', 'tiron'],

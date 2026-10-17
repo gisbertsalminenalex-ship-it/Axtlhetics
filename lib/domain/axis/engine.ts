@@ -9,6 +9,7 @@
 import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
+import { JUMP_SPORT_TERMS } from './knowledge/sports'
 import type { PlannedSession, SessionFocus } from '../workouts/types'
 import { SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
@@ -117,6 +118,18 @@ function planSession(
     // Para que la señal de un ejercicio saltado caduque en la rotación (D-020).
     today: context.dayKey,
     deload: isDeloadWeek(context.recentSessions, context.dayKey),
+    jumpSport: practicesJumpSport(context.activities),
+  })
+}
+
+/**
+ * `true` si alguna actividad del calendario es un deporte de salto o de cambio
+ * de dirección (D-033). Se mira el nombre, sin tildes ni mayúsculas.
+ */
+export function practicesJumpSport(activities: readonly { name: string }[]): boolean {
+  return activities.some((activity) => {
+    const name = activity.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    return JUMP_SPORT_TERMS.some((term) => name.includes(term))
   })
 }
 

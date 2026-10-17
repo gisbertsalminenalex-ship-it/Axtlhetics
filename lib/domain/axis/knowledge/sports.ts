@@ -20,6 +20,17 @@ export const SPORT_TERMS: readonly string[] = [
   'atletismo', 'gimnasia',
 ]
 
+/**
+ * Deportes de salto y cambio de dirección (D-033): piden potencia de piernas y
+ * prevención de rodilla y tobillo. Sin tildes: se comparan con el nombre de la
+ * actividad normalizado.
+ */
+export const JUMP_SPORT_TERMS: readonly string[] = [
+  'baloncesto', 'basquet', 'basket',
+  'voley', 'voleibol', 'balonmano',
+  'futbol', 'tenis', 'padel',
+]
+
 /** Palabras genéricas con las que se nombra una actividad del calendario. */
 export const ACTIVITY_TERMS: readonly string[] = [
   'entreno', 'entrenamiento', 'partido', 'clase', 'sesion', 'sesión',

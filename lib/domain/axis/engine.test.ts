@@ -710,3 +710,14 @@ test('D-031: tras cuatro semanas cargadas, AXIS lo explica primero y la sesión 
   assert.notEqual(fresh.primary.factors[0]?.key, 'deload_week')
   assert.equal(fresh.primary.session?.deload, undefined)
 })
+
+test('D-033: los deportes de salto se reconocen por el nombre de la actividad, sin tildes ni mayúsculas', async () => {
+  const { practicesJumpSport } = await import('./engine')
+  for (const name of ['Baloncesto', 'Entreno de básquet', 'Partido de vóley', 'Fútbol', 'Pádel']) {
+    assert.equal(practicesJumpSport([{ name }]), true, name)
+  }
+  for (const name of ['Natación', 'Yoga', 'Ciclismo']) {
+    assert.equal(practicesJumpSport([{ name }]), false, name)
+  }
+  assert.equal(practicesJumpSport([]), false)
+})

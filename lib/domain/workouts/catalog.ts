@@ -731,6 +731,84 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   },
 
   // ---------------------------------------------------------------------------
+  // PLIOMETRÍA (D-033)
+  //
+  // Saltos y aterrizajes para quien juega a un deporte de salto o de cambio de
+  // dirección. No entran por ningún foco: los añade el bloque de deporte, al
+  // principio del entrenamiento, con las piernas frescas.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'saltos-tobillo',
+    name: 'Saltos de tobillo',
+    category: 'pliometria',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: [],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Saltitos seguidos y rápidos sobre las puntas, con las rodillas casi rectas: el rebote sale del tobillo. Toca el suelo lo menos posible y cae siempre en el mismo sitio.',
+    work: { sets: 3, reps: 20, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'aterrizaje-controlado',
+    name: 'Aterrizaje controlado',
+    family: 'salto-vertical',
+    category: 'pliometria',
+    primaryMuscles: ['piernas', 'gluteos'],
+    secondaryMuscles: ['core'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: 'sentadilla-salto',
+    regressionId: null,
+    stimulus: 'estabilidad',
+    instructions:
+      'Salta poco y cae suave sobre las dos piernas en media sentadilla, quieto dos segundos. Las rodillas apuntan a los pies y no se van hacia dentro. Es aprender a caer, no saltar alto.',
+    work: { sets: 3, reps: 6, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'sentadilla-salto',
+    name: 'Sentadilla con salto',
+    family: 'salto-vertical',
+    category: 'pliometria',
+    primaryMuscles: ['piernas', 'gluteos'],
+    secondaryMuscles: ['core'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'aterrizaje-controlado',
+    stimulus: 'fuerza',
+    instructions:
+      'Baja a media sentadilla llevando los brazos atrás y salta lo más alto que puedas lanzándolos arriba. Cae suave, con las rodillas alineadas, y vuelve a empezar sin prisa: cada salto, el mejor.',
+    work: { sets: 3, reps: 8, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'saltos-patinador',
+    name: 'Saltos de patinador',
+    category: 'pliometria',
+    primaryMuscles: ['piernas', 'gluteos'],
+    secondaryMuscles: ['core'],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Salta de lado de una pierna a la otra y cae sobre una sola, con la otra cruzada detrás. Aguanta un instante la caída antes del siguiente salto. Es el cambio de dirección de la pista.',
+    work: { sets: 3, reps: 10, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+
+  // ---------------------------------------------------------------------------
   // MOVILIDAD (D-020)
   //
   // Movilizan, no cargan: dificultad 2, en el centro de la escala, para quedar a
@@ -842,6 +920,24 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions:
       'De pie con la espalda, la cabeza y los brazos apoyados en la pared, desliza los brazos arriba y abajo sin despegarlos. Solo hasta donde llegues sin dolor; no fuerces el rango.',
     work: { sets: 2, reps: 10, restSeconds: 30, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    // D-033. Prevención de tobillo y rodilla: el calentamiento de quien salta.
+    id: 'equilibrio-una-pierna',
+    name: 'Equilibrio a una pierna',
+    category: 'movilidad',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: ['core'],
+    equipment: ['ninguno'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'estabilidad',
+    instructions:
+      'De pie sobre una pierna, con la rodilla un poco flexionada y la otra en el aire. Aguanta sin que el tobillo baile; si es fácil, cierra los ojos. Un lado cada vez.',
+    work: { sets: 2, reps: 30, restSeconds: 30, isTimed: true, tempo: null },
     imageUrl: null,
   },
 ]

@@ -86,11 +86,11 @@ test('la pesa disponible es de 5 kg y el catálogo no supone más', () => {
 // Cobertura del catálogo
 // ---------------------------------------------------------------------------
 
-test('el catálogo cubre los cinco patrones de movimiento', () => {
+test('el catálogo cubre los cinco patrones de movimiento, más la pliometría (D-033)', () => {
   const categories = new Set<ExerciseCategory>(EXERCISE_CATALOG.map((item) => item.category))
   assert.deepEqual(
     [...categories].sort(),
-    ['core', 'empuje', 'movilidad', 'piernas', 'tiron'],
+    ['core', 'empuje', 'movilidad', 'piernas', 'pliometria', 'tiron'],
   )
 })
 
@@ -225,9 +225,9 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 44 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1 y 1 de D-025', () => {
-  // Cada ampliación es una decisión: antes este test fijaba 39 y luego 43.
-  assert.equal(EXERCISE_CATALOG.length, 44)
+test('el catálogo tiene 49 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025 y 5 de D-033', () => {
+  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43 y luego 44.
+  assert.equal(EXERCISE_CATALOG.length, 49)
 })
 
 test('las flexiones con rodillas (D-025): iniciación sin material, sin tocar la cadena de las flexiones', () => {
@@ -275,27 +275,30 @@ test('ningún objetivo ni techo de progresión pasa del límite del selector de 
   }
 })
 
-test('la movilidad son exactamente los seis aprobados, de peso corporal', () => {
-  // D-020 empezó con tres; D-020.1 añade isquiotibiales, tobillo y hombro.
+test('la movilidad son exactamente los siete aprobados, de peso corporal', () => {
+  // D-020 empezó con tres; D-020.1 añade isquiotibiales, tobillo y hombro; D-033, el equilibrio.
   const mobility = EXERCISE_CATALOG.filter((item) => item.category === 'movilidad')
   assert.deepEqual(
     mobility.map((item) => item.id).sort(),
     [
-      'angeles-pared', 'estiramiento-flexor-cadera', 'estiramiento-isquiotibiales',
+      'angeles-pared', 'equilibrio-una-pierna', 'estiramiento-flexor-cadera', 'estiramiento-isquiotibiales',
       'gato-camello', 'rotacion-toracica', 'tobillo-pared',
     ],
   )
   for (const exercise of mobility) {
-    assert.equal(exercise.stimulus, 'movilidad')
+    // El equilibrio es prevención: estabiliza, no moviliza (D-033).
+    assert.equal(exercise.stimulus, exercise.id === 'equilibrio-una-pierna' ? 'estabilidad' : 'movilidad')
     assert.deepEqual(exercise.equipment, ['ninguno'])
   }
 })
 
-test('cada ejercicio entra en algún foco de sesión', () => {
+test('cada ejercicio entra en algún foco de sesión, salvo la pliometría, que la añade el bloque de deporte (D-033)', () => {
   const reachable = new Set(Object.values(FOCUS_CATEGORIES).flat())
   for (const exercise of EXERCISE_CATALOG) {
+    if (exercise.category === 'pliometria') continue
     assert.ok(reachable.has(exercise.category), `${exercise.name} no entra en ningún foco`)
   }
+  assert.ok(!reachable.has('pliometria'), 'ningún foco elige saltos por sí solo')
 })
 
 test('cada grupo muscular tiene variedad, también sin la pesa', () => {
@@ -399,7 +402,7 @@ test('las familias son pocas, semánticas y solo agrupan variantes del mismo pat
   }
   assert.deepEqual(
     [...families.keys()].sort(),
-    ['curl', 'flexion', 'gemelos', 'plancha', 'puente', 'remo', 'sentadilla', 'triceps', 'zancada'],
+    ['curl', 'flexion', 'gemelos', 'plancha', 'puente', 'remo', 'salto-vertical', 'sentadilla', 'triceps', 'zancada'],
   )
   for (const [family, ids] of families) {
     assert.ok(ids.length >= 2, `${family} con un solo ejercicio no separa nada`)

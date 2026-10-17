@@ -147,6 +147,12 @@ export type SessionBuildOptions = {
   today?: DayKey
   /** Semana de descarga (D-031): una serie menos, sin subir ni pasar a una variante más difícil. */
   deload?: boolean
+  /**
+   * El usuario juega a un deporte de salto o de cambio de dirección (D-033):
+   * equilibrio en el calentamiento y, en las sesiones de piernas de intensidad
+   * normal, un ejercicio de salto al empezar.
+   */
+  jumpSport?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +177,37 @@ export const COOLDOWN_EXERCISES: Record<SessionFocus, readonly string[]> = {
   tren_inferior: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
   cuerpo_completo: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
   core_movilidad: [],
+}
+
+// ---------------------------------------------------------------------------
+// Deportes de salto (D-033)
+// ---------------------------------------------------------------------------
+
+/** El calentamiento de quien salta lleva equilibrio: prevención de tobillo y rodilla. */
+export const JUMP_SPORT_WARMUP = 'equilibrio-una-pierna'
+
+/** Las sesiones que cargan piernas: donde entra el salto. */
+export const JUMP_FOCUSES: readonly SessionFocus[] = ['tren_inferior', 'cuerpo_completo']
+
+/**
+ * El ejercicio de salto de hoy: el menos usado recientemente, para que roten;
+ * entre los que empatan, el de dificultad más cercana a la de la sesión.
+ */
+function jumpExerciseFor(
+  catalog: readonly Exercise[],
+  equipment: readonly Equipment[],
+  target: Difficulty,
+  usage: ReadonlyMap<string, ExerciseUsage>,
+): Exercise | null {
+  const candidates = catalog.filter((exercise) => exercise.category === 'pliometria' && isAvailable(exercise, equipment))
+  if (candidates.length === 0) return null
+  const lastUse = (exercise: Exercise) => usage.get(exercise.id)?.lastUse ?? ''
+  return [...candidates].sort(
+    (a, b) =>
+      lastUse(a).localeCompare(lastUse(b)) ||
+      Math.abs(a.difficulty - target) - Math.abs(b.difficulty - target) ||
+      a.id.localeCompare(b.id),
+  )[0]
 }
 
 /** Minutos que ocupa cada ejercicio de calentamiento o vuelta a la calma: salen del tiempo disponible. */
@@ -510,6 +547,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     history = [],
     today,
     deload = false,
+    jumpSport = false,
   } = options
 
   // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
@@ -527,10 +565,16 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const target = targetDifficultyFor(experience, intensity)
   // El calentamiento y la vuelta a la calma salen del mismo tiempo (D-032).
   const phaseCatalog = catalog ?? EXERCISE_CATALOG
-  const warmup = phaseExercises(WARMUP_EXERCISES[focus], 'calentamiento', phaseCatalog)
+  const warmupIds = WARMUP_EXERCISES[focus].length > 0 && jumpSport ? [...WARMUP_EXERCISES[focus], JUMP_SPORT_WARMUP] : WARMUP_EXERCISES[focus]
+  const warmup = phaseExercises(warmupIds, 'calentamiento', phaseCatalog)
   const cooldown = phaseExercises(COOLDOWN_EXERCISES[focus], 'vuelta_calma', phaseCatalog)
   const phaseMinutes = (warmup.length + cooldown.length) * PHASE_EXERCISE_MINUTES
-  const count = exerciseCountFor(availableMinutes - phaseMinutes)
+  // Con un deporte de salto, un ejercicio de salto abre el entrenamiento y ocupa un hueco (D-033).
+  const jump =
+    jumpSport && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
+      ? jumpExerciseFor(phaseCatalog, equipment, target, usage)
+      : null
+  const count = exerciseCountFor(availableMinutes - phaseMinutes) - (jump ? 1 : 0)
 
   const selected = selectExercises(
     pool,
@@ -542,7 +586,10 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     usage,
   )
 
-  const exercises: PlannedExercise[] = selected.map((exercise) => {
+  // El salto va primero: con las piernas frescas sale mejor y con menos riesgo (D-033).
+  const main = jump ? [jump, ...selected] : selected
+
+  const exercises: PlannedExercise[] = main.map((exercise) => {
     const work = suggestWorkFor(exercise, { intensity, goals, experience, history, deload })
     return {
       exerciseId: exercise.id,
@@ -563,7 +610,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     title: titleFor(focus, intensity),
     intensity,
     estimatedMinutes: Math.max(20, Math.round(availableMinutes / 5) * 5),
-    muscleGroups: dedupeGroups(selected, focus),
+    muscleGroups: dedupeGroups(main, focus),
     exercises: [...warmup, ...exercises, ...cooldown],
     ...(deload ? { deload: true } : {}),
   }

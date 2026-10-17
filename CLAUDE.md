@@ -329,6 +329,8 @@ Progression (`suggestWorkFor` in `lib/domain/axis/session-builder.ts`, D-019, D-
 
 Every strength session opens with a warm-up and closes with a cool-down (D-032, `WARMUP_EXERCISES` / `COOLDOWN_EXERCISES` in the session builder): mobility exercises inside the same session, marked with `phase`, one set, no load, no rest, taken from the available minutes. They are not training: `isMainExercise` keeps them out of progression, last performance, records, rotation, skips and the shortened-session check, and the AXIS briefing lists only their names.
 
+With a jump or change-of-direction sport in the calendar (D-033, `practicesJumpSport` in the engine, `JUMP_SPORT_TERMS` in knowledge), every strength warm-up adds single-leg balance and lower-body or full-body sessions at normal intensity open the training with one rotating plyometric exercise that takes a strength slot. The `pliometria` category is reachable only through that block, never through a focus.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity
