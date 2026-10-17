@@ -243,7 +243,7 @@ function profile(): UserProfile {
   }
 }
 
-function recovery(): RecoveryInputs {
+function recovery(partial: Partial<RecoveryInputs> = {}): RecoveryInputs {
   return {
     dayKey: DAY,
     sleepHours: 9,
@@ -252,8 +252,12 @@ function recovery(): RecoveryInputs {
     stress: 2,
     hydrationGlasses: 6,
     updatedAt: '2026-09-07T08:00:00.000Z',
+    ...partial,
   }
 }
+
+/** Recuperación por debajo de 50: el único caso en que AXIS sigue diciendo que no (D-030). */
+const LOW_RECOVERY: Partial<RecoveryInputs> = { sleepHours: 4, energy: 1, muscleFatigue: 5, stress: 5 }
 
 /** Tren superior hace dos días: hoy toca tren inferior, y «piernas no» pide algo real. */
 function upperSession(): WorkoutSession {
@@ -282,7 +286,7 @@ function upperSession(): WorkoutSession {
  * recuerda, confirma y guarda. Cada paso escribe en el repositorio como lo
  * haría el efecto de guardado.
  */
-function app(repositories = createMemoryRepositories(), sessions = [upperSession()]) {
+function app(repositories = createMemoryRepositories(), sessions = [upperSession()], inputs = recovery()) {
   let memory = emptyDayMemory(DAY, NOW)
   let counter = 0
   const id = () => `m${++counter}`
@@ -290,7 +294,7 @@ function app(repositories = createMemoryRepositories(), sessions = [upperSession
   const day = () => {
     const context = buildAxisContext({
       profile: profile(),
-      recoveryInputs: recovery(),
+      recoveryInputs: inputs,
       recentSessions: sessions,
       activities: [],
       cancelledToday: memory.cancelledActivities,
@@ -437,20 +441,22 @@ test('regresión 8: «ayer hice 20 km» y luego «hoy piernas no» conserva la e
   assert.match(second.result.text, /no me conste registrado/i, 'sigue diciendo que no está registrado')
 })
 
-test('sin la evidencia recordada, la misma petición se rechaza (control)', async () => {
+test('sin la evidencia recordada, la misma petición se concede con reparo (control)', async () => {
   const a = app()
   await a.openChange()
   const { result } = await a.ask('hoy piernas no')
-  assert.equal(result.verdict, 'decline')
+  assert.equal(result.verdict, 'accept')
+  assert.match(result.text, /no es lo que yo har[ií]a/i, 'sin la evidencia, AXIS dice que no lo haría')
 })
 
 test('insistir tras recargar mantiene el criterio en corto', async () => {
   const repositories = createMemoryRepositories()
-  const a = app(repositories)
+  const low = recovery(LOW_RECOVERY)
+  const a = app(repositories, [upperSession()], low)
   await a.openChange()
-  await a.ask('hoy no quiero hacer piernas')
+  await a.ask('ponme algo más duro')
 
-  const reloaded = app(repositories)
+  const reloaded = app(repositories, [upperSession()], low)
   await reloaded.load()
   const { result } = await reloaded.ask('venga, porfa')
   assert.equal(result.verdict, 'decline')

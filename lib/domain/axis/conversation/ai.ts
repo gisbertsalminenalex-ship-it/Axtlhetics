@@ -25,7 +25,13 @@
 import type { AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
 import { AXIS_PERSONALITY, AXIS_SYSTEM_PROMPT } from '../personality'
-import { checkModelText, DATA_ANSWER_INTENTS, type ModelTextRejection } from '../safety'
+import {
+  checkModelText,
+  DATA_ANSWER_INTENTS,
+  lengthLimitsFor,
+  LONG_ANSWER_INTENTS,
+  type ModelTextRejection,
+} from '../safety'
 import type { AxisAiReinterpretRequest } from './reinterpret'
 import type { AxisAnswer, AxisConversationEngine, AxisIntent } from './types'
 
@@ -42,8 +48,13 @@ export { AXIS_SYSTEM_PROMPT }
  *
  * Separado del prompt anterior para que siga habiendo una sola fuente de verdad
  * sobre quién es AXIS. Esto es fontanería del proveedor, no personalidad.
+ *
+ * La longitud depende de la pregunta (D-030): los datos, cortos; las
+ * explicaciones y los cambios, largos y desarrollados. Sin intención, corto.
  */
-export function aiSystemPrompt(): string {
+export function aiSystemPrompt(intent?: AxisIntent): string {
+  const length = intent ? lengthLimitsFor(intent) : AXIS_PERSONALITY.limits
+  const long = intent !== undefined && LONG_ANSWER_INTENTS.includes(intent)
   return [
     AXIS_SYSTEM_PROMPT,
     '',
@@ -53,7 +64,12 @@ export function aiSystemPrompt(): string {
     'Conserva todas las cifras de `domain.text` escritas con dígitos, tal cual (no «siete horas», sino «7 h»). Si falta una, tu respuesta se descarta.',
     'No contradigas `domain`. Si el motor ha dicho que no, tú dices que no.',
     'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text` o en `briefing`. Que un dato no aparezca no significa que no haya ocurrido: di que no está registrado, nunca lo conviertas en un hecho.',
-    `Responde en ${AXIS_PERSONALITY.limits.targetSentences}. Nunca más de ${AXIS_PERSONALITY.limits.maxSentences}.`,
+    `Responde en ${length.targetSentences}. Nunca más de ${length.maxSentences}.`,
+    ...(long
+      ? [
+          'Aquí se espera una respuesta de entrenador, desarrollada: empieza por el veredicto de `domain.text`, explica el porqué con los datos de `briefing` (recuperación, carga, sesiones recientes, objetivos), di qué cambia en concreto y termina con un consejo práctico para hoy. Usa solo los datos que sí están; no hables de lo que no tienes registrado si `domain.text` no lo menciona. Sin relleno ni frases genéricas.',
+        ]
+      : []),
     'Devuelve SOLO un objeto JSON con esta forma:',
     '{"message": "tu respuesta", "action": null}',
     'Si `domain.proposedTarget` no es null y la conversación va de cambiar el entrenamiento, copia ese mismo objeto en `action.target` y pon `action.type` a "change_training". No propongas un destino distinto del que te da el dominio: se descartaría.',
@@ -350,7 +366,7 @@ export function createAiConversation(
       const sentBriefing = toAiBriefing(briefing)
 
       const response = await transport.send({
-        system: aiSystemPrompt(),
+        system: aiSystemPrompt(domain.intent),
         question,
         briefing: sentBriefing,
         domain: {

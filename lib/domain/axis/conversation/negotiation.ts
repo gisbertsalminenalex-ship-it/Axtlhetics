@@ -568,31 +568,41 @@ function evaluateAvoid(
     }
   }
 
-  // Sin evidencia: se dice que no, con el motivo y una salida razonable.
+  /*
+   * Sin evidencia también se cede (D-030): quitar una zona no sube la carga.
+   * Lo que cambia es que AXIS dice que no lo haría y por qué, y deja la
+   * decisión al usuario con el botón de confirmar.
+   */
   const recoveryClause = briefing.recovery.known
     ? `tu recuperación está en ${briefing.recovery.value}`
-    : 'no tengo tu recuperación de hoy registrada, pero tampoco nada que desaconseje entrenar'
+    : 'no tengo tu recuperación de hoy registrada'
 
   const goalClause =
     briefing.profile && briefing.profile.goals.length > 0
-      ? ' y es la zona que más pesa en lo que quieres conseguir'
+      ? ' y es una zona que pesa en lo que quieres conseguir'
       : ''
 
-  const lighter = lighterAlternative(alternatives)
-  const offer = lighter
-    ? ` Si lo que te frena son las ganas y no el cuerpo, cambio a ${nameOf(lighter)}: hacemos algo, más suave, y no perdemos el día.`
-    : ' Si me cuentas algo que no tenga registrado —una carga de ayer, una molestia— lo reviso.'
+  const caveat = `No es lo que yo haría: ${recoveryClause}${goalClause}, y no veo en tus datos nada que pida saltar ${label}. Pero lo decides tú.`
 
-  // Dos puntos y no un punto: lo que sigue empieza en minúscula a propósito,
-  // porque es la explicación de la negativa, no una frase nueva.
+  if (swap) {
+    return {
+      outcome: 'accept',
+      text: `${caveat} Cambio a ${nameOf(swap)}, que deja esa zona tranquila. Intenta recuperarla en los próximos días para que no se quede atrás.`,
+      proposedTarget: asTarget(swap),
+    }
+  }
   return {
-    outcome: 'decline',
-    text: `Hoy no lo quitaría: ${recoveryClause}${goalClause}, y no encuentro en tus datos nada que justifique saltar ${label}.${offer}`,
-    proposedTarget: null,
+    outcome: 'accept',
+    text: `${caveat} No tengo otra sesión que evite esa zona, así que hoy lo dejamos en recuperación.`,
+    proposedTarget: asTarget(restAlternative(alternatives)),
   }
 }
 
-/** Querer una zona concreta. Se acepta salvo que esa zona esté cargada. */
+/**
+ * Querer una zona concreta. Se acepta (D-030); si esa zona está cargada, AXIS
+ * lo dice antes de cambiar. Solo se niega a convertir en entrenamiento un día
+ * de recuperación con la recuperación baja: eso es subir la carga con riesgo.
+ */
 function evaluateWant(
   request: ChangeRequest,
   briefing: AxisBriefing,
@@ -610,15 +620,25 @@ function evaluateWant(
     }
   }
 
+  if (lowRecovery(briefing) && !isTrainingDay(briefing)) return lowRecoveryRefusal(briefing, alternatives)
+
   const groups: readonly string[] = FOCUS_MUSCLE_GROUPS[focus]
   const recent = briefing.recentMuscleGroups.filter((group) => groups.includes(group))
+  const match = alternativeWithFocus(alternatives, focus)
 
   if (recent.length > 0) {
-    return {
-      outcome: 'decline',
-      text: `No hoy. Ya llevas ${listNames(recent.map(muscleGroupLabel))} trabajado estos días, y repetir esa zona sin recuperarla no la hace crecer, la desgasta. Lo dejamos para dentro de un día o dos.`,
-      proposedTarget: null,
-    }
+    const caveat = `Ya llevas ${listNames(recent.map(muscleGroupLabel))} trabajado estos días, así que no es lo que te propondría: repetir una zona sin recuperarla la desgasta más de lo que la hace crecer.`
+    return match
+      ? {
+          outcome: 'accept',
+          text: `${caveat} Pero lo decides tú: cambio a ${nameOf(match)}. Baja un punto el peso y para una o dos repeticiones antes del fallo.`,
+          proposedTarget: asTarget(match),
+        }
+      : {
+          outcome: 'compromise',
+          text: `${caveat} Además, hoy no tengo preparada una sesión de ${label}; la de hoy sigue teniendo sentido.`,
+          proposedTarget: null,
+        }
   }
 
   /*
@@ -632,7 +652,6 @@ function evaluateWant(
     reported !== null && reported.muscleGroups.some((group) => groups.includes(group))
   const basis = `${recordedAbsenceOfFocus(briefing)}${reportedHitsFocus ? UNRECORDED_REPORT_CLAUSE : ''}`
 
-  const match = alternativeWithFocus(alternatives, focus)
   if (match) {
     return {
       outcome: 'accept',
@@ -714,27 +733,16 @@ function evaluateLonger(
     }
   }
 
-  if (briefing.load.known && briefing.load.band === 'alta') {
-    return {
-      outcome: 'decline',
-      text: `Hoy no. Llevas ${briefing.load.sessionCount} sesiones en ${briefing.load.windowDays} días y tu carga acumulada ya está alta. Alargar la sesión ahora suma volumen justo cuando toca asimilar el que ya llevas.`,
-      proposedTarget: null,
-    }
-  }
-
-  if (!briefing.recovery.known) {
-    return {
-      outcome: 'need_info',
-      text: 'Antes de alargar la sesión necesito saber cómo estás: registra tu recuperación de hoy y lo decido con datos. A ciegas no te voy a mandar más volumen.',
-      proposedTarget: null,
-    }
-  }
-
+  // Por encima de 50 se cede (D-030); si los datos no acompañan, se dice antes.
   const longer = longestAlternative(alternatives, currentMinutes)
+  const caveat = loadCaveat(briefing, 'Alargar la sesión suma volumen')
   if (longer) {
     return {
       outcome: 'accept',
-      text: `Hoy sí: tu recuperación está en ${briefing.recovery.value}${loadAllowsClause(briefing)}. Cambio a ${nameOf(longer)}, unos ${longer.estimatedMinutes} min.`,
+      text:
+        caveat !== null || !briefing.recovery.known
+          ? `${caveat} Cambio a ${nameOf(longer)}, unos ${longer.estimatedMinutes} min; si notas que te cuesta más de la cuenta, para antes.`
+          : `Hoy sí: tu recuperación está en ${briefing.recovery.value}${loadAllowsClause(briefing)}. Cambio a ${nameOf(longer)}, unos ${longer.estimatedMinutes} min.`,
       proposedTarget: asTarget(longer),
     }
   }
@@ -792,27 +800,59 @@ function evaluateHarder(
     }
   }
 
-  if (briefing.load.known && briefing.load.band === 'alta') {
-    return {
-      outcome: 'decline',
-      text: `Hoy no. Llevas ${briefing.load.sessionCount} sesiones en ${briefing.load.windowDays} días y tu carga acumulada ya está alta. Meter más ahora es como pisar el acelerador cuesta abajo: la mejora se construye entre sesión y sesión, no dentro de una.`,
-      proposedTarget: null,
-    }
-  }
-
-  if (!briefing.recovery.known) {
-    return {
-      outcome: 'need_info',
-      text: 'Antes de subir la carga necesito saber cómo estás: registra tu recuperación de hoy y lo decido con datos. A ciegas no te voy a mandar una sesión más dura.',
-      proposedTarget: null,
-    }
-  }
-
+  // Por encima de 50 se cede (D-030); si los datos no acompañan, se dice antes.
   const harder = alternatives.find((a) => a.type === 'TRAINING')
+  const how = harder
+    ? ` Cambio a ${nameOf(harder)}.`
+    : ' Sube el peso hasta quedarte a una o dos repeticiones del fallo en las últimas series.'
+  const caveat = loadCaveat(briefing, 'Subir la intensidad suma fatiga')
   return {
     outcome: 'accept',
-    text: `Hoy sí: tu recuperación está en ${briefing.recovery.value}${loadAllowsClause(briefing)}.${harder ? ` Cambio a ${nameOf(harder)}.` : ' Sube el peso hasta quedarte a una o dos repeticiones del fallo en las últimas series.'}`,
+    text:
+      caveat !== null || !briefing.recovery.known
+        ? `${caveat}${how} Si a mitad notas que no tira, vuelve a la versión de hoy.`
+        : `Hoy sí: tu recuperación está en ${briefing.recovery.value}${loadAllowsClause(briefing)}.${how}`,
     proposedTarget: asTarget(harder),
+  }
+}
+
+/**
+ * Lo que AXIS avisa antes de subir la carga cuando cede sin que los datos
+ * acompañen (D-030): carga acumulada alta, o recuperación sin registrar. `null`
+ * si no hay nada que avisar.
+ */
+function loadCaveat(briefing: AxisBriefing, what: string): string | null {
+  if (briefing.load.known && briefing.load.band === 'alta') {
+    return `Llevas ${briefing.load.sessionCount} sesiones en ${briefing.load.windowDays} días y tu carga acumulada ya está alta, así que no es lo que te propondría: ${what.toLowerCase()} justo cuando toca asimilar lo que llevas. Pero lo decides tú.`
+  }
+  if (!briefing.recovery.known) {
+    return `No tengo tu recuperación de hoy registrada, así que no sé si hoy da para más. ${what} sin saber cómo estás; regístrala en Recuperación y lo afino. Si aun así quieres, adelante.`
+  }
+  return null
+}
+
+/** La recuperación de hoy, si es baja (por debajo de 50). `null` si no lo es o no se conoce. */
+function lowRecoveryValue(briefing: AxisBriefing): number | null {
+  return briefing.recovery.known && briefing.recovery.band === 'low' ? briefing.recovery.value : null
+}
+
+function lowRecovery(briefing: AxisBriefing): boolean {
+  return lowRecoveryValue(briefing) !== null
+}
+
+/**
+ * El único «no» que queda (D-030): entrenar o subir la carga con la
+ * recuperación por debajo de 50. Con salida: movilidad, que no carga.
+ */
+function lowRecoveryRefusal(briefing: AxisBriefing, alternatives: readonly BriefingAlternative[]): ChangeVerdict {
+  const recovery = briefing.recovery
+  const weakest =
+    recovery.known && recovery.weakest.length > 0 ? ` y lo que peor está es ${listNames(recovery.weakest)}` : ''
+  const mobility = alternatives.find((a) => a.focus === 'core_movilidad') ?? null
+  return {
+    outcome: mobility ? 'compromise' : 'decline',
+    text: `Hoy no. Tu recuperación está en ${lowRecoveryValue(briefing)}${weakest}. Entrenar así no suma: acumula fatiga que pagarás en las próximas sesiones.${mobility ? ` Si quieres moverte, cambio a ${nameOf(mobility)}, sin carga.` : ' Hoy toca recuperar.'}`,
+    proposedTarget: asTarget(mobility),
   }
 }
 
@@ -839,28 +879,24 @@ function evaluateRest(
     }
   }
 
-  const days = briefing.daysSinceLastWorkout
-  if (days !== null && days >= 3) {
+  // Descansar no sube la carga: se cede siempre (D-030), diciendo lo que AXIS opina.
+  if (!rest) {
     return {
-      outcome: 'decline',
-      text: `Llevas ${days} días sin entrenar y tus datos no dan ningún motivo para parar hoy. Lo que se pierde ahí no es una sesión, es la continuidad, que es lo que de verdad mueve tus objetivos. Si el problema es el tiempo o las ganas, dímelo y recorto la sesión.`,
+      outcome: 'accept',
+      text: 'Hoy ya es día de recuperación, así que no hay nada que quitar: descansa. Mañana vuelvo a decidir con tus datos.',
       proposedTarget: null,
     }
   }
 
-  const lighter = lighterAlternative(alternatives)
-  if (lighter) {
-    return {
-      outcome: 'compromise',
-      text: `Antes de dar el día por perdido: cambio a ${nameOf(lighter)}. Si a los diez minutos sigues sin poder, lo dejas y no ha pasado nada. Pero tus datos de hoy no piden descanso.`,
-      proposedTarget: asTarget(lighter),
-    }
-  }
-
+  const days = briefing.daysSinceLastWorkout
+  const opinion =
+    days !== null && days >= 3
+      ? `Llevas ${days} días sin entrenar y tus datos no piden parar, así que no es lo que te recomendaría: la continuidad es lo que más mueve tus objetivos.`
+      : 'Tus datos de hoy no piden descanso, pero un día libre no rompe nada.'
   return {
-    outcome: 'decline',
-    text: 'Tus datos de hoy no piden descanso. Si hay algo que no tengo registrado —dormiste mal, estás con molestias, vienes de un esfuerzo largo— cuéntamelo y lo reviso.',
-    proposedTarget: null,
+    outcome: 'accept',
+    text: `${opinion} Lo decides tú: hoy descansas. Si cambias de idea, pídeme algo suave; si no, mañana vuelvo a decidir con tus datos.`,
+    proposedTarget: asTarget(rest),
   }
 }
 
@@ -902,12 +938,14 @@ function evaluateTrainAnyway(
   const proposal = briefing.proposal!
   const alreadyTraining = proposal.session !== null
 
-  // Motivos que no desaparecen porque el usuario tenga ganas.
+  // Ya entrenó: con la recuperación baja es el «no» que queda; si no, se avisa y se cede (D-030).
   if (activeToday(briefing)) {
+    if (lowRecovery(briefing)) return lowRecoveryRefusal(briefing, alternatives)
+    const extra = alternatives.find((a) => a.type === 'LIGHT_TRAINING' && a.focus !== 'core_movilidad')
     return {
-      outcome: 'decline',
-      text: 'Hoy ya has entrenado. Las ganas están bien, pero el músculo crece entre sesiones, no dentro de ellas. Mañana lo aprovecharás más.',
-      proposedTarget: null,
+      outcome: 'accept',
+      text: `Hoy ya has entrenado, así que no es lo que te propondría: el músculo crece entre sesiones, no dentro de ellas. Pero lo decides tú${extra ? `: cambio a ${nameOf(extra)}, y mantenlo suave.` : '. Si entrenas otra vez, que sea suave y corto.'}`,
+      proposedTarget: asTarget(extra),
     }
   }
 
@@ -1052,33 +1090,41 @@ function evaluateCannotToday(
 
 /**
  * «Muévelo a mañana». Hoy recuperación y mañana disponible, sin copiar la
- * sesión: mañana decide el motor con lo que haya mañana. Un solo aplazamiento.
+ * sesión: mañana decide el motor con lo que haya mañana.
+ *
+ * Desde D-030 se mueve aunque ya viniera movido de ayer o mañana haya un
+ * partido intenso: AXIS lo avisa, pero decide el usuario. Solo no hay nada
+ * que mover si hoy ya entrenó o si hoy ya era día de recuperación.
  */
 function evaluateMoveTomorrow(
   briefing: AxisBriefing,
   alternatives: readonly BriefingAlternative[],
 ): ChangeVerdict {
   if (activeToday(briefing)) {
-    return { outcome: 'decline', text: 'Hoy ya has entrenado: no hay nada que mover a mañana.', proposedTarget: null }
-  }
-  if (!isTrainingDay(briefing)) {
-    return { outcome: 'decline', text: 'Hoy no toca entrenar, así que no hay nada que mover a mañana.', proposedTarget: null }
-  }
-  if (briefing.reorganization.movedFromYesterday) {
     return {
-      outcome: 'decline',
-      text: 'Este entrenamiento ya viene movido de ayer y no lo aplazo otra vez: de aplazamiento en aplazamiento se pierde la semana. Si hoy no puedes, dímelo y lo dejamos; mañana decido de nuevo.',
+      outcome: 'accept',
+      text: 'Hoy ya has entrenado, así que no queda nada que mover: lo de hoy ya está hecho. Mañana vuelvo a decidir con tus datos de mañana.',
       proposedTarget: null,
     }
+  }
+  if (!isTrainingDay(briefing)) {
+    return {
+      outcome: 'accept',
+      text: `Hoy ya te tocaba recuperar${lowRecovery(briefing) ? `: tu recuperación está en ${lowRecoveryValue(briefing)}` : ''}, así que hoy descansas igualmente y mañana vuelvo a decidir con tus datos de mañana. No hace falta mover nada.`,
+      proposedTarget: null,
+    }
+  }
+
+  const warnings: string[] = []
+  if (briefing.reorganization.movedFromYesterday) {
+    warnings.push('este entrenamiento ya venía movido de ayer, y de aplazamiento en aplazamiento se pierde la semana')
   }
   const demanding = briefing.activitiesTomorrow.find((activity) => activity.intensity === 'alta')
   if (demanding) {
-    return {
-      outcome: 'decline',
-      text: `Mañana tienes ${demanding.name.toLowerCase()}, y llegar con un entrenamiento encima no compensa. Si hoy vas justo, dime cuántos minutos tienes y la ajusto.`,
-      proposedTarget: null,
-    }
+    warnings.push(`mañana tienes ${demanding.name.toLowerCase()}, y llegar con un entrenamiento encima pesa`)
   }
+  const caveat = warnings.length > 0 ? `Te aviso: ${listNames(warnings)}. Pero lo decides tú. ` : ''
+
   if (briefing.reorganization.movedTo !== null) {
     return { outcome: 'accept', text: 'Ya está movido a mañana.', proposedTarget: null }
   }
@@ -1093,7 +1139,7 @@ function evaluateMoveTomorrow(
   }
   return {
     outcome: 'accept',
-    text: 'Lo muevo a mañana: hoy descansas y mañana queda como día de entrenamiento. No copio la sesión de hoy; mañana decido con tus datos de mañana.',
+    text: `${caveat}Lo muevo a mañana: hoy descansas y mañana queda como día de entrenamiento. No copio la sesión de hoy; mañana decido con tus datos de mañana.`,
     proposedTarget: asTarget(rest),
     proposedEffect: { kind: 'move_to_tomorrow' },
   }
@@ -1189,23 +1235,21 @@ export function evaluateBlockReason(
 }
 
 /**
- * Cansancio contado. Sin la fatiga registrada AXIS no decide con una frase:
- * pide registrarla y no la anota él. Registrada, ya cuenta en la decisión y se
- * juzga como pedir algo más suave.
+ * Cansancio contado: se juzga como pedir algo más suave. Si la fatiga no está
+ * registrada, se suaviza igual (D-030) y se pide registrarla para que cuente
+ * en las próximas decisiones; AXIS no la anota él.
  */
 function evaluateTired(
   request: ChangeRequest,
   briefing: AxisBriefing,
   alternatives: readonly BriefingAlternative[],
 ): ChangeVerdict {
-  if (briefing.fatigueLevel === null) {
-    return {
-      outcome: 'need_info',
-      text: FATIGUE_NOT_REGISTERED,
-      proposedTarget: null,
-    }
+  const easier = evaluateEasier(request, briefing, alternatives)
+  if (briefing.fatigueLevel !== null) return easier
+  return {
+    ...easier,
+    text: `${easier.text} No tengo tu fatiga registrada hoy: regístrala en Recuperación y contará en las próximas decisiones.`,
   }
-  return evaluateEasier(request, briefing, alternatives)
 }
 
 /** Lo que AXIS dice cuando el cansancio no está registrado. Lo comparten las dos vías. */

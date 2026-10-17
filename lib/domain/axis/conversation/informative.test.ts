@@ -185,7 +185,7 @@ test('5. «no quiero hacer piernas» sigue siendo un cambio', () => {
   const { briefing } = setup()
   const answer = answerFromBriefing('no quiero hacer piernas', briefing, CHANGE_MODE)
   assert.equal(answer.intent, 'change')
-  assert.equal(answer.verdict, 'decline', 'sin motivo, AXIS no lo quita')
+  assert.equal(answer.verdict, 'accept', 'sin motivo, AXIS lo quita diciendo que no lo haría (D-030)')
   assert.deepEqual(answer.changeRequest, { kind: 'avoid_focus', focus: 'tren_inferior' })
 })
 

@@ -217,11 +217,12 @@ test('un test a medias de hoy todavía no es actividad: se puede reanudar', () =
   assert.notEqual(setup({ assessments: [ongoing] }).decision.primary.type, 'REST')
 })
 
-test('tras el test, «quiero entrenar» no consigue una sesión', () => {
+test('tras el test, «quiero entrenar» avisa de que ya hubo actividad y solo ofrece algo suave (D-030)', () => {
   const { briefing } = setup({ assessments: [completed(TODAY)] })
   const answer = answerFromBriefing('quiero entrenar igualmente', briefing, { lastIntent: null, changeMode: true, lastChangeRequest: null })
-  assert.equal(answer.verdict, 'decline')
-  assert.equal(answer.proposedTarget ?? null, null)
+  assert.equal(answer.verdict, 'accept')
+  assert.match(answer.text, /ya has entrenado/i)
+  assert.equal(answer.proposedTarget?.type ?? 'LIGHT_TRAINING', 'LIGHT_TRAINING', 'nunca una sesión normal')
 })
 
 test('el test no inventa carga: la Carga y el resumen semanal son los mismos con o sin tests', () => {

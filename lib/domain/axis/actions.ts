@@ -28,7 +28,6 @@
  */
 
 import {
-  activityOccursOn,
   sportsFromActivities,
   type ActivityIntensity,
   type ScheduledActivity,
@@ -299,32 +298,20 @@ const TRAINED_TODAY: AxisActionValidation = {
   message: 'Hoy ya has entrenado: no hay nada que reorganizar.',
 }
 
-/** Hoy recuperación, mañana disponible. Solo un aplazamiento, y no contra un partido. */
+/**
+ * Hoy recuperación, mañana disponible.
+ *
+ * Desde D-030 se puede aplazar otra vez o encima de un partido: AXIS avisa en
+ * la conversación, pero decide el usuario. Aquí solo queda si se puede hacer.
+ */
 function validateMoveToTomorrow(
   action: Extract<AxisActionProposal, { type: 'move_to_tomorrow' }>,
   decision: AxisDecision,
   context: AxisContext,
 ): AxisActionValidation {
   if (trainedOn(context)) return TRAINED_TODAY
-  if (context.movedFromYesterday) {
-    return {
-      ok: false,
-      reason: 'no_permitida',
-      message: 'Este entrenamiento ya venía movido de ayer: no lo aplazo otra vez.',
-    }
-  }
   if (action.tomorrow !== addDays(context.dayKey, 1)) {
     return { ok: false, reason: 'otro_dia', message: 'Esa propuesta era para otro día. Vuelve a pedírmelo.' }
-  }
-  const demanding = context.activities.find(
-    (activity) => activity.intensity === 'alta' && activityOccursOn(activity, action.tomorrow),
-  )
-  if (demanding) {
-    return {
-      ok: false,
-      reason: 'no_permitida',
-      message: `Mañana tienes ${demanding.name.toLowerCase()}: no muevo el entrenamiento encima.`,
-    }
   }
   const target = findProposal(decision, action.target)
   if (!target) {

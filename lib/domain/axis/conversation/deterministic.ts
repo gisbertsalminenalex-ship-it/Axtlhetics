@@ -266,8 +266,17 @@ function answerWhy(briefing: AxisBriefing): AxisAnswer {
     return unknown('why', 'Todavía no he hecho ninguna recomendación que explicar.')
   }
 
-  const reasons = proposal.factors.map((factor) => factor.detail)
-  return say('why', [proposal.headline, ...(reasons.length > 0 ? reasons : [proposal.reason])])
+  const reasons = proposal.factors.map((factor) => factor.detail).filter((detail) => detail.length > 0)
+  if (reasons.length === 0) return say('why', [proposal.headline, proposal.reason])
+
+  /*
+   * Los factores dicen qué pesó; el cierre de la razón dice qué se busca con
+   * eso («mejor estimular sin sobrecargar»). Con los dos, y lo que dura, la
+   * explicación ya es la de un entrenador y no solo un dato (D-030).
+   */
+  const closing = reasons.reduce((rest, detail) => rest.replace(detail, ''), proposal.reason).trim()
+  const minutes = proposal.session ? `Serían unos ${proposal.session.estimatedMinutes} min.` : ''
+  return say('why', [proposal.headline, ...reasons, closing, minutes])
 }
 
 /**

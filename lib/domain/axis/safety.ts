@@ -238,6 +238,30 @@ export function findInventedNumber(text: string, domainText: string, briefing: u
  */
 export const DATA_ANSWER_INTENTS: readonly AxisIntent[] = ['recovery', 'week', 'load', 'last_session']
 
+/**
+ * Cuánto puede ocupar una respuesta (D-030): corta para los datos, larga para
+ * las explicaciones y los cambios de entrenamiento, donde un entrenador
+ * desarrolla el porqué. El resto, corta.
+ */
+export const LONG_ANSWER_INTENTS: readonly AxisIntent[] = [
+  'why',
+  'why_not',
+  'factors',
+  'change',
+  'tired',
+  'can_train',
+  'sport_impact',
+  'goals',
+  'exercise',
+]
+
+export function lengthLimitsFor(
+  intent: AxisIntent,
+  personality: AxisPersonality = AXIS_PERSONALITY,
+): { targetSentences: string; maxSentences: number; maxCharacters: number } {
+  return LONG_ANSWER_INTENTS.includes(intent) ? personality.longLimits : personality.limits
+}
+
 /** Escalas que el dominio escribe y el modelo puede decir de otra forma («sobre 100» → «/100»). */
 const DOMAIN_SCALES: readonly RegExp[] = [...SCALE_REFERENCES, /\bsobre\s+100\b/gi]
 
@@ -378,7 +402,10 @@ const CLAIM_FAMILIES: readonly ClaimFamily[] = [
   },
   {
     label: 'molestias',
-    markers: ['te duele', 'te dolia', 'dolor', 'molestia', 'te lastimaste', 'te hiciste dano', 'sobrecarga', 'agujetas'],
+    markers: ['te duele', 'te dolia', 'dolor', 'molestia', 'te lastimaste', 'te hiciste dano', 'agujetas'],
+    // La sobrecarga solo es una afirmación si se le atribuye al usuario: «sin
+    // generar sobrecarga» es un principio de entrenamiento, no una molestia.
+    patterns: [/\b(tienes|tengas|notas|arrastras|llevas)( una)? sobrecarga/, /\bsobrecarga (en|de) (el|la|los|las|tu|tus)\b/],
   },
   {
     label: 'preferencias',
@@ -540,11 +567,12 @@ export function checkModelText(
   }
 
   const sentences = countSentences(trimmed)
-  if (sentences > personality.limits.maxSentences || trimmed.length > personality.limits.maxCharacters) {
+  const length = lengthLimitsFor(domain.intent, personality)
+  if (sentences > length.maxSentences || trimmed.length > length.maxCharacters) {
     return {
       ok: false,
       reason: 'too_long',
-      detail: `${sentences} frases y ${trimmed.length} caracteres; el máximo es ${personality.limits.maxSentences} frases y ${personality.limits.maxCharacters} caracteres.`,
+      detail: `${sentences} frases y ${trimmed.length} caracteres; el máximo es ${length.maxSentences} frases y ${length.maxCharacters} caracteres.`,
     }
   }
 

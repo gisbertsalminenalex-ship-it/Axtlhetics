@@ -58,12 +58,22 @@ test('los decimales no cuentan como fin de frase', () => {
   assert.equal(countSentences(''), 0)
 })
 
-test('el máximo de frases sale de la personalidad', () => {
-  const max = AXIS_PERSONALITY.limits.maxSentences
-  const exact = Array.from({ length: max }, (_, i) => `Frase ${String.fromCharCode(65 + i)}.`).join(' ')
-  const over = `${exact} Una más.`
-  assert.equal(reasonOf(exact), null)
-  assert.equal(reasonOf(over), 'too_long')
+/** Una pregunta de datos: respuesta corta (D-030). */
+const DATA: DomainAnswerForSafety = { text: 'Tu carga está en 84.', intent: 'load', verdict: null, proposedTarget: null }
+
+function sentences(count: number): string {
+  return Array.from({ length: count }, (_, i) => `Frase ${String.fromCharCode(65 + i)}.`).join(' ')
+}
+
+test('el máximo de frases sale de la personalidad: corto para los datos, largo para explicar (D-030)', () => {
+  const short = AXIS_PERSONALITY.limits.maxSentences
+  assert.equal(reasonOf(`Tu carga está en 84. ${sentences(short - 1)}`, DATA), null)
+  assert.equal(reasonOf(`Tu carga está en 84. ${sentences(short)}`, DATA), 'too_long')
+
+  const long = AXIS_PERSONALITY.longLimits.maxSentences
+  assert.ok(long > short, 'una explicación admite más que un dato')
+  assert.equal(reasonOf(sentences(long)), null)
+  assert.equal(reasonOf(`${sentences(long)} Una más.`), 'too_long')
 })
 
 // ---------------------------------------------------------------------------
@@ -76,7 +86,8 @@ test('texto vacío', () => {
 })
 
 test('longitud desmesurada en caracteres aunque sean pocas frases', () => {
-  assert.equal(reasonOf('a'.repeat(AXIS_PERSONALITY.limits.maxCharacters + 1)), 'too_long')
+  assert.equal(reasonOf('a'.repeat(AXIS_PERSONALITY.longLimits.maxCharacters + 1)), 'too_long')
+  assert.equal(reasonOf(`Tu carga está en 84. ${'a'.repeat(AXIS_PERSONALITY.limits.maxCharacters)}`, DATA), 'too_long')
 })
 
 test('emojis y exclamaciones', () => {

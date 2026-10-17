@@ -194,15 +194,15 @@ test('desde frío se lee exactamente igual que con el modo cambio activo', () =>
   }
 })
 
-test('«no quiero hacer piernas» desde frío se negocia y, sin motivo, se rechaza', () => {
+test('«no quiero hacer piernas» desde frío se negocia y, sin motivo, se concede con reparo (D-030)', () => {
   const { briefing, day } = setup()
   const answer = answerFromBriefing('no quiero hacer piernas', briefing, COLD)
 
   assert.equal(answer.intent, 'change')
-  assert.equal(answer.verdict, 'decline')
+  assert.equal(answer.verdict, 'accept')
   assert.deepEqual(answer.changeRequest, { kind: 'avoid_focus', focus: 'tren_inferior' })
-  assert.equal(answer.proposedTarget ?? null, null)
-  assert.equal(proposeAction(day, answer), null, 'un rechazo no lleva botón')
+  assert.match(answer.text, /no es lo que yo har[ií]a/i)
+  assert.equal(proposeAction(day, answer)?.type, 'change_training', 'lleva su botón de confirmar')
 })
 
 // ---------------------------------------------------------------------------

@@ -18,10 +18,11 @@ export const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 export const GROQ_DEFAULT_MODEL = 'openai/gpt-oss-120b'
 
 /**
- * Tokens de salida como máximo. AXIS responde en tres frases; el margen es
- * para el JSON que las envuelve y el razonamiento breve de los `gpt-oss`.
+ * Tokens de salida como máximo. Una respuesta larga son hasta siete frases
+ * (D-030); el margen es para el JSON que las envuelve y el razonamiento breve
+ * de los `gpt-oss`.
  */
-export const GROQ_MAX_COMPLETION_TOKENS = 600
+export const GROQ_MAX_COMPLETION_TOKENS = 1000
 
 export const GROQ_TEMPERATURE = 0.4
 

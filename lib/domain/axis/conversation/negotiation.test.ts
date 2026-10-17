@@ -323,25 +323,28 @@ test('con la recuperación baja, querer entrenar sigue encontrando un límite', 
   assert.match(verdict.text, /recuperaci[oó]n/i)
 })
 
-test('si ya has entrenado hoy, las ganas no cambian el criterio', () => {
+test('si ya has entrenado hoy, AXIS avisa pero deja entrenar otra vez, suave (D-030)', () => {
   const briefing = briefingWith({}, [session({ dayKey: MONDAY_KEY })])
   const verdict = evaluateChange(parseChangeRequest('me apetece entrenar otra vez'), briefing)
 
-  assert.equal(verdict.outcome, 'decline')
+  assert.equal(verdict.outcome, 'accept')
   assert.match(verdict.text, /ya has entrenado/i)
+  assert.match(verdict.text, /lo decides t[uú]/i)
 })
 
 // ---------------------------------------------------------------------------
-// AXIS no cede por insistencia
+// AXIS cede salvo riesgo (D-030), y no cede por insistencia donde hay riesgo
 // ---------------------------------------------------------------------------
 
-test('evitar una zona sin ningún motivo se rechaza, con el porqué', () => {
+test('evitar una zona sin ningún motivo se acepta, diciendo que no lo haría (D-030)', () => {
   const briefing = briefingWith({}, [session()])
   const verdict = evaluateChange(parseChangeRequest('hoy no quiero hacer piernas'), briefing)
 
-  assert.equal(verdict.outcome, 'decline')
-  assert.equal(verdict.proposedTarget, null, 'una negativa no propone nada')
-  assert.match(verdict.text, /no lo quitar[ií]a/i)
+  assert.equal(verdict.outcome, 'accept')
+  assert.ok(verdict.proposedTarget, 'lo deja listo con el botón de confirmar')
+  assert.notEqual(verdict.proposedTarget!.focus, 'tren_inferior')
+  assert.match(verdict.text, /no es lo que yo har[ií]a/i)
+  assert.match(verdict.text, /lo decides t[uú]/i)
   assert.doesNotMatch(verdict.text, SYCOPHANCY)
 })
 
@@ -356,27 +359,30 @@ test('con la recuperación baja, pedir más caña se rechaza', () => {
   assert.equal(verdict.proposedTarget, null)
 })
 
-test('sin recuperación registrada no sube la carga a ciegas', () => {
+test('sin recuperación registrada sube la carga, avisando de que va a ciegas (D-030)', () => {
   const briefing = briefingWith({ recoveryInputs: null })
   const verdict = evaluateChange(parseChangeRequest('quiero algo más intenso'), briefing)
 
-  assert.equal(verdict.outcome, 'need_info')
-  assert.match(verdict.text, /registra tu recuperaci[oó]n|a ciegas/i)
+  assert.equal(verdict.outcome, 'accept')
+  assert.match(verdict.text, /no tengo tu recuperaci[oó]n/i)
+  assert.match(verdict.text, /reg[ií]stra/i)
 })
 
-test('llevando días sin entrenar y sin motivo, no acepta el descanso', () => {
+test('llevando días sin entrenar y sin motivo, acepta el descanso diciendo lo que opina (D-030)', () => {
   // Última sesión hace ocho días: nada en los datos pide parar hoy.
   const briefing = briefingWith({}, [session({ dayKey: '2026-08-30' })])
   const verdict = evaluateChange(parseChangeRequest('hoy no quiero entrenar'), briefing)
 
-  assert.equal(verdict.outcome, 'decline')
+  assert.equal(verdict.outcome, 'accept')
+  assert.equal(verdict.proposedTarget?.type, 'RECOVERY')
   assert.match(verdict.text, /d[ií]as sin entrenar/i)
+  assert.match(verdict.text, /no es lo que te recomendar[ií]a/i)
 })
 
 test('insistir sin aportar nada nuevo no cambia el veredicto', () => {
-  const briefing = briefingWith({}, [session()])
-  const primero = evaluateChange(parseChangeRequest('hoy no quiero hacer piernas'), briefing)
-  const segundo = evaluateChange(parseChangeRequest('venga, de verdad, piernas no'), briefing)
+  const briefing = briefingWith({ recoveryInputs: LOW_RECOVERY }, [session()])
+  const primero = evaluateChange(parseChangeRequest('ponme algo más duro'), briefing)
+  const segundo = evaluateChange(parseChangeRequest('venga, de verdad, más duro'), briefing)
 
   assert.equal(primero.outcome, 'decline')
   assert.equal(segundo.outcome, 'decline')
@@ -384,13 +390,13 @@ test('insistir sin aportar nada nuevo no cambia el veredicto', () => {
 })
 
 test('insistir sin argumentos mantiene el criterio y no repite el párrafo entero', () => {
-  const briefing = briefingWith({}, [session()])
+  const briefing = briefingWith({ recoveryInputs: LOW_RECOVERY }, [session()])
 
-  const primera = answerFromBriefing('hoy no quiero hacer piernas', briefing, {
+  const primera = answerFromBriefing('ponme algo más duro', briefing, {
     lastIntent: 'change',
     changeMode: true,
   })
-  assert.match(primera.text, /no lo quitar[ií]a/i)
+  assert.match(primera.text, /^no\b/i)
   assert.ok(primera.changeRequest, 'la petición debe quedar registrada para el siguiente turno')
 
   const insistiendo = answerFromBriefing('venga porfa, de verdad', briefing, {
@@ -401,19 +407,15 @@ test('insistir sin argumentos mantiene el criterio y no repite el párrafo enter
 
   assert.match(insistiendo.text, /sigo pensando lo mismo/i)
   assert.equal(insistiendo.proposedTarget, null, 'insistir no propone nada')
-  assert.notEqual(insistiendo.text, primera.text, 'no repite la misma parrafada')
-  assert.ok(
-    insistiendo.text.length < primera.text.length,
-    'la respuesta a la insistencia es más corta, no más larga',
-  )
+  assert.ok(!insistiendo.text.includes(primera.text), 'no repite la misma parrafada')
 })
 
-test('aportar el dato que faltaba reabre la petición y cambia el veredicto', () => {
+test('aportar el dato que faltaba reabre la petición y cambia la respuesta', () => {
   const briefing = briefingWith({}, [session()])
   const memoria = { lastIntent: 'change' as const, changeMode: true }
 
   const negativa = answerFromBriefing('hoy no quiero hacer piernas', briefing, memoria)
-  assert.match(negativa.text, /no lo quitar[ií]a/i, 'sin motivo, se niega')
+  assert.match(negativa.text, /no es lo que yo har[ií]a/i, 'sin motivo, cede pero dice que no lo haría')
 
   // El usuario cuenta lo que faltaba. No repite la petición: da la evidencia.
   const conEvidencia = answerFromBriefing('es que ayer estuve corriendo 12 km', briefing, {
@@ -427,6 +429,7 @@ test('aportar el dato que faltaba reabre la petición y cambia el veredicto', ()
     'no puede volver a preguntar lo que ya sabe',
   )
   assert.match(conEvidencia.text, /me f[ií]o de lo que me cuentas/i)
+  assert.doesNotMatch(conEvidencia.text, /no es lo que yo har[ií]a/i, 'con la evidencia, ya no hay reparo')
   assert.ok(conEvidencia.proposedTarget, 'con la evidencia, AXIS propone el cambio')
 })
 
@@ -580,7 +583,7 @@ test('en modo cambio, un mensaje suelto se lee como petición de cambio', () => 
   const answer = negotiate('hoy no quiero hacer piernas', briefing)
 
   assert.equal(answer.intent, 'change')
-  assert.match(answer.text, /no lo quitar[ií]a/i)
+  assert.match(answer.text, /no es lo que yo har[ií]a/i)
 })
 
 test('en modo cambio, una molestia física sigue yendo al aviso médico', () => {
@@ -741,23 +744,32 @@ test('con la carga conocida y compatible, aceptar más caña puede citarla', () 
   assert.match(verdict.text, /la carga acumulada lo permite/i)
 })
 
-test('más tiempo con la carga acumulada alta se rechaza', () => {
+test('más tiempo con la carga acumulada alta se concede, avisando (D-030)', () => {
   const briefing = withLongerAlternative(withLoad(briefingWith(), 'alta'))
   const verdict = evaluateChange(parseChangeRequest('quiero más tiempo'), briefing)
 
-  assert.equal(verdict.outcome, 'decline')
-  assert.match(verdict.text, /carga acumulada/i)
-  assert.equal(verdict.proposedTarget, null)
+  assert.equal(verdict.outcome, 'accept')
+  assert.match(verdict.text, /carga acumulada ya est[aá] alta/i)
+  assert.match(verdict.text, /lo decides t[uú]/i)
+  assert.ok(verdict.proposedTarget)
   assert.doesNotMatch(verdict.text, SYCOPHANCY)
 })
 
-test('sin recuperación registrada no alarga la sesión a ciegas', () => {
-  const briefing = briefingWith({ recoveryInputs: null })
+test('más tiempo con la recuperación baja sigue siendo que no', () => {
+  const briefing = withLongerAlternative(briefingWith({ recoveryInputs: LOW_RECOVERY }))
+  const verdict = evaluateChange(parseChangeRequest('quiero más tiempo'), briefing)
+
+  assert.equal(verdict.outcome, 'decline')
+  assert.equal(verdict.proposedTarget, null)
+})
+
+test('sin recuperación registrada alarga la sesión si la hay, avisando (D-030)', () => {
+  const briefing = withLongerAlternative(briefingWith({ recoveryInputs: null }))
   const verdict = evaluateChange(parseChangeRequest('añade 10 minutos'), briefing)
 
-  assert.equal(verdict.outcome, 'need_info')
-  assert.match(verdict.text, /registra tu recuperaci[oó]n/i)
-  assert.equal(verdict.proposedTarget, null)
+  assert.equal(verdict.outcome, 'accept')
+  assert.match(verdict.text, /no tengo tu recuperaci[oó]n/i)
+  assert.ok(verdict.proposedTarget)
 })
 
 test('con recuperación suficiente y una alternativa más larga preparada, la propone', () => {

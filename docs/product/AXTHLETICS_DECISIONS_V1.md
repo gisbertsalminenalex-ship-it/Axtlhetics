@@ -1358,6 +1358,43 @@ El nombre, el color primario y la palabra «AXIS» junto a la marca. Se retiran 
 
 ---
 
+## D-030 — AXIS cede salvo riesgo, y responde más largo cuando explica
+
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Decidido por Alex: «que si le dices "hoy he corrido, ¿podemos cambiar el entreno a mañana?", lo cambie y no te diga que no; y no solo ahí, también al cambiar el entreno».
+
+### Cede salvo riesgo
+
+Sustituye la regla de la negociación «AXIS cede por evidencia, no por insistencia». Ahora **el usuario decide**: cuando pide un cambio, AXIS lo deja listo con su botón de confirmar (D-012, sin cambio). Si sus datos no lo aconsejan, lo dice antes, con el motivo y en una frase —«No es lo que yo haría: …. Pero lo decides tú.»—, sin sermón.
+
+**El único «no» que queda es el riesgo:** con la recuperación por debajo de 50 (banda roja, D-002) AXIS no sube la carga —más intensa, más tiempo, entrenar en un día de recuperación o entrenar otra vez hoy—. Lo dice, explica por qué y ofrece movilidad, que no carga. Ahí sí se mantiene el criterio aunque el usuario insista. Lo médico sigue llevando a la respuesta segura.
+
+Lo que cambia, petición por petición:
+
+- **Quitar una zona** sin motivo en los datos: se cambia a otra zona, avisando.
+- **Pedir una zona** ya trabajada estos días: se cambia, avisando y con un consejo para bajar un punto.
+- **Más intensa o más tiempo** con la carga acumulada alta o sin la recuperación registrada: se concede, avisando.
+- **No entrenar hoy** aunque los datos no lo pidan: se descansa, diciendo lo que AXIS opina.
+- **Entrenar otra vez** habiendo entrenado ya: se ofrece algo suave, avisando.
+- **Mover a mañana** aunque ya viniera movido de ayer o mañana haya un partido intenso: se mueve, avisando. Si hoy ya era día de recuperación o ya se entrenó, no hay nada que mover y se dice sin un «no». La validación (D-012) deja de bloquear el segundo aplazamiento y el partido de mañana.
+- **Cansancio sin la fatiga registrada:** se suaviza la sesión y se pide registrarla para que cuente; AXIS sigue sin anotarla él.
+
+### Más alternativas
+
+AXIS solo puede ceder con una sesión que exista. El motor prepara ahora una alternativa para cada petición: **más ligera, más intensa, cada zona (tren superior, tren inferior, cuerpo completo), movilidad y recuperación**; y en un día de recuperación, sesiones cortas de cada zona y movilidad. No se ven en pantalla: se eligen desde la conversación.
+
+### Respuestas según la pregunta
+
+- **Datos** (recuperación, semana, carga, último entrenamiento): cortas, como hasta ahora, 1–3 frases y como mucho 4.
+- **Explicaciones y cambios** (por qué, qué pasa si cambio, cansancio, deportes, objetivos, ejercicios): **4–6 frases, como mucho 7**. El modelo empieza por el veredicto, explica el porqué con los datos del briefing, dice qué cambia y termina con un consejo práctico. Las puertas de siempre siguen: ni cifras inventadas ni afirmaciones sin respaldo.
+- La respuesta de reserva a «¿por qué?» incluye ahora el motivo de cierre del motor y la duración de la sesión.
+- Los topes de salida de los proveedores suben para que quepa una respuesta larga (Cloudflare 700 tokens, Groq 1000).
+
+### Fuera de D-030
+
+Que el motor deje de proponer lo que propone: la recomendación del día sigue siendo la del motor. Lo que cambia es cuánto pesa la opinión del usuario cuando pide otra cosa.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

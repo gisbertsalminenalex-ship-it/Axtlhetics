@@ -62,7 +62,8 @@ test('Cloudflare pide Gemma sin razonamiento, con temperatura baja, salida acota
   assert.equal(sent.temperature, CLOUDFLARE_TEMPERATURE)
   assert.equal(CLOUDFLARE_TEMPERATURE, 0.3)
   assert.equal(sent.max_completion_tokens, CLOUDFLARE_MAX_COMPLETION_TOKENS)
-  assert.ok(CLOUDFLARE_MAX_COMPLETION_TOKENS >= 300 && CLOUDFLARE_MAX_COMPLETION_TOKENS <= 400)
+  // Siete frases de respuesta larga (D-030) caben; un techo, para acotar el consumo.
+  assert.ok(CLOUDFLARE_MAX_COMPLETION_TOKENS >= 600 && CLOUDFLARE_MAX_COMPLETION_TOKENS <= 800)
   assert.deepEqual(sent.chat_template_kwargs, { enable_thinking: false })
   assert.deepEqual(sent.response_format, { type: 'json_object' })
   assert.deepEqual(sent.messages, [

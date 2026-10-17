@@ -214,13 +214,15 @@ test('«hoy no puedo entrenar» se acepta y propone recuperación para hoy', () 
   assert.equal(answer.proposedEffect ?? null, null, 'solo cambia la elección de hoy')
 })
 
-test('no poder no es no querer: «no quiero entrenar» sigue con los frenos del descanso', () => {
+test('no poder no es no querer: «no quiero entrenar» se concede, pero AXIS dice lo que opina', () => {
   const { briefing } = setup({ sessions: [session('2026-09-01')] })
   const cannot = answerFromBriefing('Hoy no puedo entrenar', briefing)
   const wont = answerFromBriefing('No quiero entrenar', briefing, CHANGE_MODE)
   assert.equal(cannot.changeRequest?.kind, 'cannot_today')
   assert.equal(wont.changeRequest?.kind, 'rest')
-  assert.equal(wont.verdict, 'decline', 'seis días sin entrenar y sin motivo: no')
+  assert.equal(wont.verdict, 'accept', 'decide el usuario (D-030)')
+  assert.match(wont.text, /d[ií]as sin entrenar/i, 'seis días sin entrenar: lo dice')
+  assert.doesNotMatch(cannot.text, /d[ií]as sin entrenar/i, 'no poder no se discute')
 })
 
 test('ya entrenado hoy, no hay nada que reorganizar', () => {
@@ -259,31 +261,38 @@ test('«muévela a mañana», como lo ofrece AXIS, también mueve: dentro y fuer
   }
 })
 
-test('no se aplaza dos veces: lo movido desde ayer no se mueve otra vez', () => {
+test('lo movido desde ayer se puede volver a mover, avisando (D-030)', () => {
   const { briefing, day } = setup({ movedFromYesterday: true })
   const answer = answerFromBriefing('muévelo a mañana', briefing)
-  assert.equal(answer.verdict, 'decline')
-  assert.equal(answer.proposedEffect ?? null, null)
+  assert.equal(answer.verdict, 'accept')
+  assert.deepEqual(answer.proposedEffect, { kind: 'move_to_tomorrow' })
+  assert.match(answer.text, /ya ven[ií]a movido de ayer/i)
 
-  // Aunque llegara una acción por otro camino, la validación la para.
-  const fresh = setup()
-  const action = proposeAction(fresh.day, answerFromBriefing('muévelo a mañana', fresh.briefing))!
-  const check = checkAction(action, day, emptyDayMemory(TODAY, NOW))
-  assert.equal(check.ok, false)
-  if (!check.ok) assert.equal(check.reason, 'no_permitida')
+  const action = proposeAction(day, answer)!
+  assert.ok(checkAction(action, day, emptyDayMemory(TODAY, NOW)).ok, 'y la validación lo deja ejecutar')
 })
 
-test('no se mueve encima de un deporte exigente mañana', () => {
+test('se mueve aunque mañana haya un deporte exigente, avisando (D-030)', () => {
   const match = activity({ name: 'Partido', date: TOMORROW, weekday: 2 })
-  const { briefing } = setup({ activities: [match] })
+  const { briefing, day } = setup({ activities: [match] })
   const answer = answerFromBriefing('déjalo para mañana', briefing)
-  assert.equal(answer.verdict, 'decline')
+  assert.equal(answer.verdict, 'accept')
   assert.match(answer.text, /mañana tienes partido/i)
+  assert.ok(checkAction(proposeAction(day, answer)!, day, emptyDayMemory(TODAY, NOW)).ok)
 })
 
-test('ya entrenado hoy, no hay nada que mover', () => {
+test('«he corrido mucho hoy, cambia el entreno a mañana» lo mueve (D-030)', () => {
+  const { briefing, day } = setup()
+  const answer = answerFromBriefing('hoy he echo mucho ejericio ya que he corrido, podemos cambiar el entreno a mañana', briefing)
+  assert.equal(answer.verdict, 'accept')
+  assert.equal(proposeAction(day, answer)?.type, 'move_to_tomorrow')
+})
+
+test('ya entrenado hoy, no hay nada que mover, y se dice sin un «no»', () => {
   const { briefing } = setup({ sessions: [session(TODAY)] })
-  assert.equal(answerFromBriefing('muévelo a mañana', briefing).verdict, 'decline')
+  const answer = answerFromBriefing('muévelo a mañana', briefing)
+  assert.equal(answer.proposedEffect ?? null, null)
+  assert.match(answer.text, /ya has entrenado/i)
 })
 
 // ---------------------------------------------------------------------------
@@ -355,7 +364,7 @@ test('la validación de los minutos: mínimo de sesión y sin repetir', () => {
 // 5. Fatiga contada en la conversación
 // ---------------------------------------------------------------------------
 
-test('fatiga sin registrar: AXIS pide registrarla y no la anota', () => {
+test('fatiga sin registrar: fuera del cambio pide registrarla; dentro, suaviza y lo recuerda (D-030)', () => {
   const { briefing } = setup({ recovery: recovery({ muscleFatigue: null as never }) })
   assert.equal(briefing.fatigueLevel, null)
 
@@ -364,9 +373,9 @@ test('fatiga sin registrar: AXIS pide registrarla y no la anota', () => {
   assert.equal(outside.proposedTarget ?? null, null)
 
   const inside = answerFromBriefing('estoy reventado', briefing, CHANGE_MODE)
-  assert.equal(inside.verdict, 'need_info')
-  assert.equal(inside.text, FATIGUE_NOT_REGISTERED)
-  assert.equal(inside.proposedTarget ?? null, null)
+  assert.notEqual(inside.verdict, 'need_info', 'pedir algo más suave estando cansado se concede')
+  assert.notEqual(inside.verdict, 'decline')
+  assert.match(inside.text, /no tengo tu fatiga registrada/i, 'y no la anota: pide registrarla')
 })
 
 test('fatiga registrada: negociando, se juzga como pedir algo más suave', () => {

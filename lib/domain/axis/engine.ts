@@ -117,6 +117,11 @@ function planSession(
  *
  * Todas las genera AXIS. No hay edición manual de ejercicios: el usuario elige
  * entre propuestas, no construye una rutina.
+ *
+ * Desde D-030 cubren cada cosa que se puede pedir —más suave, más intensa, cada
+ * zona, movilidad, recuperar—, porque AXIS cede salvo riesgo y solo puede ceder
+ * con una sesión que exista. Cada una es un tipo y un foco distintos: es lo que
+ * las identifica (`findProposal`).
  */
 function buildAlternatives(
   context: AxisContext,
@@ -132,19 +137,27 @@ function buildAlternatives(
         buildProposal(context, facts, 'LIGHT_TRAINING', lighterFactors(), 'Más ligera', 'alternative_lighter'),
       )
     }
+    if (primaryType !== 'TRAINING') {
+      alternatives.push(
+        buildProposal(context, facts, 'TRAINING', harderFactors(), 'Más intensa', 'alternative_harder'),
+      )
+    }
 
-    const otherFocus = alternateFocus(primaryFocus)
-    alternatives.push(
-      buildProposal(
-        context,
-        facts,
-        primaryType === 'LIGHT_TRAINING' ? 'LIGHT_TRAINING' : 'MODIFIED_TRAINING',
-        otherFocusFactors(otherFocus),
-        SESSION_FOCUS_LABELS[otherFocus],
-        'alternative_other_focus',
-        { focus: otherFocus },
-      ),
-    )
+    for (const otherFocus of otherFocuses(primaryFocus)) {
+      alternatives.push(
+        buildProposal(
+          context,
+          facts,
+          primaryType === 'LIGHT_TRAINING' ? 'LIGHT_TRAINING' : 'MODIFIED_TRAINING',
+          otherFocusFactors(otherFocus),
+          SESSION_FOCUS_LABELS[otherFocus],
+          'alternative_other_focus',
+          { focus: otherFocus },
+        ),
+      )
+    }
+
+    if (primaryFocus !== 'core_movilidad') alternatives.push(mobility(context, facts))
 
     alternatives.push(
       buildProposal(context, facts, 'RECOVERY', recoveryChoiceFactors(), 'Recuperación', 'alternative_recovery'),
@@ -161,26 +174,43 @@ function buildAlternatives(
         { minutes: SHORT_SESSION_MINUTES },
       ),
     )
-    alternatives.push(
-      buildProposal(
-        context,
-        facts,
-        'LIGHT_TRAINING',
-        mobilityFactors(),
-        'Movilidad',
-        'alternative_mobility',
-        { focus: 'core_movilidad', minutes: SHORT_SESSION_MINUTES },
-      ),
-    )
+    // Sesiones cortas de las otras zonas, para quien quiere moverse con una zona en mente.
+    for (const otherFocus of otherFocuses(primaryFocus)) {
+      alternatives.push(
+        buildProposal(
+          context,
+          facts,
+          'LIGHT_TRAINING',
+          otherFocusFactors(otherFocus),
+          SESSION_FOCUS_LABELS[otherFocus],
+          'alternative_other_focus',
+          { focus: otherFocus, minutes: SHORT_SESSION_MINUTES },
+        ),
+      )
+    }
+    if (primaryFocus !== 'core_movilidad') alternatives.push(mobility(context, facts))
   }
 
   return alternatives
 }
 
-function alternateFocus(focus: SessionFocus): SessionFocus {
-  if (focus === 'tren_superior') return 'tren_inferior'
-  if (focus === 'tren_inferior') return 'tren_superior'
-  return 'tren_superior'
+function mobility(context: AxisContext, facts: AxisFacts): AxisProposal {
+  return buildProposal(
+    context,
+    facts,
+    'LIGHT_TRAINING',
+    mobilityFactors(),
+    'Movilidad',
+    'alternative_mobility',
+    { focus: 'core_movilidad', minutes: SHORT_SESSION_MINUTES },
+  )
+}
+
+/** Las zonas de fuerza que no son la de hoy. Movilidad va aparte. */
+const STRENGTH_FOCUSES: readonly SessionFocus[] = ['tren_superior', 'tren_inferior', 'cuerpo_completo']
+
+function otherFocuses(focus: SessionFocus): SessionFocus[] {
+  return STRENGTH_FOCUSES.filter((other) => other !== focus)
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +223,17 @@ function lighterFactors(): AxisFactor[] {
       key: 'session_duration',
       label: 'Versión más suave',
       detail: 'Menos series y menos duración que la sesión recomendada.',
+      direction: 'neutral',
+    },
+  ]
+}
+
+function harderFactors(): AxisFactor[] {
+  return [
+    {
+      key: 'session_duration',
+      label: 'Versión más intensa',
+      detail: 'La sesión a intensidad normal, en lugar de la versión adaptada de hoy.',
       direction: 'neutral',
     },
   ]

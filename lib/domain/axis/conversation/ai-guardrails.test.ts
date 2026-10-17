@@ -86,10 +86,13 @@ function session(partial: Partial<WorkoutSession> = {}): WorkoutSession {
   }
 }
 
-function setup() {
+/** Recuperación por debajo de 50: el único caso en que AXIS sigue diciendo que no (D-030). */
+const LOW = recovery({ sleepHours: 4, energy: 1, muscleFatigue: 5, stress: 5 })
+
+function setup(inputs: RecoveryInputs = recovery()) {
   const context = buildAxisContext({
     profile: profile(),
-    recoveryInputs: recovery(),
+    recoveryInputs: inputs,
     recentSessions: [session()],
     activities: [],
     now: MONDAY,
@@ -116,13 +119,14 @@ function fakeTransport(reply: (request: AxisAiTransportRequest) => { text: strin
 
 // Mensajes que, en modo cambio, producen un veredicto concreto y además pasan
 // por el modelo (la pregunta cruda se clasifica como «cambiar»).
-const DECLINE_MESSAGE = 'cambia la sesión, no quiero hacer piernas'
+// La negativa es la que queda desde D-030: más carga con la recuperación baja (`setup(LOW)`).
+const DECLINE_MESSAGE = 'cambia la sesión, quiero algo más duro'
 const ACCEPT_MESSAGE = 'cambia a algo más corto, voy justo de tiempo'
+const DECLINE_REWRITE = 'No. Hoy no subo la carga: tu recuperación está baja y solo sumaría fatiga.'
 
 test('el dominio produce los veredictos con los que se prueban las barreras', () => {
-  const { briefing } = setup()
-  const declined = answerFromBriefing(DECLINE_MESSAGE, briefing, CHANGE_MODE)
-  const accepted = answerFromBriefing(ACCEPT_MESSAGE, briefing, CHANGE_MODE)
+  const declined = answerFromBriefing(DECLINE_MESSAGE, setup(LOW).briefing, CHANGE_MODE)
+  const accepted = answerFromBriefing(ACCEPT_MESSAGE, setup().briefing, CHANGE_MODE)
 
   assert.equal(declined.verdict, 'decline')
   assert.equal(declined.proposedTarget, null)
@@ -135,10 +139,8 @@ test('el dominio produce los veredictos con los que se prueban las barreras', ()
 // ---------------------------------------------------------------------------
 
 test('el modelo puede redactar mejor una negativa sin tocar el veredicto', async () => {
-  const { briefing } = setup()
-  const { transport, requests } = fakeTransport(() => ({
-    text: 'Hoy no quitaría piernas: tu recuperación está en 84 y no hay nada que lo justifique.',
-  }))
+  const { briefing } = setup(LOW)
+  const { transport, requests } = fakeTransport(() => ({ text: DECLINE_REWRITE }))
   const conversation = createAxisConversation({ transport })
 
   const result = await conversation.ask(DECLINE_MESSAGE, briefing, CHANGE_MODE)
@@ -147,7 +149,7 @@ test('el modelo puede redactar mejor una negativa sin tocar el veredicto', async
   assert.match(result.engineId, /ai/)
   assert.equal(result.usedFallback, false)
   assert.equal(result.modelDisagreed, false)
-  assert.match(result.text, /^Hoy no quitaría piernas/)
+  assert.equal(result.text, DECLINE_REWRITE)
   // Lo estructurado sale intacto del dominio.
   assert.equal(result.verdict, 'decline')
   assert.equal(result.proposedTarget, null)
@@ -203,10 +205,10 @@ test('el modelo no puede cambiar la decisión: el destino que propone se descart
 // ---------------------------------------------------------------------------
 
 test('el modelo no puede convertir un decline en un accept con la redacción', async () => {
-  const { briefing } = setup()
+  const { briefing } = setup(LOW)
   const local = answerFromBriefing(DECLINE_MESSAGE, briefing, CHANGE_MODE)
   const { transport } = fakeTransport(() => ({
-    text: 'De acuerdo, hoy dejamos las piernas. Cambio a tren superior.',
+    text: 'De acuerdo, hoy subimos la carga. Cambio a la versión más intensa.',
   }))
   const conversation = createAxisConversation({ transport })
 
@@ -224,9 +226,9 @@ test('el modelo no puede convertir un decline en un accept con la redacción', a
 // ---------------------------------------------------------------------------
 
 test('el modelo no puede inventar una propuesta cuando el dominio no aprobó ninguna', async () => {
-  const { briefing, decision, context } = setup()
+  const { briefing, decision, context } = setup(LOW)
   const { transport } = fakeTransport(() => ({
-    text: 'Hoy no quitaría piernas.',
+    text: DECLINE_REWRITE,
     action: { type: 'change_training', target: { type: 'TRAINING', focus: 'tren_superior' } },
   }))
   const conversation = createAxisConversation({ transport })
@@ -268,7 +270,8 @@ test('un texto inválido del modelo no se enseña: responde el determinista', as
     { text: '¡Vamos! Tu recuperación está bien.', reason: 'exclamation' },
     { text: 'Parece una lesión leve, con antiinflamatorios se pasa.', reason: 'medical_language' },
     {
-      text: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco.',
+      // Una explicación admite 7 frases (D-030); 8 ya es demasiado.
+      text: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete. Frase ocho.',
       reason: 'too_long',
     },
   ]
@@ -483,7 +486,7 @@ test('el test de evolución no sale hacia el proveedor (D-021)', async () => {
     assert.doesNotMatch(JSON.stringify(sent), new RegExp(PAST_TEST_DAY))
   }
 
-  const { transport, requests } = fakeTransport(() => ({ text: 'Hoy no quitaría piernas.' }))
+  const { transport, requests } = fakeTransport(() => ({ text: DECLINE_REWRITE }))
   await createAxisConversation({ transport }).ask(DECLINE_MESSAGE, briefing, CHANGE_MODE)
 
   assert.equal(requests.length, 1)
@@ -522,8 +525,8 @@ test('el prompt del proveedor se genera desde la personalidad y añade solo el f
 })
 
 test('la petición al proveedor lleva el veredicto del dominio y el briefing sin nombre', async () => {
-  const { briefing } = setup()
-  const { transport, requests } = fakeTransport(() => ({ text: 'Hoy no quitaría piernas.' }))
+  const { briefing } = setup(LOW)
+  const { transport, requests } = fakeTransport(() => ({ text: DECLINE_REWRITE }))
   const conversation = createAxisConversation({ transport })
 
   await conversation.ask(DECLINE_MESSAGE, briefing, CHANGE_MODE)

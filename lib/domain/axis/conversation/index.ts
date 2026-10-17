@@ -170,7 +170,9 @@ export function createAxisConversation(
     }
 
     const noData = local.unknown === true && DATA_ANSWER_INTENTS.includes(local.intent)
-    const worthIt = benefitsFromAi(local.intent) && benefitsFromAi(intent) && !noData
+    // «Quiero algo más intenso» solo no dice nada; en una negociación es un cambio, y se redacta (D-030).
+    const negotiated = local.intent === 'change' && intent === 'unknown'
+    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated) && !noData
 
     if (!worthIt || !(await ai.isAvailable())) {
       return {

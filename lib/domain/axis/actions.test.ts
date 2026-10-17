@@ -153,10 +153,11 @@ test('la conversación produce un destino cuando AXIS acepta un cambio', () => {
 })
 
 test('cuando AXIS se niega no propone ninguna acción', () => {
-  const w = world()
+  // La negativa que queda (D-030): subir la carga con la recuperación baja.
+  const w = world({ recoveryInputs: recovery({ sleepHours: 4, energy: 1, muscleFatigue: 5, stress: 5 }) })
   const briefing = buildBriefing(w.context, w.decision, [session()], w.current)
 
-  const answer = answerFromBriefing('hoy no quiero hacer piernas', briefing, {
+  const answer = answerFromBriefing('ponme algo más duro', briefing, {
     lastIntent: 'change',
     changeMode: true,
   })
