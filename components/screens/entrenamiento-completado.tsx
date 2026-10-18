@@ -10,7 +10,7 @@ import { formatVolume } from '@/lib/domain/history/stats'
 import { formatDuration } from '@/lib/domain/shared/dates'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { formatKg, formatSets, personalRecords } from '@/lib/domain/workouts/history'
-import { EFFORT_LABELS, EFFORT_LEVELS, metTarget, volumeOfExercise } from '@/lib/domain/workouts/types'
+import { EFFORT_LABELS, EFFORT_LEVELS, isMainExercise, metTarget, volumeOfExercise } from '@/lib/domain/workouts/types'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -64,7 +64,7 @@ export function EntrenamientoCompletado() {
       {/* Summary */}
       <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-border bg-surface py-4 text-center">
         <SummaryStat index={0} value={formatDuration(lastCompleted.durationSeconds)} label="Tiempo total" />
-        <SummaryStat index={1} value={String(lastCompleted.exercises.length)} label="Ejercicios" divider />
+        <SummaryStat index={1} value={String(lastCompleted.exercises.filter(isMainExercise).length)} label="Ejercicios" divider />
         <SummaryStat index={2} value={formatVolume(lastCompleted.totalVolumeKg)} label="Volumen total" divider />
       </div>
 

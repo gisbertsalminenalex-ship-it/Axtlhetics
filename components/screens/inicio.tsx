@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import { ArrowRight, ChevronRight, Dumbbell, GlassWater, Heart, Moon, UserRound } from 'lucide-react'
 import { AxisMark } from '@/components/axis-mark'
+import { isMainExercise } from '@/lib/domain/workouts/types'
 import { CircularMetric } from '@/components/circular-metric'
 import {
   BAND_COLOR,
@@ -130,7 +131,8 @@ export function InicioScreen({
           {proposal.session && (
             <p className="mt-3 text-[12.5px] text-white/45 tabular-nums">
               {proposal.session.estimatedMinutes} min ·{' '}
-              {proposal.session.exercises.length} ejercicios
+              {/* Solo el entrenamiento: el calentamiento y la vuelta a la calma no cuentan (D-032). */}
+              {proposal.session.exercises.filter(isMainExercise).length} ejercicios
             </p>
           )}
 

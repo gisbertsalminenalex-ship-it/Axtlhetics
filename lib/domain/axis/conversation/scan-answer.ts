@@ -86,13 +86,18 @@ export function answerScan(briefing: AxisBriefing): AxisAnswer {
       options.push(todayFocus ? 'seguir con la sesión de hoy tal como está' : 'respetar el descanso de hoy y trabajarlo en tu próxima sesión')
     }
   }
-  for (const action of scan.actions.slice(0, 2)) options.push(`${action.charAt(0).toLowerCase()}${action.slice(1).replace(/\.$/, '')}`)
+  // Con plan, los pasos ya los hace el motor: no son opciones, y no se repiten (D-041).
+  if (!scan.plan) for (const action of scan.actions.slice(0, 2)) options.push(`${action.charAt(0).toLowerCase()}${action.slice(1).replace(/\.$/, '')}`)
 
   // Lo que el escaneo ya hace en tus sesiones, sin que tengas que pedirlo (D-041).
-  if (scan.plan.length) parts.push(`Con tu escaneo ya ajusto tus sesiones: ${scan.plan.join(' ')}`)
+  if (scan.plan) parts.push(`Con tu escaneo ya ajusto tus sesiones: ${scan.plan}. El detalle, en el resumen del escaneo.`)
 
   if (options.length) {
-    parts.push(`Tus opciones: ${options.map((o, i) => `${i + 1}) ${o}`).join('; ')}. Tú decides.`)
+    parts.push(
+      options.length === 1
+        ? `Para hoy: ${options[0]}.`
+        : `Tus opciones: ${options.map((o, i) => `${i + 1}) ${o}`).join('; ')}. Tú decides.`,
+    )
   } else {
     parts.push('No veo nada que cambiar: seguir entrenando con constancia es lo que más te hará avanzar.')
   }

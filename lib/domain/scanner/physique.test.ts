@@ -25,7 +25,7 @@ function input(measurements: PhysiqueInput['measurements'], partial: Partial<Phy
 test('D-041: una «V» por debajo de la referencia prioriza hombros y espalda, y lo dice con las cifras', () => {
   const plan = physiquePlan(input(shots({ front: { shoulderToWaist: 1.22 } })))
   assert.deepEqual(plan.priorityGroups, ['hombros', 'espalda'])
-  assert.match(plan.findings[0], /la «V» de hombros a cintura \(1\.22\) queda por debajo de un físico equilibrado \(1\.40\)/)
+  assert.match(plan.findings[0], /la «V» de hombros a cintura \(1,22\) queda por debajo de un físico equilibrado \(1,40\)/)
 
   // Con la referencia de mujer (1,25), la misma foto ya no queda por debajo.
   assert.deepEqual(physiquePlan(input(shots({ front: { shoulderToWaist: 1.3 } }), { sex: 'mujer' })).priorityGroups, [])
@@ -40,7 +40,9 @@ test('D-041: brazos frente a muslo: por debajo, brazos; por encima, piernas', ()
 test('D-041: lo que el usuario dijo también prioriza, y se dice que lo dijo él', () => {
   const plan = physiquePlan(input(shots({}), { weakZones: ['espalda'] }))
   assert.deepEqual(plan.priorityGroups, ['espalda'])
-  assert.match(plan.findings[0], /^Me dijiste que te ves con menos espalda/)
+  assert.match(plan.findings[0], /^Me dijiste que te ves con menos espalda: también le doy prioridad.$/)
+  const two = physiquePlan(input(shots({}), { weakZones: ['pecho', 'brazos'] }))
+  assert.match(two.findings[0], /^Me dijiste que te ves con menos pecho y brazos: también les doy prioridad.$/)
 })
 
 test('D-041: postura, movilidad y simetría claras piden correctivos y trabajo unilateral; el ruido no', () => {

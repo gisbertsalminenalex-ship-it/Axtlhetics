@@ -21,7 +21,8 @@
 
 import type { DayKey } from '../shared/dates'
 import { daysBetween } from '../shared/dates'
-import type { MuscleGroup } from '../workouts/types'
+import { listNames } from '../shared/text'
+import { MUSCLE_GROUP_LABELS, type MuscleGroup } from '../workouts/types'
 import { PHYSIQUE_REFERENCE, POSTURE_SCALES, SYMMETRY_SCALES, type Scale } from './scales'
 import { stableValue, type PoseShots, type ScanZone } from './summary'
 import type { ScanRecord } from './types'
@@ -88,7 +89,7 @@ export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
   if (v !== null && v < vTarget) {
     priority.add('hombros')
     priority.add('espalda')
-    findings.push(`En tus fotos, la «V» de hombros a cintura (${v.toFixed(2)}) queda por debajo de un físico equilibrado (${vTarget.toFixed(2)}): doy prioridad a hombros y espalda.`)
+    findings.push(`En tus fotos, la «V» de hombros a cintura (${decimal(v)}) queda por debajo de un físico equilibrado (${decimal(vTarget)}): doy prioridad a hombros y espalda.`)
   }
 
   const arm = value('front', 'upperArmMean')
@@ -109,7 +110,7 @@ export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
   const weak = scan.selfReport.weakZones
   if (weak.length > 0) {
     for (const zone of weak) for (const group of ZONE_GROUPS[zone]) priority.add(group)
-    findings.push(`Me dijiste que te ves con menos ${weak.join(', ')}: también les doy prioridad.`)
+    findings.push(`Me dijiste que te ves con menos ${listNames([...weak])}: también ${weak.length === 1 ? 'le' : 'les'} doy prioridad.`)
   }
 
   // --- Postura y movilidad -----------------------------------------------------
@@ -153,6 +154,24 @@ export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
     unilateral,
     findings,
   }
+}
+
+/** Dos decimales con coma, como el resto de la app: «1,22». */
+function decimal(value: number): string {
+  return value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/**
+ * El plan en una frase, sin cifras: lo que AXIS dice en el motivo del día y en
+ * la conversación. El detalle, con las cifras, está en el resumen del escaneo.
+ * `null` si el escaneo no pide nada.
+ */
+export function planSummary(plan: PhysiquePlan): string | null {
+  const parts: string[] = []
+  if (plan.priorityGroups.length > 0) parts.push(`priorizo ${listNames(plan.priorityGroups.map((group) => MUSCLE_GROUP_LABELS[group].toLowerCase()))}`)
+  if (plan.warmupExtras.length > 0) parts.push('añado movilidad al calentamiento')
+  if (plan.unilateral) parts.push('incluyo trabajo a una mano o una pierna')
+  return parts.length > 0 ? listNames(parts) : null
 }
 
 function minOf(a: number | null, b: number | null): number | null {

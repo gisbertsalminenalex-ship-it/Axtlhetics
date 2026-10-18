@@ -10,9 +10,7 @@ import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
-import type { PhysiquePlan } from '../scanner/physique'
-import { listNames } from '../shared/text'
-import { MUSCLE_GROUP_LABELS } from '../workouts/types'
+import { planSummary, type PhysiquePlan } from '../scanner/physique'
 import { isOpenTarget, targetProgress } from '../workouts/targets'
 import { frequentlySkipped } from '../workouts/history'
 import type { PlannedSession, SessionFocus } from '../workouts/types'
@@ -273,15 +271,12 @@ function lighterFactors(): AxisFactor[] {
 
 /** Cómo ajusta el escaneo la sesión (D-041), o `null` si no pide nada. */
 function physiqueFactor(plan: PhysiquePlan): AxisFactor | null {
-  const parts: string[] = []
-  if (plan.priorityGroups.length > 0) parts.push(`priorizo ${listNames(plan.priorityGroups.map((group) => MUSCLE_GROUP_LABELS[group].toLowerCase()))}`)
-  if (plan.warmupExtras.length > 0) parts.push('añado movilidad al calentamiento')
-  if (plan.unilateral) parts.push('incluyo trabajo a una mano o una pierna')
-  if (parts.length === 0) return null
+  const summary = planSummary(plan)
+  if (!summary) return null
   return {
     key: 'body_scan',
     label: 'Tu escaneo corporal',
-    detail: `Por tu escaneo, ${listNames(parts)}.`,
+    detail: `Por tu escaneo, ${summary}.`,
     direction: 'neutral',
   }
 }

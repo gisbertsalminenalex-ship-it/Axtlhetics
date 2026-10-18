@@ -484,7 +484,8 @@ function muscleDevelopment(input: ScanInput): Development {
       const zones = list(self.weakZones.map((z) => SCAN_ZONE_LABELS[z]))
       improvements.push(`Quieres más músculo en ${zones}`)
       actions.unshift({
-        text: `Dar prioridad a ${zones}: los días que tu sesión no lo trabaje, pregúntale a AXIS y te dirá qué opción lo hace.`,
+        // Desde D-041 la prioridad la pone el motor: más series a la semana en esas zonas.
+        text: `Dar prioridad a ${zones}: ya ${self.weakZones.length === 1 ? 'le' : 'les'} subo las series de la semana y ${self.weakZones.length === 1 ? 'la' : 'las'} elijo antes en tus sesiones.`,
         exerciseIds: Array.from(new Set(self.weakZones.flatMap((z) => ZONE_EXERCISES[z]))).slice(0, 4),
       })
     }

@@ -13,7 +13,7 @@ import { EXERCISE_CATALOG } from '@/lib/domain/workouts/catalog'
 import { weeklyVolume } from '@/lib/domain/workouts/weekly-volume'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
 import { formatDuration, formatRelativeDay } from '@/lib/domain/shared/dates'
-import { EXERCISE_PHASE_LABELS } from '@/lib/domain/workouts/types'
+import { EXERCISE_PHASE_LABELS, isMainExercise } from '@/lib/domain/workouts/types'
 import { useAxtlhetics } from '@/lib/state/store'
 
 export function EntrenamientoScreen({
@@ -74,7 +74,7 @@ export function EntrenamientoScreen({
                 </span>
                 <span className="flex items-center gap-1.5 tabular-nums">
                   <Dumbbell className="h-4 w-4" strokeWidth={1.75} />
-                  {session.exercises.length} ejercicios
+                  {session.exercises.filter(isMainExercise).length} ejercicios
                 </span>
               </div>
             )}

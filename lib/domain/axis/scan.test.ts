@@ -82,8 +82,8 @@ test('con escaneo: la conclusión del resumen, las opciones y «tú decides»', 
   const answer = answerFromBriefing('¿Qué dice mi escaneo?', briefing)
   assert.equal(answer.intent, 'scan')
   assert.match(answer.text, /^En tu escaneo del jueves 3 de septiembre: /)
-  assert.match(answer.text, /Tus opciones: 1\) /)
-  assert.match(answer.text, /Tú decides\.$/)
+  // Una sola opción se dice tal cual; varias, numeradas y con «Tú decides».
+  assert.match(answer.text, /(Para hoy: [^.]+\.$|Tus opciones: 1\) .*Tú decides\.$)/)
 })
 
 test('si hoy ya se trabaja la zona floja, la opción es seguir con la sesión de hoy y no se propone cambio', () => {
@@ -165,7 +165,7 @@ test('D-041: el motor usa el escaneo: no cambia si se entrena, sí cómo, y lo e
 test('D-041: AXIS cuenta lo que el escaneo ya cambia en las sesiones', () => {
   const { briefing } = setup([scan(['piernas'])])
   const answer = answerFromBriefing('¿qué tal mi escaneo?', briefing)
-  assert.match(answer.text, /Con tu escaneo ya ajusto tus sesiones: .*cabeza se adelanta/)
+  assert.match(answer.text, /Con tu escaneo ya ajusto tus sesiones: priorizo piernas y glúteos y añado movilidad al calentamiento. El detalle, en el resumen del escaneo./)
 })
 
 test('con dos escaneos, AXIS cuenta qué ha cambiado desde el anterior (y sigue sin salir nada)', () => {
