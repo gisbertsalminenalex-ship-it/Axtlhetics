@@ -10,6 +10,7 @@
  * crearlo hasta la cifra en la fecha, y se compara con dónde se está hoy.
  */
 
+import type { Assessment } from '../assessment/types'
 import type { GoalTarget } from '../profile/types'
 import { daysBetween, type DayKey } from '../shared/dates'
 import type { WorkoutSession } from './types'
@@ -43,9 +44,17 @@ export type TargetProgress = {
   daysLeft: number
 }
 
-/** La mejor serie del ejercicio en sesiones completadas, o 0 si no hay ninguna. */
-export function bestSetOf(exerciseId: string, sessions: readonly WorkoutSession[]): number {
-  let best = 0
+/**
+ * La mejor serie del ejercicio en sesiones completadas, o 0 si no hay ninguna.
+ * Desde D-040 cuentan también los tests de evolución completados: una marca
+ * del test es una marca (en el remo, el mejor de los dos lados).
+ */
+export function bestSetOf(
+  exerciseId: string,
+  sessions: readonly WorkoutSession[],
+  assessments: readonly Assessment[] = [],
+): number {
+  let best = assessmentBest(exerciseId, assessments)
   for (const session of sessions) {
     if (session.status !== 'completed') continue
     for (const performed of session.exercises) {
@@ -63,12 +72,27 @@ function tolerance(target: GoalTarget): number {
   return Math.max(1, (target.target - target.startValue) * 0.1)
 }
 
+/** La mejor marca del ejercicio en los tests completados (D-040), o 0. */
+export function assessmentBest(exerciseId: string, assessments: readonly Assessment[]): number {
+  let best = 0
+  for (const assessment of assessments) {
+    if (assessment.status !== 'completed') continue
+    for (const result of assessment.results) {
+      if (result.exerciseId !== exerciseId) continue
+      const value = result.values.kind === 'single' ? result.values.value : Math.max(result.values.left, result.values.right)
+      if (value > best) best = value
+    }
+  }
+  return best
+}
+
 export function targetProgress(
   target: GoalTarget,
   sessions: readonly WorkoutSession[],
   today: DayKey,
+  assessments: readonly Assessment[] = [],
 ): TargetProgress {
-  const current = bestSetOf(target.exerciseId, sessions)
+  const current = bestSetOf(target.exerciseId, sessions, assessments)
   const start = target.createdAt.slice(0, 10)
   const total = Math.max(1, daysBetween(start, target.deadline))
   const elapsed = Math.min(Math.max(daysBetween(start, today), 0), total)

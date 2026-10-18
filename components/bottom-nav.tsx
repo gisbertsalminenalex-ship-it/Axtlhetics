@@ -1,16 +1,14 @@
 'use client'
 
-import { Home, Dumbbell, Heart, BarChart3, TrendingUp } from 'lucide-react'
+import { Home, Dumbbell, Heart, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type Tab = 'inicio' | 'entrenamiento' | 'recuperacion' | 'progreso' | 'historial'
+export type Tab = 'inicio' | 'entrenamiento' | 'recuperacion' | 'historial'
 
 const TABS: { id: Tab; label: string; icon: typeof Home }[] = [
   { id: 'inicio', label: 'Inicio', icon: Home },
   { id: 'entrenamiento', label: 'Entrenamiento', icon: Dumbbell },
   { id: 'recuperacion', label: 'Recuperación', icon: Heart },
-  // Quinta pestaña (D-036), aprobada por Alex: cómo avanzas hacia tus objetivos.
-  { id: 'progreso', label: 'Progreso', icon: TrendingUp },
   { id: 'historial', label: 'Historial', icon: BarChart3 },
 ]
 
@@ -23,7 +21,7 @@ export function BottomNav({
 }) {
   return (
     <nav className="border-t border-border bg-background/95 backdrop-blur">
-      <div className="flex items-stretch justify-around px-1 pt-2 pb-6">
+      <div className="flex items-stretch justify-around px-2 pt-2 pb-6">
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = id === active
           return (

@@ -15,6 +15,7 @@
  * 5. La recuperación de hoy sin registrar.
  */
 
+import type { Assessment } from '../assessment/types'
 import type { UserProfile } from '../profile/types'
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import { findExercise } from '../workouts/catalog'
@@ -37,6 +38,8 @@ export type ProactiveInput = {
   discomfortsYesterday: readonly string[]
   /** `true` si hoy ya hay recuperación registrada. */
   recoveryRegistered: boolean
+  /** Los tests de evolución: sus marcas cuentan para los objetivos (D-040). */
+  assessments?: readonly Assessment[]
 }
 
 export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
@@ -79,7 +82,7 @@ export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
   }
 
   const behind = (profile?.targets ?? [])
-    .map((target) => targetProgress(target, sessions, dayKey))
+    .map((target) => targetProgress(target, sessions, dayKey, input.assessments ?? []))
     .find((progress) => progress.status === 'behind')
   if (behind) {
     const exercise = findExercise(behind.target.exerciseId)

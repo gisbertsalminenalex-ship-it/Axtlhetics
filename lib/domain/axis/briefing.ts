@@ -295,7 +295,7 @@ export function buildBriefing(
             intensity: sport.intensity,
           })),
           targets: (context.profile.targets ?? []).map((target) => {
-            const progress = targetProgress(target, sessions, context.dayKey)
+            const progress = targetProgress(target, sessions, context.dayKey, context.assessments ?? [])
             const exercise = findExercise(target.exerciseId)
             return {
               exercise: exercise?.name ?? target.exerciseId,

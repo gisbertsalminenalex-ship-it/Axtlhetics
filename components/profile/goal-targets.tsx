@@ -20,7 +20,7 @@ const TARGET_EXERCISES = EXERCISE_CATALOG.filter((exercise) => exercise.category
  * guardar el formulario del perfil no los toca.
  */
 export function GoalTargets() {
-  const { profile, sessions, today, addTarget, removeTarget } = useAxtlhetics()
+  const { profile, sessions, today, addTarget, removeTarget, assessments } = useAxtlhetics()
   const targets = profile?.targets ?? []
 
   return (
@@ -33,7 +33,7 @@ export function GoalTargets() {
       <ul className="mt-4 space-y-2.5">
         {targets.map((target) => {
           const exercise = findExercise(target.exerciseId)
-          const progress = targetProgress(target, sessions, today)
+          const progress = targetProgress(target, sessions, today, assessments.assessments)
           const unit = exercise?.work.isTimed ? 's' : 'reps'
           return (
             <li key={target.id} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">

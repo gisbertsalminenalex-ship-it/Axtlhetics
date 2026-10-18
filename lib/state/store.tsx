@@ -179,6 +179,8 @@ type AxtlheticsStore = {
   /** Añade un objetivo medible (D-035). Su punto de partida es la mejor serie de hoy. */
   addTarget(draft: { exerciseId: string; target: number; deadline: DayKey }): Promise<void>
   removeTarget(id: string): Promise<void>
+  /** Añade de una vez los objetivos que AXIS propone tras el primer test (D-040). */
+  addTargets(drafts: readonly { exerciseId: string; target: number; deadline: DayKey; startValue: number }[]): Promise<void>
   /** Lo que AXIS dice sin que se lo pregunten (D-038), o `null` si no hay nada. */
   axisNote: ProactiveNote | null
   /** Apunta o quita un ejercicio que no gusta (D-037). */
@@ -566,9 +568,10 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             catalog: EXERCISE_CATALOG,
             discomfortsYesterday: (yesterdayMemory?.discomforts ?? []).map((item) => item.zone),
             recoveryRegistered: recoveryScore.status === 'ok',
+            assessments: assessments.assessments,
           })
         : null,
-    [status, today, profile, sessions, yesterdayMemory, recoveryScore.status],
+    [status, today, profile, sessions, yesterdayMemory, recoveryScore.status, assessments.assessments],
   )
 
   const axisSuggestions = useMemo(
@@ -653,12 +656,36 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       const target: GoalTarget = {
         id: createId(),
         ...draft,
-        startValue: bestSetOf(draft.exerciseId, sessions),
+        startValue: bestSetOf(draft.exerciseId, sessions, assessments.assessments),
         createdAt: nowIso(),
       }
       await saveTargets((current) => [...current, target])
     },
-    [saveTargets, sessions],
+    [saveTargets, sessions, assessments.assessments],
+  )
+
+  /**
+   * Varios objetivos a la vez, con su punto de partida ya conocido: los que AXIS
+   * propone tras el primer test (D-040). En una sola escritura: añadirlos uno a
+   * uno partiría cada vez del mismo perfil y solo quedaría el último.
+   */
+  const addTargets = useCallback(
+    async (drafts: readonly { exerciseId: string; target: number; deadline: DayKey; startValue: number }[]) => {
+      const createdAt = nowIso()
+      const added: GoalTarget[] = drafts.map((draft) => ({
+        id: createId(),
+        exerciseId: draft.exerciseId,
+        target: draft.target,
+        deadline: draft.deadline,
+        startValue: draft.startValue,
+        createdAt,
+      }))
+      await saveTargets((current) => [
+        ...current,
+        ...added.filter((target) => !current.some((other) => other.exerciseId === target.exerciseId)),
+      ])
+    },
+    [saveTargets],
   )
 
   const removeTarget = useCallback(
@@ -1258,6 +1285,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       historyStats,
       saveProfile,
       addTarget,
+      addTargets,
       setExerciseDisliked,
       axisNote,
       removeTarget,
@@ -1319,6 +1347,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       historyStats,
       saveProfile,
       addTarget,
+      addTargets,
       setExerciseDisliked,
       axisNote,
       removeTarget,

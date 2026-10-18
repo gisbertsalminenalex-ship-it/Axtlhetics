@@ -38,17 +38,16 @@ Core v0.1 mantiene las cinco áreas/flows funcionales definidos por el Documento
 
 ### Navegación principal definitiva
 
-La navegación inferior tiene **exactamente cinco tabs** (la quinta, Progreso, aprobada por Alex en D-036):
+La navegación inferior tiene **exactamente cuatro tabs**:
 
 1. **Inicio**
-2. **Entrenamiento**
+2. **Entrenamiento** — incluye la sección «Tu progreso»: objetivos medibles, mejor serie de cada ejercicio y series por semana (D-036, movida aquí en D-040)
 3. **Recuperación**
-4. **Progreso** — objetivos medibles, mejor serie de cada ejercicio en el tiempo y series por semana (D-036)
-5. **Historial**
+4. **Historial**
 
 **Workout Summary no es una pestaña principal.** Es una pantalla o flujo interno al que se llega después de completar un entrenamiento.
 
-**No incluir Perfil como tab.** El perfil completo pertenece a fases futuras salvo aprobación explícita.
+**No incluir Progreso ni Perfil como tabs.** Progreso vive en Entrenamiento (D-040); el perfil completo pertenece a fases futuras salvo aprobación explícita.
 
 Lo que sí existe (D-007) es una **pantalla interna de perfil**, accesible desde el icono de usuario de Inicio: nombre, edad, medidas, objetivos, experiencia, días disponibles, duración habitual y deportes del calendario. Es el mismo formulario del onboarding en modo edición, no una quinta pestaña. Los deportes se registran con un único modelo (días + intensidad, hora opcional) tanto en el onboarding como en Perfil. En Perfil, una actividad puede ser además de **un día concreto** en vez de cada semana (D-018): es el caso de un partido, que cambia de día de una semana a otra o no existe.
 
@@ -342,6 +341,8 @@ AXIS speaks first (D-038, `lib/domain/axis/proactive.ts`): one deterministic not
 
 Daily reminder (D-039): Perfil generates a recurring daily iCalendar event on the device (`lib/domain/reminders/ics.ts`, floating time, fixed UID) that the phone calendar fires with the app closed. No push notifications, no server.
 
+After the first completed evolution test (D-040, `lib/domain/assessment/targets.ts`), the test summary — and «Tu progreso» in Entrenamiento while there are no goals — proposes one measurable goal per test (best mark +25 %, at least +2 reps / +10 s, 8 weeks), added in one write (`addTargets`). Test marks count towards goals.
+
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 
 ### AXIS visual identity
@@ -535,7 +536,7 @@ For small technical decisions that are reversible and clearly consistent with th
 - Treating future roadmap features as current requirements.
 - Turning every section into a card.
 - Using the primary blue everywhere just because it is available.
-- Adding Perfil as a tab, or a sixth tab, without explicit approval (Progreso was approved in D-036).
+- Adding a fifth tab (Progreso or Perfil) without explicit approval: Progreso lives inside Entrenamiento (D-040).
 
 ---
 

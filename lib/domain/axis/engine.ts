@@ -123,7 +123,7 @@ function planSession(
     jumpSport: practicesJumpSport(context.activities),
     // Los objetivos medibles abiertos tienen preferencia en su zona (D-035).
     priorityExerciseIds: (context.profile?.targets ?? [])
-      .map((target) => targetProgress(target, context.recentSessions, context.dayKey))
+      .map((target) => targetProgress(target, context.recentSessions, context.dayKey, context.assessments ?? []))
       .filter(isOpenTarget)
       .map((progress) => progress.target.exerciseId),
     // Lo que no gusta: lo dicho y lo que se salta a menudo (D-037).

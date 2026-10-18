@@ -8,6 +8,7 @@ import { ScanEntry } from '@/components/scanner/scan-entry'
 import { AxisMark } from '@/components/axis-mark'
 import { WeeklyActivity } from '@/components/weekly-activity'
 import { WeeklyVolume } from '@/components/weekly-volume'
+import { ProgressSection } from '@/components/progress/progress-section'
 import { EXERCISE_CATALOG } from '@/lib/domain/workouts/catalog'
 import { weeklyVolume } from '@/lib/domain/workouts/weekly-volume'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
@@ -196,6 +197,9 @@ export function EntrenamientoScreen({
         className="mt-4"
       />
       <WeeklyVolume volumes={volumes} className="mt-6" />
+
+      {/* Tu progreso (D-036): dentro de Entrenamiento, sin pestaña propia (D-040). */}
+      <ProgressSection />
 
       {/* Ver historial */}
       <button

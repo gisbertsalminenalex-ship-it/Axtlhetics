@@ -9,7 +9,6 @@ import { EntrenamientoScreen } from '@/components/screens/entrenamiento'
 import { EntrenamientoActivo } from '@/components/screens/entrenamiento-activo'
 import { EntrenamientoCompletado } from '@/components/screens/entrenamiento-completado'
 import { HistorialScreen } from '@/components/screens/historial'
-import { ProgresoScreen } from '@/components/screens/progreso'
 import { InicioScreen } from '@/components/screens/inicio'
 import { OnboardingScreen } from '@/components/screens/onboarding'
 import { PerfilScreen } from '@/components/screens/perfil'
@@ -154,7 +153,6 @@ export default function Page() {
                     />
                   )}
                   {tab === 'recuperacion' && <RecuperacionScreen />}
-                  {tab === 'progreso' && <ProgresoScreen />}
                   {tab === 'historial' && <HistorialScreen />}
                 </div>
               )}

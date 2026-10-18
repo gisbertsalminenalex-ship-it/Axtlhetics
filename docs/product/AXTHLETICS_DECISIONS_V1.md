@@ -1639,6 +1639,26 @@ Notificaciones push de la propia app; quitar o cambiar el evento se hace desde e
 
 ---
 
+## D-040 — Objetivos tras el primer test, y Progreso dentro de Entrenamiento
+
+**Fecha:** 2026-10-18 · **Estado:** aprobada e implementada · Pedido por Alex. **Corrige D-036**: Progreso deja de ser pestaña.
+
+### AXIS propone objetivos con el primer test
+
+Al completar el **primer test de evolución** (D-021), el resumen añade **«Objetivos que te propongo»**: un objetivo medible (D-035) por prueba —flexiones (la variante del usuario), plancha, sentadilla isométrica en pared y remo—.
+
+- **Cifra:** la marca del test más un **25 %**, con un mínimo de **2 repeticiones o 10 segundos**; los segundos se redondean a 5. En el remo cuenta el mejor lado.
+- **Plazo:** **8 semanas** desde el test: llega a los dos tests siguientes.
+- **«Añadir estos objetivos»** los añade todos de una vez (`addTargets`, una sola escritura); se quitan o cambian en Perfil. Un ejercicio que ya tiene objetivo no se propone otra vez.
+- Solo con el **primer** test completado. Si el usuario no los añade al terminar, la propuesta sigue en Entrenamiento mientras no tenga objetivos.
+- Desde ahora **las marcas de los tests cuentan** para los objetivos, como una serie más (`bestSetOf`).
+
+### Progreso, en Entrenamiento
+
+Vuelven las **cuatro pestañas** (Inicio, Entrenamiento, Recuperación, Historial). Lo que enseñaba la pestaña Progreso es ahora la sección **«Tu progreso»** de Entrenamiento, después de «Esta semana»: tus objetivos (o la propuesta del test), tu fuerza y las series por semana. El volumen por músculo no se repite: ya está en «Esta semana».
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

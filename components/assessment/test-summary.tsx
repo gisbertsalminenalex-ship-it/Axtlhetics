@@ -2,6 +2,8 @@
 
 import { AssessmentResults } from '@/components/assessment/assessment-results'
 import { AxisMark } from '@/components/axis-mark'
+import { TargetRecommendations } from '@/components/assessment/target-recommendations'
+import { isFirstCompletedTest } from '@/lib/domain/assessment/targets'
 import { ASSESSMENT_PROTOCOL_VERSION } from '@/lib/domain/assessment/protocol'
 import { summarizeAssessment } from '@/lib/domain/assessment/summary'
 import type { Assessment } from '@/lib/domain/assessment/types'
@@ -44,6 +46,9 @@ export function TestSummary({
       <div className="mt-6">
         <AssessmentResults rows={summary.rows} />
       </div>
+
+      {/* Con el primer test, AXIS propone objetivos medibles (D-040). */}
+      {isFirstCompletedTest(assessment, history) && <TargetRecommendations assessment={assessment} />}
 
       <div className="mt-auto pt-8">
         <button
