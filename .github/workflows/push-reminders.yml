@@ -1,0 +1,27 @@
+# Avisos de entreno (D-044): la pasada de cada hora.
+#
+# El plan gratuito de Vercel solo permite una tarea programada al día, así que
+# la lanza GitHub Actions. La ruta decide a quién le toca; esto solo llama.
+# CRON_SECRET es un secreto del repositorio y una variable de Vercel con el mismo valor.
+name: Avisos de entreno
+
+on:
+  schedule:
+    - cron: '5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Pasada de avisos
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET sin configurar: no hay pasada."; exit 0; fi
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://axtlhetics.vercel.app/api/push/cron

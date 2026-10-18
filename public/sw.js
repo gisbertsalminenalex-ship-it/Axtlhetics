@@ -76,7 +76,10 @@ self.addEventListener('fetch', (event) => {
 
   // Solo lecturas del propio origen. Nada de POST ni de terceros.
   if (request.method !== 'GET') return
-  if (new URL(request.url).origin !== self.location.origin) return
+  const url = new URL(request.url)
+  if (url.origin !== self.location.origin) return
+  // Las rutas de servidor nunca se guardan: su respuesta es de ese momento.
+  if (url.pathname.startsWith('/api/')) return
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request))
@@ -84,4 +87,67 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(cacheFirst(request))
+})
+
+// ---------------------------------------------------------------------------
+// Avisos de entreno (D-044)
+// ---------------------------------------------------------------------------
+
+/**
+ * El aviso llega sin contenido: el servidor solo dice «hoy toca». El texto se
+ * compone aquí, con el nombre que ya está guardado en el móvil, para que nada
+ * del usuario tenga que viajar.
+ */
+function profileName() {
+  return new Promise((resolve) => {
+    try {
+      const open = indexedDB.open('axtlhetics')
+      open.onerror = () => resolve(null)
+      open.onsuccess = () => {
+        const db = open.result
+        try {
+          const get = db.transaction('profile').objectStore('profile').get('primary')
+          get.onsuccess = () => {
+            db.close()
+            const name = get.result && typeof get.result.name === 'string' ? get.result.name.trim() : ''
+            resolve(name || null)
+          }
+          get.onerror = () => {
+            db.close()
+            resolve(null)
+          }
+        } catch {
+          db.close()
+          resolve(null)
+        }
+      }
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+self.addEventListener('push', (event) => {
+  event.waitUntil(
+    profileName().then((name) =>
+      self.registration.showNotification('AXTHLETICS', {
+        body: `${name ? `${name}, hoy` : 'Hoy'} es día de entreno. Mira lo que te ha preparado AXIS.`,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: 'entreno-del-dia',
+        data: { url: '/' },
+      }),
+    ),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((client) => new URL(client.url).origin === self.location.origin)
+      if (open) return open.focus()
+      return self.clients.openWindow('/')
+    }),
+  )
 })

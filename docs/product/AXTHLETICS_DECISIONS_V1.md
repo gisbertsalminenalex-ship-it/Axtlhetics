@@ -1736,6 +1736,32 @@ Un «hola» no era ninguna intención. Fuera de «Cambiar entrenamiento» salía
 
 ---
 
+## D-044 — Avisos de entreno (push)
+
+**Fecha:** 2026-10-18 · **Estado:** aprobada e implementada (falta configurar el servidor) · Decidido por Alex: «quiero que cada día que tenga entreno AXTHLETICS envíe una notificación»; eligió notificaciones push de la app frente al calendario sabiendo que necesitan servidor. Móvil: Android. **Amplía la excepción de privacidad** (§ «Lo que sale del móvil»).
+
+### Qué hace
+
+En Perfil, **«Avisos de entreno»**: «Activar avisos» pide permiso al navegador y suscribe el móvil. Los días que el usuario marcó para entrenar, a la hora elegida (de 6:00 a 22:00, por defecto las 17:00), llega una notificación: «Alex, hoy es día de entreno. Mira lo que te ha preparado AXIS.»; al tocarla se abre la app. «Probar aviso» manda uno al momento por el mismo camino; «Desactivar» lo quita del servidor.
+
+### Cómo
+
+- **Servidor** (`lib/push/`, `app/api/push/`): guarda en **Upstash Redis** la suscripción, los días, la hora y la zona horaria. Nada más.
+- **Pasada cada hora** desde **GitHub Actions** (`.github/workflows/push-reminders.yml`), porque el plan gratuito de Vercel solo permite una tarea al día. Llama a `/api/push/cron` con `CRON_SECRET`. Se avisa en la primera pasada desde la hora elegida, con 3 h de margen si llega tarde, y una sola vez al día. Una suscripción que ya no existe (404/410) se borra.
+- **El aviso va vacío**: firmado con VAPID (ES256, `node:crypto`, sin dependencias) y sin contenido, así que no hay nada que cifrar ni nada del usuario que pase por el servicio de push de Google. El texto lo compone el service worker con el nombre guardado en el móvil.
+- Si cambian los días de entreno del perfil, el horario del servidor se pone al día solo.
+
+### Límites
+
+- Los días son los **marcados en el perfil**, no lo que decida AXIS cada día: si AXIS cambia un día a descanso, el aviso llega igual.
+- En iPhone haría falta tener la app en la pantalla de inicio (iOS 16.4+); Alex usa Android.
+
+### Configuración (una vez)
+
+Upstash Redis conectado al proyecto en Vercel (`KV_REST_API_URL`, `KV_REST_API_TOKEN`), `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` (`scripts/generate-vapid.mjs`) y `CRON_SECRET` en Vercel, y el mismo `CRON_SECRET` como secreto del repositorio. Sin ellas, la sección dice que los avisos no están disponibles y el workflow no hace nada.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
