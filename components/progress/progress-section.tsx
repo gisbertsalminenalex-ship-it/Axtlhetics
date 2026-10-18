@@ -126,7 +126,7 @@ function WeekBars({ weeks }: { weeks: ReturnType<typeof weeklySetTotals> }) {
           Semana del {formatShortDate(shown.weekStart).toLowerCase()} · {shown.sets} series
         </span>
       </figcaption>
-      <div className="mt-2.5 flex h-28 items-end gap-[2px] border-b border-border" role="img" aria-label={`Series por semana: ${weeks.map((week) => week.sets).join(', ')}`}>
+      <div className="mt-2.5 flex h-28 items-end gap-1.5 border-b border-border" role="img" aria-label={`Series por semana: ${weeks.map((week) => week.sets).join(', ')}`}>
         {weeks.map((week, index) => (
           <button
             key={week.weekStart}
@@ -137,8 +137,9 @@ function WeekBars({ weeks }: { weeks: ReturnType<typeof weeklySetTotals> }) {
           >
             {week.sets > 0 && (
               <span
-                className={cn('ax-bar block w-full rounded-t-[4px]', index === selected ? 'bg-primary' : 'bg-primary/55')}
-                style={{ height: `${Math.max(4, safeDivide(week.sets, max, 0) * 100)}%`, '--ax-index': index } as CSSProperties}
+                className={cn('ax-bar block w-full rounded-t-full', index === selected ? 'bg-primary' : 'bg-primary/25')}
+                // Altura mínima para que la punta redonda se vea entera en una semana floja.
+                style={{ height: `max(12px, ${safeDivide(week.sets, max, 0) * 100}%)`, '--ax-index': index } as CSSProperties}
               />
             )}
           </button>

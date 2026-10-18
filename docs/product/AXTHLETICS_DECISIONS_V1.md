@@ -1657,6 +1657,10 @@ Al completar el **primer test de evolución** (D-021), el resumen añade **«Obj
 
 Vuelven las **cuatro pestañas** (Inicio, Entrenamiento, Recuperación, Historial). Lo que enseñaba la pestaña Progreso es ahora la sección **«Tu progreso»** de Entrenamiento, después de «Esta semana»: tus objetivos (o la propuesta del test), tu fuerza y las series por semana. El volumen por músculo no se repite: ya está en «Esta semana».
 
+### Enmienda (2026-10-18): gráficas más suaves
+
+Pedido por Alex. La mejor serie por sesión es una **curva suave** con un relleno azul muy tenue debajo, en lugar de tramos rectos. La curva es **monótona** (Fritsch–Carlson): entre dos sesiones nunca sube ni baja más allá de sus dos marcas, así que no enseña ninguna marca que no exista. Las barras de series por semana tienen la **punta redondeada**, más separación y las semanas no seleccionadas en azul suave (25 %); una semana floja conserva una altura mínima para que la punta se vea entera.
+
 ---
 
 ## Decisiones pendientes

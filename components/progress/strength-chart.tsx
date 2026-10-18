@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { formatShortDate } from '@/lib/domain/shared/dates'
 import type { ExercisePoint } from '@/lib/domain/workouts/progress'
 
@@ -18,6 +18,8 @@ const PAD = { top: 12, right: 12, bottom: 22, left: 30 }
  */
 export function StrengthChart({ points, unit }: { points: readonly ExercisePoint[]; unit: string }) {
   const [selected, setSelected] = useState<number | null>(null)
+  // Solo letras y cifras: los ids de React llevan signos que rompen url(#…).
+  const gradientId = `strength-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   if (points.length === 0) return null
 
   const max = Math.max(...points.map((point) => point.best))
@@ -29,6 +31,9 @@ export function StrengthChart({ points, unit }: { points: readonly ExercisePoint
   const guides = [0, top / 2, top]
   const active = selected ?? points.length - 1
   const shown = points[active]
+  const coords = points.map((point, i): [number, number] => [x(i), y(point.best)])
+  const curve = monotonePath(coords)
+  const baseline = y(0)
 
   return (
     <figure className="mt-4">
@@ -52,14 +57,20 @@ export function StrengthChart({ points, unit }: { points: readonly ExercisePoint
         <line x1={x(active)} x2={x(active)} y1={PAD.top} y2={PAD.top + plotH} stroke="var(--border)" strokeWidth={1} />
 
         {points.length > 1 && (
-          <polyline
-            points={points.map((point, i) => `${x(i)},${y(point.best)}`).join(' ')}
-            fill="none"
-            stroke="var(--primary)"
-            strokeWidth={2}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          <>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.16} />
+                <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            {/* Relleno tenue bajo la curva: da cuerpo sin competir con la línea. */}
+            <path
+              d={`${curve} L${coords[coords.length - 1][0]},${baseline} L${coords[0][0]},${baseline} Z`}
+              fill={`url(#${gradientId})`}
+            />
+            <path d={curve} fill="none" stroke="var(--primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          </>
         )}
 
         {points.map((point, i) => (
@@ -123,6 +134,33 @@ export function StrengthChart({ points, unit }: { points: readonly ExercisePoint
       </details>
     </figure>
   )
+}
+
+/**
+ * Curva suave por los puntos, monótona (Fritsch–Carlson): entre dos sesiones
+ * nunca sube por encima ni baja por debajo de las dos marcas. Una curva que se
+ * pasara enseñaría una marca que no existe.
+ */
+function monotonePath(points: readonly [number, number][]): string {
+  const n = points.length
+  if (n < 2) return ''
+  const dx = points.slice(1).map((point, i) => point[0] - points[i][0])
+  const slope = points.slice(1).map((point, i) => (point[1] - points[i][1]) / dx[i])
+  const tangent = points.map((_, i) => {
+    if (i === 0) return slope[0]
+    if (i === n - 1) return slope[n - 2]
+    const a = slope[i - 1]
+    const b = slope[i]
+    return a * b <= 0 ? 0 : (2 * a * b) / (a + b)
+  })
+  let d = `M${points[0][0]},${points[0][1]}`
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = points[i]
+    const [x1, y1] = points[i + 1]
+    const h = dx[i] / 3
+    d += ` C${x0 + h},${y0 + tangent[i] * h} ${x1 - h},${y1 - tangent[i + 1] * h} ${x1},${y1}`
+  }
+  return d
 }
 
 /** Un techo redondo para el eje: 12 → 15, 23 → 25, 48 → 50. */
