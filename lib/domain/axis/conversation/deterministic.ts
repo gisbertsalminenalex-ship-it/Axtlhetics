@@ -35,6 +35,7 @@ import {
 import { matchName } from '../actions'
 import { answerAssessment, asksAboutAssessment } from './assessment-answer'
 import { answerScan, asksAboutScan } from './scan-answer'
+import { answerSocial, detectSocial } from './social'
 import { understandMessage } from './understand'
 import { detectDiscomfortZone, detectPreference, type ExercisePreference } from './preferences'
 import {
@@ -85,6 +86,16 @@ export function answerFromBriefing(
   briefing: AxisBriefing,
   memory?: AxisConversationMemory,
 ): AxisAnswer {
+  /*
+   * Charla (D-042): un «hola» o un «gracias» se contestan como tal, también
+   * con «Cambiar entrenamiento» abierto. Ahí un «vale» o un «venga» sí pueden
+   * ser parte de la negociación, así que esos siguen su camino.
+   */
+  const social = detectSocial(message)
+  if (social && !(memory?.changeMode && social === 'ack')) {
+    return answerSocial(social, message, briefing, { turn: memory?.turn ?? 0, changeMode: memory?.changeMode ?? false })
+  }
+
   // Todos los detectores leen el mensaje con las faltas corregidas (D-026).
   const question = understandMessage(message, briefing)
   const match = matchIntent(question, memory?.lastIntent ?? null)
@@ -241,8 +252,9 @@ export function answerFromBriefing(
       return { ...answerMedical(), discomfort: detectDiscomfortZone(question) }
     case 'out_of_scope':
       return answerOutOfScope()
-    // Las preferencias se reconocen antes de llegar aquí (D-037).
+    // Las preferencias (D-037) y la charla (D-042) se reconocen antes de llegar aquí.
     case 'preference':
+    case 'social':
     case 'unknown':
       return answerUnknown()
   }

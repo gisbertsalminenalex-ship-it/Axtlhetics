@@ -5,7 +5,7 @@
  * no está configurado.
  */
 
-import { buildChatMessages, readChatCompletion } from '../provider-contract'
+import { buildChatMessages, readChatCompletion, temperatureFor } from '../provider-contract'
 import type { LanguageProvider } from './types'
 
 export const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
@@ -42,7 +42,7 @@ export const groqProvider: LanguageProvider = {
     const body: Record<string, unknown> = {
       model,
       messages: buildChatMessages(request),
-      temperature: GROQ_TEMPERATURE,
+      temperature: temperatureFor(request, GROQ_TEMPERATURE),
       max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS,
       response_format: { type: 'json_object' },
     }

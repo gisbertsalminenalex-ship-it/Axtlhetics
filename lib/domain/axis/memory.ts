@@ -218,6 +218,8 @@ export function conversationMemoryOf(memory: AxisDayMemory): AxisConversationMem
     lastIntent: memory.thread.lastIntent,
     changeMode: memory.thread.changeMode,
     lastChangeRequest: memory.thread.lastChangeRequest,
+    turn: memory.messages.length,
+    recent: memory.messages.slice(-8).map(({ role, text }) => ({ role, text })),
   }
 }
 

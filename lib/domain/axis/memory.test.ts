@@ -199,6 +199,8 @@ test('la memoria que necesita la conversación sale del hilo', () => {
     lastIntent: 'change',
     changeMode: true,
     lastChangeRequest: null,
+    turn: 1,
+    recent: [{ role: 'axis', text: 'texto' }],
   })
 })
 
@@ -420,13 +422,12 @@ test('regresión 5-6: recargar durante una negociación mantiene changeMode; «V
 test('regresión 7: tras salir del modo cambio, una pregunta ambigua ya no es una petición', async () => {
   const a = app()
   await a.openChange()
-  const inChange = await a.ask('buenas')
+  const inChange = await a.ask('a ver')
   assert.equal(inChange.result.intent, 'change', 'en modo cambio se pide el motivo')
 
   await a.close()
-  const outside = await a.ask('buenas')
+  const outside = await a.ask('a ver')
   assert.notEqual(outside.result.intent, 'change')
-  assert.equal(outside.result.intent, 'unknown')
 })
 
 test('regresión 8: «ayer hice 20 km» y luego «hoy piernas no» conserva la evidencia', async () => {

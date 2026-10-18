@@ -100,6 +100,11 @@ export function createAxisConversation(
   const deterministic = createDeterministicConversation()
   const transport = options.transport ?? createHttpTransport(options.aiEndpoint ?? null)
   const ai = createAiConversation(transport, answerFromBriefing)
+  // Lo que no se entiende ni reescrito se contesta como charla (D-042), no con «no he entendido».
+  const chat = createAiConversation(transport, (question, briefing, memory) => ({
+    ...answerFromBriefing(question, briefing, memory),
+    intent: 'social',
+  }))
 
   /*
    * El modelo solo traduce el mensaje; quien responde es el determinista. Si no
@@ -127,14 +132,14 @@ export function createAxisConversation(
       return fallback(true, 'transport_error')
     }
 
-    // El modelo dice que no lo entiende: no es un fallo, es la misma respuesta.
-    if (text.trim() === REINTERPRET_NONE) return fallback(false, null)
+    // El modelo dice que no lo entiende: no va de entrenamiento, así que se charla (D-042).
+    if (text.trim() === REINTERPRET_NONE) return chatInstead(question, briefing, memory, fallback)
 
     const rewritten = readReinterpretation(question, text)
     if (rewritten === null) return fallback(true, 'invalid_reinterpretation')
 
     const answer = answerFromBriefing(rewritten, briefing, memory)
-    if (answer.intent === 'unknown') return fallback(false, null)
+    if (answer.intent === 'unknown') return chatInstead(question, briefing, memory, fallback)
 
     return {
       ...presentReinterpreted(answer, rewritten),
@@ -143,6 +148,22 @@ export function createAxisConversation(
       modelDisagreed: false,
       rejectedReason: null,
       reinterpretedAs: rewritten,
+    }
+  }
+
+  async function chatInstead(
+    question: string,
+    briefing: AxisBriefing,
+    memory: AxisConversationMemory | undefined,
+    fallback: (usedFallback: boolean, rejectedReason: AiRejectionReason | null) => AxisConversationResult,
+  ): Promise<AxisConversationResult> {
+    try {
+      const answer = await chat.answer(question, briefing, memory)
+      // El «no entiendo» del intérprete no es una respuesta que enseñar.
+      if (answer.text.includes(REINTERPRET_NONE)) return fallback(true, 'invalid_reinterpretation')
+      return { ...answer, engineId: chat.id, usedFallback: false, modelDisagreed: false, rejectedReason: null }
+    } catch (cause) {
+      return fallback(true, cause instanceof AxisAiRejection ? cause.reason : 'transport_error')
     }
   }
 
@@ -172,7 +193,9 @@ export function createAxisConversation(
     const noData = local.unknown === true && DATA_ANSWER_INTENTS.includes(local.intent)
     // «Quiero algo más intenso» solo no dice nada; en una negociación es un cambio, y se redacta (D-030).
     const negotiated = local.intent === 'change' && intent === 'unknown'
-    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated) && !noData
+    // La charla se reconoce antes que cualquier intención (D-042): `intent` no la ve.
+    const social = local.intent === 'social'
+    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated || social) && !noData
 
     if (!worthIt || !(await ai.isAvailable())) {
       return {

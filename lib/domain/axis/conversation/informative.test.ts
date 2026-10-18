@@ -203,9 +203,17 @@ test('las peticiones de siempre, con y sin interrogación, siguen negociándose'
   }
 })
 
-test('un mensaje suelto sin forma de pregunta sigue pidiendo el motivo en modo cambio', () => {
+test('D-042: un saludo en modo cambio se contesta como saludo y recuerda, sin insistir, qué cambiar', () => {
   const { briefing } = setup()
   const answer = answerFromBriefing('buenas', briefing, CHANGE_MODE)
+  assert.equal(answer.intent, 'social')
+  assert.equal(answer.proposedTarget ?? null, null)
+  assert.match(answer.text, /dime qué te gustaría cambiar de la sesión de hoy/)
+})
+
+test('un mensaje suelto que no es charla sigue pidiendo el motivo en modo cambio', () => {
+  const { briefing } = setup()
+  const answer = answerFromBriefing('a ver', briefing, CHANGE_MODE)
   assert.equal(answer.intent, 'change')
   assert.match(answer.text, NEGOTIATION_PROMPT)
 })

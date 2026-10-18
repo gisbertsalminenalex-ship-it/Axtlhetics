@@ -15,6 +15,16 @@
 export const MAX_REQUEST_BYTES = 64 * 1024
 
 /**
+ * Temperatura de la charla (D-042). Para redactar un veredicto se quiere un
+ * modelo previsible; para contestar a un «hola», que no suene siempre igual.
+ */
+export const CHAT_TEMPERATURE = 0.8
+
+export function temperatureFor(request: ProxyRequest, base: number): number {
+  return request.domain.intent === 'social' ? CHAT_TEMPERATURE : base
+}
+
+/**
  * Errores que la función puede devolver.
  *
  * Códigos, no mensajes: el cliente no necesita saber qué pasó por dentro, y lo
@@ -43,7 +53,13 @@ export type ProxyRequest = {
   question: string
   briefing: unknown
   domain: { text: string; intent: string; proposedTarget: unknown }
+  /** La conversación reciente, solo en la charla (D-042). */
+  history?: { role: 'user' | 'axis'; text: string }[]
 }
+
+/** Lo que se acepta de historial: unos pocos mensajes cortos. */
+export const MAX_HISTORY_TURNS = 10
+export const MAX_HISTORY_CHARACTERS = 600
 
 /**
  * Valida el cuerpo que llega del navegador.
@@ -66,6 +82,19 @@ export function parseProxyRequest(body: unknown): ProxyRequest | null {
   const d = domain as Record<string, unknown>
   if (typeof d.text !== 'string' || typeof d.intent !== 'string') return null
 
+  // El historial es opcional; si llega, tiene que ser corto y bien formado.
+  let history: ProxyRequest['history']
+  if (raw.history !== undefined) {
+    if (!Array.isArray(raw.history) || raw.history.length > MAX_HISTORY_TURNS) return null
+    const valid = raw.history.every((turn) => {
+      if (typeof turn !== 'object' || turn === null) return false
+      const t = turn as Record<string, unknown>
+      return (t.role === 'user' || t.role === 'axis') && typeof t.text === 'string' && t.text.length <= MAX_HISTORY_CHARACTERS
+    })
+    if (!valid) return null
+    history = (raw.history as { role: 'user' | 'axis'; text: string }[]).map(({ role, text }) => ({ role, text }))
+  }
+
   return {
     system: raw.system,
     question: raw.question,
@@ -75,6 +104,7 @@ export function parseProxyRequest(body: unknown): ProxyRequest | null {
       intent: d.intent,
       proposedTarget: d.proposedTarget ?? null,
     },
+    ...(history ? { history } : {}),
   }
 }
 
@@ -92,8 +122,15 @@ export function buildUserPayload(request: ProxyRequest): string {
  * la personalidad como sistema y el briefing con la pregunta como usuario.
  */
 export function buildChatMessages(request: ProxyRequest): { role: string; content: string }[] {
+  // En la charla, lo hablado antes va como conversación; las respuestas de AXIS, en el mismo JSON que se le pide.
+  const history = (request.history ?? []).map((turn) =>
+    turn.role === 'user'
+      ? { role: 'user', content: turn.text }
+      : { role: 'assistant', content: JSON.stringify({ message: turn.text, action: null }) },
+  )
   return [
     { role: 'system', content: request.system },
+    ...history,
     { role: 'user', content: buildUserPayload(request) },
   ]
 }

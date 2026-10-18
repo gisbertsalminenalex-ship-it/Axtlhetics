@@ -1703,6 +1703,29 @@ Las fotos siguen **sin salir del móvil** y el escaneo sigue sin llegar a la cap
 
 ---
 
+## D-042 — AXIS charla
+
+**Fecha:** 2026-10-18 · **Estado:** aprobada e implementada · Decidido por Alex: «cuando le digo hola me responde "dime qué quieres cambiar y por qué"… debería responder algo como "hola, qué tal"»; «la única solución es que responda una IA para que salga más natural». **Matiza D-028**: lo que no se entiende ya no acaba en «no he entendido».
+
+### El problema
+
+Un «hola» no era ninguna intención. Fuera de «Cambiar entrenamiento» salía «No he entendido a qué te refieres»; dentro, todo lo no reconocido se leía como petición y salía «Dime qué quieres cambiar y por qué». Siempre igual, porque eran textos fijos, y el modelo nunca contestaba: solo redactaba respuestas del motor.
+
+### Qué cambia
+
+- **Nueva intención `social`** (`conversation/social.ts`): saludos, «¿qué tal?», gracias, despedidas, elogios, risas y «vale/ok». Solo si el mensaje entero es charla: «hola, estoy reventado» sigue siendo cansancio y «buenas, me duele la rodilla» sigue siendo médico. Se reconoce antes que nada, también en «Cambiar entrenamiento»; ahí un «vale» o un «venga» siguen siendo parte de la negociación.
+- **La charla la escribe el modelo, con libertad.** Prompt propio (`chatSystemPrompt`), temperatura 0,8 en vez de 0,3, y **los últimos 8 mensajes del día** como conversación, para que no se repita. No recibe la respuesta del motor (la copiaba), solo lo que no puede faltar: en «Cambiar entrenamiento», la invitación a decir qué cambiar, que se añade si el modelo la olvida.
+- **Lo que no se entiende ni reescrito (D-028) se contesta como charla** en vez de «no he entendido».
+- **Sin modelo, o si su texto no pasa la puerta**, contesta el motor: varias formas de cada respuesta que cambian de un mensaje a otro, con el nombre y lo que toca hoy.
+
+### Lo que no cambia
+
+- El modelo **no decide nada**: en la charla no propone cambios ni alternativas, y `checkModelText` sigue (sin cifras inventadas, sin afirmar nada del usuario que no esté en el briefing o en lo que él ha dicho, sin lenguaje médico, sin aperturas prohibidas). Las exclamaciones se quitan en lugar de descartar la respuesta.
+- **El nombre sigue sin salir del dispositivo**: el modelo escribe `{nombre}` y se sustituye en el móvil; en el historial que viaja, el nombre va como `{nombre}`. No se usa en dos respuestas seguidas.
+- La ruta valida el historial: como mucho 10 mensajes de 600 caracteres, solo de `user` o `axis`.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

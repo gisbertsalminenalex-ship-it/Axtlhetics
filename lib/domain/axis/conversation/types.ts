@@ -42,6 +42,8 @@ export type AxisIntent =
   | 'exercise'
   /** «No me gustan las zancadas» (D-037): una preferencia sobre un ejercicio. */
   | 'preference'
+  /** Saludos, «gracias», «¿qué tal?», despedidas (D-042): se responden como en una conversación. */
+  | 'social'
   | 'unknown'
 
 export type AxisMessageRole = 'user' | 'axis'
@@ -169,6 +171,10 @@ export type AxisConversationMemory = {
    * lugar de preguntar otra vez qué quiere.
    */
   lastChangeRequest?: { kind: string; focus: string | null } | null
+  /** Cuántos mensajes lleva el hilo: la charla cambia de forma de un mensaje a otro (D-042). */
+  turn?: number
+  /** Los últimos mensajes de hoy: la charla los lee para no repetirse (D-042). */
+  recent?: { role: 'user' | 'axis'; text: string }[]
 }
 
 /**

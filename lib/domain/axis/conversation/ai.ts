@@ -33,6 +33,7 @@ import {
   type ModelTextRejection,
 } from '../safety'
 import type { AxisAiReinterpretRequest } from './reinterpret'
+import { CHANGE_INVITATION } from './social'
 import type { AxisAnswer, AxisConversationEngine, AxisIntent } from './types'
 
 export const AI_CONVERSATION_ID = 'axis-conversation-ai-v1'
@@ -76,6 +77,43 @@ export function aiSystemPrompt(intent?: AxisIntent): string {
   ].join('\n')
 }
 
+/**
+ * La charla (D-042): aquí el modelo sí escribe con libertad. No hay veredicto
+ * que conservar ni cifras que redactar; `domain.text` es solo una idea. Las
+ * puertas de `checkModelText` siguen: sin cifras inventadas, sin afirmar nada
+ * del usuario que no esté en el briefing, sin lenguaje médico.
+ */
+export function chatSystemPrompt(): string {
+  return [
+    AXIS_SYSTEM_PROMPT,
+    '',
+    'AHORA ESTÁS CHARLANDO.',
+    'El usuario no te pide nada concreto del entrenamiento: te saluda, te pregunta qué tal, te da las gracias, se despide, bromea o comenta algo suelto. Recibes `question` (lo que acaba de escribir) y `briefing` (sus datos de hoy). Los mensajes anteriores son la conversación de hoy hasta ahora.',
+    'Contesta como un buen entrenador en un chat con alguien a quien conoce: natural, cercano, con algo de humor si encaja, y sin sonar a plantilla. Responde a lo que ha dicho de verdad: si dice que está aburrido, que está contento o que ha tenido un mal día, reacciona a eso como lo haría una persona.',
+    'Escribe con tus palabras y no repitas lo que ya has dicho en la conversación: si ya mencionaste la sesión de hoy, no vuelvas a hacerlo.',
+    'No propongas cambios de sesión, de zona ni alternativas: eso lo decide el motor cuando el usuario lo pide. Si parece que quiere cambiar algo, dile que te lo pida.',
+    'La sesión de hoy (`briefing.proposal`) la mencionas solo si viene a cuento —en el primer saludo, o si sirve para lo que ha dicho—, en pocas palabras y sin cifras. Muchas respuestas no la necesitan.',
+    'Si saluda, saluda y pregúntale algo sencillo: cómo está o cómo llega hoy. No le preguntes cuánto ha dormido: eso se registra en Recuperación.',
+    'Si habla de algo ajeno a AXTHLETICS (deberes, noticias, política, código), no lo resuelvas: una frase amable y vuelve a lo suyo. Nunca digas que algo «no es un dato registrado»: estás charlando, no informando.',
+    'Si `domain.text` no está vacío, es algo que tu respuesta tiene que incluir, con tus palabras.',
+    'Para dirigirte a él por su nombre escribe exactamente {nombre}; se sustituye en el dispositivo. Úsalo poco, como en una conversación real, y nunca escribas otro nombre.',
+    'No afirmes nada del usuario que no esté en `briefing` o en la conversación. Sin cifras, sin emojis y sin signos de exclamación. No empieces por «Genial», «Perfecto», «Claro» ni «Por supuesto».',
+    'Responde en 1–2 frases, como en un chat.',
+    'Devuelve SOLO un objeto JSON con esta forma:',
+    '{"message": "tu respuesta", "action": null}',
+  ].join('\n')
+}
+
+/**
+ * Lo que vuelve de la charla, listo para enseñar: el nombre en su sitio y sin
+ * exclamaciones, que la personalidad no usa (un «¡Hola!» no merece descartar
+ * una buena respuesta).
+ */
+export function tidyChatText(text: string, name: string | null): string {
+  const named = name ? text.replace(/\{nombre\}/g, name) : text.replace(/,?\s*\{nombre\}/g, '')
+  return named.replace(/¡/g, '').replace(/!+/g, '.').replace(/\.{2,}/g, '.').replace(/\s+/g, ' ').trim()
+}
+
 // ---------------------------------------------------------------------------
 // Qué sale del dispositivo
 // ---------------------------------------------------------------------------
@@ -115,11 +153,34 @@ export type AxisAiDomainAnswer = {
   proposedTarget: AxisActionTarget | null
 }
 
+/** Un mensaje anterior de la conversación de hoy, para que la charla tenga memoria (D-042). */
+export type AxisChatTurn = { role: 'user' | 'axis'; text: string }
+
+/** Cuántos mensajes anteriores viajan con la charla, y hasta qué largo cada uno. */
+export const CHAT_HISTORY_TURNS = 8
+export const CHAT_HISTORY_CHARACTERS = 400
+
 export type AxisAiRequest = {
   system: string
   question: string
   briefing: AxisAiBriefing
   domain: AxisAiDomainAnswer
+  /** Solo en la charla: los últimos mensajes, con el nombre del usuario sustituido por {nombre}. */
+  history?: AxisChatTurn[]
+}
+
+/**
+ * La conversación reciente, lista para salir: sin el nombre del usuario (que
+ * nunca viaja), recortada, y sin el propio mensaje si ya estaba apuntado.
+ */
+export function chatHistory(recent: readonly AxisChatTurn[], question: string, name: string | null): AxisChatTurn[] {
+  const turns = [...recent]
+  const last = turns[turns.length - 1]
+  if (last?.role === 'user' && last.text.trim() === question.trim()) turns.pop()
+  return turns.slice(-CHAT_HISTORY_TURNS).map(({ role, text }) => ({
+    role,
+    text: (name ? text.split(name).join('{nombre}') : text).slice(0, CHAT_HISTORY_CHARACTERS),
+  }))
 }
 
 /** Lo que viaja a la ruta: pedir una redacción o, sin briefing, reescribir un mensaje (D-028). */
@@ -163,6 +224,8 @@ export const AI_WORTHY_INTENTS: readonly AxisIntent[] = [
   'sport_impact',
   'goals',
   'exercise',
+  // La charla (D-042): un saludo de plantilla es justo lo que suena a máquina.
+  'social',
 ]
 
 export function benefitsFromAi(intent: AxisIntent): boolean {
@@ -365,15 +428,19 @@ export function createAiConversation(
       const domain = resolveDomain(question, briefing, memory)
       const sentBriefing = toAiBriefing(briefing)
 
+      const chat = domain.intent === 'social'
+      const name = briefing.profile?.name?.trim() || null
       const response = await transport.send({
-        system: aiSystemPrompt(domain.intent),
+        system: chat ? chatSystemPrompt() : aiSystemPrompt(domain.intent),
         question,
         briefing: sentBriefing,
         domain: {
-          text: domain.text,
+          // En la charla no se manda la respuesta del motor, que el modelo tiende a copiar: solo lo que no puede faltar.
+          text: chat ? (domain.text.includes(CHANGE_INVITATION) ? CHANGE_INVITATION : '') : domain.text,
           intent: domain.intent,
           proposedTarget: domain.proposedTarget ?? null,
         },
+        ...(chat ? { history: chatHistory(memory?.recent ?? [], question, name) } : {}),
       })
 
       /*
@@ -398,12 +465,21 @@ export function createAiConversation(
         )
       }
 
-      const check = checkModelText(response.text, domain, { briefing: sentBriefing })
+      // El nombre, como en una conversación real: no en dos respuestas seguidas.
+      const lastAxis = [...(memory?.recent ?? [])].reverse().find((turn) => turn.role === 'axis')
+      const useName = !(name && lastAxis?.text.includes(name))
+      const tidied = chat ? tidyChatText(response.text, useName ? name : null) : response.text.trim()
+      // Con «Cambiar entrenamiento» abierto, la invitación no se pierde aunque el modelo la olvide.
+      const invite = chat && domain.text.includes(CHANGE_INVITATION) && !/cambi/i.test(tidied)
+      const text = invite ? `${tidied} ${CHANGE_INVITATION}` : tidied
+      // En la charla, lo que el usuario ha dicho también respalda lo que se le contesta: «estás aburrido» lo dijo él.
+      const said = chat ? [question, ...(memory?.recent ?? []).filter((turn) => turn.role === 'user').map((turn) => turn.text)].join(' ') : ''
+      const check = checkModelText(text, chat ? { ...domain, text: `${domain.text} ${said}` } : domain, { briefing: sentBriefing })
       if (!check.ok) {
         throw new AxisAiRejection(check.reason, check.detail)
       }
 
-      return { ...domain, text: response.text.trim(), proposedTarget: reconciliation.target }
+      return { ...domain, text, proposedTarget: reconciliation.target }
     },
   }
 }

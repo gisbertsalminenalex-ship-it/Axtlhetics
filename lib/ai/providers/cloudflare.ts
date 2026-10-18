@@ -9,7 +9,7 @@
  * de `provider-chain.ts`.
  */
 
-import { buildChatMessages, readChatCompletion } from '../provider-contract'
+import { buildChatMessages, readChatCompletion, temperatureFor } from '../provider-contract'
 import type { LanguageProvider, ProviderEnv } from './types'
 
 export const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4/accounts'
@@ -56,7 +56,7 @@ export const cloudflareProvider: LanguageProvider = {
         body: JSON.stringify({
           model: cloudflareProvider.model(env),
           messages: buildChatMessages(request),
-          temperature: CLOUDFLARE_TEMPERATURE,
+          temperature: temperatureFor(request, CLOUDFLARE_TEMPERATURE),
           max_completion_tokens: CLOUDFLARE_MAX_COMPLETION_TOKENS,
           response_format: { type: 'json_object' },
           chat_template_kwargs: { enable_thinking: false },

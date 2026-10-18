@@ -745,7 +745,7 @@ test('nombrar solo un grupo muscular tras hablar de la sesión pregunta por él'
 
 test('sin conversación previa, una pregunta suelta no se fuerza a un tema', () => {
   const { briefing } = briefingWith()
-  assert.equal(answerFromBriefing('mmm', briefing).intent, 'unknown')
+  assert.equal(answerFromBriefing('qwerty asdf', briefing).intent, 'unknown')
 })
 
 // ---------------------------------------------------------------------------
@@ -948,16 +948,31 @@ test('D-028: un mensaje no entendido lo reescribe el modelo y lo responde el det
   assert.equal(result.usedFallback, false)
 })
 
-test('D-028: si el modelo tampoco lo entiende, o su frase sigue sin entenderse, queda el «no he entendido»', async () => {
+test('D-042: si el modelo tampoco lo entiende, o su frase sigue sin entenderse, AXIS charla en vez de «no he entendido»', async () => {
   const { briefing } = briefingWith({}, [session()])
   const local = answerFromBriefing('blablabla', briefing)
 
   for (const reply of ['NO_ENTIENDO', 'Blablabla.']) {
-    const conversation = createAxisConversation({ transport: transport({ send: async () => ({ text: reply }) }) })
+    const conversation = createAxisConversation({
+      transport: transport({
+        send: async (request) =>
+          request.domain.intent === 'social' ? { text: 'Eso no lo pillo, la verdad. ¿Te cuento lo que te toca hoy?' } : { text: reply },
+      }),
+    })
     const result = await conversation.ask('blablabla', briefing)
-    assert.equal(result.intent, 'unknown', reply)
-    assert.equal(result.text, local.text, reply)
-    assert.equal(result.usedFallback, false, `${reply}: no es un fallo, es la misma respuesta`)
+    assert.equal(result.intent, 'social', reply)
+    assert.match(result.text, /no lo pillo/, reply)
+    assert.equal(result.usedFallback, false, reply)
+  }
+
+  // Si la charla también falla, o el modelo devuelve su «no entiendo», queda el «no he entendido» de siempre.
+  for (const chat of [async () => { throw new Error('caído') }, async () => ({ text: 'NO_ENTIENDO' })]) {
+    const conversation = createAxisConversation({
+      transport: transport({ send: async (request) => (request.domain.intent === 'social' ? chat() : { text: 'NO_ENTIENDO' }) }),
+    })
+    const result = await conversation.ask('blablabla', briefing)
+    assert.equal(result.intent, 'unknown')
+    assert.equal(result.text, local.text)
   }
 })
 
