@@ -122,7 +122,7 @@ test('1. «para qué sirven las flexiones» se responde con el catálogo, dentro
       assert.equal(answer.intent, 'exercise', question)
       assert.doesNotMatch(answer.text, NEGOTIATION_PROMPT, question)
       assert.match(answer.text, /^Flexiones: ejercicio de empuje\. Trabaja sobre todo pecho/, question)
-      assert.match(answer.text, /Cuerpo en línea/, 'lleva las instrucciones del catálogo')
+      assert.match(answer.text, /cuerpo recto de los talones a la cabeza/, 'lleva las instrucciones del catálogo')
       assert.equal(answer.proposedTarget ?? null, null)
       assert.equal(answer.verdict ?? null, null)
     }

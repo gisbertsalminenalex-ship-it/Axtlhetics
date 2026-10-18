@@ -20,6 +20,7 @@ import {
   type ActiveExerciseEntry,
   type RestState,
 } from '@/lib/domain/workouts/active-workout'
+import { findExercise } from '@/lib/domain/workouts/catalog'
 import { formatKg, formatSets, lastPerformedExercise } from '@/lib/domain/workouts/history'
 import { EXERCISE_PHASE_LABELS } from '@/lib/domain/workouts/types'
 import { formatDuration } from '@/lib/domain/shared/dates'
@@ -249,6 +250,8 @@ export function EntrenamientoActivo() {
           </button>
 
           {canUndo && <UndoButton onUndo={undoLastSet} />}
+
+          <HowTo exerciseId={entry.exerciseId} />
         </>
       )}
 
@@ -411,6 +414,18 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
       <Undo2 className="h-4 w-4" strokeWidth={1.75} />
       Deshacer última serie
     </button>
+  )
+}
+
+/** Cómo se hace el ejercicio actual (D-043): posición, movimiento y el detalle clave, del catálogo. */
+function HowTo({ exerciseId }: { exerciseId: string }) {
+  const instructions = findExercise(exerciseId)?.instructions
+  if (!instructions) return null
+  return (
+    <section key={exerciseId} className="ax-fade mt-6 rounded-2xl bg-surface px-4 py-3.5">
+      <h3 className="text-[12px] font-semibold tracking-[0.14em] text-muted-foreground">CÓMO SE HACE</h3>
+      <p className="mt-1.5 text-[14.5px] leading-relaxed text-pretty">{instructions}</p>
+    </section>
   )
 }
 

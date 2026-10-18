@@ -1726,6 +1726,16 @@ Un «hola» no era ninguna intención. Fuera de «Cambiar entrenamiento» salía
 
 ---
 
+## D-043 — Cómo se hace, durante el entreno
+
+**Fecha:** 2026-10-18 · **Estado:** aprobada e implementada · Decidido por Alex: «cuando hagas entrenos, en el ejercicio que estés, abajo te ponga cómo hacerlo: una descripción breve».
+
+- En el entrenamiento activo, bajo «Completar serie», el bloque **«Cómo se hace»** con las instrucciones del catálogo del ejercicio actual. Cambia con el ejercicio; durante el descanso no se enseña.
+- Las instrucciones del catálogo pasan de ser pistas sueltas a una descripción breve y completa: **posición de partida, movimiento y el detalle clave**, en 2–3 frases. Se reescriben las 23 que se quedaban cortas; las demás ya lo eran.
+- Son las mismas que usa AXIS al responder «¿cómo se hacen las flexiones?».
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
