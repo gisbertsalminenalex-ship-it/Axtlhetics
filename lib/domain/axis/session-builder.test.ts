@@ -748,3 +748,23 @@ test('D-037: saltar un ejercicio dos veces en un mes se lee como que no gusta', 
   assert.deepEqual(frequentlySkipped(twice, TODAY, EXERCISE_CATALOG), ['zancadas'])
   assert.deepEqual(frequentlySkipped(old, TODAY, EXERCISE_CATALOG), [], 'fuera de los 30 días no cuenta')
 })
+
+// ---------------------------------------------------------------------------
+// D-041: el escaneo entrena
+// ---------------------------------------------------------------------------
+
+test('D-041: los correctivos del escaneo entran en el calentamiento, dos como mucho y sin repetir', () => {
+  const session = buildSession({ ...ROTATION, focus: 'tren_superior', warmupExtras: ['angeles-pared', 'tobillo-pared', 'estiramiento-flexor-cadera', 'equilibrio-una-pierna'] })
+  const warmup = session.exercises.filter((item) => item.phase === 'calentamiento').map((item) => item.exerciseId)
+  // Ángeles en la pared ya estaba: entran los dos siguientes.
+  assert.deepEqual(warmup, ['angeles-pared', 'rotacion-toracica', 'tobillo-pared', 'estiramiento-flexor-cadera'])
+  assert.ok(buildSession({ ...ROTATION, focus: 'core_movilidad', warmupExtras: ['tobillo-pared'] }).exercises.every(isMainExercise))
+})
+
+test('D-041: con diferencia entre lados, al menos un ejercicio a una mano o una pierna', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
+    const session = buildSession({ ...ROTATION, focus, preferUnilateral: true })
+    const main = session.exercises.filter(isMainExercise)
+    assert.ok(main.some((item) => item.unilateral), `${focus}: ${main.map((item) => item.exerciseId).join(', ')}`)
+  }
+})

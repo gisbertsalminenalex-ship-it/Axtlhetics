@@ -4,6 +4,7 @@ import { CircularMetric } from '@/components/circular-metric'
 import type { ScanComparison } from '@/lib/domain/scanner/compare'
 import type { ScanSummary } from '@/lib/domain/scanner/summary'
 import { findExercise } from '@/lib/domain/workouts/catalog'
+import { AxisMark } from '@/components/axis-mark'
 
 /**
  * El resumen de un escaneo (D-023): índice, un párrafo por categoría, puntos
@@ -13,7 +14,16 @@ import { findExercise } from '@/lib/domain/workouts/catalog'
  * El índice va en tono primario, no en los colores de estado: no es un semáforo
  * sobre el cuerpo de nadie.
  */
-export function ScanSummaryView({ summary, comparison = null }: { summary: ScanSummary; comparison?: ScanComparison | null }) {
+export function ScanSummaryView({
+  summary,
+  comparison = null,
+  plan = [],
+}: {
+  summary: ScanSummary
+  comparison?: ScanComparison | null
+  /** Lo que el escaneo cambia en las sesiones (D-041). */
+  plan?: readonly string[]
+}) {
   return (
     <section>
       <div className="flex items-center gap-4">
@@ -88,6 +98,21 @@ export function ScanSummaryView({ summary, comparison = null }: { summary: ScanS
               </li>
             ))}
           </ol>
+        </>
+      )}
+
+      {/* Lo que AXIS ya hace con el escaneo, sin que haya que pedirlo (D-041). */}
+      {plan.length > 0 && (
+        <>
+          <h3 className="mt-7 text-[15px] font-semibold">Lo que cambia en tus entrenos</h3>
+          <ul className="mt-2 space-y-2.5 text-[14.5px] leading-relaxed">
+            {plan.map((line) => (
+              <li key={line} className="flex items-start gap-2">
+                <AxisMark className="mt-1 h-3.5 w-3.5 shrink-0 text-primary" />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
         </>
       )}
 

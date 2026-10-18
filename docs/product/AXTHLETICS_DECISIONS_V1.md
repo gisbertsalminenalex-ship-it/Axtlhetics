@@ -1665,6 +1665,44 @@ El gráfico de volumen del **Historial** (D-003) toma la misma forma: punta redo
 
 ---
 
+## D-041 — El escaneo entrena
+
+**Fecha:** 2026-10-18 · **Estado:** aprobada e implementada · Decidido por Alex: «a partir de las fotos AXTHLETICS debería ver cómo es el usuario de físico para hacerle entrenos más detallados». **Revoca P-017** (el motor no leía el escaneo) y **matiza D-023** («sin normas de población»): ahora hay rangos de referencia, como orientación.
+
+### El problema
+
+Las fotos ya medían simetría, postura, movilidad, proporciones y el volumen relativo de cada zona, pero **qué zonas iban por detrás salía solo de las preguntas**: sin nada con qué comparar, una foto no podía decirlo. Y el motor no usaba el escaneo: las sesiones no cambiaban.
+
+### Cómo se ve el usuario en las fotos
+
+Frente a **rangos de referencia de un físico equilibrado** (`PHYSIQUE_REFERENCE`, por sexo; sin sexo, el valor intermedio). **Provisionales hasta validarlos con escaneos reales (P-015)**:
+
+- **«V» hombros/cintura** de la silueta de frente: por debajo de 1,40 (hombre), 1,25 (mujer) o 1,32 (sin dato), hombros y espalda van por detrás.
+- **Brazo frente a muslo**, cada uno respecto a su hueso: por debajo de 0,62, los brazos van por detrás; por encima de 0,92, las piernas.
+
+Lo que el usuario dijo de sí mismo (zonas que ve más flojas) sigue contando, y se dice que lo dijo él. Nunca se habla de grasa ni se puntúa el físico.
+
+### Qué cambia en las sesiones (`lib/domain/scanner/physique.ts`)
+
+Con el escaneo más reciente de los **últimos 90 días**:
+
+- **Zonas prioritarias** (las de las fotos y las que dijo el usuario): su objetivo semanal de series sube un **25 %** (D-034), así que el motor las elige antes.
+- **Correctivos en el calentamiento** (D-032), dos como mucho, solo cuando lo medido queda **claramente** fuera (a medio camino entre «bien» y «mal» en las escalas del escáner): cabeza adelantada o brazos que no llegan arriba → ángeles en la pared y rotación torácica; sentadilla corta → tobillo a la pared y flexor de cadera; rodilla hacia dentro → equilibrio a una pierna.
+- **Diferencia clara entre lados** (hombros, caderas o brazos arriba) → cada sesión lleva **al menos un ejercicio a una mano o una pierna**.
+- No cambia **si** se entrena hoy: eso lo siguen decidiendo la recuperación y el calendario.
+
+### Cómo se explica
+
+- En el motivo del día, un factor más: «Por tu escaneo, priorizo hombros y espalda, añado movilidad al calentamiento e incluyo trabajo a una mano o una pierna».
+- Al terminar el escaneo y en su detalle del historial, **«Lo que cambia en tus entrenos»**, una frase por hallazgo, con las cifras.
+- AXIS lo cuenta al preguntarle por el escaneo: «Con tu escaneo ya ajusto tus sesiones: …».
+
+### Lo que no cambia
+
+Las fotos siguen **sin salir del móvil** y el escaneo sigue sin llegar a la capa de lenguaje: todo es determinista y local.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
@@ -1727,5 +1765,5 @@ Cómo se convierte cada medida (grados, proporciones, diferencias izquierda/dere
 **`P-016` — Fotos en la copia de seguridad. CERRADO (2026-10-09).**
 Decidido por Alex: se guarda **una miniatura por pose, solo en el dispositivo**, para comparar mes a mes. La copia de seguridad lleva los resultados (medidas, respuestas e índice) y **nunca las fotos**; un archivo que las traiga no las importa. El escaneo se puede borrar desde su detalle en Historial.
 
-**`P-017` — Reglas del motor con el escaneo. CERRADO (2026-10-09).**
+**`P-017` — Reglas del motor con el escaneo. CERRADO (2026-10-09); revocado por D-041 (2026-10-18): el motor sí usa el escaneo.**
 Decidido por Alex: **AXIS informa y ofrece opciones; el usuario decide.** El motor no lee el escaneo y la decisión del día no cambia sola. Cuando el usuario pregunta por su escaneo, AXIS explica el resultado y enumera sus opciones; si hoy hay una sesión ya preparada por el motor que trabaja una zona que el usuario quiere desarrollar, la propone con su botón de confirmar, como cualquier otro cambio (D-012). Ningún resultado del escáner se trata como una lesión o una molestia.

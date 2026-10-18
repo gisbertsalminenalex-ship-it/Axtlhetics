@@ -34,6 +34,7 @@ import type { SessionFocus, WorkoutSession } from '../workouts/types'
 import { isMainExercise, MUSCLE_GROUP_LABELS } from '../workouts/types'
 import { EXERCISE_CATALOG, findExercise } from '../workouts/catalog'
 import { targetProgress, type TargetStatus } from '../workouts/targets'
+import { physiquePlan } from '../scanner/physique'
 import { laggingGroup, weeklyVolume } from '../workouts/weekly-volume'
 import { deriveFacts } from './facts'
 import type { ReportedLoadMemory } from './memory'
@@ -216,6 +217,8 @@ export type BriefingScan = {
   actions: string[]
   /** Frente al escaneo anterior, si lo hay: el titular y lo que se movió más que su margen. */
   comparison: { headline: string; changes: string[] } | null
+  /** Lo que el escaneo ya cambia en las sesiones (D-041), una frase por hallazgo. */
+  plan: string[]
 }
 
 export type BriefingAssessment = {
@@ -383,6 +386,7 @@ function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[])
     priority: last.selfReport.priority,
     improvements: summary.improvements,
     actions: summary.actions.map((action) => action.text),
+    plan: physiquePlan(last).findings,
     comparison: previous
       ? (() => {
           const c = compareScans(

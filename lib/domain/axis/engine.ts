@@ -10,6 +10,9 @@ import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
+import type { PhysiquePlan } from '../scanner/physique'
+import { listNames } from '../shared/text'
+import { MUSCLE_GROUP_LABELS } from '../workouts/types'
 import { isOpenTarget, targetProgress } from '../workouts/targets'
 import { frequentlySkipped } from '../workouts/history'
 import type { PlannedSession, SessionFocus } from '../workouts/types'
@@ -51,10 +54,14 @@ export function decide(context: AxisContext): AxisDecision {
   const outcome = evaluateRules(facts)
 
   // La descarga no cambia qué se decide hoy, sino cuánto: se explica la primera (D-031).
-  const factors =
-    isDeloadWeek(context.recentSessions, context.dayKey) && isTrainingRecommendation(outcome.type)
-      ? [deloadFactor(), ...outcome.factors]
-      : outcome.factors
+  const training = isTrainingRecommendation(outcome.type)
+  const scanFactor = training && facts.physique ? physiqueFactor(facts.physique) : null
+  const factors = [
+    ...(isDeloadWeek(context.recentSessions, context.dayKey) && training ? [deloadFactor()] : []),
+    ...outcome.factors,
+    // El escaneo va después: explica cómo se ajusta la sesión, no por qué se entrena hoy (D-041).
+    ...(scanFactor ? [scanFactor] : []),
+  ]
 
   const primary = buildProposal(context, facts, outcome.type, factors, 'Recomendada', outcome.rule)
   const alternatives = buildAlternatives(context, facts, outcome.type)
@@ -126,6 +133,9 @@ function planSession(
       .map((target) => targetProgress(target, context.recentSessions, context.dayKey, context.assessments ?? []))
       .filter(isOpenTarget)
       .map((progress) => progress.target.exerciseId),
+    // Lo que el escaneo pide (D-041).
+    warmupExtras: facts.physique?.warmupExtras ?? [],
+    preferUnilateral: facts.physique?.unilateral ?? false,
     // Lo que no gusta: lo dicho y lo que se salta a menudo (D-037).
     dislikedExerciseIds: [
       ...(context.profile?.dislikedExercises ?? []),
@@ -259,6 +269,21 @@ function lighterFactors(): AxisFactor[] {
       direction: 'neutral',
     },
   ]
+}
+
+/** Cómo ajusta el escaneo la sesión (D-041), o `null` si no pide nada. */
+function physiqueFactor(plan: PhysiquePlan): AxisFactor | null {
+  const parts: string[] = []
+  if (plan.priorityGroups.length > 0) parts.push(`priorizo ${listNames(plan.priorityGroups.map((group) => MUSCLE_GROUP_LABELS[group].toLowerCase()))}`)
+  if (plan.warmupExtras.length > 0) parts.push('añado movilidad al calentamiento')
+  if (plan.unilateral) parts.push('incluyo trabajo a una mano o una pierna')
+  if (parts.length === 0) return null
+  return {
+    key: 'body_scan',
+    label: 'Tu escaneo corporal',
+    detail: `Por tu escaneo, ${listNames(parts)}.`,
+    direction: 'neutral',
+  }
 }
 
 function deloadFactor(): AxisFactor {

@@ -163,6 +163,10 @@ export type SessionBuildOptions = {
    * de la sesión mientras queden suficientes alternativas.
    */
   dislikedExerciseIds?: readonly string[]
+  /** Correctivos del escaneo (D-041): se añaden al calentamiento de las sesiones de fuerza, como mucho dos. */
+  warmupExtras?: readonly string[]
+  /** El escaneo ve diferencia entre lados (D-041): al menos un ejercicio a una mano o una pierna. */
+  preferUnilateral?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +224,24 @@ function withPriority(
   return result
 }
 
+/**
+ * Si no hay ningún ejercicio unilateral, el primero unilateral de la zona
+ * sustituye al último elegido que no sea un objetivo (D-041).
+ */
+function withUnilateral(selected: readonly Exercise[], pool: readonly Exercise[], keep: readonly string[]): Exercise[] {
+  if (selected.some((exercise) => exercise.unilateral)) return [...selected]
+  const one = pool.find((exercise) => exercise.unilateral && !selected.some((other) => other.id === exercise.id))
+  if (!one) return [...selected]
+  const result = [...selected]
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (!keep.includes(result[i].id)) {
+      result[i] = one
+      break
+    }
+  }
+  return result
+}
+
 // ---------------------------------------------------------------------------
 // Deportes de salto (D-033)
 // ---------------------------------------------------------------------------
@@ -253,6 +275,9 @@ function jumpExerciseFor(
       a.id.localeCompare(b.id),
   )[0]
 }
+
+/** Correctivos del escaneo que caben en el calentamiento (D-041). */
+const MAX_WARMUP_EXTRAS = 2
 
 /** Minutos que ocupa cada ejercicio de calentamiento o vuelta a la calma: salen del tiempo disponible. */
 export const PHASE_EXERCISE_MINUTES = 2
@@ -594,6 +619,8 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     jumpSport = false,
     priorityExerciseIds = [],
     dislikedExerciseIds = [],
+    warmupExtras = [],
+    preferUnilateral = false,
   } = options
 
   // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
@@ -614,7 +641,18 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const target = targetDifficultyFor(experience, intensity)
   // El calentamiento y la vuelta a la calma salen del mismo tiempo (D-032).
   const phaseCatalog = catalog ?? EXERCISE_CATALOG
-  const warmupIds = WARMUP_EXERCISES[focus].length > 0 && jumpSport ? [...WARMUP_EXERCISES[focus], JUMP_SPORT_WARMUP] : WARMUP_EXERCISES[focus]
+  const baseWarmup = WARMUP_EXERCISES[focus]
+  const warmupIds =
+    baseWarmup.length === 0
+      ? baseWarmup
+      : [
+          ...new Set([
+            ...baseWarmup,
+            ...(jumpSport ? [JUMP_SPORT_WARMUP] : []),
+            // Lo que el escaneo pide, sin repetir lo que ya está (D-041).
+            ...warmupExtras.filter((id) => !baseWarmup.includes(id)).slice(0, MAX_WARMUP_EXTRAS),
+          ]),
+        ]
   const warmup = phaseExercises(warmupIds, 'calentamiento', phaseCatalog)
   const cooldown = phaseExercises(COOLDOWN_EXERCISES[focus], 'vuelta_calma', phaseCatalog)
   const phaseMinutes = (warmup.length + cooldown.length) * PHASE_EXERCISE_MINUTES
@@ -637,7 +675,9 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
 
   // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
   // Un objetivo lo pidió el usuario: entra aunque el ejercicio esté entre los que no gustan.
-  const prioritized = withPriority(selected, usable, priorityExerciseIds)
+  const withGoals = withPriority(selected, usable, priorityExerciseIds)
+  // Con diferencia entre lados, al menos un ejercicio a una mano o una pierna (D-041).
+  const prioritized = preferUnilateral ? withUnilateral(withGoals, pool, priorityExerciseIds) : withGoals
 
   // El salto va primero: con las piernas frescas sale mejor y con menos riesgo (D-033).
   const main = jump ? [jump, ...prioritized] : prioritized

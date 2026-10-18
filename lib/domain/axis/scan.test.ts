@@ -145,13 +145,27 @@ test('las preguntas sobre el escaneo nunca llegan al proveedor', async () => {
   assert.equal(requests.length, 0)
 })
 
-test('el motor no lee el escaneo: la decisión del día es la misma con o sin él', () => {
+test('D-041: el motor usa el escaneo: no cambia si se entrena, sí cómo, y lo explica', () => {
   const without = setup([]).decision
   const withScan = setup([scan(['piernas', 'pecho'])]).decision
-  assert.deepEqual(
-    { type: withScan.primary.type, focus: withScan.primary.session?.focus },
-    { type: without.primary.type, focus: without.primary.session?.focus },
-  )
+
+  // Si se entrena hoy lo siguen decidiendo la recuperación y el calendario.
+  assert.equal(withScan.primary.type, without.primary.type)
+
+  // Cómo: la cabeza adelantada (18–19 %) pide movilidad de hombro en el calentamiento…
+  const warmup = withScan.primary.session!.exercises.filter((item) => item.phase === 'calentamiento').map((item) => item.exerciseId)
+  assert.ok(warmup.includes('angeles-pared'), warmup.join(', '))
+  // …y lo dice, entre los factores del día.
+  const factor = withScan.primary.factors.find((item) => item.key === 'body_scan')
+  assert.ok(factor)
+  assert.match(factor!.detail, /^Por tu escaneo, priorizo .*piernas.*pecho|^Por tu escaneo, priorizo .*pecho.*piernas/)
+  assert.ok(!without.primary.factors.some((item) => item.key === 'body_scan'))
+})
+
+test('D-041: AXIS cuenta lo que el escaneo ya cambia en las sesiones', () => {
+  const { briefing } = setup([scan(['piernas'])])
+  const answer = answerFromBriefing('¿qué tal mi escaneo?', briefing)
+  assert.match(answer.text, /Con tu escaneo ya ajusto tus sesiones: .*cabeza se adelanta/)
 })
 
 test('con dos escaneos, AXIS cuenta qué ha cambiado desde el anterior (y sigue sin salir nada)', () => {

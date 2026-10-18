@@ -1,10 +1,11 @@
 /**
  * Preguntas por el escáner corporal (D-023).
  *
- * AXIS informa y ofrece opciones; **el usuario decide** (`P-017`). Nada cambia
- * solo: si hoy hay preparada una sesión que trabaja una zona que el usuario
- * quiere desarrollar, se propone como cualquier otro cambio, con su botón de
- * confirmar. El motor no lee el escaneo para decidir.
+ * Desde D-041 el motor **sí** usa el escaneo: prioriza zonas, añade
+ * correctivos al calentamiento y pide trabajo unilateral (revoca P-017). AXIS
+ * lo cuenta aquí, y además ofrece opciones para hoy: si hay preparada una
+ * sesión que trabaja una zona que el usuario quiere desarrollar, se propone
+ * como cualquier otro cambio, con su botón de confirmar.
  *
  * Determinista y local: estas respuestas nunca pasan por la capa de lenguaje.
  */
@@ -86,6 +87,9 @@ export function answerScan(briefing: AxisBriefing): AxisAnswer {
     }
   }
   for (const action of scan.actions.slice(0, 2)) options.push(`${action.charAt(0).toLowerCase()}${action.slice(1).replace(/\.$/, '')}`)
+
+  // Lo que el escaneo ya hace en tus sesiones, sin que tengas que pedirlo (D-041).
+  if (scan.plan.length) parts.push(`Con tu escaneo ya ajusto tus sesiones: ${scan.plan.join(' ')}`)
 
   if (options.length) {
     parts.push(`Tus opciones: ${options.map((o, i) => `${i + 1}) ${o}`).join('; ')}. Tú decides.`)

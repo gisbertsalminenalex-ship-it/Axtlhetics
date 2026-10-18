@@ -180,3 +180,22 @@ export const LIMB_LENGTH_PHOTO_CHECK_PCT = 6
 /** Umbrales para destacar: a partir de aquí, punto fuerte; hasta aquí, área de mejora. */
 export const STRENGTH_FROM = 80
 export const IMPROVE_UNTIL = 55
+
+/**
+ * Rangos de referencia de un físico equilibrado en la foto de frente (D-041).
+ *
+ * Aprobados por Alex para que AXIS pueda decir qué zonas van por detrás desde
+ * el primer escaneo. Son anchuras de la silueta en la foto, no perímetros, y
+ * valores de orientación, no normas: **provisionales hasta validarlos con
+ * escaneos reales (P-015)**. Sin el sexo, se usa el valor intermedio.
+ *
+ * - `shoulderToWaist`: anchura de hombros frente a la de cintura (la «V»). Por
+ *   debajo, hombros y espalda van por detrás.
+ * - `armToThigh`: anchura media del brazo respecto a su hueso, frente a la del
+ *   muslo respecto al suyo. Por debajo de `min`, los brazos van por detrás;
+ *   por encima de `max`, las piernas.
+ */
+export const PHYSIQUE_REFERENCE = {
+  shoulderToWaist: { hombre: 1.4, mujer: 1.25, sin_dato: 1.32 },
+  armToThigh: { min: 0.62, max: 0.92 },
+} as const

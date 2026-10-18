@@ -7,6 +7,7 @@ import { Confirmation } from '@/components/workout/confirmation'
 import { compareScans } from '@/lib/domain/scanner/compare'
 import { SCAN_POSE_GUIDE } from '@/lib/domain/scanner/protocol'
 import { summarizeScan } from '@/lib/domain/scanner/summary'
+import { physiquePlan } from '@/lib/domain/scanner/physique'
 import { formatDayInSentence } from '@/lib/domain/shared/dates'
 import { useAxtlhetics } from '@/lib/state/store'
 
@@ -121,7 +122,7 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
             </ul>
           )}
           <div className="mt-6">
-            <ScanSummaryView summary={summary} comparison={comparison} />
+            <ScanSummaryView summary={summary} comparison={comparison} plan={physiquePlan(scan).findings} />
           </div>
           <button
             type="button"

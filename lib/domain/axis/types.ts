@@ -14,6 +14,7 @@ import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
 import type { DayKey } from '../shared/dates'
 import type { Exercise, MuscleGroup, PlannedSession, WorkoutSession } from '../workouts/types'
 import type { TrainingLoadBand } from '../workouts/load'
+import type { PhysiquePlan } from '../scanner/physique'
 
 export type AxisRecommendationType =
   | 'TRAINING'
@@ -53,6 +54,8 @@ export type AxisFactorKey =
   | 'deload_week'
   /** Carga de los últimos 7 días alta (D-034). */
   | 'training_load'
+  /** Lo que el escaneo corporal pide a las sesiones (D-041). */
+  | 'body_scan'
 
 /**
  * `supports` empuja hacia entrenar más, `limits` hacia entrenar menos.
@@ -196,4 +199,6 @@ export type AxisFacts = {
   weeklyFulfilment: Record<MuscleGroup, number>
   /** Banda de la Carga de los últimos 7 días (D-008), o `null` sin sesiones en la ventana. */
   trainingLoadBand: TrainingLoadBand | null
+  /** Lo que el último escaneo pide a las sesiones (D-041), o `null` sin escaneo reciente. */
+  physique: PhysiquePlan | null
 }

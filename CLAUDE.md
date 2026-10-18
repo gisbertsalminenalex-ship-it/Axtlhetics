@@ -188,7 +188,7 @@ Current project phase: **FUNCTIONAL CORE v0.1**. The visual prototype was review
 
 - PWA on Vercel, installable and usable offline.
 - Local persistence in IndexedDB v9 through repositories.
-- Body scanner (D-023): guided on-device scan next to the evolution test; MediaPipe pose model served from the app (`scripts/prepare-mediapipe.mjs`); photos never leave the device and never reach the language layer; AXIS informs and offers options, the user decides (P-017).
+- Body scanner (D-023): guided on-device scan next to the evolution test; MediaPipe pose model served from the app (`scripts/prepare-mediapipe.mjs`); photos never leave the device and never reach the language layer; since D-041 the engine uses the scan to prioritise zones, add correctives and ask for unilateral work, always explained (P-017 revoked).
 - Recovery Score (D-002, D-009) and Training Load (D-008) computed from real data.
 - AXIS deterministic engine deciding the day, with explained recommendations.
 - AXIS conversation: negotiation of the day's session, typed action proposals that the user confirms, conversation persisted locally per day.
@@ -342,6 +342,8 @@ AXIS speaks first (D-038, `lib/domain/axis/proactive.ts`): one deterministic not
 Daily reminder (D-039): Perfil generates a recurring daily iCalendar event on the device (`lib/domain/reminders/ics.ts`, floating time, fixed UID) that the phone calendar fires with the app closed. No push notifications, no server.
 
 After the first completed evolution test (D-040, `lib/domain/assessment/targets.ts`), the test summary — and «Tu progreso» in Entrenamiento while there are no goals — proposes one measurable goal per test (best mark +25 %, at least +2 reps / +10 s, 8 weeks), added in one write (`addTargets`). Test marks count towards goals.
+
+The scan trains (D-041, revokes P-017, `lib/domain/scanner/physique.ts`): the latest scan (≤ 90 days) gives priority groups (photo proportions against provisional reference ranges `PHYSIQUE_REFERENCE`, plus the user's weak zones) whose weekly set target rises 25 %, up to two corrective warm-up exercises for clear posture/mobility findings, and a unilateral exercise when sides clearly differ. It never decides whether to train; it is explained as a `body_scan` factor, in the scan summary («Lo que cambia en tus entrenos») and in the scan answer. Photos still never leave the device.
 
 Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
 

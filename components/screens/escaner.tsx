@@ -31,6 +31,7 @@ import { createScanRecord } from '@/lib/domain/scanner/types'
 import { createId } from '@/lib/domain/shared/ids'
 import { formatDayInSentence, todayKey } from '@/lib/domain/shared/dates'
 import { useAxtlhetics } from '@/lib/state/store'
+import { physiquePlan } from '@/lib/domain/scanner/physique'
 import { cn } from '@/lib/utils'
 
 type Step = 'intro' | 'build' | 'sex' | 'strong' | 'weak' | 'priority' | ScanPose | 'summary'
@@ -237,7 +238,11 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
         <>
           <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Tu escaneo</h1>
           <div className="mt-5">
-            <ScanSummaryView summary={summary} comparison={comparison} />
+            <ScanSummaryView
+              summary={summary}
+              comparison={comparison}
+              plan={physiquePlan({ dayKey: todayKey(), measurements, selfReport }).findings}
+            />
           </div>
           <div className="mt-auto pt-8">
             <button

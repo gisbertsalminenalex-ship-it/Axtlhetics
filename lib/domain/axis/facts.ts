@@ -12,6 +12,7 @@ import type { MuscleGroup } from '../workouts/types'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
 import { computeTrainingLoad } from '../workouts/load'
 import { fulfilmentOf, weeklyVolume } from '../workouts/weekly-volume'
+import { latestScan, physiquePlan, PRIORITY_VOLUME_FACTOR } from '../scanner/physique'
 import type { ScheduledActivity } from '../profile/types'
 import type { AxisContext, AxisFacts } from './types'
 
@@ -53,6 +54,10 @@ export function deriveFacts(context: AxisContext): AxisFacts {
   const vigentes = activities.filter((activity) => !cancelled.has(activity.name.toLowerCase()))
 
   const recoveryValue = recoveryScore?.status === 'ok' ? recoveryScore.value : null
+
+  // Lo que el último escaneo pide a las sesiones (D-041).
+  const scan = latestScan(context.scans ?? [], dayKey)
+  const physique = scan ? physiquePlan(scan) : null
 
   const completedSessions = recentSessions.filter((session) => session.status === 'completed')
   const lastSession = completedSessions[0] ?? null
@@ -118,14 +123,19 @@ export function deriveFacts(context: AxisContext): AxisFacts {
     tomorrowActivities: [...tomorrowActivities],
     minutesUntilActivity,
     availableMinutes,
+    // Las zonas que el escaneo prioriza buscan más series a la semana (D-041).
     weeklyFulfilment: Object.fromEntries(
       weeklyVolume(
         recentSessions,
         dayKey,
         context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG,
         profile?.experience ?? 'intermedio',
-      ).map((volume) => [volume.group, fulfilmentOf(volume)]),
+      ).map((volume) => [
+        volume.group,
+        physique?.priorityGroups.includes(volume.group) ? fulfilmentOf(volume) / PRIORITY_VOLUME_FACTOR : fulfilmentOf(volume),
+      ]),
     ) as Record<MuscleGroup, number>,
+    physique,
     trainingLoadBand: (() => {
       const load = computeTrainingLoad(recentSessions, dayKey)
       return load.status === 'ok' ? load.band : null
