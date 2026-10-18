@@ -227,7 +227,11 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
       </figcaption>
 
       <div
-        className="relative mt-2.5 flex h-32 items-end border-b border-border"
+        className={cn(
+          'relative mt-2.5 flex h-32 items-end border-b border-border',
+          // Separación entre barras: menor cuando hay muchas (el mes tiene ~30).
+          points.length > 12 ? 'gap-[3px]' : 'gap-1.5',
+        )}
         role="img"
         aria-label={
           hasData
@@ -254,11 +258,13 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
           <div key={index} className="relative flex h-full flex-1 items-end">
             {point.value > 0 && (
               <div
-                className="ax-bar w-full rounded-t-[2px] bg-primary"
+                // Punta redonda, como las barras de «Tu progreso» (D-040). Aquí no hay
+                // barra seleccionada: todas en el azul primario.
+                className="ax-bar w-full rounded-t-full bg-primary"
                 style={
                   {
-                    // Mínimo visible: un volumen pequeño no debe desaparecer.
-                    height: `${Math.max(4, safeDivide(point.value, max, 0) * 100)}%`,
+                    // Mínimo visible: un volumen pequeño no desaparece y su punta redonda se ve entera.
+                    height: `max(${points.length > 12 ? 8 : 12}px, ${safeDivide(point.value, max, 0) * 100}%)`,
                     '--ax-index': index,
                   } as CSSProperties
                 }

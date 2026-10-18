@@ -1661,6 +1661,8 @@ Vuelven las **cuatro pestañas** (Inicio, Entrenamiento, Recuperación, Historia
 
 Pedido por Alex. La mejor serie por sesión es una **curva suave** con un relleno azul muy tenue debajo, en lugar de tramos rectos. La curva es **monótona** (Fritsch–Carlson): entre dos sesiones nunca sube ni baja más allá de sus dos marcas, así que no enseña ninguna marca que no exista. Las barras de series por semana tienen la **punta redondeada**, más separación y las semanas no seleccionadas en azul suave (25 %); una semana floja conserva una altura mínima para que la punta se vea entera.
 
+El gráfico de volumen del **Historial** (D-003) toma la misma forma: punta redondeada y separación entre barras (menor en el mes, que tiene unas 30), todas en el azul primario porque ahí no hay barra seleccionada.
+
 ---
 
 ## Decisiones pendientes
