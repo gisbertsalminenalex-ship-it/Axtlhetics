@@ -30,13 +30,16 @@ import type {
   SessionModification,
   WorkoutSession,
   WorkoutSessionStatus,
+  WarmupPart,
 } from './types'
-import { isExercisePhase, isMainExercise, volumeOfSession } from './types'
+import { isExercisePhase, isMainExercise, isWarmupPart, volumeOfSession } from './types'
 
 /** Escalón del selector de carga, en kg. */
 export const WEIGHT_STEP_KG = 0.5
 export const MAX_WEIGHT_KG = 400
 export const MAX_REPS = 50
+/** Los ejercicios de tiempo llegan más lejos: la activación dura un minuto (D-045). */
+export const MAX_SECONDS = 120
 
 export type ActiveExerciseEntry = {
   exerciseId: string
@@ -57,6 +60,8 @@ export type ActiveExerciseEntry = {
   sets: CompletedSet[]
   /** Calentamiento o vuelta a la calma (D-032). Ausente en el entrenamiento. */
   phase?: ExercisePhase
+  /** La parte del calentamiento (D-045). */
+  warmupPart?: WarmupPart
 }
 
 export type ActiveWorkout = {
@@ -119,6 +124,7 @@ export function startWorkout(
       weightKg: exercise.suggestedWeightKg,
       sets: [],
       ...(exercise.phase ? { phase: exercise.phase } : {}),
+      ...(exercise.warmupPart ? { warmupPart: exercise.warmupPart } : {}),
     })),
     exerciseIndex: 0,
     modifications: [],
@@ -165,7 +171,7 @@ export function adjustWeight(workout: ActiveWorkout, delta: number): ActiveWorko
 export function adjustReps(workout: ActiveWorkout, delta: number): ActiveWorkout {
   return replaceEntry(workout, workout.exerciseIndex, (entry) => ({
     ...entry,
-    reps: clamp(entry.reps + delta, 1, MAX_REPS),
+    reps: clamp(entry.reps + delta, 1, entry.isTimed ? MAX_SECONDS : MAX_REPS),
   }))
 }
 
@@ -296,6 +302,7 @@ export function performedExercises(workout: ActiveWorkout): PerformedExercise[] 
       targetSets: entry.targetSets,
       targetReps: entry.targetReps,
       ...(entry.phase ? { phase: entry.phase } : {}),
+      ...(entry.warmupPart ? { warmupPart: entry.warmupPart } : {}),
     }))
 }
 
@@ -416,7 +423,8 @@ function isActiveEntry(value: unknown): value is ActiveExerciseEntry {
     (value.weightKg === null || typeof value.weightKg === 'number') &&
     Array.isArray(value.sets) &&
     value.sets.every(isCompletedSet) &&
-    (value.phase === undefined || isExercisePhase(value.phase))
+    (value.phase === undefined || isExercisePhase(value.phase)) &&
+    (value.warmupPart === undefined || isWarmupPart(value.warmupPart))
   )
 }
 

@@ -128,6 +128,8 @@ export type Exercise = {
    * nadie. Es solo del catálogo: las sesiones guardadas no la llevan.
    */
   family?: string
+  /** Solo para la activación del calentamiento (D-045): nunca se elige como entrenamiento. */
+  warmupOnly?: boolean
 }
 
 /** `true` si el ejercicio admite progresión por carga externa. */
@@ -151,6 +153,29 @@ export function isExercisePhase(value: unknown): value is ExercisePhase {
   return value === 'calentamiento' || value === 'vuelta_calma'
 }
 
+/**
+ * Las tres partes del calentamiento (D-045): activar el cuerpo, mover las
+ * articulaciones y unas pocas repeticiones suaves de lo que se va a entrenar.
+ */
+export type WarmupPart = 'activacion' | 'movilidad' | 'aproximacion'
+
+export const WARMUP_PART_LABELS: Record<WarmupPart, string> = {
+  activacion: 'Activación',
+  movilidad: 'Movilidad articular',
+  aproximacion: 'Series de aproximación',
+}
+
+export function isWarmupPart(value: unknown): value is WarmupPart {
+  return value === 'activacion' || value === 'movilidad' || value === 'aproximacion'
+}
+
+/** «Calentamiento · Activación», o solo la fase en las sesiones de antes de D-045. */
+export function phaseLabel(item: { phase?: ExercisePhase; warmupPart?: WarmupPart }): string | null {
+  if (!item.phase) return null
+  const phase = EXERCISE_PHASE_LABELS[item.phase]
+  return item.warmupPart ? `${phase} · ${WARMUP_PART_LABELS[item.warmupPart]}` : phase
+}
+
 /** `true` si el ejercicio es parte del entrenamiento y no del calentamiento o la vuelta a la calma. */
 export function isMainExercise(exercise: { phase?: ExercisePhase }): boolean {
   return exercise.phase === undefined
@@ -172,6 +197,8 @@ export type PlannedExercise = {
   imageUrl: string | null
   /** Ausente en el entrenamiento; presente en el calentamiento y la vuelta a la calma (D-032). */
   phase?: ExercisePhase
+  /** La parte del calentamiento (D-045). */
+  warmupPart?: WarmupPart
 }
 
 /** Una sesión concreta y estructurada, no un titular. */
@@ -210,6 +237,8 @@ export type PerformedExercise = {
   targetReps?: number
   /** Calentamiento o vuelta a la calma (D-032). Ausente en el entrenamiento y en las sesiones anteriores. */
   phase?: ExercisePhase
+  /** La parte del calentamiento (D-045). */
+  warmupPart?: WarmupPart
 }
 
 /**
@@ -357,7 +386,8 @@ function isPerformedExercise(value: unknown): value is PerformedExercise {
     isArrayOf(value.sets, isCompletedSetValue) &&
     isOptionalCount(value.targetSets) &&
     isOptionalCount(value.targetReps) &&
-    (value.phase === undefined || isExercisePhase(value.phase))
+    (value.phase === undefined || isExercisePhase(value.phase)) &&
+    (value.warmupPart === undefined || isWarmupPart(value.warmupPart))
   )
 }
 

@@ -22,7 +22,8 @@ export function closingMessage(
   const parts: string[] = []
 
   if (session.status === 'abandoned') {
-    const sets = session.exercises.reduce((total, exercise) => total + exercise.sets.length, 0)
+    // Las del entrenamiento: el calentamiento no cuenta (D-032, D-045).
+    const sets = session.exercises.filter(isMainExercise).reduce((total, exercise) => total + exercise.sets.length, 0)
     parts.push(
       `Sesión interrumpida con ${sets} ${sets === 1 ? 'serie registrada' : 'series registradas'}.`,
       'Queda guardada, pero no la uso para subir cargas: al no terminarla no dice de qué eres capaz.',

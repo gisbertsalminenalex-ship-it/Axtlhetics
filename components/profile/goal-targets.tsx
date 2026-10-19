@@ -9,7 +9,7 @@ import { TARGET_STATUS_LABELS, targetProgress } from '@/lib/domain/workouts/targ
 import { useAxtlhetics } from '@/lib/state/store'
 
 /** Ejercicios que admiten un objetivo: todo menos la movilidad, que no se mide en marcas. */
-const TARGET_EXERCISES = EXERCISE_CATALOG.filter((exercise) => exercise.category !== 'movilidad').sort((a, b) =>
+const TARGET_EXERCISES = EXERCISE_CATALOG.filter((exercise) => exercise.category !== 'movilidad' && !exercise.warmupOnly).sort((a, b) =>
   a.name.localeCompare(b.name, 'es'),
 )
 

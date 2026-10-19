@@ -331,6 +331,23 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
     ],
   },
 
+  // --- Activación del calentamiento (D-045) ------------------------------------
+  // De frente: pies juntos y brazos abajo; piernas abiertas y brazos arriba.
+  'jumping-jacks': {
+    view: 'front',
+    frames: [
+      { hip: [120, STAND_HIP_Y], torso: 180, arm: { a: 8, b: 4 }, farArm: { a: -8, b: -4 }, leg: { a: 3, b: 2 }, farLeg: { a: -3, b: -2 }, foot: 70, farFoot: -70 },
+      { hip: [120, STAND_HIP_Y - 8], torso: 180, arm: { a: 150, b: 165 }, farArm: { a: -150, b: -165 }, leg: { a: 22, b: 22 }, farLeg: { a: -22, b: -22 }, foot: 70, farFoot: -70 },
+    ],
+  },
+  // En plancha alta, una rodilla hacia el pecho y después la otra.
+  escaladores: {
+    frames: [
+      { hip: PUSH_TOP.hip, torso: PUSH_TOP.torso, leg: { a: 80, b: -100 }, farLeg: PUSH_TOP.leg, arm: reach(PUSH_TOP.shoulder, PUSH_HAND), foot: -100, farFoot: 20 },
+      { hip: PUSH_TOP.hip, torso: PUSH_TOP.torso, leg: PUSH_TOP.leg, farLeg: { a: 80, b: -100 }, arm: reach(PUSH_TOP.shoulder, PUSH_HAND), foot: 20, farFoot: -100 },
+    ],
+  },
+
   // --- Movilidad -------------------------------------------------------------
   'gato-camello': { frames: [quadruped({ arch: 8, head: 50 }), quadruped({ arch: -5, head: 125 })] },
   'rotacion-toracica': {

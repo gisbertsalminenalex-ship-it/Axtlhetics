@@ -816,6 +816,42 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   // nota el trabajo, pero no cuentan como grupos cargados de la sesión.
   // ---------------------------------------------------------------------------
   {
+    id: 'jumping-jacks',
+    name: 'Jumping jacks',
+    category: 'movilidad',
+    primaryMuscles: ['piernas'],
+    secondaryMuscles: ['hombros'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'De pie, con los pies juntos y los brazos a los lados. Salta abriendo las piernas y subiendo los brazos por encima de la cabeza, y vuelve a cerrar con otro salto. A ritmo constante, cayendo suave sobre las puntas.',
+    work: { sets: 1, reps: 60, restSeconds: 30, isTimed: true, tempo: null },
+    imageUrl: null,
+    warmupOnly: true,
+  },
+  {
+    id: 'escaladores',
+    name: 'Escaladores',
+    category: 'movilidad',
+    primaryMuscles: ['core'],
+    secondaryMuscles: ['hombros', 'piernas'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'En plancha alta, con las manos bajo los hombros y el cuerpo recto. Lleva una rodilla hacia el pecho y cámbiala por la otra, alternando a ritmo vivo, sin subir la cadera.',
+    work: { sets: 1, reps: 60, restSeconds: 30, isTimed: true, tempo: null },
+    imageUrl: null,
+    warmupOnly: true,
+  },
+  {
     id: 'gato-camello',
     name: 'Gato-camello',
     category: 'movilidad',
@@ -974,7 +1010,8 @@ export function exercisesForFocus(
   catalog: readonly Exercise[] = EXERCISE_CATALOG,
 ): Exercise[] {
   const categories = FOCUS_CATEGORIES[focus]
-  return catalog.filter((exercise) => categories.includes(exercise.category))
+  // Lo que solo es de calentamiento (D-045) nunca se elige como entrenamiento.
+  return catalog.filter((exercise) => categories.includes(exercise.category) && !exercise.warmupOnly)
 }
 
 /** Ejercicios que no cargan ninguno de los grupos indicados. */

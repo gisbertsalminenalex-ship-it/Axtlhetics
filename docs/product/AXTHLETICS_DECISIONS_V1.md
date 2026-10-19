@@ -1762,6 +1762,31 @@ Upstash Redis conectado al proyecto en Vercel (`KV_REST_API_URL`, `KV_REST_API_T
 
 ---
 
+## D-045 — Calentamiento en tres partes, sin vuelta a la calma
+
+**Fecha:** 2026-10-19 · **Estado:** aprobada e implementada · Decidido por Alex: «quita los estiramientos del final, y el calentamiento divídelo en 3 partes: activación, movilidad articular y pequeñas series sobre el entreno que vas a hacer». **Corrige D-032.**
+
+### El calentamiento
+
+1. **Activación**: **jumping jacks 1 min** y **escaladores 1 min**. Son ejercicios nuevos del catálogo, con su figura, marcados `warmupOnly`: nunca se eligen como entrenamiento ni como objetivo.
+2. **Movilidad articular**: la de siempre por zona (D-032), con los correctivos del escaneo (D-041) y el equilibrio de quien salta (D-033).
+3. **Series de aproximación**: **5 repeticiones** de los **3 primeros ejercicios** del entreno (sin los de tiempo ni los saltos). Con pesa, **la misma carga** que se va a usar, para tantearla; sin pesa, **la variante más fácil** si la hay (flexiones → inclinadas o de rodillas), para no gastar energía.
+
+En pantalla cada ejercicio dice su parte: «Calentamiento · Activación», «· Movilidad articular», «· Series de aproximación».
+
+### Sin vuelta a la calma
+
+Las sesiones ya no terminan con estiramientos. Las sesiones guardadas que la tenían se siguen leyendo igual.
+
+### Detalles
+
+- El tiempo del calentamiento (2 min de activación, 2 por ejercicio de movilidad, 1 por serie de aproximación) sale del tiempo disponible, como en D-032.
+- Nada del calentamiento cuenta como entrenamiento: ni récords, ni series de la semana, ni rotación. Las series de aproximación repiten a propósito el ejercicio, así que todo lo que busca un ejercicio de la sesión mira solo el entrenamiento.
+- El selector de segundos llega a **120** (antes 50, el mismo que las repeticiones): la activación dura un minuto.
+- La sesión de movilidad sigue sin calentamiento: ya lo es.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

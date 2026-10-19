@@ -37,6 +37,7 @@ import type {
   PlannedSession,
   SessionFocus,
   SessionIntensity,
+  WarmupPart,
   WorkoutSession,
 } from '../workouts/types'
 import { FOCUS_CATEGORIES, FOCUS_MUSCLE_GROUPS, SESSION_FOCUS_LABELS, usesLoad } from '../workouts/types'
@@ -174,22 +175,34 @@ export type SessionBuildOptions = {
 // ---------------------------------------------------------------------------
 
 /**
- * Lo que abre la sesión, por zona: movilidad de lo que se va a cargar. Tobillo
- * y columna antes de piernas; hombro y columna torácica antes de tren superior.
- * La sesión de movilidad no lleva: ya lo es.
+ * El calentamiento, en tres partes (D-045, decidido por Alex):
+ *
+ * 1. **Activación**: jumping jacks y escaladores, un minuto cada uno.
+ * 2. **Movilidad articular** de lo que se va a cargar (`WARMUP_EXERCISES`).
+ * 3. **Series de aproximación**: 5 repeticiones suaves de los primeros
+ *    ejercicios del entreno (`approachSets`).
+ *
+ * La sesión de movilidad no lleva calentamiento: ya lo es. Desde D-045 tampoco
+ * hay vuelta a la calma.
+ */
+export const ACTIVATION_EXERCISES: readonly string[] = ['jumping-jacks', 'escaladores']
+
+/** Cuántos ejercicios del entreno llevan serie de aproximación, y de cuántas repeticiones. */
+export const APPROACH_EXERCISES = 3
+export const APPROACH_REPS = 5
+
+/** Minutos de la activación y de cada serie de aproximación: salen del tiempo disponible. */
+const ACTIVATION_MINUTES = 2
+const APPROACH_MINUTES = 1
+
+/**
+ * La movilidad articular, por zona: lo que se va a cargar. Tobillo y columna
+ * antes de piernas; hombro y columna torácica antes de tren superior.
  */
 export const WARMUP_EXERCISES: Record<SessionFocus, readonly string[]> = {
   tren_superior: ['angeles-pared', 'rotacion-toracica'],
   tren_inferior: ['tobillo-pared', 'gato-camello'],
   cuerpo_completo: ['gato-camello', 'tobillo-pared'],
-  core_movilidad: [],
-}
-
-/** Lo que la cierra: estirar y soltar lo trabajado. */
-export const COOLDOWN_EXERCISES: Record<SessionFocus, readonly string[]> = {
-  tren_superior: ['gato-camello'],
-  tren_inferior: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
-  cuerpo_completo: ['estiramiento-flexor-cadera', 'estiramiento-isquiotibiales'],
   core_movilidad: [],
 }
 
@@ -291,6 +304,7 @@ function phaseExercises(
   ids: readonly string[],
   phase: ExercisePhase,
   catalog: readonly Exercise[],
+  warmupPart?: WarmupPart,
 ): PlannedExercise[] {
   return ids
     .map((id) => catalog.find((exercise) => exercise.id === id))
@@ -307,7 +321,44 @@ function phaseExercises(
       tempo: null,
       imageUrl: exercise.imageUrl,
       phase,
+      ...(warmupPart ? { warmupPart } : {}),
     }))
+}
+
+/**
+ * Las series de aproximación (D-045): 5 repeticiones de los primeros ejercicios
+ * del entreno. Con pesa, la misma carga, para tantearla; sin pesa, la variante
+ * más fácil si la hay, para no gastar energía. Ni los de tiempo ni los saltos.
+ */
+function approachSets(
+  main: readonly PlannedExercise[],
+  catalog: readonly Exercise[],
+  equipment: readonly Equipment[],
+): PlannedExercise[] {
+  const result: PlannedExercise[] = []
+  for (const planned of main) {
+    if (result.length >= APPROACH_EXERCISES) break
+    const exercise = catalog.find((item) => item.id === planned.exerciseId)
+    if (!exercise || planned.isTimed || exercise.category === 'pliometria') continue
+    const easier =
+      !usesLoad(exercise) && exercise.regressionId ? catalog.find((item) => item.id === exercise.regressionId) : undefined
+    const used = easier && isAvailable(easier, equipment) && !easier.work.isTimed ? easier : exercise
+    result.push({
+      exerciseId: used.id,
+      name: used.name,
+      sets: 1,
+      reps: APPROACH_REPS,
+      isTimed: false,
+      suggestedWeightKg: usesLoad(used) ? planned.suggestedWeightKg : null,
+      restSeconds: 0,
+      unilateral: used.unilateral,
+      tempo: null,
+      imageUrl: used.imageUrl,
+      phase: 'calentamiento',
+      warmupPart: 'aproximacion',
+    })
+  }
+  return result
 }
 
 export function exerciseCountFor(availableMinutes: number): number {
@@ -653,9 +704,11 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
             ...warmupExtras.filter((id) => !baseWarmup.includes(id)).slice(0, MAX_WARMUP_EXTRAS),
           ]),
         ]
-  const warmup = phaseExercises(warmupIds, 'calentamiento', phaseCatalog)
-  const cooldown = phaseExercises(COOLDOWN_EXERCISES[focus], 'vuelta_calma', phaseCatalog)
-  const phaseMinutes = (warmup.length + cooldown.length) * PHASE_EXERCISE_MINUTES
+  const warmsUp = warmupIds.length > 0
+  const activation = warmsUp ? phaseExercises(ACTIVATION_EXERCISES, 'calentamiento', phaseCatalog, 'activacion') : []
+  const mobility = phaseExercises(warmupIds, 'calentamiento', phaseCatalog, 'movilidad')
+  const phaseMinutes =
+    (warmsUp ? ACTIVATION_MINUTES + APPROACH_EXERCISES * APPROACH_MINUTES : 0) + mobility.length * PHASE_EXERCISE_MINUTES
   // Con un deporte de salto, un ejercicio de salto abre el entrenamiento y ocupa un hueco (D-033).
   const jump =
     jumpSport && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
@@ -704,7 +757,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     intensity,
     estimatedMinutes: Math.max(20, Math.round(availableMinutes / 5) * 5),
     muscleGroups: dedupeGroups(main, focus),
-    exercises: [...warmup, ...exercises, ...cooldown],
+    exercises: [...activation, ...mobility, ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment) : []), ...exercises],
     ...(deload ? { deload: true } : {}),
   }
 }

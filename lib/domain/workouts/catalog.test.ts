@@ -13,7 +13,7 @@ import {
   SINGLE_WEIGHT_BILATERAL_IDS,
   variantOf,
 } from './catalog'
-import { MAX_REPS } from './active-workout'
+import { MAX_REPS, MAX_SECONDS } from './active-workout'
 import { repCapFor } from '../axis/session-builder'
 import type { ExerciseCategory, MuscleGroup } from './types'
 import { FOCUS_CATEGORIES, usesLoad } from './types'
@@ -225,9 +225,9 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 49 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025 y 5 de D-033', () => {
-  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43 y luego 44.
-  assert.equal(EXERCISE_CATALOG.length, 49)
+test('el catálogo tiene 51 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033 y 2 de D-045', () => {
+  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44 y 49.
+  assert.equal(EXERCISE_CATALOG.length, 51)
 })
 
 test('las flexiones con rodillas (D-025): iniciación sin material, sin tocar la cadena de las flexiones', () => {
@@ -270,14 +270,16 @@ test('ningún ejercicio sin músculo principal ni sin descanso', () => {
 
 test('ningún objetivo ni techo de progresión pasa del límite del selector de reps o segundos', () => {
   for (const exercise of EXERCISE_CATALOG) {
-    assert.ok(exercise.work.reps <= MAX_REPS, `${exercise.name}: ${exercise.work.reps} de base`)
-    assert.ok(repCapFor(exercise) <= MAX_REPS, `${exercise.name}: techo ${repCapFor(exercise)} > ${MAX_REPS}`)
+    const max = exercise.work.isTimed ? MAX_SECONDS : MAX_REPS
+    assert.ok(exercise.work.reps <= max, `${exercise.name}: ${exercise.work.reps} de base`)
+    assert.ok(repCapFor(exercise) <= max, `${exercise.name}: techo ${repCapFor(exercise)} > ${max}`)
   }
 })
 
 test('la movilidad son exactamente los siete aprobados, de peso corporal', () => {
   // D-020 empezó con tres; D-020.1 añade isquiotibiales, tobillo y hombro; D-033, el equilibrio.
-  const mobility = EXERCISE_CATALOG.filter((item) => item.category === 'movilidad')
+  // La activación del calentamiento (D-045) va aparte: no es movilidad que se entrene.
+  const mobility = EXERCISE_CATALOG.filter((item) => item.category === 'movilidad' && !item.warmupOnly)
   assert.deepEqual(
     mobility.map((item) => item.id).sort(),
     [

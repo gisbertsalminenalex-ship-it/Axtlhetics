@@ -13,7 +13,7 @@ import { EXERCISE_CATALOG } from '@/lib/domain/workouts/catalog'
 import { weeklyVolume } from '@/lib/domain/workouts/weekly-volume'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
 import { formatDuration, formatRelativeDay } from '@/lib/domain/shared/dates'
-import { EXERCISE_PHASE_LABELS, isMainExercise } from '@/lib/domain/workouts/types'
+import { isMainExercise, phaseLabel } from '@/lib/domain/workouts/types'
 import { useAxtlhetics } from '@/lib/state/store'
 
 export function EntrenamientoScreen({
@@ -140,7 +140,7 @@ export function EntrenamientoScreen({
                   <span className="block text-[15px] font-medium">{exercise.name}</span>
                   {exercise.phase && (
                     <span className="block text-[12.5px] text-muted-foreground">
-                      {EXERCISE_PHASE_LABELS[exercise.phase]}
+                      {phaseLabel(exercise)}
                     </span>
                   )}
                 </span>

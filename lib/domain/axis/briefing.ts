@@ -479,7 +479,10 @@ function briefingProposal(
             isTimed: exercise.isTimed,
             weightKg: exercise.suggestedWeightKg,
           })),
-          warmup: primary.session.exercises.filter((exercise) => exercise.phase === 'calentamiento').map((exercise) => exercise.name),
+          // Las series de aproximación repiten ejercicios del entreno: no se nombran dos veces (D-045).
+          warmup: primary.session.exercises
+            .filter((exercise) => exercise.phase === 'calentamiento' && exercise.warmupPart !== 'aproximacion')
+            .map((exercise) => exercise.name),
           cooldown: primary.session.exercises.filter((exercise) => exercise.phase === 'vuelta_calma').map((exercise) => exercise.name),
         }
       : null,

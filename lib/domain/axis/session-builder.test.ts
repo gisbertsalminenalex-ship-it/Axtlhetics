@@ -617,28 +617,62 @@ test('D-031: una sesión de descarga lo lleva marcado', () => {
 // D-032: calentamiento y vuelta a la calma
 // ---------------------------------------------------------------------------
 
-test('D-032: cada sesión de fuerza abre con calentamiento y cierra con vuelta a la calma', () => {
+test('D-045: cada sesión de fuerza abre con el calentamiento en tres partes y ya no tiene vuelta a la calma', () => {
   for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
     const session = buildSession({ ...ROTATION, focus })
-    const phases = session.exercises.map((item) => item.phase ?? 'entrenamiento')
-    const first = phases.indexOf('entrenamiento')
-    const last = phases.lastIndexOf('entrenamiento')
-
+    const parts = session.exercises.map((item) => item.warmupPart ?? (item.phase ? 'otra fase' : 'entrenamiento'))
+    const first = parts.indexOf('entrenamiento')
     assert.ok(first > 0, `${focus}: empieza calentando`)
-    assert.ok(phases.slice(0, first).every((phase) => phase === 'calentamiento'))
-    assert.ok(last < phases.length - 1, `${focus}: termina con la vuelta a la calma`)
-    assert.ok(phases.slice(last + 1).every((phase) => phase === 'vuelta_calma'))
-    assert.ok(phases.slice(first, last + 1).every((phase) => phase === 'entrenamiento'), 'en medio, solo el entrenamiento')
+    // Activación, movilidad y aproximación, en ese orden y sin mezclarse.
+    const warmup = parts.slice(0, first)
+    assert.deepEqual([...new Set(warmup)], ['activacion', 'movilidad', 'aproximacion'], `${focus}: ${warmup.join(', ')}`)
+    assert.ok(parts.slice(first).every((part) => part === 'entrenamiento'), `${focus}: termina con el entrenamiento`)
+    assert.ok(session.exercises.every((item) => item.phase !== 'vuelta_calma'))
   }
 })
 
-test('D-032: las fases son movilidad, una serie, sin carga ni descanso', () => {
+test('D-045: la activación es un minuto de jumping jacks y otro de escaladores', () => {
+  const session = buildSession({ ...ROTATION, focus: 'cuerpo_completo' })
+  const activation = session.exercises.filter((item) => item.warmupPart === 'activacion')
+  assert.deepEqual(
+    activation.map((item) => [item.exerciseId, item.reps, item.isTimed]),
+    [
+      ['jumping-jacks', 60, true],
+      ['escaladores', 60, true],
+    ],
+  )
+})
+
+test('D-045: la movilidad es de la zona, una serie, sin carga ni descanso', () => {
   const session = buildSession({ ...ROTATION, focus: 'tren_inferior' })
-  for (const item of session.exercises.filter((entry) => !isMainExercise(entry))) {
+  for (const item of session.exercises.filter((entry) => entry.warmupPart === 'movilidad')) {
     assert.equal(exercise(item.exerciseId).category, 'movilidad', item.exerciseId)
     assert.equal(item.sets, 1)
     assert.equal(item.suggestedWeightKg, null)
     assert.equal(item.restSeconds, 0)
+  }
+})
+
+test('D-045: la aproximación son 5 repeticiones de los primeros ejercicios: con pesa la misma carga, sin pesa una variante más fácil', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
+    const session = buildSession({ ...ROTATION, focus })
+    const main = session.exercises.filter(isMainExercise).filter((item) => !item.isTimed && exercise(item.exerciseId).category !== 'pliometria')
+    const approach = session.exercises.filter((item) => item.warmupPart === 'aproximacion')
+    assert.equal(approach.length, Math.min(3, main.length), focus)
+    approach.forEach((item, index) => {
+      const planned = main[index]
+      const original = exercise(planned.exerciseId)
+      assert.equal(item.sets, 1)
+      assert.equal(item.reps, 5)
+      assert.equal(item.restSeconds, 0)
+      if (usesLoad(original)) {
+        assert.equal(item.exerciseId, planned.exerciseId, `${focus}: con pesa, el mismo ejercicio`)
+        assert.equal(item.suggestedWeightKg, planned.suggestedWeightKg, `${focus}: con la pesa que se va a usar`)
+      } else {
+        assert.equal(item.exerciseId, original.regressionId ?? original.id, `${focus}: sin pesa, la variante más fácil`)
+        assert.equal(item.suggestedWeightKg, null)
+      }
+    })
   }
 })
 
@@ -755,7 +789,7 @@ test('D-037: saltar un ejercicio dos veces en un mes se lee como que no gusta', 
 
 test('D-041: los correctivos del escaneo entran en el calentamiento, dos como mucho y sin repetir', () => {
   const session = buildSession({ ...ROTATION, focus: 'tren_superior', warmupExtras: ['angeles-pared', 'tobillo-pared', 'estiramiento-flexor-cadera', 'equilibrio-una-pierna'] })
-  const warmup = session.exercises.filter((item) => item.phase === 'calentamiento').map((item) => item.exerciseId)
+  const warmup = session.exercises.filter((item) => item.warmupPart === 'movilidad').map((item) => item.exerciseId)
   // Ángeles en la pared ya estaba: entran los dos siguientes.
   assert.deepEqual(warmup, ['angeles-pared', 'rotacion-toracica', 'tobillo-pared', 'estiramiento-flexor-cadera'])
   assert.ok(buildSession({ ...ROTATION, focus: 'core_movilidad', warmupExtras: ['tobillo-pared'] }).exercises.every(isMainExercise))

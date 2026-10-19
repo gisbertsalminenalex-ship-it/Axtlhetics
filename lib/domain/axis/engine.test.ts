@@ -10,7 +10,7 @@ import { deriveFacts } from './facts'
 import { decide } from './engine'
 import { isTrainingRecommendation } from './types'
 import { EXERCISE_CATALOG, findExercise, isAvailable, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
-import { usesLoad } from '../workouts/types'
+import { isMainExercise, usesLoad } from '../workouts/types'
 
 // 2026-09-08 es lunes. Todos los tests fijan la hora para ser deterministas.
 const MONDAY = new Date(2026, 8, 7, 10, 0)
@@ -322,7 +322,7 @@ test('con la única pesa ya al máximo, la progresión pasa a repeticiones', () 
       ],
     }),
   )
-  const row = withHistory.primary.session?.exercises.find((item) => item.exerciseId === 'remo-unilateral')
+  const row = withHistory.primary.session?.exercises.find((item) => item.exerciseId === 'remo-unilateral' && isMainExercise(item))
   assert.ok(row)
   assert.equal(row!.suggestedWeightKg, MAX_AVAILABLE_LOAD_KG, 'no hay más pesa que sugerir')
   assert.ok(row!.reps > 12, `las repeticiones deberían subir, fueron ${row!.reps}`)
@@ -438,7 +438,8 @@ test('ajustar la dificultad no deja la sesión corta ni con ejercicios repetidos
   )
 
   for (const proposal of [decision.primary, ...decision.alternatives]) {
-    const exercises = proposal.session?.exercises ?? []
+    // El entrenamiento: las series de aproximación repiten a propósito sus ejercicios (D-045).
+    const exercises = (proposal.session?.exercises ?? []).filter(isMainExercise)
     if (exercises.length === 0) continue
     const ids = exercises.map((exercise) => exercise.exerciseId)
     assert.equal(new Set(ids).size, ids.length, `${proposal.label} repite ejercicios`)

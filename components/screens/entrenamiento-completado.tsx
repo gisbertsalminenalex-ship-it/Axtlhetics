@@ -24,7 +24,8 @@ export function EntrenamientoCompletado() {
   // Los récords se miden contra lo completado antes; una sesión interrumpida no bate marcas.
   const records = abandoned ? [] : personalRecords(lastCompleted, sessions)
   const completedAsPlanned = (exerciseId: string) => {
-    const exercise = lastCompleted.exercises.find((item) => item.exerciseId === exerciseId)
+    // El del entrenamiento, no su serie de aproximación (D-045).
+    const exercise = lastCompleted.exercises.find((item) => item.exerciseId === exerciseId && isMainExercise(item))
     return exercise ? metTarget(exercise) : false
   }
 
