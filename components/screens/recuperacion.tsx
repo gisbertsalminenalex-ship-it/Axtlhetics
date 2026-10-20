@@ -4,6 +4,7 @@ import { useId, useState, type CSSProperties } from 'react'
 import { Activity, Droplet, Dumbbell, Moon, Zap } from 'lucide-react'
 import { CircularMetric } from '@/components/circular-metric'
 import { StepButton } from '@/components/profile/controls'
+import { ScalePicker } from '@/components/recovery/scale-picker'
 import { BAND_COLOR, BAND_HEADLINE, BAND_TONE } from '@/components/recovery-band'
 import { useCountUp } from '@/components/use-count-up'
 import type { RecoveryFactorKey, Scale5 } from '@/lib/domain/recovery/types'
@@ -165,6 +166,7 @@ export function RecuperacionScreen() {
                   value={level}
                   labels={SCALE_LABELS[key]}
                   onSelect={(next) => void updateRecovery({ [key]: next })}
+                  className="pb-3 pl-8"
                 />
               )}
             </li>
@@ -250,44 +252,6 @@ function FactorRow({
         </span>
       )}
     </button>
-  )
-}
-
-function ScalePicker({
-  value,
-  labels,
-  onSelect,
-}: {
-  value: Scale5 | null
-  labels: Record<Scale5, string>
-  onSelect: (next: Scale5) => void
-}) {
-  const levels: Scale5[] = [1, 2, 3, 4, 5]
-  return (
-    <div className="pb-3 pl-8">
-      <div className="flex gap-1.5">
-        {levels.map((level) => (
-          <button
-            key={level}
-            type="button"
-            onClick={() => onSelect(level)}
-            aria-pressed={value === level}
-            aria-label={labels[level]}
-            className={cn(
-              'h-11 flex-1 rounded-full border text-[14px] font-semibold transition-colors',
-              value === level
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-muted-foreground',
-            )}
-          >
-            {level}
-          </button>
-        ))}
-      </div>
-      <p className="mt-2 text-[12.5px] text-muted-foreground">
-        {value === null ? `1 · ${labels[1]} — 5 · ${labels[5]}` : labels[value]}
-      </p>
-    </div>
   )
 }
 

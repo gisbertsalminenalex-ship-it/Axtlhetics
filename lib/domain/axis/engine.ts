@@ -579,7 +579,13 @@ export function reasonFor(
   const limit = factors.some((factor) => factor.key === 'hard_day') ? 3 : 2
   const details = factors.map((factor) => factor.detail).filter(Boolean).slice(0, limit)
   // Un día fuerte no es «entrenar con normalidad» (D-048).
-  const closing = intensity === 'alta' ? 'Aprieta, pero con buena técnica.' : closingFor(type)
+  const unknown = factors.some((factor) => factor.key === 'recovery_unknown')
+  const closing =
+    intensity === 'alta'
+      ? 'Aprieta, pero con buena técnica.'
+      : unknown && type === 'TRAINING'
+        ? 'Sesión normal, sin apretar de más.'
+        : closingFor(type)
 
   if (details.length === 0) return closing
   return `${details.join(' ')} ${closing}`.trim()

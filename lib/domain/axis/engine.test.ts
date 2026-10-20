@@ -137,10 +137,30 @@ test('con recuperación moderada propone sesión ligera', () => {
   assert.equal(decision.primary.session?.intensity, 'ligera')
 })
 
-test('sin datos de recuperación no inventa nada y propone sesión ligera', () => {
-  const decision = decide(contextWith({ recoveryInputs: null }))
+test('sin datos de recuperación no inventa nada: sesión normal, avisando, y nunca día fuerte (D-049)', () => {
+  const decision = decide(contextWith({ recoveryInputs: null, recentSessions: [session()] }))
+  assert.equal(decision.primary.type, 'TRAINING')
+  assert.equal(decision.primary.session?.intensity, 'moderada')
+  assert.match(decision.primary.reason, /No sé cómo llegas hoy/)
+  assert.doesNotMatch(decision.primary.reason, /buen día para entrenar con normalidad/)
+})
+
+test('sin datos y con días anteriores malos, sigue siendo ligera (D-049)', () => {
+  const yesterday = recovery({ dayKey: '2026-09-06', sleepHours: 5, energy: 2, muscleFatigue: 4, stress: 4 })
+  const decision = decide(contextWith({ recoveryInputs: null, recentRecovery: [yesterday], recentSessions: [session()] }))
   assert.equal(decision.primary.type, 'LIGHT_TRAINING')
-  assert.match(decision.primary.reason, /recuperación/i)
+  assert.match(decision.primary.reason, /los últimos días no llegabas bien/)
+
+  // Hace tres días ya no cuenta.
+  const old = recovery({ dayKey: '2026-09-04', sleepHours: 5, energy: 2, muscleFatigue: 4, stress: 4 })
+  assert.equal(decide(contextWith({ recoveryInputs: null, recentRecovery: [old], recentSessions: [session()] })).primary.type, 'TRAINING')
+})
+
+test('sin datos y con un partido exigente mañana, sigue siendo ligera (D-049)', () => {
+  const decision = decide(
+    contextWith({ recoveryInputs: null, activities: [basketball({ weekday: 1 })], recentSessions: [session()] }),
+  )
+  assert.equal(decision.primary.type, 'LIGHT_TRAINING')
 })
 
 test('si ya has entrenado hoy, recomienda descansar', () => {
@@ -444,7 +464,8 @@ test('un día suave con la movilidad pendiente es de movilidad (D-047)', () => {
   const decision = decide(
     contextWith({
       profile: profile({ goals: ['fuerza', 'movilidad'], availableWeekdays: [0, 2, 4] }),
-      recoveryInputs: null,
+      // Recuperación moderada: día suave.
+      recoveryInputs: recovery({ sleepHours: 7, energy: 3, muscleFatigue: 3, stress: 3, hydrationGlasses: 4 }),
       recentSessions: [session()],
     }),
   )
@@ -574,7 +595,7 @@ test('cada propuesta dice qué regla la decidió', () => {
   assert.equal(low.primary.rule, 'low_recovery')
 
   const unknown = decide(contextWith({ recoveryInputs: null }))
-  assert.equal(unknown.primary.rule, 'unknown_recovery')
+  assert.equal(unknown.primary.rule, 'unknown_recovery_normal')
 
   const rested = decide(contextWith({ profile: profile({ availableWeekdays: [1, 3, 5] }) }))
   assert.equal(rested.primary.rule, 'not_available_today')

@@ -8,6 +8,8 @@
 import { assessmentDayFacts } from './assessment'
 import { activityOccursOn, isAvailableOn } from '../profile/types'
 import { addDays, daysBetween, weekdayOfKey } from '../shared/dates'
+import { computeRecoveryScore } from '../recovery/score'
+import { RECOVERY_BAND_THRESHOLDS } from '../recovery/weights'
 import type { MuscleGroup } from '../workouts/types'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
 import { computeTrainingLoad } from '../workouts/load'
@@ -105,9 +107,18 @@ export function deriveFacts(context: AxisContext): AxisFacts {
   const stated = context.availableMinutesToday ?? null
   const availableMinutes = stated !== null ? Math.min(computedMinutes, stated) : computedMinutes
 
+  // Ayer o anteayer, por debajo de «buena» (D-049).
+  const recentLowRecovery = (context.recentRecovery ?? []).some((inputs) => {
+    const ago = daysBetween(inputs.dayKey, dayKey)
+    if (ago < 1 || ago > 2) return false
+    const score = computeRecoveryScore(inputs, { age: profile?.age })
+    return score.status === 'ok' && score.value < RECOVERY_BAND_THRESHOLDS.good
+  })
+
   return {
     recoveryValue,
     recoveryKnown: recoveryValue !== null,
+    recentLowRecovery,
     fatigueLevel: recoveryInputs?.muscleFatigue ?? null,
     energyLevel: recoveryInputs?.energy ?? null,
     stressLevel: recoveryInputs?.stress ?? null,

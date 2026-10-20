@@ -130,3 +130,21 @@ export function adjustSleepHours(current: number | null, steps: number): number 
   const base = current ?? DEFAULT_SLEEP_HOURS
   return clamp(base + steps * SLEEP_STEP_HOURS, MIN_SLEEP_HOURS, MAX_SLEEP_HOURS)
 }
+
+/**
+ * El sueño en un toque (D-049): cinco tramos, cada uno guardado como su punto
+ * medio. Quien quiera la cifra exacta la ajusta en Recuperación.
+ */
+export const QUICK_SLEEP_OPTIONS: readonly { label: string; hours: number; from: number; to: number }[] = [
+  { label: '<6 h', hours: 5.5, from: 0, to: 6 },
+  { label: '6–7', hours: 6.5, from: 6, to: 7 },
+  { label: '7–8', hours: 7.5, from: 7, to: 8 },
+  { label: '8–9', hours: 8.5, from: 8, to: 9 },
+  { label: '9+', hours: 9.5, from: 9, to: Infinity },
+]
+
+/** El tramo al que pertenecen unas horas registradas, o `null` si no hay. */
+export function quickSleepOptionOf(hours: number | null): (typeof QUICK_SLEEP_OPTIONS)[number] | null {
+  if (hours === null) return null
+  return QUICK_SLEEP_OPTIONS.find((option) => hours >= option.from && hours < option.to) ?? null
+}

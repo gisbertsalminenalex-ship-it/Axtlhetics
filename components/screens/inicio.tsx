@@ -5,6 +5,7 @@ import { ArrowRight, ChevronRight, Dumbbell, GlassWater, Heart, Moon, UserRound 
 import { AxisMark } from '@/components/axis-mark'
 import { isMainExercise } from '@/lib/domain/workouts/types'
 import { CircularMetric } from '@/components/circular-metric'
+import { QuickCheckIn } from '@/components/recovery/quick-check-in'
 import {
   BAND_COLOR,
   BAND_SHORT,
@@ -105,6 +106,9 @@ export function InicioScreen({
         {copy.subtitle}
       </p>
 
+      {/* D-049: mientras hoy no hay recuperación, primero se pregunta cómo llegas. */}
+      <QuickCheckIn onMore={onGoRecuperacion} />
+
       {/* AXIS recommendation — protagonist */}
       {proposal && (
         <section key={proposal.id} className="ax-enter mt-6 rounded-3xl bg-ink p-5 text-white">
@@ -164,7 +168,8 @@ export function InicioScreen({
         AXIS habla primero (D-038): una nota, sin tarjeta, con el patrón de la
         razón de AXIS en Entrenamiento. Tocarla abre la conversación.
       */}
-      {axisNote && (
+      {/* La tarjeta ya pide la recuperación: la nota no lo repite (D-049). */}
+      {axisNote && !(axisNote.kind === 'register_recovery' && recoveryScore.status !== 'ok') && (
         <button
           type="button"
           onClick={onOpenAxis}

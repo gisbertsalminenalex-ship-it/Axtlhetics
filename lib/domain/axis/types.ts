@@ -145,6 +145,8 @@ export type AxisContext = {
    * conversación. Solo cuenta para hoy; el perfil no cambia.
    */
   withoutEquipmentToday?: boolean
+  /** La recuperación registrada de días anteriores a hoy (D-049). */
+  recentRecovery?: readonly RecoveryInputs[]
   /**
    * Los tests de evolución guardados (D-021): modelos del dominio, nunca filas del
    * almacén. AXIS solo deriva de ellos si hoy hubo test y si el siguiente está
@@ -173,6 +175,11 @@ export type AxisEngine = {
 export type AxisFacts = {
   recoveryValue: number | null
   recoveryKnown: boolean
+  /**
+   * Ayer o anteayer la recuperación registrada estuvo por debajo de «buena»
+   * (D-049). Sin la de hoy, decide si el día es normal o ligero.
+   */
+  recentLowRecovery: boolean
   fatigueLevel: number | null
   energyLevel: number | null
   stressLevel: number | null

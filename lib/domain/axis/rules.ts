@@ -257,18 +257,45 @@ const highTrainingLoad: Rule = {
   },
 }
 
+/**
+ * Sin la recuperación de hoy (D-049): una sesión normal, avisando, salvo que
+ * los días anteriores fueran malos, mañana haya un deporte exigente o la carga
+ * esté alta; entonces, ligera como antes. Nunca día fuerte: eso exige datos.
+ */
 const unknownRecovery: Rule = {
   id: 'unknown_recovery',
   evaluate(facts) {
     if (facts.recoveryKnown) return null
+
+    const cautious =
+      facts.recentLowRecovery ||
+      facts.trainingLoadBand === 'alta' ||
+      facts.tomorrowActivity?.intensity === 'alta'
+    if (cautious) {
+      return {
+        type: 'LIGHT_TRAINING',
+        rule: 'unknown_recovery',
+        factors: [
+          {
+            key: 'recovery_unknown',
+            label: 'Sin datos de recuperación',
+            detail: facts.recentLowRecovery
+              ? 'No has registrado tu recuperación de hoy y los últimos días no llegabas bien.'
+              : 'Todavía no has registrado tu recuperación de hoy.',
+            direction: 'neutral',
+          },
+        ],
+      }
+    }
+
     return {
-      type: 'LIGHT_TRAINING',
-      rule: 'unknown_recovery',
+      type: 'TRAINING',
+      rule: 'unknown_recovery_normal',
       factors: [
         {
           key: 'recovery_unknown',
           label: 'Sin datos de recuperación',
-          detail: 'Todavía no has registrado tu recuperación de hoy.',
+          detail: 'No sé cómo llegas hoy: no has registrado tu recuperación. Si estás cansado, dímelo y lo ajusto.',
           direction: 'neutral',
         },
       ],

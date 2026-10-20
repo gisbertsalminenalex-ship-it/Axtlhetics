@@ -30,6 +30,8 @@ export type AxisContextInput = {
   movedFromYesterday?: boolean
   /** Hoy se entrena sin material (D-046). */
   withoutEquipmentToday?: boolean
+  /** La recuperación registrada de días anteriores (D-049). Por defecto, ninguna. */
+  recentRecovery?: readonly RecoveryInputs[]
   /** Tests de evolución guardados (D-021). Por defecto, ninguno. */
   assessments?: readonly Assessment[]
   /** Escaneos corporales guardados (D-023). Por defecto, ninguno. */
@@ -64,6 +66,7 @@ export function buildAxisContext(input: AxisContextInput): AxisContext {
     availableMinutesToday: input.availableMinutesToday ?? null,
     movedFromYesterday: input.movedFromYesterday ?? false,
     withoutEquipmentToday: input.withoutEquipmentToday ?? false,
+    recentRecovery: (input.recentRecovery ?? []).filter((inputs) => inputs.dayKey < dayKey),
     assessments: input.assessments ?? [],
     scans: input.scans ?? [],
     catalog: input.catalog ?? EXERCISE_CATALOG,

@@ -1907,6 +1907,31 @@ Los **niveles** tipo videojuego (subir de principiante a intermedio entrenando) 
 
 ---
 
+## D-049 — «¿Cómo llegas hoy?» y qué pasa sin datos
+
+**Fecha:** 2026-10-20 · **Estado:** aprobada e implementada · Decidido por Alex: una **tarjeta en Inicio** con tres preguntas de un toque, y **sin datos, sesión normal con aviso** salvo que los últimos días fueran malos. **Corrige** la regla `unknown_recovery` (siempre ligera) y **amplía** D-009.
+
+### El problema
+
+Sin la recuperación del día, AXIS proponía **siempre** una sesión ligera. Quien no rellena Recuperación cada mañana nunca entrenaba normal y sentía que la app no le exigía.
+
+### La tarjeta
+
+- Mientras hoy **no haya recuperación calculada**, Inicio muestra arriba, antes de la recomendación, **«¿Cómo llegas hoy?»** con tres preguntas de un toque:
+  - **Sueño**: menos de 6 h, 6–7, 7–8, 8–9 o 9 o más (se guardan 5,5 · 6,5 · 7,5 · 8,5 · 9,5 h).
+  - **Energía**, de 1 a 5.
+  - **Fatiga muscular**, de 1 a 5.
+- Cada toque se guarda al momento, como en Recuperación. Con las tres hay datos suficientes (D-009: el sueño y tres factores), la recuperación se calcula, AXIS vuelve a decidir y la tarjeta desaparece. El estrés y el agua siguen en Recuperación.
+- No bloquea nada: se puede entrenar sin contestar. Mientras está la tarjeta, no se repite la nota de AXIS que pedía registrar la recuperación (D-038).
+
+### Sin datos
+
+- **Sesión normal** (intensidad moderada), nunca día fuerte (D-048), con el aviso en el motivo: «No sé cómo llegas hoy: no has registrado tu recuperación. Si estás cansado, dímelo y lo ajusto.»
+- **Sigue siendo ligera** si ayer o anteayer la recuperación registrada estuvo por debajo de «buena» (< 75), si mañana hay un deporte exigente o si la carga de la semana es alta.
+- La recuperación de días anteriores se lee del almacén (los cuatro últimos días registrados); antes solo se leía la de hoy.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -109,6 +109,9 @@ import type { WorkoutSession } from '../domain/workouts/types'
 /** Cuántas sesiones carga la aplicación. Suficiente para historial y para AXIS. */
 const SESSION_HISTORY_LIMIT = 200
 
+/** Cuántos días de recuperación se leen: hoy más los anteriores que mira AXIS (D-049). */
+const RECENT_RECOVERY_DAYS = 4
+
 /** Inserta o reemplaza una sesión manteniendo el orden del historial. */
 function withSession(list: WorkoutSession[], session: WorkoutSession): WorkoutSession[] {
   return [session, ...list.filter((item) => item.id !== session.id)].sort((a, b) =>
@@ -295,6 +298,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const [recoveryInputs, setRecoveryInputs] = useState<RecoveryInputs>(() =>
     emptyRecoveryInputs('1970-01-01', nowIso()),
   )
+  /** La recuperación de días anteriores: sin la de hoy, decide si el día es normal o ligero (D-049). */
+  const [recentRecovery, setRecentRecovery] = useState<RecoveryInputs[]>([])
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
 
   /**
@@ -375,6 +380,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           storedMemory,
           storedWorkout,
           storedYesterday,
+          storedRecent,
         ] = await Promise.all([
           repositories.profile.get(),
           repositories.activities.list(),
@@ -384,6 +390,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           repositories.activeWorkout.get(),
           // De ayer solo se mira si movió el entrenamiento a hoy (D-022, D-011).
           repositories.axisMemory.getByDay(addDays(dayKey, -1)),
+          // Los últimos días registrados (D-049); AXIS mira ayer y anteayer.
+          repositories.recovery.recent(RECENT_RECOVERY_DAYS),
         ])
 
         if (cancelled) return
@@ -422,6 +430,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setProfile(storedProfile)
         setActivities(storedActivities)
         setRecoveryInputs(storedRecovery ?? emptyRecoveryInputs(dayKey, nowIso()))
+        setRecentRecovery(storedRecent.filter((inputs) => inputs.dayKey < dayKey))
         setSessions(sessionsToShow)
         /*
          * Lo que AXIS recuerda de hoy: la sesión elegida, lo que hoy no ocurre,
@@ -500,6 +509,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       availableMinutesToday: memory.availableMinutes ?? null,
       movedFromYesterday,
       withoutEquipmentToday: memory.withoutEquipment ?? false,
+      recentRecovery,
       // Modelos del dominio, ya validados por el repositorio: AXIS no ve el almacén.
       assessments: assessments.assessments,
       scans: scans.scans,
@@ -515,6 +525,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     memory.availableMinutes,
     movedFromYesterday,
     memory.withoutEquipment,
+    recentRecovery,
     assessments.assessments,
     scans.scans,
   ])
