@@ -10,6 +10,7 @@
  * las diferencias respecto a ella, para que el historial refleje lo que pasó de verdad.
  */
 
+import { TRAINING_GOAL_ORDER, type TrainingGoal } from '../profile/types'
 import type { DayKey } from '../shared/dates'
 import {
   isArrayOf,
@@ -47,12 +48,15 @@ export type SessionFocus =
   | 'tren_inferior'
   | 'cuerpo_completo'
   | 'core_movilidad'
+  /** Intervalos de resistencia (D-047). */
+  | 'acondicionamiento'
 
 export const SESSION_FOCUS_LABELS: Record<SessionFocus, string> = {
   tren_superior: 'Tren superior',
   tren_inferior: 'Tren inferior',
   cuerpo_completo: 'Cuerpo completo',
   core_movilidad: 'Core y movilidad',
+  acondicionamiento: 'Acondicionamiento',
 }
 
 export const FOCUS_MUSCLE_GROUPS: Record<SessionFocus, MuscleGroup[]> = {
@@ -60,6 +64,7 @@ export const FOCUS_MUSCLE_GROUPS: Record<SessionFocus, MuscleGroup[]> = {
   tren_inferior: ['piernas', 'gluteos'],
   cuerpo_completo: ['pecho', 'espalda', 'piernas', 'core'],
   core_movilidad: ['core'],
+  acondicionamiento: ['piernas', 'core'],
 }
 
 export type SessionIntensity = 'ligera' | 'moderada' | 'alta'
@@ -91,13 +96,22 @@ export const LOAD_EQUIPMENT: readonly Equipment[] = ['pesa', 'par_pesas', 'kettl
  * `movilidad` (D-020) no carga: moviliza. Existía el objetivo «Mejorar
  * movilidad» y el foco «Core y movilidad», pero ningún ejercicio que lo fuera.
  */
-export type ExerciseCategory = 'empuje' | 'tiron' | 'piernas' | 'core' | 'movilidad' | 'pliometria'
+export type ExerciseCategory =
+  | 'empuje'
+  | 'tiron'
+  | 'piernas'
+  | 'core'
+  | 'movilidad'
+  | 'pliometria'
+  /** Por tiempo, para intervalos (D-047): solo en las sesiones de acondicionamiento. */
+  | 'acondicionamiento'
 
 export const FOCUS_CATEGORIES: Record<SessionFocus, ExerciseCategory[]> = {
   tren_superior: ['empuje', 'tiron'],
   tren_inferior: ['piernas'],
   cuerpo_completo: ['empuje', 'tiron', 'piernas', 'core'],
   core_movilidad: ['core', 'movilidad'],
+  acondicionamiento: ['acondicionamiento'],
 }
 
 /** 1 = muy accesible, 5 = exigente. Ordena progresiones y regresiones. */
@@ -232,6 +246,8 @@ export type PlannedSession = {
   exercises: PlannedExercise[]
   /** `true` en una semana de descarga (D-031): una serie menos y sin subir. */
   deload?: boolean
+  /** El objetivo al que sirve la sesión (D-047). Ausente en las anteriores. */
+  goal?: TrainingGoal
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +370,8 @@ export type WorkoutSession = {
   proposal: ProposalSnapshot | null
   modifications: SessionModification[]
   notes: string | null
+  /** El objetivo al que sirvió (D-047). Ausente en las anteriores. */
+  goal?: TrainingGoal
 }
 
 export function volumeOfExercise(exercise: PerformedExercise): number {
@@ -449,5 +467,6 @@ export function isWorkoutSession(value: unknown): value is WorkoutSession {
   if (!isEffortValue(value.effort)) return false
   if (value.proposal !== null && !isProposalSnapshotValue(value.proposal)) return false
   if (!isArrayOf(value.modifications, isSessionModification)) return false
+  if (value.goal !== undefined && !isOneOf(value.goal, TRAINING_GOAL_ORDER)) return false
   return isNullableString(value.notes)
 }

@@ -81,42 +81,65 @@ const MAX_SETS_BY_EXPERIENCE: Record<ExperienceLevel, number> = {
 }
 
 /**
- * Cómo estira o encoge el objetivo las repeticiones propias del ejercicio.
- * Multiplica, no sustituye: una sentadilla y una flexión diamante no comparten rango.
+ * Cómo es la sesión de cada objetivo (D-047). Cada sesión sirve a uno solo:
+ * con varios objetivos, la semana se reparte entre ellos (`weekly-plan.ts`).
+ *
+ * - `repFactor` multiplica las repeticiones del catálogo, no las sustituye:
+ *   una sentadilla y una flexión diamante no comparten rango.
+ * - `setShift` suma series; `difficultyShift`, dificultad objetivo.
+ * - `minRest`/`maxRest` acotan el descanso del catálogo.
  */
-const REP_FACTOR_BY_GOAL: Record<TrainingGoal, number> = {
-  fuerza: 0.7,
-  hipertrofia: 1,
-  resistencia: 1.3,
-  rendimiento_deportivo: 0.9,
-  movilidad: 1.3,
-  tecnica: 1,
-  salud_general: 1,
+type GoalParams = {
+  repFactor: number
+  setShift: number
+  difficultyShift: number
+  minRest: number | null
+  maxRest: number | null
+  /** Cadencia cuando el ejercicio no trae una. */
+  tempo: string | null
 }
 
-/**
- * Combina varios objetivos en un único factor de repeticiones.
- *
- * Se hace con la **media** de sus factores, y esa elección es deliberada: el
- * usuario ha dicho que quiere las tres cosas a la vez, no que una mande sobre las
- * otras. Promediar trata todos los objetivos por igual y, sobre todo, **no depende
- * del orden en que se seleccionaron** — que sería una prioridad inventada.
- *
- * Con un solo objetivo el resultado es exactamente el factor de ese objetivo, así
- * que el comportamiento anterior se conserva.
- */
-export function blendedRepFactor(goals: readonly TrainingGoal[]): number {
-  const known = goals.filter((goal) => goal in REP_FACTOR_BY_GOAL)
-  if (known.length === 0) return REP_FACTOR_BY_GOAL[DEFAULT_GOAL]
+export const GOAL_PARAMS: Record<TrainingGoal, GoalParams> = {
+  fuerza: { repFactor: 0.6, setShift: 1, difficultyShift: 1, minRest: 120, maxRest: null, tempo: null },
+  hipertrofia: { repFactor: 1, setShift: 0, difficultyShift: 0, minRest: 60, maxRest: 90, tempo: null },
+  rendimiento_deportivo: { repFactor: 0.7, setShift: 0, difficultyShift: 0, minRest: 90, maxRest: null, tempo: null },
+  tecnica: { repFactor: 0.8, setShift: 1, difficultyShift: -1, minRest: null, maxRest: null, tempo: '3-1-1' },
+  salud_general: { repFactor: 1, setShift: 0, difficultyShift: 0, minRest: null, maxRest: null, tempo: null },
+  // Resistencia y movilidad tienen sesión propia; si una de fuerza les sirve, es fuerza general.
+  resistencia: { repFactor: 1, setShift: 0, difficultyShift: 0, minRest: null, maxRest: null, tempo: null },
+  movilidad: { repFactor: 1, setShift: 0, difficultyShift: 0, minRest: null, maxRest: null, tempo: null },
+}
 
-  const total = known.reduce((sum, goal) => sum + REP_FACTOR_BY_GOAL[goal], 0)
-  return total / known.length
+/** El objetivo de una sesión cuando solo se conocen los del perfil: uno solo, ese; si no, fuerza general. */
+export function sessionGoalFrom(goals: readonly TrainingGoal[]): TrainingGoal {
+  return goals.length === 1 ? goals[0] : DEFAULT_GOAL
+}
+
+/** Repeticiones (o segundos) de partida del ejercicio en una sesión de ese objetivo. */
+export function baseRepsFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOAL): number {
+  // Los isométricos y los intervalos se miden en segundos: el objetivo no los recorta.
+  if (exercise.work.isTimed) return exercise.work.reps
+  return Math.max(5, Math.round(exercise.work.reps * GOAL_PARAMS[goal].repFactor))
+}
+
+/** El descanso del catálogo, acotado por el objetivo. Los intervalos no se tocan. */
+export function restFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOAL): number {
+  if (exercise.category === 'acondicionamiento') return exercise.work.restSeconds
+  const { minRest, maxRest } = GOAL_PARAMS[goal]
+  let rest = exercise.work.restSeconds
+  if (minRest !== null) rest = Math.max(rest, minRest)
+  if (maxRest !== null) rest = Math.min(rest, maxRest)
+  return rest
 }
 
 /** Minutos que se asume que ocupa un ejercicio completo. */
 const MINUTES_PER_EXERCISE = 10
 const MIN_EXERCISES = 3
 const MAX_EXERCISES = 6
+
+/** En acondicionamiento (D-047): rondas de 30 s más 30 s de descanso, unos 4 minutos; como mucho 6, unos 24 minutos de intervalos. */
+const CONDITIONING_MINUTES_PER_EXERCISE = 4
+const MAX_CONDITIONING_EXERCISES = 6
 
 /** Cuánto sube cada progresión por repeticiones. */
 export const REP_PROGRESSION_STEP = 2
@@ -138,7 +161,10 @@ export type SessionBuildOptions = {
   focus: SessionFocus
   intensity: SessionIntensity
   availableMinutes: number
+  /** Los objetivos del perfil: con movilidad, el calentamiento lleva un ejercicio más (D-047). */
   goals: readonly TrainingGoal[]
+  /** El objetivo al que sirve esta sesión (D-047). Por defecto, `sessionGoalFrom(goals)`. */
+  goal?: TrainingGoal
   experience: ExperienceLevel
   /** Grupos que la sesión debe evitar, por ejemplo por una actividad fija cercana. */
   avoidMuscleGroups?: readonly MuscleGroup[]
@@ -213,6 +239,14 @@ export const WARMUP_EXERCISES: Record<SessionFocus, readonly string[]> = {
   tren_inferior: ['tobillo-pared', 'gato-camello'],
   cuerpo_completo: ['gato-camello', 'tobillo-pared'],
   core_movilidad: [],
+  acondicionamiento: ['tobillo-pared', 'gato-camello'],
+}
+
+/** Con el objetivo de movilidad, un ejercicio más en el calentamiento de fuerza (D-047). */
+export const MOBILITY_GOAL_WARMUP: Partial<Record<SessionFocus, string>> = {
+  tren_superior: 'gato-camello',
+  tren_inferior: 'estiramiento-flexor-cadera',
+  cuerpo_completo: 'rotacion-toracica',
 }
 
 /**
@@ -370,7 +404,10 @@ function approachSets(
   return result
 }
 
-export function exerciseCountFor(availableMinutes: number): number {
+export function exerciseCountFor(availableMinutes: number, focus?: SessionFocus): number {
+  if (focus === 'acondicionamiento') {
+    return clamp(Math.floor(availableMinutes / CONDITIONING_MINUTES_PER_EXERCISE), MIN_EXERCISES, MAX_CONDITIONING_EXERCISES)
+  }
   const raw = Math.floor(availableMinutes / MINUTES_PER_EXERCISE)
   return clamp(raw, MIN_EXERCISES, MAX_EXERCISES)
 }
@@ -378,9 +415,10 @@ export function exerciseCountFor(availableMinutes: number): number {
 export function targetDifficultyFor(
   experience: ExperienceLevel,
   intensity: SessionIntensity,
+  goal: TrainingGoal = DEFAULT_GOAL,
 ): Difficulty {
   const base = BASE_DIFFICULTY[experience] ?? BASE_DIFFICULTY[DEFAULT_EXPERIENCE]
-  return clamp(base + DIFFICULTY_SHIFT[intensity], 1, 5) as Difficulty
+  return clamp(base + DIFFICULTY_SHIFT[intensity] + GOAL_PARAMS[goal].difficultyShift, 1, 5) as Difficulty
 }
 
 // ---------------------------------------------------------------------------
@@ -395,9 +433,12 @@ export function targetDifficultyFor(
  */
 export { lastPerformanceOf, type LastPerformance }
 
-/** Repeticiones a partir de las cuales el ejercicio se considera dominado. */
-export function repCapFor(exercise: Exercise): number {
-  return Math.round(exercise.work.reps * REP_PROGRESSION_CAP_FACTOR)
+/**
+ * Repeticiones a partir de las cuales el ejercicio se considera dominado: 1,6 ×
+ * las de partida de esa sesión (D-047). En fuerza se llega antes.
+ */
+export function repCapFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOAL): number {
+  return Math.round(baseRepsFor(exercise, goal) * REP_PROGRESSION_CAP_FACTOR)
 }
 
 /**
@@ -409,10 +450,11 @@ export function hasMastered(
   exercise: Exercise,
   history: readonly WorkoutSession[],
   gear: UserEquipment = LEGACY_EQUIPMENT,
+  goal: TrainingGoal = DEFAULT_GOAL,
 ): boolean {
   const last = lastPerformanceOf(exercise.id, history)
   if (!last || !last.allSetsCompleted) return false
-  if (last.reps < repCapFor(exercise)) return false
+  if (last.reps < repCapFor(exercise, goal)) return false
   if (!usesLoad(exercise)) return true
   return nextLoad(loadsFor(exercise, gear), last.weightKg ?? 0) === null
 }
@@ -444,25 +486,27 @@ export function suggestWorkFor(
   exercise: Exercise,
   options: {
     intensity: SessionIntensity
-    goals: readonly TrainingGoal[]
+    /** El objetivo de la sesión (D-047). */
+    goal?: TrainingGoal
+    /** Los del perfil, si no se da `goal`: uno solo es el de la sesión. */
+    goals?: readonly TrainingGoal[]
     experience: ExperienceLevel
     history?: readonly WorkoutSession[]
     deload?: boolean
     gear?: UserEquipment
   },
 ): SuggestedWork {
-  const { intensity, goals, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT } = options
+  const { intensity, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT } = options
+  const goal = options.goal ?? sessionGoalFrom(options.goals ?? DEFAULT_GOALS)
 
   const maxSets = MAX_SETS_BY_EXPERIENCE[experience] ?? MAX_SETS_BY_EXPERIENCE[DEFAULT_EXPERIENCE]
-  const normalSets = clamp(exercise.work.sets + SET_SHIFT[intensity], MIN_SETS, maxSets)
+  // Los intervalos van por rondas: el objetivo no suma series.
+  const goalSets = exercise.category === 'acondicionamiento' ? 0 : GOAL_PARAMS[goal].setShift
+  const normalSets = clamp(exercise.work.sets + SET_SHIFT[intensity] + goalSets, MIN_SETS, maxSets)
   const sets = deload ? Math.max(MIN_SETS, normalSets - 1) : normalSets
 
-  const repFactor = blendedRepFactor(goals)
-  // Los isométricos se miden en segundos: el objetivo no debe recortarlos como si
-  // fueran repeticiones.
-  const baseReps = exercise.work.isTimed
-    ? exercise.work.reps
-    : Math.max(5, Math.round(exercise.work.reps * repFactor))
+  const baseReps = baseRepsFor(exercise, goal)
+  const cap = repCapFor(exercise, goal)
 
   const loads = usesLoad(exercise) ? loadsFor(exercise, gear) : []
   const baseWeight = startingLoad(exercise, loads, experience)
@@ -473,7 +517,8 @@ export function suggestWorkFor(
   }
 
   const lastWeight = baseWeight === null ? null : (last.weightKg ?? baseWeight)
-  const lastReps = Math.max(baseReps, last.reps)
+  // Lo hecho en una sesión de otro objetivo puede pasar del techo de esta (D-047): se parte del techo.
+  const lastReps = Math.min(Math.max(baseReps, last.reps), cap)
 
   if (!last.allSetsCompleted || deload || (last.effort !== null && last.effort >= AT_LIMIT_EFFORT)) {
     return { sets, reps: lastReps, weightKg: lastWeight }
@@ -485,7 +530,7 @@ export function suggestWorkFor(
 
   // En el techo y con un peso mayor a mano: se sube de peso y se vuelve a las repeticiones de partida.
   const heavier = lastWeight === null ? null : nextLoad(loads, lastWeight)
-  if (heavier !== null && lastReps >= repCapFor(exercise)) {
+  if (heavier !== null && lastReps >= cap) {
     return { sets, reps: baseReps, weightKg: heavier }
   }
 
@@ -494,7 +539,7 @@ export function suggestWorkFor(
   const step = easy ? baseStep * 2 : baseStep
   return {
     sets,
-    reps: Math.min(lastReps + step, repCapFor(exercise)),
+    reps: Math.min(lastReps + step, cap),
     weightKg: lastWeight,
   }
 }
@@ -516,16 +561,17 @@ export function adaptDifficulty(
     history?: readonly WorkoutSession[]
     catalog?: readonly Exercise[]
     gear?: UserEquipment
+    goal?: TrainingGoal
   } = {},
 ): Exercise {
-  const { history = [], catalog, gear = LEGACY_EQUIPMENT } = options
+  const { history = [], catalog, gear = LEGACY_EQUIPMENT, goal = DEFAULT_GOAL } = options
   const equipment = availableEquipment(gear)
 
   if (exercise.difficulty > target) {
     return variantOf(exercise, 'easier', catalog, equipment)
   }
   // Solo se sube de variante cuando el ejercicio actual ya se domina.
-  if (exercise.difficulty < target && hasMastered(exercise, history, gear)) {
+  if (exercise.difficulty < target && hasMastered(exercise, history, gear, goal)) {
     return variantOf(exercise, 'harder', catalog, equipment)
   }
   return exercise
@@ -709,10 +755,13 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const liked = usable.filter((exercise) => !dislikedExerciseIds.includes(exercise.id))
   const pool = liked.length >= MIN_EXERCISES ? liked : usable
 
-  const target = targetDifficultyFor(experience, intensity)
+  const goal = options.goal ?? sessionGoalFrom(goals)
+  const conditioning = focus === 'acondicionamiento'
+  const target = targetDifficultyFor(experience, intensity, conditioning ? DEFAULT_GOAL : goal)
   // El calentamiento y la vuelta a la calma salen del mismo tiempo (D-032).
   const phaseCatalog = catalog ?? EXERCISE_CATALOG
-  const baseWarmup = WARMUP_EXERCISES[focus]
+  const mobilityExtra = goals.includes('movilidad') ? MOBILITY_GOAL_WARMUP[focus] : undefined
+  const baseWarmup = [...WARMUP_EXERCISES[focus], ...(mobilityExtra ? [mobilityExtra] : [])]
   const warmupIds =
     baseWarmup.length === 0
       ? baseWarmup
@@ -727,21 +776,23 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const warmsUp = warmupIds.length > 0
   const activation = warmsUp ? phaseExercises(ACTIVATION_EXERCISES, 'calentamiento', phaseCatalog, 'activacion') : []
   const mobility = phaseExercises(warmupIds, 'calentamiento', phaseCatalog, 'movilidad')
+  // Los intervalos son por tiempo: no llevan series de aproximación (D-047).
+  const approachMinutes = conditioning ? 0 : APPROACH_EXERCISES * APPROACH_MINUTES
   const phaseMinutes =
-    (warmsUp ? ACTIVATION_MINUTES + APPROACH_EXERCISES * APPROACH_MINUTES : 0) + mobility.length * PHASE_EXERCISE_MINUTES
-  // Con un deporte de salto, un ejercicio de salto abre el entrenamiento y ocupa un hueco (D-033).
+    (warmsUp ? ACTIVATION_MINUTES + approachMinutes : 0) + mobility.length * PHASE_EXERCISE_MINUTES
+  // Con un deporte de salto, o si la sesión es de rendimiento (D-047), un salto abre el entrenamiento y ocupa un hueco (D-033).
   const jump =
-    jumpSport && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
+    (jumpSport || goal === 'rendimiento_deportivo') && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
       ? jumpExerciseFor(phaseCatalog, equipment, target, usage, dislikedExerciseIds)
       : null
-  const count = exerciseCountFor(availableMinutes - phaseMinutes) - (jump ? 1 : 0)
+  const count = exerciseCountFor(availableMinutes - phaseMinutes, focus) - (jump ? 1 : 0)
 
   const selected = selectExercises(
     pool,
     focus,
     count,
     // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
-    (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear }),
+    (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal }),
     target,
     usage,
   )
@@ -750,13 +801,13 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   // Un objetivo lo pidió el usuario: entra aunque el ejercicio esté entre los que no gustan.
   const withGoals = withPriority(selected, usable, priorityExerciseIds)
   // Con diferencia entre lados, al menos un ejercicio a una mano o una pierna (D-041).
-  const prioritized = preferUnilateral ? withUnilateral(withGoals, pool, priorityExerciseIds) : withGoals
+  const prioritized = preferUnilateral && !conditioning ? withUnilateral(withGoals, pool, priorityExerciseIds) : withGoals
 
   // El salto va primero: con las piernas frescas sale mejor y con menos riesgo (D-033).
   const main = jump ? [jump, ...prioritized] : prioritized
 
   const exercises: PlannedExercise[] = main.map((exercise) => {
-    const work = suggestWorkFor(exercise, { intensity, goals, experience, history, deload, gear })
+    const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear })
     return {
       exerciseId: exercise.id,
       name: exercise.name,
@@ -764,21 +815,22 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       reps: work.reps,
       isTimed: exercise.work.isTimed,
       suggestedWeightKg: work.weightKg,
-      restSeconds: exercise.work.restSeconds,
+      restSeconds: restFor(exercise, goal),
       unilateral: exercise.unilateral,
-      tempo: exercise.work.tempo,
+      tempo: exercise.work.tempo ?? (exercise.work.isTimed ? null : GOAL_PARAMS[goal].tempo),
       imageUrl: exercise.imageUrl,
     }
   })
 
   return {
     focus,
-    title: titleFor(focus, intensity),
+    title: titleFor(focus, intensity, goal),
     intensity,
     estimatedMinutes: Math.max(20, Math.round(availableMinutes / 5) * 5),
     muscleGroups: dedupeGroups(main, focus),
     exercises: [...activation, ...mobility, ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment) : []), ...exercises],
     ...(deload ? { deload: true } : {}),
+    goal,
   }
 }
 
@@ -798,9 +850,19 @@ function dedupeGroups(exercises: readonly Exercise[], focus: SessionFocus): Musc
   return groups.length > 0 ? groups : [...FOCUS_MUSCLE_GROUPS[focus]]
 }
 
+/** Cómo empieza el título de una sesión de fuerza según su objetivo (D-047). */
+const GOAL_TITLE_PREFIX: Partial<Record<TrainingGoal, string>> = {
+  hipertrofia: 'Hipertrofia',
+  rendimiento_deportivo: 'Potencia',
+  tecnica: 'Técnica',
+}
+
 /** `Fuerza · Tren superior` — el formato que ya usa la interfaz aprobada. */
-export function titleFor(focus: SessionFocus, intensity: SessionIntensity): string {
+export function titleFor(focus: SessionFocus, intensity: SessionIntensity, goal: TrainingGoal = DEFAULT_GOAL): string {
   if (focus === 'core_movilidad') return `Movilidad · ${SESSION_FOCUS_LABELS[focus]}`
-  const prefix = intensity === 'ligera' ? 'Sesión ligera' : 'Fuerza'
+  if (focus === 'acondicionamiento') {
+    return `${intensity === 'ligera' ? 'Intervalos suaves' : 'Intervalos'} · ${SESSION_FOCUS_LABELS[focus]}`
+  }
+  const prefix = intensity === 'ligera' ? 'Sesión ligera' : (GOAL_TITLE_PREFIX[goal] ?? 'Fuerza')
   return `${prefix} · ${SESSION_FOCUS_LABELS[focus]}`
 }

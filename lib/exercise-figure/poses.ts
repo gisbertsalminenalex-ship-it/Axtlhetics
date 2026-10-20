@@ -58,7 +58,7 @@ const HINGE_SUPPORT: LimbSpec = { to: [176, 141], bend: -1 }
 const HINGE_LEGS: LimbSpec = { a: 12, b: -6 }
 
 // ---------------------------------------------------------------------------
-// Los 74 ejercicios
+// Los 83 ejercicios
 // ---------------------------------------------------------------------------
 
 const incline = (() => {
@@ -548,6 +548,66 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
       { hip: [112, 172], torso: 184, arm: { to: [98, 149], bend: 1 }, leg: { to: [160, 194], bend: -1 }, foot: 90 },
     ],
   },
+  // --- Acondicionamiento (D-047) ---------------------------------------------
+  'rodillas-altas': {
+    frames: [
+      { hip: [118, STAND_HIP_Y - 4], torso: 178, arm: { a: -30, b: 60 }, farArm: { a: 30, b: 120 }, leg: { a: 95, b: 0 }, farLeg: { a: -2, b: -2 }, foot: 90, farFoot: 40 },
+      { hip: [118, STAND_HIP_Y - 4], torso: 178, arm: { a: 30, b: 120 }, farArm: { a: -30, b: 60 }, leg: { a: -2, b: -2 }, farLeg: { a: 95, b: 0 }, foot: 40, farFoot: 90 },
+    ],
+  },
+  'boxeo-sombra': {
+    frames: [
+      { hip: [112, STAND_HIP_Y + 4], torso: 176, arm: { a: 30, b: 160 }, farArm: { a: 40, b: 150 }, leg: { to: [134, 194], bend: -1 }, farLeg: { to: [96, 194], bend: -1 }, foot: 90, farFoot: 90 },
+      { hip: [114, STAND_HIP_Y + 4], torso: 172, arm: { a: 88, b: 92 }, farArm: { a: 40, b: 150 }, leg: { to: [134, 194], bend: -1 }, farLeg: { to: [96, 194], bend: -1 }, foot: 90, farFoot: 90 },
+    ],
+  },
+  // De lado, la pierna lejana se separa: se ve que las piernas se abren y se cierran.
+  'plancha-jacks': {
+    frames: [
+      { hip: PUSH_TOP.hip, torso: PUSH_TOP.torso, leg: PUSH_TOP.leg, arm: reach(PUSH_TOP.shoulder, PUSH_HAND), foot: 20 },
+      { hip: PUSH_TOP.hip, torso: PUSH_TOP.torso, leg: PUSH_TOP.leg, farLeg: { a: -77, b: -77 }, arm: reach(PUSH_TOP.shoulder, PUSH_HAND), foot: 20, farFoot: 30 },
+    ],
+  },
+  'escaladores-cruzados': {
+    frames: [
+      { hip: PUSH_TOP.hip, torso: PUSH_TOP.torso, leg: { a: 75, b: -95 }, farLeg: PUSH_TOP.leg, arm: reach(PUSH_TOP.shoulder, PUSH_HAND), foot: -100, farFoot: 20 },
+      { hip: PUSH_TOP.hip, torso: PUSH_TOP.torso, leg: PUSH_TOP.leg, farLeg: { a: 75, b: -95 }, arm: reach(PUSH_TOP.shoulder, PUSH_HAND), foot: 20, farFoot: -100 },
+    ],
+  },
+  'subidas-escalon-rapidas': {
+    props: [{ kind: 'box', x: 122, y: 172, w: 56, h: 25 }],
+    frames: [
+      { hip: [112, 124], torso: 172, head: 176, arm: { a: 20, b: 60 }, farArm: { a: -20, b: 30 }, leg: { to: [146, 166], bend: -1 }, farLeg: { to: [100, 194], bend: -1 }, foot: 90, farFoot: 90 },
+      { hip: [142, 88], torso: 174, head: 178, arm: { a: -20, b: 30 }, farArm: { a: 20, b: 60 }, leg: { to: [146, 166], bend: -1 }, farLeg: { to: [150, 148], bend: -1 }, foot: 90, farFoot: 60 },
+    ],
+  },
+  // De pie a agachado con las manos en el suelo: la plancha la enseñan los burpees.
+  'burpees-sin-salto': {
+    frames: [
+      { hip: [118, STAND_HIP_Y], torso: 180, arm: { a: 0, b: 0 }, leg: { a: 0, b: 0 }, foot: 90 },
+      { hip: [100, 154], torso: 115, head: 120, arm: { a: 6, b: 0 }, leg: { a: 85, b: 0 }, foot: 90 },
+    ],
+  },
+  burpees: {
+    frames: [
+      { hip: [118, STAND_HIP_Y - 24], torso: 180, arm: { a: 170, b: 175 }, leg: { a: 2, b: -2 }, foot: 25 },
+      { hip: PUSH_TOP.hip, torso: PUSH_TOP.torso, leg: PUSH_TOP.leg, arm: reach(PUSH_TOP.shoulder, PUSH_HAND), foot: 20 },
+    ],
+  },
+  'saltos-estrella': {
+    view: 'front',
+    frames: [
+      { hip: [120, 124], torso: 180, arm: { a: 15, b: 10 }, farArm: { a: -15, b: -10 }, leg: { a: 35, b: -10 }, farLeg: { a: -35, b: 10 }, foot: 70, farFoot: -70 },
+      { hip: [120, STAND_HIP_Y - 26], torso: 180, arm: { a: 140, b: 145 }, farArm: { a: -140, b: -145 }, leg: { a: 28, b: 28 }, farLeg: { a: -28, b: -28 }, foot: 70, farFoot: -70 },
+    ],
+  },
+  'zancadas-salto': {
+    frames: [
+      { hip: [114, 150], torso: 180, arm: { a: -30, b: 20 }, farArm: { a: 30, b: 100 }, leg: { to: [148, 194], bend: -1 }, farLeg: { to: [82, 186], bend: -1 }, foot: 90, farFoot: 50 },
+      { hip: [116, 108], torso: 180, arm: { a: 30, b: 100 }, farArm: { a: -30, b: 20 }, leg: { to: [104, 182], bend: -1 }, farLeg: { to: [140, 176], bend: -1 }, foot: 40, farFoot: 70 },
+    ],
+  },
+
 }
 
 export function figureFor(exerciseId: string): FigureSpec | null {

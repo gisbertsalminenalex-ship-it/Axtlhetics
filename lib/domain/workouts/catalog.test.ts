@@ -96,12 +96,12 @@ test('el catálogo cubre los cinco patrones de movimiento, más la pliometría (
   const categories = new Set<ExerciseCategory>(EXERCISE_CATALOG.map((item) => item.category))
   assert.deepEqual(
     [...categories].sort(),
-    ['core', 'empuje', 'movilidad', 'piernas', 'pliometria', 'tiron'],
+    ['acondicionamiento', 'core', 'empuje', 'movilidad', 'piernas', 'pliometria', 'tiron'],
   )
 })
 
 test('cada foco de sesión tiene ejercicios suficientes', () => {
-  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo', 'core_movilidad'] as const) {
+  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo', 'core_movilidad', 'acondicionamiento'] as const) {
     const candidates = exercisesForFocus(focus).filter((exercise) => isAvailable(exercise))
     assert.ok(candidates.length >= 3, `${focus} solo tiene ${candidates.length} ejercicios`)
     for (const exercise of candidates) {
@@ -231,14 +231,23 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 76 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033, 2 de D-045 y 25 de D-046', () => {
-  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44, 49 y 51.
-  assert.equal(EXERCISE_CATALOG.length, 76)
+test('el catálogo tiene 85 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033, 2 de D-045, 25 de D-046 y 9 de D-047', () => {
+  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44, 49, 51 y 76.
+  assert.equal(EXERCISE_CATALOG.length, 85)
 })
 
-test('con una sola pesa, el catálogo de antes: lo nuevo de D-046 pide material que no hay', () => {
+test('con una sola pesa, lo nuevo de D-046 pide material que no hay; el acondicionamiento (D-047) no pide nada', () => {
   const legacy = availableExercises(EXERCISE_CATALOG, DEFAULT_EQUIPMENT)
-  assert.equal(legacy.length, 51)
+  assert.equal(legacy.length, 60)
+})
+
+test('el acondicionamiento es por tiempo y sin carga (D-047)', () => {
+  const conditioning = EXERCISE_CATALOG.filter((exercise) => exercise.category === 'acondicionamiento')
+  assert.equal(conditioning.length, 9)
+  for (const exercise of conditioning) {
+    assert.ok(exercise.work.isTimed, exercise.id)
+    assert.ok(!usesLoad(exercise), exercise.id)
+  }
 })
 
 test('todo lo que lleva carga tiene peso de partida, y nada más lo tiene (D-046)', () => {
@@ -423,7 +432,7 @@ test('las familias son pocas, semánticas y solo agrupan variantes del mismo pat
   assert.deepEqual(
     [...families.keys()].sort(),
     [
-      'curl', 'deltoide-posterior', 'dominada', 'flexion', 'gemelos', 'peso-muerto', 'plancha', 'press-hombro',
+      'burpee', 'curl', 'deltoide-posterior', 'dominada', 'flexion', 'gemelos', 'peso-muerto', 'plancha', 'press-hombro',
       'press-pecho', 'puente', 'remo', 'salto-vertical', 'sentadilla', 'triceps', 'zancada',
     ],
   )

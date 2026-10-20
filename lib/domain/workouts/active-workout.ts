@@ -369,6 +369,7 @@ export function toWorkoutSession(
     proposal: workout.proposal,
     modifications,
     notes: null,
+    ...(workout.plan.goal ? { goal: workout.plan.goal } : {}),
   }
 }
 

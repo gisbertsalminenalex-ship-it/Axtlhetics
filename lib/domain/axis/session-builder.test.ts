@@ -24,7 +24,6 @@ import {
 import type { AxisProposal } from './types'
 import {
   adaptDifficulty,
-  blendedRepFactor,
   buildSession,
   exerciseCountFor,
   hasMastered,
@@ -75,21 +74,18 @@ const BASE = { intensity: 'moderada' as const, goals: ['hipertrofia' as const], 
 // Repeticiones por objetivo
 // ---------------------------------------------------------------------------
 
-test('un objetivo solo aplica su factor; varios se promedian sin importar el orden', () => {
-  assert.equal(blendedRepFactor(['fuerza']), 0.7)
-  assert.equal(blendedRepFactor(['resistencia']), 1.3)
-  assert.equal(blendedRepFactor(['fuerza', 'resistencia']), 1)
-  assert.equal(blendedRepFactor(['resistencia', 'fuerza']), blendedRepFactor(['fuerza', 'resistencia']))
-  assert.equal(blendedRepFactor([]), 1, 'sin objetivo se usa el de salud general')
-})
-
-test('la fuerza baja las repeticiones y la resistencia las sube, sin bajar de 5', () => {
+test('cada sesión sirve a un objetivo: la de fuerza baja las repeticiones y suma una serie, sin bajar de 5 (D-047)', () => {
   const flexiones = exercise('flexiones')
-  const fuerza = suggestWorkFor(flexiones, { ...BASE, goals: ['fuerza'] })
-  const resistencia = suggestWorkFor(flexiones, { ...BASE, goals: ['resistencia'] })
-  assert.ok(fuerza.reps < flexiones.work.reps)
-  assert.ok(resistencia.reps > flexiones.work.reps)
+  const fuerza = suggestWorkFor(flexiones, { ...BASE, goal: 'fuerza' })
+  const hipertrofia = suggestWorkFor(flexiones, { ...BASE, goal: 'hipertrofia' })
+  assert.ok(fuerza.reps < hipertrofia.reps)
   assert.ok(fuerza.reps >= 5)
+  assert.equal(fuerza.sets, hipertrofia.sets + 1)
+  // Con varios objetivos en el perfil y sin objetivo de sesión, fuerza general: ya no se promedian.
+  assert.deepEqual(
+    suggestWorkFor(flexiones, { ...BASE, goals: ['fuerza', 'resistencia'] }),
+    suggestWorkFor(flexiones, { ...BASE, goal: 'salud_general' }),
+  )
 })
 
 test('los isométricos no recortan segundos por el objetivo', () => {
@@ -217,7 +213,8 @@ test('una sesión solo contiene ejercicios del foco, sin repetir y ejecutables c
     assert.ok(FOCUS_CATEGORIES.tren_superior.includes(found.category), `${id} no es de tren superior`)
     assert.ok(found.equipment.every((item) => ['ninguno', 'pesa', 'superficie_elevada'].includes(item)))
   }
-  assert.equal(session.title, titleFor('tren_superior', 'moderada'))
+  assert.equal(session.title, titleFor('tren_superior', 'moderada', 'hipertrofia'))
+  assert.equal(session.title, 'Hipertrofia · Tren superior')
   assert.ok(session.estimatedMinutes >= 20 && session.estimatedMinutes % 5 === 0)
 })
 

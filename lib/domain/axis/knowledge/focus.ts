@@ -40,4 +40,6 @@ export const FOCUS_TERMS: readonly { focus: SessionFocus; terms: readonly string
   { focus: 'tren_superior', terms: ['tren superior', 'pecho', 'espalda', 'brazo', 'brazos', 'hombro', 'hombros'] },
   { focus: 'core_movilidad', terms: ['core', 'abdominal', 'movilidad', 'plancha'] },
   { focus: 'cuerpo_completo', terms: ['cuerpo completo', 'todo el cuerpo', 'full body'] },
+  // D-047: la sesión de resistencia.
+  { focus: 'acondicionamiento', terms: ['cardio', 'intervalos', 'acondicionamiento', 'hiit', 'resistencia'] },
 ]

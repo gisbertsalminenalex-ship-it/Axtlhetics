@@ -399,23 +399,75 @@ test('solo propone ejercicios ejecutables con el equipamiento disponible', () =>
   }
 })
 
-test('el objetivo del perfil cambia el rango de repeticiones', () => {
-  const strength = decide(
-    contextWith({ profile: profile({ goals: ['fuerza'] }), recentSessions: [session()] }),
-  )
-  const endurance = decide(
-    contextWith({ profile: profile({ goals: ['resistencia'] }), recentSessions: [session()] }),
-  )
+test('el objetivo decide el tipo de sesión: fuerza con menos repeticiones, resistencia con intervalos (D-047)', () => {
+  const strength = decide(contextWith({ profile: profile({ goals: ['fuerza'] }), recentSessions: [session()] }))
+  const hypertrophy = decide(contextWith({ profile: profile({ goals: ['hipertrofia'] }), recentSessions: [session()] }))
+  const endurance = decide(contextWith({ profile: profile({ goals: ['resistencia'] }), recentSessions: [session()] }))
 
   const repsOf = (decision: ReturnType<typeof decide>) =>
     (decision.primary.session?.exercises ?? [])
-      .filter((exercise) => !exercise.isTimed)
-      .reduce((total, exercise) => total + exercise.reps, 0)
+      .filter((exercise) => isMainExercise(exercise) && !exercise.isTimed)
+      .reduce((total, exercise) => total + exercise.reps, 0) /
+    Math.max(1, (decision.primary.session?.exercises ?? []).filter((exercise) => isMainExercise(exercise) && !exercise.isTimed).length)
 
-  assert.ok(
-    repsOf(endurance) > repsOf(strength),
-    'resistencia debería acumular más repeticiones que fuerza',
+  assert.ok(repsOf(strength) < repsOf(hypertrophy), 'la fuerza va con menos repeticiones por ejercicio')
+  assert.match(strength.primary.session!.title, /^Fuerza · /)
+  assert.equal(strength.primary.session!.goal, 'fuerza')
+
+  const conditioning = endurance.primary.session!
+  assert.equal(conditioning.focus, 'acondicionamiento')
+  assert.equal(conditioning.goal, 'resistencia')
+  assert.match(endurance.primary.headline, /intervalos/)
+  const main = conditioning.exercises.filter(isMainExercise)
+  assert.ok(main.length >= 3)
+  for (const item of main) {
+    assert.equal(findExercise(item.exerciseId)?.category, 'acondicionamiento', item.exerciseId)
+    assert.ok(item.isTimed)
+    assert.equal(item.suggestedWeightKg, null)
+  }
+})
+
+test('con varios objetivos, el motivo dice el reparto de la semana y qué toca hoy (D-047)', () => {
+  const decision = decide(
+    contextWith({
+      profile: profile({ goals: ['fuerza', 'resistencia', 'movilidad'], availableWeekdays: [0, 2, 4, 5] }),
+      recentSessions: [session()],
+    }),
   )
+  const factor = decision.primary.factors.find((item) => item.key === 'goal')
+  assert.ok(factor, 'falta el factor del reparto')
+  assert.match(factor!.detail, /Esta semana: .*fuerza.*resistencia.*movilidad/)
+  assert.match(decision.primary.reason, /Esta semana/)
+})
+
+test('un día suave con la movilidad pendiente es de movilidad (D-047)', () => {
+  const decision = decide(
+    contextWith({
+      profile: profile({ goals: ['fuerza', 'movilidad'], availableWeekdays: [0, 2, 4] }),
+      recoveryInputs: null,
+      recentSessions: [session()],
+    }),
+  )
+  assert.equal(decision.primary.type, 'LIGHT_TRAINING')
+  assert.equal(decision.primary.session?.focus, 'core_movilidad')
+})
+
+test('el acondicionamiento no toca si hoy hay que evitar las piernas por un deporte (D-047)', () => {
+  const decision = decide(
+    contextWith({
+      profile: profile({ goals: ['resistencia'] }),
+      activities: [basketball({ startMinute: null, endMinute: null, intensity: 'media' })],
+      recentSessions: [session()],
+    }),
+  )
+  assert.notEqual(decision.primary.session?.focus, 'acondicionamiento')
+})
+
+test('siempre hay una alternativa de acondicionamiento cuando la sesión es de fuerza (D-047)', () => {
+  const decision = decide(contextWith({ recentSessions: [session()] }))
+  const alternative = decision.alternatives.find((item) => item.session?.focus === 'acondicionamiento')
+  assert.ok(alternative)
+  assert.equal(alternative!.session!.goal, 'resistencia')
 })
 
 test('una sesión de tren superior mezcla empuje y tirón', () => {

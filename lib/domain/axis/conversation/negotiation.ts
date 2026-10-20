@@ -630,10 +630,15 @@ function evaluateWant(
 
   if (recent.length > 0) {
     const caveat = `Ya llevas ${listNames(recent.map(muscleGroupLabel))} trabajado estos días, así que no es lo que te propondría: repetir una zona sin recuperarla la desgasta más de lo que la hace crecer.`
+    // Los intervalos no tienen peso que bajar: se baja el ritmo (D-047).
+    const easeOff =
+      focus === 'acondicionamiento'
+        ? 'Ve a un ritmo que te deje hablar a medias y, si las piernas protestan, alarga los descansos.'
+        : 'Baja un punto el peso y para una o dos repeticiones antes del fallo.'
     return match
       ? {
           outcome: 'accept',
-          text: `${caveat} Pero lo decides tú: cambio a ${nameOf(match)}. Baja un punto el peso y para una o dos repeticiones antes del fallo.`,
+          text: `${caveat} Pero lo decides tú: cambio a ${nameOf(match)}. ${easeOff}`,
           proposedTarget: asTarget(match),
         }
       : {

@@ -113,7 +113,7 @@ test('ambiguo se responde preguntando cuál, de forma determinista y sin pasar p
 // ---------------------------------------------------------------------------
 
 test('preguntar por un ejercicio que no está en el catálogo se dice tal cual', () => {
-  for (const question of ['¿Cómo hago el press banca?', '¿Cómo se hace el burpee?', '¿Qué trabaja el press militar?']) {
+  for (const question of ['¿Cómo hago el press banca?', '¿Cómo se hace el thruster?', '¿Qué trabaja el press militar?']) {
     assert.ok(resolved(question).startsWith('no-catalogo:'), question)
     const answer = answerFromBriefing(question, {} as AxisBriefing)
     assert.equal(answer.text, 'No tengo ese ejercicio en tu catálogo.', question)

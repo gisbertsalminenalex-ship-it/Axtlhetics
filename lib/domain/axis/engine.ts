@@ -14,6 +14,18 @@ import { JUMP_SPORT_TERMS } from './knowledge/sports'
 import { planSummary, type PhysiquePlan } from '../scanner/physique'
 import { isOpenTarget, targetProgress } from '../workouts/targets'
 import { frequentlySkipped } from '../workouts/history'
+import {
+  describeQuota,
+  focusForGoal,
+  GOAL_NOUNS,
+  goalForToday,
+  isStrengthGoal,
+  weekIndexOf,
+  weeklyQuota,
+  weekProgress,
+  type GoalProgress,
+} from '../workouts/weekly-plan'
+import type { TrainingGoal } from '../profile/types'
 import type { PlannedSession, SessionFocus } from '../workouts/types'
 import { SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
@@ -51,21 +63,90 @@ export function createDeterministicAxisEngine(): AxisEngine {
 export function decide(context: AxisContext): AxisDecision {
   const facts = deriveFacts(context)
   const outcome = evaluateRules(facts)
+  const week = weekPlanFor(context)
+  const goal = goalOfTheDay(context, facts, outcome.type, week)
+  const plan: DayPlan = { week, goal }
 
   // La descarga no cambia qué se decide hoy, sino cuánto: se explica la primera (D-031).
   const training = isTrainingRecommendation(outcome.type)
   const scanFactor = training && facts.physique ? physiqueFactor(facts.physique) : null
+  const weekFactor = training ? weeklyGoalFactor(week, goal) : null
+  const [firstRule, ...otherRules] = outcome.factors
   const factors = [
     ...(isDeloadWeek(context.recentSessions, context.dayKey) && training ? [deloadFactor()] : []),
-    ...outcome.factors,
+    ...(firstRule ? [firstRule] : []),
+    // Qué toca hoy de la semana (D-047), justo después de por qué se entrena así.
+    ...(weekFactor ? [weekFactor] : []),
+    ...otherRules,
     // El escaneo va después: explica cómo se ajusta la sesión, no por qué se entrena hoy (D-041).
     ...(scanFactor ? [scanFactor] : []),
   ]
 
-  const primary = buildProposal(context, facts, outcome.type, factors, 'Recomendada', outcome.rule)
-  const alternatives = buildAlternatives(context, facts, outcome.type)
+  const primary = buildProposal(context, facts, plan, outcome.type, factors, 'Recomendada', outcome.rule)
+  const alternatives = buildAlternatives(context, facts, plan, outcome.type, primary)
 
   return { primary, alternatives }
+}
+
+// ---------------------------------------------------------------------------
+// El reparto de la semana (D-047)
+// ---------------------------------------------------------------------------
+
+/** Lo que se reparte esta semana y lo que ya está hecho. */
+function weekPlanFor(context: AxisContext): GoalProgress[] {
+  const goals = context.profile?.goals ?? DEFAULT_GOALS
+  const days = context.profile?.availableWeekdays.length ?? 3
+  const quota = weeklyQuota(goals, days, weekIndexOf(context.dayKey))
+  return weekProgress(quota, context.recentSessions, context.dayKey)
+}
+
+/**
+ * El objetivo de hoy. Un día suave con la movilidad pendiente es de movilidad;
+ * el acondicionamiento no toca si hoy hay que evitar las piernas ni en un día
+ * de recuperación o descanso, cuya sesión corta tiene que ser tranquila.
+ */
+function goalOfTheDay(
+  context: AxisContext,
+  facts: AxisFacts,
+  type: AxisRecommendationType,
+  week: readonly GoalProgress[],
+): TrainingGoal {
+  const legsBusy = muscleGroupsToAvoid(facts).includes('piernas')
+  const resting = !isTrainingRecommendation(type)
+  return goalForToday(week, context.recentSessions, {
+    light: type === 'LIGHT_TRAINING' || resting,
+    exclude: legsBusy || resting ? ['resistencia'] : [],
+  })
+}
+
+/** El reparto y el objetivo de hoy, que comparten la propuesta y sus alternativas. */
+type DayPlan = { week: GoalProgress[]; goal: TrainingGoal }
+
+/**
+ * El objetivo de una sesión con un foco elegido: el propio del foco, o, en uno
+ * de fuerza, el de hoy si es de fuerza y si no el de fuerza que más falte.
+ */
+function goalForFocus(focus: SessionFocus, plan: DayPlan, context: AxisContext): TrainingGoal {
+  if (focus === 'acondicionamiento') return 'resistencia'
+  if (focus === 'core_movilidad') return 'movilidad'
+  if (isStrengthGoal(plan.goal)) return plan.goal
+  return goalForToday(plan.week, context.recentSessions, { exclude: ['resistencia', 'movilidad'] })
+}
+
+/**
+ * «Esta semana: 2 de fuerza y 1 de resistencia. Hoy toca resistencia: llevas
+ * 0 de 1.» Solo cuando la semana tiene más de un tipo de sesión.
+ */
+function weeklyGoalFactor(week: readonly GoalProgress[], goal: TrainingGoal): AxisFactor | null {
+  if (week.length <= 1) return null
+  const today = week.find((item) => item.goal === goal)
+  const count = today ? ` llevas ${today.done} de ${today.sessions}.` : ''
+  return {
+    key: 'goal',
+    label: `Hoy, ${GOAL_NOUNS[goal]}`,
+    detail: `Esta semana: ${describeQuota(week)}. Hoy toca ${GOAL_NOUNS[goal]}${count ? ':' + count : '.'}`,
+    direction: 'neutral',
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +156,7 @@ export function decide(context: AxisContext): AxisDecision {
 function buildProposal(
   context: AxisContext,
   facts: AxisFacts,
+  plan: DayPlan,
   type: AxisRecommendationType,
   factors: AxisFactor[],
   label: string,
@@ -82,7 +164,7 @@ function buildProposal(
   overrides: { focus?: SessionFocus; minutes?: number } = {},
 ): AxisProposal {
   const session = isTrainingRecommendation(type)
-    ? planSession(context, facts, type, overrides)
+    ? planSession(context, facts, plan, type, overrides)
     : null
 
   return {
@@ -102,10 +184,13 @@ function buildProposal(
 function planSession(
   context: AxisContext,
   facts: AxisFacts,
+  plan: DayPlan,
   type: AxisRecommendationType,
   overrides: { focus?: SessionFocus; minutes?: number },
 ): PlannedSession {
-  const focus = overrides.focus ?? chooseFocus(facts)
+  // El objetivo decide el tipo de sesión (D-047); la fuerza elige su zona como siempre.
+  const focus = overrides.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts)
+  const goal = overrides.focus ? goalForFocus(overrides.focus, plan, context) : plan.goal
   const intensity = intensityFor(type)
 
   const baseMinutes = overrides.minutes ?? facts.availableMinutes
@@ -119,6 +204,7 @@ function planSession(
     intensity,
     availableMinutes: minutes,
     goals: context.profile?.goals ?? DEFAULT_GOALS,
+    goal,
     experience: context.profile?.experience ?? DEFAULT_EXPERIENCE,
     // Lo que se puede hacer con su material, y con qué kilos (D-046).
     gear: gearToday(context),
@@ -170,20 +256,23 @@ export function practicesJumpSport(activities: readonly { name: string }[]): boo
 function buildAlternatives(
   context: AxisContext,
   facts: AxisFacts,
+  plan: DayPlan,
   primaryType: AxisRecommendationType,
+  primary: AxisProposal,
 ): AxisProposal[] {
   const alternatives: AxisProposal[] = []
-  const primaryFocus = chooseFocus(facts)
+  // El foco de la propuesta, que ya puede no ser de fuerza (D-047); sin sesión, el que tocaría.
+  const primaryFocus = primary.session?.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts)
 
   if (isTrainingRecommendation(primaryType)) {
     if (primaryType !== 'LIGHT_TRAINING') {
       alternatives.push(
-        buildProposal(context, facts, 'LIGHT_TRAINING', lighterFactors(), 'Más ligera', 'alternative_lighter'),
+        buildProposal(context, facts, plan, 'LIGHT_TRAINING', lighterFactors(), 'Más ligera', 'alternative_lighter'),
       )
     }
     if (primaryType !== 'TRAINING') {
       alternatives.push(
-        buildProposal(context, facts, 'TRAINING', harderFactors(), 'Más intensa', 'alternative_harder'),
+        buildProposal(context, facts, plan, 'TRAINING', harderFactors(), 'Más intensa', 'alternative_harder'),
       )
     }
 
@@ -192,6 +281,7 @@ function buildAlternatives(
         buildProposal(
           context,
           facts,
+          plan,
           primaryType === 'LIGHT_TRAINING' ? 'LIGHT_TRAINING' : 'MODIFIED_TRAINING',
           otherFocusFactors(otherFocus),
           SESSION_FOCUS_LABELS[otherFocus],
@@ -201,16 +291,33 @@ function buildAlternatives(
       )
     }
 
-    if (primaryFocus !== 'core_movilidad') alternatives.push(mobility(context, facts))
+    if (primaryFocus !== 'core_movilidad') alternatives.push(mobility(context, facts, plan))
+
+    // Siempre se puede pedir cardio (D-047).
+    if (primaryFocus !== 'acondicionamiento') {
+      alternatives.push(
+        buildProposal(
+          context,
+          facts,
+          plan,
+          primaryType === 'LIGHT_TRAINING' ? 'LIGHT_TRAINING' : 'MODIFIED_TRAINING',
+          conditioningFactors(),
+          SESSION_FOCUS_LABELS.acondicionamiento,
+          'alternative_conditioning',
+          { focus: 'acondicionamiento' },
+        ),
+      )
+    }
 
     alternatives.push(
-      buildProposal(context, facts, 'RECOVERY', recoveryChoiceFactors(), 'Recuperación', 'alternative_recovery'),
+      buildProposal(context, facts, plan, 'RECOVERY', recoveryChoiceFactors(), 'Recuperación', 'alternative_recovery'),
     )
   } else {
     alternatives.push(
       buildProposal(
         context,
         facts,
+        plan,
         'LIGHT_TRAINING',
         shortSessionFactors(),
         'Sesión corta',
@@ -224,6 +331,7 @@ function buildAlternatives(
         buildProposal(
           context,
           facts,
+          plan,
           'LIGHT_TRAINING',
           otherFocusFactors(otherFocus),
           SESSION_FOCUS_LABELS[otherFocus],
@@ -232,16 +340,17 @@ function buildAlternatives(
         ),
       )
     }
-    if (primaryFocus !== 'core_movilidad') alternatives.push(mobility(context, facts))
+    if (primaryFocus !== 'core_movilidad') alternatives.push(mobility(context, facts, plan))
   }
 
   return alternatives
 }
 
-function mobility(context: AxisContext, facts: AxisFacts): AxisProposal {
+function mobility(context: AxisContext, facts: AxisFacts, plan: DayPlan): AxisProposal {
   return buildProposal(
     context,
     facts,
+    plan,
     'LIGHT_TRAINING',
     mobilityFactors(),
     'Movilidad',
@@ -315,6 +424,17 @@ function otherFocusFactors(focus: SessionFocus): AxisFactor[] {
   ]
 }
 
+function conditioningFactors(): AxisFactor[] {
+  return [
+    {
+      key: 'goal',
+      label: 'Acondicionamiento',
+      detail: 'Intervalos por tiempo, con tu peso corporal, para trabajar la resistencia.',
+      direction: 'neutral',
+    },
+  ]
+}
+
 function recoveryChoiceFactors(): AxisFactor[] {
   return [
     {
@@ -357,6 +477,18 @@ export function headlineFor(
   session: PlannedSession | null,
 ): string {
   const focusName = session ? describeFocus(session.focus) : ''
+
+  // Los intervalos se dicen por su nombre (D-047).
+  if (session?.focus === 'acondicionamiento') {
+    switch (type) {
+      case 'TRAINING':
+        return 'Hoy toca acondicionamiento: intervalos.'
+      case 'LIGHT_TRAINING':
+        return 'Hoy, intervalos suaves de acondicionamiento.'
+      case 'MODIFIED_TRAINING':
+        return 'Intervalos de acondicionamiento adaptados a tu día.'
+    }
+  }
 
   switch (type) {
     case 'TRAINING':

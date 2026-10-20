@@ -1825,6 +1825,54 @@ Se pregunta en el onboarding («¿Con qué material entrenas?», después de la 
 
 ---
 
+## D-047 — Los objetivos deciden el tipo de sesión
+
+**Fecha:** 2026-10-20 · **Estado:** aprobada e implementada · Decidido por Alex: eligió **repartir la semana** entre los objetivos, **intervalos por ejercicio** para la resistencia y **una sesión de movilidad semanal**. **Sustituye** a la media de factores de repeticiones de D-007/D-010 (`blendedRepFactor`): cada sesión sirve a **un** objetivo.
+
+### El problema
+
+Los objetivos solo multiplicaban las repeticiones, y con varios se promediaban: «fuerza» (×0,7) y «resistencia» (×1,3) daban ×1, y los dos desaparecían. No había ninguna sesión de resistencia, y «movilidad» no cambiaba nada.
+
+### El reparto de la semana (`lib/domain/workouts/weekly-plan.ts`)
+
+- Las sesiones de la semana son los **días disponibles** del perfil.
+- **Movilidad**, con otros objetivos: **una** sesión a la semana (con 2 días o más). Sola: la mitad de las sesiones, y el resto de fuerza general.
+- **Resistencia** sola: el 60 % de las sesiones son de acondicionamiento y el resto de fuerza general, porque la fuerza protege.
+- El resto de días se reparte **a partes iguales** entre los demás objetivos. Lo que no se reparte exacto —y quién se queda sin sesión si hay menos días que objetivos— **rota cada semana**: ningún objetivo manda sobre otro.
+- **Cuál toca hoy**: el objetivo al que más sesiones le faltan esta semana; a igualdad, el que hace más tiempo que no se trabaja. Un día suave (`LIGHT_TRAINING`) con la movilidad pendiente es de movilidad. El acondicionamiento no toca si hoy hay que evitar las piernas por un deporte.
+- La sesión guarda a qué objetivo sirvió (`goal`); las anteriores a D-047 se cuentan por su foco (movilidad → movilidad), y las demás no cuentan.
+- Se explica en el motivo del día: «Esta semana: 2 de fuerza, 1 de resistencia y 1 de movilidad. Hoy toca resistencia: llevas 0 de 1».
+
+### Cada objetivo, su sesión
+
+| Objetivo | Sesión | Repeticiones | Series | Descanso | Variante |
+|---|---|---|---|---|---|
+| Fuerza | Fuerza | ×0,6 | +1 | ≥ 120 s | +1 de dificultad |
+| Masa muscular | Hipertrofia | ×1 | = | 60–90 s | = |
+| Rendimiento deportivo | Potencia: siempre abre con un salto en piernas | ×0,7 | = | ≥ 90 s | = |
+| Técnica | Técnica: cadencia 3-1-1 si el ejercicio no tiene | ×0,8 | +1 | = | −1 de dificultad |
+| Salud general | Fuerza general | ×1 | = | = | = |
+| Resistencia | **Acondicionamiento** | intervalos por tiempo | rondas | 30 s | — |
+| Movilidad | **Core y movilidad** (la que ya existe) | — | — | — | — |
+
+- El **techo de repeticiones** es 1,6 × las repeticiones de partida **de esa sesión**: en fuerza se pasa antes al peso siguiente o a la variante más difícil. Si la última vez se hicieron más repeticiones que el techo (otra sesión, otro objetivo), se parte del techo.
+- Con el objetivo de movilidad, el calentamiento de las sesiones de fuerza lleva **un ejercicio de movilidad más**.
+
+### Acondicionamiento
+
+- Foco nuevo **`acondicionamiento`** con una categoría propia y **9 ejercicios nuevos** de peso corporal, todos por tiempo y con su figura: rodillas altas, boxeo de sombra, plancha con apertura, escaladores cruzados, subidas rápidas al escalón, burpees sin salto, burpees, saltos de estrella y zancadas con salto.
+- **Intervalos por ejercicio**, con la pantalla de siempre: cada ejercicio, 30 s de trabajo y 30 s de descanso, en rondas (3 para principiantes, 4 para los demás). Progresa de 5 en 5 segundos.
+- Calentamiento: la activación y movilidad de tobillo y columna; sin series de aproximación.
+- No cuenta para las series por músculo de la semana (D-034); sí para la Carga (D-008), como cualquier sesión.
+- Siempre hay una alternativa **«Acondicionamiento»**, y AXIS entiende «hoy cardio» o «quiero intervalos».
+
+### Lo que no cambia
+
+- Las reglas del día (recuperación, deporte, tiempo, carga) siguen decidiendo **si** se entrena y con qué intensidad; el reparto solo decide **qué tipo** de sesión.
+- No hay carrera ni cardio fuera de casa: eso queda para otra decisión.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

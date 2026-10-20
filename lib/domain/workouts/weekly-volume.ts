@@ -48,7 +48,8 @@ export function weeklySets(
     for (const performed of session.exercises) {
       if (!isMainExercise(performed)) continue
       const exercise = byId.get(performed.exerciseId)
-      if (!exercise || exercise.category === 'movilidad') continue
+      // Ni la movilidad ni los intervalos (D-047) son series de un músculo.
+      if (!exercise || exercise.category === 'movilidad' || exercise.category === 'acondicionamiento') continue
       const done = performed.sets.filter((set) => set.completed).length
       if (done === 0) continue
       for (const group of exercise.primaryMuscles) totals[group] += done
