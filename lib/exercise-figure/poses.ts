@@ -439,6 +439,14 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
       { hip: [120, STAND_HIP_Y], torso: 180, arm: { a: 150, b: 160 }, farArm: { a: -150, b: -160 }, leg: { a: 3, b: 3 }, farLeg: { a: -3, b: -3 }, foot: 70, farFoot: -70 },
     ],
   },
+  // De frente, círculos amplios de brazos: la movilidad libre del calentamiento (enmienda de D-045).
+  'movilidad-articular': {
+    view: 'front',
+    frames: [
+      frontStanding({ arm: { a: 40, b: 50 }, farArm: { a: -40, b: -50 } }),
+      frontStanding({ arm: { a: 150, b: 160 }, farArm: { a: -150, b: -160 } }),
+    ],
+  },
   // --- Material de casa (D-046) ----------------------------------------------
   'colgarse-barra': {
     props: [BAR],

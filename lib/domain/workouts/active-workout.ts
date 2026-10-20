@@ -38,8 +38,8 @@ import { isExercisePhase, isMainExercise, isWarmupPart, volumeOfSession } from '
 export const WEIGHT_STEP_KG = 0.5
 export const MAX_WEIGHT_KG = 400
 export const MAX_REPS = 50
-/** Los ejercicios de tiempo llegan más lejos: la activación dura un minuto (D-045). */
-export const MAX_SECONDS = 120
+/** Los ejercicios de tiempo llegan más lejos: la movilidad articular dura hasta 3 minutos (enmienda de D-045). */
+export const MAX_SECONDS = 300
 
 export type ActiveExerciseEntry = {
   exerciseId: string

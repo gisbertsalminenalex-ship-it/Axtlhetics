@@ -988,6 +988,25 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     work: { sets: 2, reps: 30, restSeconds: 30, isTimed: true, tempo: null },
     imageUrl: null,
   },
+  {
+    // Enmienda de D-045: la movilidad articular del calentamiento, libre. Nunca es entrenamiento.
+    id: 'movilidad-articular',
+    name: 'Movilidad articular',
+    category: 'movilidad',
+    primaryMuscles: ['hombros'],
+    secondaryMuscles: ['piernas', 'core'],
+    equipment: ['ninguno'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'movilidad',
+    instructions:
+      'Mueve cada articulación a tu aire, con calma y sin forzar: cuello, hombros, codos, muñecas, cadera, rodillas y tobillos, con círculos lentos hacia los dos lados. Empieza y dedica más tiempo a lo que vas a entrenar hoy.',
+    work: { sets: 1, reps: 120, restSeconds: 30, isTimed: true, tempo: null },
+    imageUrl: null,
+    warmupOnly: true,
+  },
   // ---------------------------------------------------------------------------
   // MATERIAL DE CASA (D-046)
   //

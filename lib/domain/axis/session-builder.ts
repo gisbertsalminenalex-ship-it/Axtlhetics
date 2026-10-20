@@ -213,7 +213,8 @@ export type SessionBuildOptions = {
  * El calentamiento, en tres partes (D-045, decidido por Alex):
  *
  * 1. **Activación**: jumping jacks y escaladores, un minuto cada uno.
- * 2. **Movilidad articular** de lo que se va a cargar (`WARMUP_EXERCISES`).
+ * 2. **Movilidad articular**: dos minutos libres (`JOINT_MOBILITY`), más lo que
+ *    se prescribe a cada uno: equilibrio si salta y correctivos del escaneo.
  * 3. **Series de aproximación**: 5 repeticiones suaves de los primeros
  *    ejercicios del entreno (`approachSets`).
  *
@@ -231,22 +232,18 @@ const ACTIVATION_MINUTES = 2
 const APPROACH_MINUTES = 1
 
 /**
- * La movilidad articular, por zona: lo que se va a cargar. Tobillo y columna
- * antes de piernas; hombro y columna torácica antes de tren superior.
+ * La movilidad articular es un solo paso libre (enmienda de D-045): el usuario
+ * mueve cada articulación a su aire, empezando por lo que va a entrenar. No
+ * hace falta prescribirle ejercicios concretos.
  */
-export const WARMUP_EXERCISES: Record<SessionFocus, readonly string[]> = {
-  tren_superior: ['angeles-pared', 'rotacion-toracica'],
-  tren_inferior: ['tobillo-pared', 'gato-camello'],
-  cuerpo_completo: ['gato-camello', 'tobillo-pared'],
-  core_movilidad: [],
-  acondicionamiento: ['tobillo-pared', 'gato-camello'],
-}
+export const JOINT_MOBILITY = 'movilidad-articular'
+export const JOINT_MOBILITY_SECONDS = 120
+/** Con el objetivo de movilidad, un minuto más (D-047). */
+export const JOINT_MOBILITY_GOAL_SECONDS = 180
 
-/** Con el objetivo de movilidad, un ejercicio más en el calentamiento de fuerza (D-047). */
-export const MOBILITY_GOAL_WARMUP: Partial<Record<SessionFocus, string>> = {
-  tren_superior: 'gato-camello',
-  tren_inferior: 'estiramiento-flexor-cadera',
-  cuerpo_completo: 'rotacion-toracica',
+/** La sesión de movilidad no lleva calentamiento: ya lo es. */
+function warmsUpFor(focus: SessionFocus): boolean {
+  return focus !== 'core_movilidad'
 }
 
 /**
@@ -760,26 +757,23 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const target = targetDifficultyFor(experience, intensity, conditioning ? DEFAULT_GOAL : goal)
   // El calentamiento y la vuelta a la calma salen del mismo tiempo (D-032).
   const phaseCatalog = catalog ?? EXERCISE_CATALOG
-  const mobilityExtra = goals.includes('movilidad') ? MOBILITY_GOAL_WARMUP[focus] : undefined
-  const baseWarmup = [...WARMUP_EXERCISES[focus], ...(mobilityExtra ? [mobilityExtra] : [])]
-  const warmupIds =
-    baseWarmup.length === 0
-      ? baseWarmup
-      : [
-          ...new Set([
-            ...baseWarmup,
-            ...(jumpSport ? [JUMP_SPORT_WARMUP] : []),
-            // Lo que el escaneo pide, sin repetir lo que ya está (D-041).
-            ...warmupExtras.filter((id) => !baseWarmup.includes(id)).slice(0, MAX_WARMUP_EXTRAS),
-          ]),
-        ]
-  const warmsUp = warmupIds.length > 0
+  const warmsUp = warmsUpFor(focus)
+  // Lo que sí se prescribe: el equilibrio de quien salta (D-033) y los correctivos del escaneo (D-041).
+  const targetedIds = warmsUp
+    ? [...new Set([...(jumpSport ? [JUMP_SPORT_WARMUP] : []), ...warmupExtras.slice(0, MAX_WARMUP_EXTRAS)])]
+    : []
+  const jointSeconds = goals.includes('movilidad') ? JOINT_MOBILITY_GOAL_SECONDS : JOINT_MOBILITY_SECONDS
   const activation = warmsUp ? phaseExercises(ACTIVATION_EXERCISES, 'calentamiento', phaseCatalog, 'activacion') : []
-  const mobility = phaseExercises(warmupIds, 'calentamiento', phaseCatalog, 'movilidad')
+  const joint = warmsUp
+    ? phaseExercises([JOINT_MOBILITY], 'calentamiento', phaseCatalog, 'movilidad').map((item) => ({ ...item, reps: jointSeconds }))
+    : []
+  const targeted = phaseExercises(targetedIds, 'calentamiento', phaseCatalog, 'movilidad')
+  const mobility = [...joint, ...targeted]
   // Los intervalos son por tiempo: no llevan series de aproximación (D-047).
   const approachMinutes = conditioning ? 0 : APPROACH_EXERCISES * APPROACH_MINUTES
-  const phaseMinutes =
-    (warmsUp ? ACTIVATION_MINUTES + approachMinutes : 0) + mobility.length * PHASE_EXERCISE_MINUTES
+  const phaseMinutes = warmsUp
+    ? ACTIVATION_MINUTES + approachMinutes + jointSeconds / 60 + targeted.length * PHASE_EXERCISE_MINUTES
+    : 0
   // Con un deporte de salto, o si la sesión es de rendimiento (D-047), un salto abre el entrenamiento y ocupa un hueco (D-033).
   const jump =
     (jumpSport || goal === 'rendimiento_deportivo') && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'

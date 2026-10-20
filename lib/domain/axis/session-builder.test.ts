@@ -651,6 +651,25 @@ test('D-045: la movilidad es de la zona, una serie, sin carga ni descanso', () =
   }
 })
 
+test('enmienda de D-045: la movilidad articular es un solo paso libre de 2 minutos, 3 con el objetivo de movilidad', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo', 'acondicionamiento'] as const) {
+    const mobility = buildSession({ ...ROTATION, focus }).exercises.filter((item) => item.warmupPart === 'movilidad')
+    assert.deepEqual(mobility.map((item) => [item.exerciseId, item.reps, item.isTimed]), [['movilidad-articular', 120, true]], focus)
+  }
+  const withGoal = buildSession({ ...ROTATION, focus: 'tren_inferior', goals: ['fuerza', 'movilidad'] })
+  assert.equal(withGoal.exercises.find((item) => item.exerciseId === 'movilidad-articular')?.reps, 180)
+  // Quien salta sigue teniendo su equilibrio después (D-033).
+  const jumper = buildSession({ ...ROTATION, focus: 'tren_inferior', jumpSport: true }).exercises.filter((item) => item.warmupPart === 'movilidad')
+  assert.deepEqual(jumper.map((item) => item.exerciseId), ['movilidad-articular', 'equilibrio-una-pierna'])
+})
+
+test('la movilidad articular nunca se elige como entrenamiento', () => {
+  for (const focus of ['core_movilidad', 'tren_superior'] as const) {
+    const session = buildSession({ ...ROTATION, focus })
+    assert.ok(!session.exercises.filter(isMainExercise).some((item) => item.exerciseId === 'movilidad-articular'), focus)
+  }
+})
+
 test('D-045: la aproximación son 5 repeticiones de los primeros ejercicios: con pesa la misma carga, sin pesa una variante más fácil', () => {
   for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
     const session = buildSession({ ...ROTATION, focus })
@@ -788,8 +807,8 @@ test('D-037: saltar un ejercicio dos veces en un mes se lee como que no gusta', 
 test('D-041: los correctivos del escaneo entran en el calentamiento, dos como mucho y sin repetir', () => {
   const session = buildSession({ ...ROTATION, focus: 'tren_superior', warmupExtras: ['angeles-pared', 'tobillo-pared', 'estiramiento-flexor-cadera', 'equilibrio-una-pierna'] })
   const warmup = session.exercises.filter((item) => item.warmupPart === 'movilidad').map((item) => item.exerciseId)
-  // Ángeles en la pared ya estaba: entran los dos siguientes.
-  assert.deepEqual(warmup, ['angeles-pared', 'rotacion-toracica', 'tobillo-pared', 'estiramiento-flexor-cadera'])
+  // Tras la movilidad libre, los dos primeros correctivos (enmienda de D-045).
+  assert.deepEqual(warmup, ['movilidad-articular', 'angeles-pared', 'tobillo-pared'])
   assert.ok(buildSession({ ...ROTATION, focus: 'core_movilidad', warmupExtras: ['tobillo-pared'] }).exercises.every(isMainExercise))
 })
 

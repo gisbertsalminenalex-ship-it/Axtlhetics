@@ -1785,6 +1785,16 @@ Las sesiones ya no terminan con estiramientos. Las sesiones guardadas que la ten
 - El selector de segundos llega a **120** (antes 50, el mismo que las repeticiones): la activación dura un minuto.
 - La sesión de movilidad sigue sin calentamiento: ya lo es.
 
+### Enmienda (2026-10-20): movilidad articular libre
+
+Decidido por Alex: «en vez de ejercicios de movilidad, que salga como movilidad articular y 1 min o un poco más, para que el usuario la haga solo, porque no hace falta».
+
+- La segunda parte del calentamiento es **un solo paso, «Movilidad articular», de 2 minutos**: el usuario mueve cada articulación a su aire, empezando por lo que va a entrenar. Es un ejercicio del catálogo marcado `warmupOnly`, con su figura e instrucciones.
+- Ya no se prescriben ejercicios de movilidad por zona (ángeles en la pared, gato-camello…).
+- **Lo que sí se sigue prescribiendo**, después de la movilidad libre: el equilibrio de quien salta (D-033) y los correctivos del escaneo (D-041), porque responden a algo medido en ese usuario.
+- Con el objetivo de movilidad (D-047), **3 minutos** en vez de un ejercicio más.
+- El selector de segundos llega a **300**.
+
 ---
 
 ## D-046 — Tu material
@@ -1856,7 +1866,7 @@ Los objetivos solo multiplicaban las repeticiones, y con varios se promediaban: 
 | Movilidad | **Core y movilidad** (la que ya existe) | — | — | — | — |
 
 - El **techo de repeticiones** es 1,6 × las repeticiones de partida **de esa sesión**: en fuerza se pasa antes al peso siguiente o a la variante más difícil. Si la última vez se hicieron más repeticiones que el techo (otra sesión, otro objetivo), se parte del techo.
-- Con el objetivo de movilidad, el calentamiento de las sesiones de fuerza lleva **un ejercicio de movilidad más**.
+- Con el objetivo de movilidad, la movilidad articular del calentamiento dura **3 minutos** en vez de 2 (enmienda de D-045 del 2026-10-20; antes era un ejercicio de movilidad más).
 
 ### Acondicionamiento
 

@@ -231,14 +231,14 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 85 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033, 2 de D-045, 25 de D-046 y 9 de D-047', () => {
-  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44, 49, 51 y 76.
-  assert.equal(EXERCISE_CATALOG.length, 85)
+test('el catálogo tiene 86 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033, 3 de D-045, 25 de D-046 y 9 de D-047', () => {
+  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44, 49, 51, 76 y 85.
+  assert.equal(EXERCISE_CATALOG.length, 86)
 })
 
 test('con una sola pesa, lo nuevo de D-046 pide material que no hay; el acondicionamiento (D-047) no pide nada', () => {
   const legacy = availableExercises(EXERCISE_CATALOG, DEFAULT_EQUIPMENT)
-  assert.equal(legacy.length, 60)
+  assert.equal(legacy.length, 61)
 })
 
 test('el acondicionamiento es por tiempo y sin carga (D-047)', () => {
