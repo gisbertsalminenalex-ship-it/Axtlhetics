@@ -56,6 +56,8 @@ export type AxisFactorKey =
   | 'training_load'
   /** Lo que el escaneo corporal pide a las sesiones (D-041). */
   | 'body_scan'
+  /** Hoy es día fuerte (D-048). */
+  | 'hard_day'
 
 /**
  * `supports` empuja hacia entrenar más, `limits` hacia entrenar menos.

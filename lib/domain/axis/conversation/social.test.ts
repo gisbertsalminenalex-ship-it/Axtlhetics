@@ -172,7 +172,7 @@ test('D-042: la charla la escribe el modelo, con su prompt, más temperatura y e
 
 test('D-042: si el modelo falla o se pasa, contesta la charla del motor', async () => {
   const briefing = setup()
-  for (const send of [async () => { throw new Error('caído') }, async () => ({ text: 'Hola. Hoy has dormido 4 h.' })]) {
+  for (const send of [async () => { throw new Error('caído') }, async () => ({ text: 'Hola. Hoy has dormido 13 h.' })]) {
     const result = await createAxisConversation({ transport: { isConfigured: () => true, send } }).ask('hola', briefing)
     assert.equal(result.intent, 'social')
     assert.equal(result.usedFallback, true)

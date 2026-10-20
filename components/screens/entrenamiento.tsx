@@ -6,11 +6,12 @@ import { ChevronRight, Clock, Dumbbell } from 'lucide-react'
 import { AssessmentEntry } from '@/components/assessment/assessment-entry'
 import { ScanEntry } from '@/components/scanner/scan-entry'
 import { AxisMark } from '@/components/axis-mark'
-import { WeeklyActivity } from '@/components/weekly-activity'
+import { WeekPlan } from '@/components/week-plan'
 import { WeeklyVolume } from '@/components/weekly-volume'
 import { ProgressSection } from '@/components/progress/progress-section'
 import { EXERCISE_CATALOG } from '@/lib/domain/workouts/catalog'
 import { weeklyVolume } from '@/lib/domain/workouts/weekly-volume'
+import { describeQuota, weekIndexOf, weeklyQuota } from '@/lib/domain/workouts/weekly-plan'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
 import { formatDuration, formatRelativeDay } from '@/lib/domain/shared/dates'
 import { isMainExercise, phaseLabel } from '@/lib/domain/workouts/types'
@@ -33,7 +34,7 @@ export function EntrenamientoScreen({
   /** Abre el escáner corporal (D-023). */
   onOpenScan: () => void
 }) {
-  const { proposal, openChangeConversation, sessions, weeklyActivity, today, movedToTomorrow, profile } =
+  const { proposal, openChangeConversation, sessions, weekView, chooseNormalVersion, today, movedToTomorrow, profile } =
     useAxtlhetics()
 
   const trains = proposal ? isTrainingRecommendation(proposal.type) : false
@@ -41,6 +42,9 @@ export function EntrenamientoScreen({
   const lastSession = sessions.find((item) => item.status === 'completed') ?? null
   // Series de la semana por grupo frente al objetivo (D-034).
   const volumes = weeklyVolume(sessions, today, EXERCISE_CATALOG, profile?.experience ?? 'intermedio')
+  // El reparto de la semana entre los objetivos (D-047), en una frase.
+  const quota = profile ? weeklyQuota(profile.goals, profile.availableWeekdays.length, weekIndexOf(today)) : []
+  const hard = session?.intensity === 'alta'
 
   return (
     <div className="px-6 pb-10">
@@ -59,6 +63,12 @@ export function EntrenamientoScreen({
       >
         <div className="flex items-start justify-between gap-3">
           <div>
+            {/* D-048: el día fuerte se marca, y se puede cambiar a la versión normal. */}
+            {hard && (
+              <span className="mb-2 inline-block rounded-full bg-secondary px-2.5 py-1 text-[12px] font-semibold text-primary">
+                Día fuerte
+              </span>
+            )}
             <h2 className="text-[20px] font-semibold tracking-[-0.01em]">
               {session ? session.title : 'Hoy toca recuperar'}
             </h2>
@@ -104,6 +114,16 @@ export function EntrenamientoScreen({
         >
           {trains ? 'Empezar entrenamiento' : 'Ver recuperación'}
         </button>
+
+        {hard && (
+          <button
+            type="button"
+            onClick={() => void chooseNormalVersion()}
+            className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-primary"
+          >
+            Prefiero la versión normal
+          </button>
+        )}
 
         {proposal && (
           <button
@@ -189,13 +209,12 @@ export function EntrenamientoScreen({
         </p>
       )}
 
-      {/* Esta semana */}
+      {/* Esta semana: la línea de días y, al tocar uno, lo hecho o lo previsto (D-048). */}
       <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">Esta semana</h3>
-      <WeeklyActivity
-        completedDays={weeklyActivity.completedDays}
-        today={weeklyActivity.todayIndex}
-        className="mt-4"
-      />
+      {quota.length > 1 && (
+        <p className="mt-1 text-[13px] text-muted-foreground">{describeQuota(quota)}</p>
+      )}
+      <WeekPlan key={today} days={weekView} className="mt-3" />
       <WeeklyVolume volumes={volumes} className="mt-6" />
 
       {/* Tu progreso (D-036): dentro de Entrenamiento, sin pestaña propia (D-040). */}

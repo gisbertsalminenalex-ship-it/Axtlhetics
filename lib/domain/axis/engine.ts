@@ -26,7 +26,8 @@ import {
   type GoalProgress,
 } from '../workouts/weekly-plan'
 import type { TrainingGoal } from '../profile/types'
-import type { PlannedSession, SessionFocus } from '../workouts/types'
+import { isHardDay } from './hard-day'
+import type { PlannedSession, SessionFocus, SessionIntensity } from '../workouts/types'
 import { SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
 import {
@@ -66,6 +67,18 @@ export function decide(context: AxisContext): AxisDecision {
   const week = weekPlanFor(context)
   const goal = goalOfTheDay(context, facts, outcome.type, week)
   const plan: DayPlan = { week, goal }
+  const deload = isDeloadWeek(context.recentSessions, context.dayKey)
+
+  // Día fuerte (D-048): un día normal en el que todo acompaña.
+  const hard = isHardDay({
+    facts,
+    rule: outcome.rule,
+    goal,
+    experience: context.profile?.experience ?? DEFAULT_EXPERIENCE,
+    deload,
+    sessions: context.recentSessions,
+    today: context.dayKey,
+  })
 
   // La descarga no cambia qué se decide hoy, sino cuánto: se explica la primera (D-031).
   const training = isTrainingRecommendation(outcome.type)
@@ -73,8 +86,10 @@ export function decide(context: AxisContext): AxisDecision {
   const weekFactor = training ? weeklyGoalFactor(week, goal) : null
   const [firstRule, ...otherRules] = outcome.factors
   const factors = [
-    ...(isDeloadWeek(context.recentSessions, context.dayKey) && training ? [deloadFactor()] : []),
+    ...(deload && training ? [deloadFactor()] : []),
     ...(firstRule ? [firstRule] : []),
+    // Por qué hoy se aprieta (D-048), antes que el reparto de la semana.
+    ...(hard ? [hardDayFactor()] : []),
     // Qué toca hoy de la semana (D-047), justo después de por qué se entrena así.
     ...(weekFactor ? [weekFactor] : []),
     ...otherRules,
@@ -82,10 +97,28 @@ export function decide(context: AxisContext): AxisDecision {
     ...(scanFactor ? [scanFactor] : []),
   ]
 
-  const primary = buildProposal(context, facts, plan, outcome.type, factors, 'Recomendada', outcome.rule)
+  const primary = buildProposal(
+    context,
+    facts,
+    plan,
+    outcome.type,
+    factors,
+    'Recomendada',
+    outcome.rule,
+    hard ? { intensity: 'alta' } : {},
+  )
   const alternatives = buildAlternatives(context, facts, plan, outcome.type, primary)
 
   return { primary, alternatives }
+}
+
+function hardDayFactor(): AxisFactor {
+  return {
+    key: 'hard_day',
+    label: 'Día fuerte',
+    detail: 'Hoy es día fuerte: llegas bien recuperado y no tienes nada exigente cerca, así que va una serie más y una variante más exigente.',
+    direction: 'supports',
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -161,7 +194,7 @@ function buildProposal(
   factors: AxisFactor[],
   label: string,
   rule: string,
-  overrides: { focus?: SessionFocus; minutes?: number } = {},
+  overrides: ProposalOverrides = {},
 ): AxisProposal {
   const session = isTrainingRecommendation(type)
     ? planSession(context, facts, plan, type, overrides)
@@ -173,7 +206,7 @@ function buildProposal(
     createdAt: nowIso(),
     type,
     headline: headlineFor(type, session),
-    reason: reasonFor(type, factors),
+    reason: reasonFor(type, factors, session?.intensity),
     session,
     factors,
     label,
@@ -181,17 +214,20 @@ function buildProposal(
   }
 }
 
+/** Lo que una propuesta puede fijar en vez de dejarlo al día: zona, minutos o intensidad (D-048). */
+type ProposalOverrides = { focus?: SessionFocus; minutes?: number; intensity?: SessionIntensity }
+
 function planSession(
   context: AxisContext,
   facts: AxisFacts,
   plan: DayPlan,
   type: AxisRecommendationType,
-  overrides: { focus?: SessionFocus; minutes?: number },
+  overrides: ProposalOverrides,
 ): PlannedSession {
   // El objetivo decide el tipo de sesión (D-047); la fuerza elige su zona como siempre.
   const focus = overrides.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts)
   const goal = overrides.focus ? goalForFocus(overrides.focus, plan, context) : plan.goal
-  const intensity = intensityFor(type)
+  const intensity = overrides.intensity ?? intensityFor(type)
 
   const baseMinutes = overrides.minutes ?? facts.availableMinutes
   const minutes =
@@ -265,6 +301,14 @@ function buildAlternatives(
   const primaryFocus = primary.session?.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts)
 
   if (isTrainingRecommendation(primaryType)) {
+    // En un día fuerte, la misma sesión a intensidad normal (D-048).
+    if (primary.session?.intensity === 'alta') {
+      alternatives.push(
+        buildProposal(context, facts, plan, 'MODIFIED_TRAINING', normalFactors(), 'Versión normal', 'alternative_normal', {
+          focus: primaryFocus,
+        }),
+      )
+    }
     if (primaryType !== 'LIGHT_TRAINING') {
       alternatives.push(
         buildProposal(context, facts, plan, 'LIGHT_TRAINING', lighterFactors(), 'Más ligera', 'alternative_lighter'),
@@ -424,6 +468,17 @@ function otherFocusFactors(focus: SessionFocus): AxisFactor[] {
   ]
 }
 
+function normalFactors(): AxisFactor[] {
+  return [
+    {
+      key: 'session_duration',
+      label: 'Versión normal',
+      detail: 'La misma sesión sin la serie de más ni la variante más exigente.',
+      direction: 'neutral',
+    },
+  ]
+}
+
 function conditioningFactors(): AxisFactor[] {
   return [
     {
@@ -478,6 +533,13 @@ export function headlineFor(
 ): string {
   const focusName = session ? describeFocus(session.focus) : ''
 
+  // El día fuerte se dice (D-048).
+  if (session?.intensity === 'alta') {
+    return session.focus === 'acondicionamiento'
+      ? 'Día fuerte: intervalos de acondicionamiento.'
+      : `Día fuerte: entrena ${focusName}.`
+  }
+
   // Los intervalos se dicen por su nombre (D-047).
   if (session?.focus === 'acondicionamiento') {
     switch (type) {
@@ -508,9 +570,16 @@ export function headlineFor(
  * La explicación se compone a partir de los factores que realmente decidieron.
  * Si AXIS no tiene nada que explicar, lo dice; no rellena con frases genéricas.
  */
-export function reasonFor(type: AxisRecommendationType, factors: AxisFactor[]): string {
-  const details = factors.map((factor) => factor.detail).filter(Boolean).slice(0, 2)
-  const closing = closingFor(type)
+export function reasonFor(
+  type: AxisRecommendationType,
+  factors: AxisFactor[],
+  intensity?: SessionIntensity,
+): string {
+  // Un día fuerte se explica sin perder el reparto de la semana: una frase más (D-048).
+  const limit = factors.some((factor) => factor.key === 'hard_day') ? 3 : 2
+  const details = factors.map((factor) => factor.detail).filter(Boolean).slice(0, limit)
+  // Un día fuerte no es «entrenar con normalidad» (D-048).
+  const closing = intensity === 'alta' ? 'Aprieta, pero con buena técnica.' : closingFor(type)
 
   if (details.length === 0) return closing
   return `${details.join(' ')} ${closing}`.trim()

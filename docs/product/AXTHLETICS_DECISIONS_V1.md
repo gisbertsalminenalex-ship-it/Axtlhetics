@@ -1883,6 +1883,30 @@ Los objetivos solo multiplicaban las repeticiones, y con varios se promediaban: 
 
 ---
 
+## D-048 — La semana a la vista y los días fuertes
+
+**Fecha:** 2026-10-20 · **Estado:** aprobada e implementada · Decidido por Alex: la semana como **una línea**, y al tocar un día se ve lo previsto; días fuertes **según la experiencia**, con **una serie más y una variante más difícil**, y siempre con la opción de hacer la versión normal. **Corrige** que AXIS nunca propusiera intensidad alta.
+
+### La semana en una línea (`lib/domain/axis/week-view.ts`)
+
+- En Entrenamiento, «Esta semana» es una línea de lunes a domingo, con el reparto debajo del título («2 de fuerza, 1 de resistencia y 1 de movilidad», D-047). Cada día dice si está hecho, si es hoy, si hay algo previsto o si es descanso.
+- **Al tocar un día** se ve, debajo: lo que se hizo; lo de hoy; o lo **previsto**, con su título y el deporte si lo hay. Lo previsto se marca como tal: AXIS lo vuelve a decidir cada día con la recuperación.
+- **Cómo se prevé**: con el mismo motor, día a día, suponiendo una recuperación normal (78) y que lo anterior se hace como está previsto. No se prevén días fuertes: dependen de cómo llegue el usuario ese día.
+
+### Días fuertes (`lib/domain/axis/hard-day.ts`)
+
+- **Cuántos a la semana**, según la experiencia: **principiante 0, intermedio 1, avanzado 2** (`HARD_DAYS_PER_WEEK`, un solo sitio: los niveles futuros se conectan ahí).
+- **Cuándo**: solo en un día que ya sería de entrenamiento normal por buena recuperación, y además recuperación **≥ 80**, fatiga muscular **≤ 3** si está registrada, carga de la semana no alta, fuera de la semana de descarga, sin deporte de intensidad media o alta **hoy ni mañana**, sin un día fuerte **ayer**, y nunca en una sesión de movilidad.
+- **Qué cambia**: intensidad **alta** — **una serie más** (dentro del máximo de la experiencia) y una **variante un punto más difícil**. En intervalos, una ronda más y ejercicios un punto más exigentes.
+- Se explica en el motivo («Hoy es día fuerte…») y se marca en Entrenamiento.
+- **La opción normal**: en la tarjeta de hoy, **«Prefiero la versión normal»** cambia a la misma sesión con intensidad normal con un toque. Es un cambio como cualquier otro (D-012): queda registrado y AXIS lo tiene en cuenta.
+
+### Fuera de D-048
+
+Los **niveles** tipo videojuego (subir de principiante a intermedio entrenando) son una idea para más adelante; cuando lleguen, decidirán los días fuertes a través de `HARD_DAYS_PER_WEEK`.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

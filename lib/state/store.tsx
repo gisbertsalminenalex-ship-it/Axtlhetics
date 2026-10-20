@@ -46,6 +46,7 @@ import {
   type AxisActionProposal,
   type AxisActionStatus,
 } from '../domain/axis/actions'
+import { projectWeek, type WeekDayView } from '../domain/axis/week-view'
 import { buildAxisContext } from '../domain/axis/context'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
@@ -173,6 +174,10 @@ type AxtlheticsStore = {
   lastCompleted: WorkoutSession | null
 
   weeklyActivity: { completedDays: boolean[]; todayIndex: number }
+  /** La semana de lunes a domingo: lo hecho, hoy y lo previsto (D-048). */
+  weekView: WeekDayView[]
+  /** En un día fuerte, cambia a la misma sesión a intensidad normal (D-048). */
+  chooseNormalVersion(): Promise<void>
   historyStats(range: HistoryRange): HistoryStats
 
   saveProfile(draft: UserProfileDraft): Promise<void>
@@ -584,6 +589,12 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const weeklyActivity = useMemo(
     () => weeklyActivityFor(sessions, today),
     [sessions, today],
+  )
+
+  // Lo previsto se recalcula con el mismo motor cada vez que cambia el día (D-048).
+  const weekView = useMemo(
+    () => (axisContext ? projectWeek(axisContext, proposal, { movedTo: memory.movedTo ?? null }) : []),
+    [axisContext, proposal, memory.movedTo],
   )
 
   const historyStats = useCallback(
@@ -1137,6 +1148,22 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [commitMemory, actionPort, workoutStartedToday],
   )
 
+  /**
+   * «Prefiero la versión normal» (D-048): el mismo cambio que confirmaría la
+   * conversación, propuesto y ejecutado por el motor de acciones (D-012), así
+   * que queda registrado y se puede deshacer desde AXIS.
+   */
+  const chooseNormalVersion = useCallback(async () => {
+    if (!day) return
+    const target = day.decision.alternatives.find((item) => item.rule === 'alternative_normal')
+    if (!target?.session) return
+    const action = proposeAction(day, {
+      proposedTarget: { type: target.type, focus: target.session.focus },
+      proposedReason: 'Hoy prefiero la versión normal.',
+    })
+    if (action) await confirmAxisAction(action)
+  }, [day, confirmAxisAction])
+
   const movedToTomorrow = memory.movedTo != null && memory.movedTo === addDays(today, 1)
 
   /** El usuario descarta la propuesta. No se toca nada más; la negociación termina. */
@@ -1284,6 +1311,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       activeWorkout,
       lastCompleted,
       weeklyActivity,
+      weekView,
+      chooseNormalVersion,
       historyStats,
       saveProfile,
       addTarget,
@@ -1346,6 +1375,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       activeWorkout,
       lastCompleted,
       weeklyActivity,
+      weekView,
+      chooseNormalVersion,
       historyStats,
       saveProfile,
       addTarget,
