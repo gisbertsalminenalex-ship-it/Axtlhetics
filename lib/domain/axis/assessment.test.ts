@@ -279,7 +279,7 @@ test('«¿Cómo funciona el test?» describe el protocolo; un seguimiento sigue 
   const how = answerFromBriefing('¿Cómo funciona el test?', briefing)
   assert.match(how.text, /4 pruebas/)
   assert.match(how.text, /plancha/)
-  assert.match(how.text, /remo unilateral con la pesa de 5 kg/)
+  assert.match(how.text, /remo unilateral con 5 kg \(una pesa o una garrafa de agua de 5 litros\)/)
 
   const followUp = answerFromBriefing('¿y cuándo me toca repetirlo?', briefing, { lastIntent: 'assessment', changeMode: false, lastChangeRequest: null })
   assert.equal(followUp.intent, 'assessment')

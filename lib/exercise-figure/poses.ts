@@ -58,7 +58,7 @@ const HINGE_SUPPORT: LimbSpec = { to: [176, 141], bend: -1 }
 const HINGE_LEGS: LimbSpec = { a: 12, b: -6 }
 
 // ---------------------------------------------------------------------------
-// Los 49 ejercicios
+// Los 74 ejercicios
 // ---------------------------------------------------------------------------
 
 const incline = (() => {
@@ -145,6 +145,66 @@ const calfRaise = (extra: Partial<Keyframe> = {}): FigureSpec['frames'] => [
   { hip: [118, STAND_HIP_Y], torso: 180, arm: hanging, leg: straight, foot: 90, ...extra },
   { hip: [118, STAND_HIP_Y - 8], torso: 180, arm: hanging, leg: straight, foot: 38, ...extra },
 ]
+
+// ---------------------------------------------------------------------------
+// Material de casa (D-046)
+// ---------------------------------------------------------------------------
+
+/** La barra de dominadas: una caja fina arriba del lienzo, con la mano en ella. */
+const BAR = { kind: 'box', x: 64, y: -7, w: 112, h: 4 } as const
+const BAR_HAND: Point = [120, -5]
+/** Colgado con los brazos estirados: los pies quedan en el aire. */
+const HANG_HIP: Point = [120, 103]
+/** Arriba: la barbilla pasa la barra. */
+const PULL_TOP_HIP: Point = [120, 64]
+const hangLegs: LimbSpec = { a: 12, b: -55 }
+
+const pullUp: FigureSpec = {
+  props: [BAR],
+  frames: [
+    { hip: HANG_HIP, torso: 180, arm: { to: BAR_HAND, bend: -1 }, leg: hangLegs, foot: 30 },
+    { hip: PULL_TOP_HIP, torso: 182, head: 176, arm: { to: BAR_HAND, bend: -1 }, leg: hangLegs, foot: 30 },
+  ],
+}
+
+/** De pie de frente: brazos a los lados. */
+const frontStanding = (extra: Partial<Keyframe> = {}): Keyframe => ({
+  hip: [120, STAND_HIP_Y],
+  torso: 180,
+  arm: { a: 8, b: 6 },
+  farArm: { a: -8, b: -6 },
+  leg: { a: 3, b: 3 },
+  farLeg: { a: -3, b: -3 },
+  foot: 70,
+  farFoot: -70,
+  ...extra,
+})
+
+/** Bisagra de cadera sin apoyo: remo y peso muerto con dos pesas. */
+const hinge = (hip: Point, torso: number, arm: LimbSpec): Keyframe => ({
+  hip,
+  torso,
+  head: torso - 8,
+  arm,
+  leg: { to: [118, 194], bend: -1 },
+  foot: 90,
+})
+
+/** Sentado en el suelo con las piernas estiradas hacia delante. */
+const SEATED_HIP: Point = [84, 186]
+const seated = (arm: LimbSpec): Keyframe => ({ hip: SEATED_HIP, torso: 172, arm, leg: { a: 90, b: 90 }, foot: 180 })
+
+/** Tumbado en un banco: el banco y la cadera a su altura, los pies en el suelo. */
+const BENCH = { kind: 'box', x: 70, y: 160, w: 104, h: 37 } as const
+const benchPress = (arm: LimbSpec): Keyframe => ({
+  hip: [104, 152],
+  torso: 90,
+  head: 90,
+  arm,
+  farArm: arm,
+  leg: { to: [62, 194], bend: 1 },
+  foot: -90,
+})
 
 export const FIGURES: Readonly<Record<string, FigureSpec>> = {
   // --- Empuje ----------------------------------------------------------------
@@ -377,6 +437,115 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
     frames: [
       { hip: [120, STAND_HIP_Y], torso: 180, arm: { a: 90, b: 180 }, farArm: { a: -90, b: 180 }, leg: { a: 3, b: 3 }, farLeg: { a: -3, b: -3 }, foot: 70, farFoot: -70 },
       { hip: [120, STAND_HIP_Y], torso: 180, arm: { a: 150, b: 160 }, farArm: { a: -150, b: -160 }, leg: { a: 3, b: 3 }, farLeg: { a: -3, b: -3 }, foot: 70, farFoot: -70 },
+    ],
+  },
+  // --- Material de casa (D-046) ----------------------------------------------
+  'colgarse-barra': {
+    props: [BAR],
+    frames: [{ hip: HANG_HIP, torso: 180, arm: { to: BAR_HAND, bend: -1 }, leg: hangLegs, foot: 30 }],
+  },
+  'dominadas-negativas': pullUp,
+  'dominadas-asistidas-goma': { ...pullUp, band: { from: [120, -3] } },
+  'dominadas-supinas': pullUp,
+  dominadas: pullUp,
+  'elevaciones-rodillas-colgado': {
+    props: [BAR],
+    frames: [
+      { hip: HANG_HIP, torso: 180, arm: { to: BAR_HAND, bend: -1 }, leg: { a: 4, b: -24 }, foot: 20 },
+      { hip: [122, 100], torso: 184, arm: { to: BAR_HAND, bend: -1 }, leg: { a: 100, b: 10 }, foot: 90 },
+    ],
+  },
+  'remo-goma': {
+    band: { from: [172, 180], both: true },
+    frames: [seated({ to: [150, 168], bend: 1 }), seated({ to: [104, 150], bend: 1 })],
+  },
+  'jalon-goma': {
+    props: [{ kind: 'wall', x: 190 }],
+    band: { from: [188, -4], both: true },
+    frames: [
+      { hip: [112, 148], torso: 180, arm: { to: [150, 20], bend: -1 }, leg: { a: 0, b: -90 }, foot: -95 },
+      { hip: [112, 148], torso: 180, arm: { to: [124, 100], bend: -1 }, leg: { a: 0, b: -90 }, foot: -95 },
+    ],
+  },
+  'face-pull-goma': {
+    props: [{ kind: 'wall', x: 210 }],
+    band: { from: [208, 58], both: true },
+    frames: [standing({ to: [190, 62], bend: -1 }, { farArm: { to: [190, 62], bend: -1 } }), standing({ to: [126, 44], bend: -1 }, { farArm: { to: [126, 44], bend: -1 } })],
+  },
+  'separacion-goma': {
+    view: 'front',
+    frames: [
+      frontStanding({ arm: { to: [128, 84], bend: -1 }, farArm: { to: [112, 84], bend: 1 } }),
+      frontStanding({ arm: { to: [200, 62], bend: -1 }, farArm: { to: [40, 62], bend: 1 } }),
+    ],
+  },
+  'press-pecho-goma': {
+    band: { from: [104, 66], both: true },
+    frames: [standing({ to: [132, 74], bend: -1 }, { farArm: { to: [132, 74], bend: -1 } }), standing({ to: [190, 62], bend: -1 }, { farArm: { to: [190, 62], bend: -1 } })],
+  },
+  'extension-triceps-goma': {
+    props: [{ kind: 'wall', x: 196 }],
+    band: { from: [194, -4], both: true },
+    frames: [standing({ a: 4, b: 100 }, { farArm: { a: 4, b: 100 } }), standing({ a: 4, b: 4 }, { farArm: { a: 4, b: 4 } })],
+  },
+  'press-pallof-goma': {
+    props: [{ kind: 'wall', x: 20 }],
+    band: { from: [28, 76] },
+    frames: [standing({ to: [130, 80], bend: -1 }, { farArm: { to: [130, 80], bend: -1 } }), standing({ to: [190, 62], bend: -1 }, { farArm: { to: [190, 62], bend: -1 } })],
+  },
+  'paseo-lateral-goma': {
+    view: 'front',
+    frames: [
+      frontStanding({ hip: [112, 124], arm: { a: 20, b: 40 }, farArm: { a: -20, b: -40 }, leg: { to: [128, 194], bend: -1 }, farLeg: { to: [96, 194], bend: 1 } }),
+      frontStanding({ hip: [124, 124], arm: { a: 20, b: 40 }, farArm: { a: -20, b: -40 }, leg: { to: [154, 194], bend: -1 }, farLeg: { to: [100, 194], bend: 1 } }),
+    ],
+  },
+  'press-suelo-mancuernas': {
+    faces: -1,
+    weight: 'pair',
+    frames: [supine({ arm: { a: -80, b: 180 }, farArm: { a: -80, b: 180 } }), supine({ arm: { a: 180, b: 180 }, farArm: { a: 180, b: 180 } })],
+  },
+  'press-banca-mancuernas': {
+    faces: -1,
+    weight: 'pair',
+    props: [BENCH],
+    frames: [benchPress({ a: -45, b: 180 }), benchPress({ a: 180, b: 180 })],
+  },
+  'press-hombro-mancuernas': {
+    weight: 'pair',
+    frames: [standing({ a: 25, b: 165 }, { farArm: { a: 25, b: 165 } }), standing({ a: 174, b: 178 }, { farArm: { a: 174, b: 178 } })],
+  },
+  'elevaciones-laterales': {
+    view: 'front',
+    weight: 'pair',
+    frames: [frontStanding(), frontStanding({ arm: { a: 84, b: 90 }, farArm: { a: -84, b: -90 } })],
+  },
+  'remo-inclinado-mancuernas': {
+    weight: 'pair',
+    frames: [hinge([100, 112], 122, { a: 0, b: 0 }), hinge([100, 112], 122, { a: -95, b: 0 })],
+  },
+  'curl-mancuernas': {
+    weight: 'pair',
+    frames: [standing({ a: -4, b: 0 }, { farArm: { a: -4, b: 0 } }), standing({ a: 3, b: 155 }, { farArm: { a: 3, b: 155 } })],
+  },
+  'peso-muerto-rumano-mancuernas': {
+    weight: 'pair',
+    frames: [hinge([118, STAND_HIP_Y], 180, { a: 0, b: 0 }), hinge([102, 116], 104, { a: 0, b: 0 })],
+  },
+  'zancadas-mancuernas': { ...lunge, weight: 'pair' },
+  'peso-muerto-kettlebell': {
+    weight: 'kettlebell',
+    frames: [hinge([100, 134], 124, { a: 2, b: 2 }), hinge([118, STAND_HIP_Y], 180, { a: 2, b: 2 })],
+  },
+  'swing-kettlebell': {
+    weight: 'kettlebell',
+    frames: [hinge([100, 124], 126, { a: -28, b: -28 }), hinge([118, STAND_HIP_Y], 180, { a: 90, b: 90 })],
+  },
+  'fondos-banco': {
+    props: [{ kind: 'box', x: 58, y: 150, w: 44, h: 47 }],
+    frames: [
+      { hip: [108, 148], torso: 182, arm: { to: [98, 149], bend: 1 }, leg: { to: [160, 194], bend: -1 }, foot: 90 },
+      { hip: [112, 172], torso: 184, arm: { to: [98, 149], bend: 1 }, leg: { to: [160, 194], bend: -1 }, foot: 90 },
     ],
   },
 }

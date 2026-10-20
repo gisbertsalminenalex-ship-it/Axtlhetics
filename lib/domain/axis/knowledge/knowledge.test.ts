@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 
 import { detectIntent } from '../conversation/intents'
-import { MAX_AVAILABLE_LOAD_KG } from '../../workouts/catalog'
+import { LEGACY_LOAD_KG } from '../../workouts/catalog'
 import {
   FOCUS_MUSCLE_GROUPS as FOCUS_GROUPS_FROM_TYPES,
   MUSCLE_GROUP_LABELS as LABELS_FROM_TYPES,
@@ -62,9 +62,9 @@ test('las etiquetas de grupos musculares y de focos se definen una sola vez', ()
 })
 
 test('la carga máxima disponible se define una sola vez', () => {
-  assert.deepEqual(definitionsOf('MAX_AVAILABLE_LOAD_KG'), ['/lib/domain/workouts/catalog.ts'])
+  assert.deepEqual(definitionsOf('LEGACY_LOAD_KG'), ['/lib/domain/workouts/catalog.ts'])
   assert.deepEqual(definitionsOf('MAX_LOAD_KG'), [])
-  assert.equal(MAX_AVAILABLE_LOAD_KG, 5)
+  assert.equal(LEGACY_LOAD_KG, 5)
 })
 
 test('el vocabulario de focos y deportes vive solo en knowledge', () => {

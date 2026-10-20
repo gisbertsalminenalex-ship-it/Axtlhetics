@@ -86,7 +86,7 @@ export const ASSESSMENT_PROTOCOL: readonly AssessmentTest[] = [
     loadKg: 5,
     perSide: true,
     instruction:
-      'Con la pesa de 5 kg. Haz tantas como puedas con técnica correcta, primero con un brazo y después con el otro.',
+      'Con una pesa de 5 kg o, si no la tienes, una garrafa de agua de 5 litros. Haz tantas como puedas con técnica correcta, primero con un brazo y después con el otro.',
   },
 ]
 

@@ -32,7 +32,9 @@ import {
   type ActivityIntensity,
   type ScheduledActivity,
 } from '../profile/types'
-import { EXERCISE_CATALOG, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
+import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { equipmentOf, heaviestLoad, LEGACY_EQUIPMENT, type UserEquipment } from '../workouts/equipment'
+import { gearToday } from './context'
 import type { Exercise, SessionFocus } from '../workouts/types'
 import { addDays, formatDayInSentence, weekdayOfKey, type DayKey } from '../shared/dates'
 import { createId, nowIso } from '../shared/ids'
@@ -52,12 +54,14 @@ import type { AxisContext, AxisDecision, AxisProposal, AxisRecommendationType } 
  * - `set_available_minutes`: los minutos que el usuario dice tener hoy.
  * - `move_to_tomorrow`: hoy recuperación, mañana disponible. No copia la sesión.
  * - `add_dated_activity`: registrar el partido de mañana.
+ * - `train_without_equipment`: hoy, solo con el cuerpo y una silla (D-046).
  */
 export type AxisActionType =
   | 'change_training'
   | 'set_available_minutes'
   | 'move_to_tomorrow'
   | 'add_dated_activity'
+  | 'train_without_equipment'
 
 /** La opción concreta a la que se quiere cambiar, en términos estables. */
 export type AxisActionTarget = {
@@ -106,12 +110,14 @@ export type AddDatedActivityAction = AxisActionBase & {
   type: 'add_dated_activity'
   activity: DatedActivityDraft
 }
+export type WithoutEquipmentAction = AxisActionBase & { type: 'train_without_equipment' }
 
 export type AxisActionProposal =
   | ChangeTrainingAction
   | MoveToTomorrowAction
   | SetMinutesAction
   | AddDatedActivityAction
+  | WithoutEquipmentAction
 
 /** Las acciones que eligen una alternativa del motor: siempre tienen destino. */
 export type TargetedAction = ChangeTrainingAction | MoveToTomorrowAction
@@ -125,6 +131,7 @@ export type AxisActionEffect =
   | { kind: 'set_available_minutes'; minutes: number }
   | { kind: 'move_to_tomorrow' }
   | { kind: 'add_dated_activity'; intensity: ActivityIntensity }
+  | { kind: 'train_without_equipment' }
 
 /**
  * Estado de una acción dentro de la conversación. Vive en la memoria del día.
@@ -281,7 +288,22 @@ export function validateAction(
       return validateMinutes(action.minutes, context)
     case 'add_dated_activity':
       return validateDatedActivity(action.activity, context)
+    case 'train_without_equipment':
+      return validateWithoutEquipment(context)
   }
+}
+
+/** Hoy sin material (D-046): solo si hoy había material que quitar. */
+function validateWithoutEquipment(context: AxisContext): AxisActionValidation {
+  if (trainedOn(context)) return TRAINED_TODAY
+  if (context.withoutEquipmentToday) {
+    return { ok: false, reason: 'sin_efecto', message: 'Ya tengo en cuenta que hoy entrenas sin material.' }
+  }
+  const gear = equipmentOf(context.profile)
+  if (gear.items.length === 0 && gear.weights.length === 0) {
+    return { ok: false, reason: 'sin_efecto', message: 'Tus sesiones ya son solo con tu peso corporal.' }
+  }
+  return { ok: true, target: null }
 }
 
 /** Hoy ya hubo actividad: una sesión completada o un test de evolución (D-021). */
@@ -380,7 +402,7 @@ function validateChangeTraining(
     }
   }
 
-  if (!isSessionValid(target, context.catalog)) {
+  if (!isSessionValid(target, context.catalog, gearToday(context))) {
     return {
       ok: false,
       reason: 'sesion_invalida',
@@ -414,25 +436,27 @@ export function isSessionValid(
   proposal: AxisProposal,
   /** El catálogo con el que decidió el motor. Por defecto, el real. */
   catalog: readonly Exercise[] = EXERCISE_CATALOG,
+  /** El material del usuario (D-046). Por defecto, el de un perfil anterior. */
+  gear: UserEquipment = LEGACY_EQUIPMENT,
 ): boolean {
   const session = proposal.session
   if (!session) return true
+  const heaviest = heaviestLoad(gear)
 
   return session.exercises.every((planned) => {
     const exercise = catalog.find((item) => item.id === planned.exerciseId)
     if (!exercise) return false
     if (planned.sets <= 0 || planned.reps <= 0) return false
 
-    // La carga sugerida no puede pasarse del material disponible.
+    // La carga sugerida no puede pasarse del peso más pesado que tiene el usuario.
     if (planned.suggestedWeightKg !== null) {
       if (planned.suggestedWeightKg < 0) return false
-      if (planned.suggestedWeightKg > MAX_AVAILABLE_LOAD_KG) return false
+      if (heaviest === null || planned.suggestedWeightKg > heaviest) return false
     }
     return true
   })
 }
 
-/** Lo que hay en casa: una pesa de 5 kg. Ni barra, ni banco, ni gimnasio. */
 // ---------------------------------------------------------------------------
 // Lo que se guarda para que el cambio sobreviva a una recarga
 // ---------------------------------------------------------------------------
@@ -556,6 +580,19 @@ export function buildSetMinutesAction(params: {
   }
 }
 
+export function buildWithoutEquipmentAction(params: {
+  context: AxisContext
+  origin: AxisProposal
+  reason: string
+}): AxisActionProposal {
+  const { context, origin, reason } = params
+  return {
+    ...baseOf(context, origin, reason),
+    type: 'train_without_equipment',
+    summary: 'Rehacer la sesión de hoy solo con tu peso corporal',
+  }
+}
+
 export function buildAddDatedActivityAction(params: {
   context: AxisContext
   origin: AxisProposal
@@ -621,6 +658,9 @@ export function dayChangesFor(
       return { availableMinutes: action.minutes, override: null }
     case 'add_dated_activity':
       return {}
+    case 'train_without_equipment':
+      // Con otro material, la elección anterior puede no existir: manda la decisión nueva.
+      return { withoutEquipment: true, override: null }
   }
 }
 

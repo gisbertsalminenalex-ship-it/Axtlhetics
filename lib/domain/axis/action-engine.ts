@@ -30,6 +30,7 @@ import {
   buildChangeTrainingAction,
   buildMoveToTomorrowAction,
   buildSetMinutesAction,
+  buildWithoutEquipmentAction,
   datedActivityDraft,
   dayChangesFor,
   findProposal,
@@ -89,6 +90,9 @@ export function proposeAction(
   // Reorganizaciones (D-022): cambian algo del día y el motor vuelve a decidir.
   if (effect?.kind === 'set_available_minutes') {
     return buildSetMinutesAction({ ...base, minutes: effect.minutes })
+  }
+  if (effect?.kind === 'train_without_equipment') {
+    return buildWithoutEquipmentAction(base)
   }
   if (effect?.kind === 'add_dated_activity') {
     return buildAddDatedActivityAction({ ...base, activity: datedActivityDraft(day.context, effect.intensity) })
@@ -303,6 +307,8 @@ function hasTypeFields(value: Record<string, unknown>): boolean {
       return typeof value.minutes === 'number' && Number.isInteger(value.minutes)
     case 'add_dated_activity':
       return isDatedActivityDraft(value.activity)
+    case 'train_without_equipment':
+      return true
     default:
       return false
   }

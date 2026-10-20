@@ -1,15 +1,17 @@
 /**
  * Catálogo de ejercicios.
  *
- * Está construido para el equipamiento **real** disponible: peso corporal y **una
- * sola pesa de 5 kg**. Nada de barras, bancos, máquinas ni pares de mancuernas. Todo
- * lo que carga peso está modelado como unilateral, porque solo hay una pesa.
+ * Material de casa (D-046): peso corporal, una silla, pesas (una, un par o una
+ * kettlebell), barra de dominadas, gomas y banco. Nada de gimnasio: ni barra
+ * olímpica, ni rack, ni máquinas, ni poleas. Qué tiene cada usuario lo dice su
+ * perfil, y solo entra en una sesión lo que se puede hacer con ello.
  *
  * El catálogo es **dato reemplazable**, no lógica. Añadir ejercicios o cambiar el
  * equipamiento disponible no obliga a tocar el motor de decisión: basta con que los
  * metadatos estén completos.
  */
 
+import { availableEquipment, LEGACY_EQUIPMENT } from './equipment'
 import type {
   Difficulty,
   Equipment,
@@ -20,26 +22,22 @@ import type {
 import { FOCUS_CATEGORIES } from './types'
 
 /**
- * Equipamiento disponible hoy.
- *
- * `superficie_elevada` no es material comprado: es una silla, un sofá o un escalón.
- * Cambiar esta lista cambia qué ejercicios puede proponer AXIS, sin tocar nada más.
+ * El material que se supone cuando no se dice otro: el de un perfil anterior a
+ * D-046, peso corporal, una silla y una pesa.
  */
-export const AVAILABLE_EQUIPMENT: readonly Equipment[] = ['ninguno', 'pesa', 'superficie_elevada']
+export const DEFAULT_EQUIPMENT: readonly Equipment[] = availableEquipment(LEGACY_EQUIPMENT)
 
-/** La única pesa que hay. El sistema no puede suponer que la carga sube sin límite. */
-export const MAX_AVAILABLE_LOAD_KG = 5
-
-/** Escalón de carga. Con una sola pesa, en la práctica solo hay un salto: 0 → 5. */
-export const LOAD_STEP_KG = 2.5
+/** La pesa de un perfil anterior a D-046, y la del remo del test de evolución (D-021). */
+export const LEGACY_LOAD_KG = 5
 
 /**
- * Los únicos ejercicios que usan la pesa con las dos manos (D-008, D-020).
+ * Los únicos ejercicios que usan **una** pesa con las dos manos (D-008, D-020).
  *
  * Con una sola pesa, todo lo que carga peso es unilateral. Estos son las
  * excepciones razonables: la pesa se sujeta entera con las dos manos, no se
  * reparte entre dos mancuernas. Es una lista cerrada, no una regla: añadir uno
- * es una decisión, y un test lo vigila.
+ * es una decisión, y un test lo vigila. Lo que pide un par (`par_pesas`) o una
+ * kettlebell no entra aquí (D-046).
  */
 export const SINGLE_WEIGHT_BILATERAL_IDS: readonly string[] = [
   'sentadilla-con-pesa',
@@ -123,6 +121,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
   {
     id: 'press-hombro-unilateral',
     name: 'Press de hombro unilateral',
+    family: 'press-hombro',
     category: 'empuje',
     primaryMuscles: ['hombros'],
     secondaryMuscles: ['brazos', 'core'],
@@ -135,6 +134,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions: 'De pie, con el abdomen apretado, sujeta la pesa a la altura del hombro con la palma hacia delante. Empuja hacia arriba hasta estirar el brazo sin arquear la espalda y baja despacio al hombro. Alterna los lados.',
     work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 4,
   },
   {
     id: 'extension-triceps-unilateral',
@@ -152,11 +152,13 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions: 'Sube la pesa por encima de la cabeza y déjala caer por detrás doblando el codo, que apunta al techo. Estira el brazo hacia arriba sin mover el codo y baja controlando. Alterna los lados.',
     work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 4,
   },
   {
     // D-020. El único empuje de pecho con carga. El suelo limita el recorrido del hombro.
     id: 'press-suelo-unilateral',
     name: 'Press de suelo unilateral con pesa',
+    family: 'press-pecho',
     category: 'empuje',
     primaryMuscles: ['pecho'],
     secondaryMuscles: ['brazos', 'hombros'],
@@ -170,6 +172,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
       'Tumbado boca arriba con las rodillas dobladas, empuja la pesa hacia el techo desde el pecho. Baja hasta que el codo toque el suelo, no más. Alterna los lados.',
     work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 6,
   },
   {
     // D-020. Pecho más exigente que la flexión. La silla, contra la pared.
@@ -226,6 +229,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
       'Tronco inclinado con la mano libre apoyada. Codo pegado al cuerpo; extiende el brazo hacia atrás sin mover el codo. Alterna los lados.',
     work: { sets: 3, reps: 10, restSeconds: 60, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 3,
   },
   {
     // D-025. Flexión de iniciación sin material: hermana de las inclinadas, no las sustituye.
@@ -282,6 +286,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions: 'Apoya la mano y la rodilla del mismo lado en una silla o un sofá, con la espalda recta y la pesa colgando en la otra mano. Tira de la pesa hacia la cadera llevando el codo atrás, pegado al cuerpo, y bájala despacio. Alterna los lados.',
     work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 8,
   },
   {
     id: 'remo-renegado',
@@ -299,6 +304,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions: 'En plancha alta con los pies separados y una mano sobre la pesa. Tira de la pesa hacia la cadera sin girar el tronco ni la cadera, y vuelve a apoyarla. Alterna los lados; si te tambaleas, separa más los pies.',
     work: { sets: 3, reps: 8, restSeconds: 90, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 4,
   },
   {
     id: 'curl-biceps-unilateral',
@@ -316,6 +322,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions: 'De pie, con la pesa en una mano, el brazo estirado y la palma hacia delante. Sube la pesa hacia el hombro doblando el codo, que se queda pegado al cuerpo, sin balancearte, y baja controlando. Alterna los lados.',
     work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: '1-1-2' },
     imageUrl: null,
+    startLoadKg: 4,
   },
   {
     // D-020. Espalda alta y postura sin material: hasta ahora solo había Superman.
@@ -352,6 +359,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
       'Tumbado en el suelo con las rodillas dobladas y la zona lumbar apoyada. Sujeta la pesa con las dos manos sobre el pecho y llévala atrás solo hasta donde la espalda no se arquee.',
     work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 6,
   },
   {
     // D-020. Agarre neutro: la variante de agarre es un ejercicio propio, sin campo nuevo.
@@ -371,6 +379,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
       'Palma mirando hacia el cuerpo (agarre neutro) y codo pegado. Sube sin balanceo y baja controlando. Alterna los lados.',
     work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: '1-1-2' },
     imageUrl: null,
+    startLoadKg: 5,
   },
 
   // ---------------------------------------------------------------------------
@@ -409,6 +418,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions: 'Sujeta la pesa vertical contra el pecho con las dos manos y separa los pies a la anchura de los hombros. Baja como en una sentadilla, con el torso erguido y los codos entre las rodillas, y sube empujando con los talones.',
     work: { sets: 3, reps: 12, restSeconds: 90, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 8,
   },
   {
     id: 'zancadas',
@@ -476,6 +486,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     instructions: 'De pie sobre una pierna, con la rodilla un poco flexionada y la pesa en la mano contraria. Inclina el tronco adelante con la espalda recta mientras la otra pierna se estira hacia atrás y baja la pesa hacia el suelo. Vuelve arriba apretando el glúteo; alterna los lados.',
     work: { sets: 3, reps: 10, restSeconds: 90, isTimed: false, tempo: '3-0-1' },
     imageUrl: null,
+    startLoadKg: 6,
   },
   {
     id: 'puente-gluteos',
@@ -605,6 +616,7 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
       'Parte alta de la espalda apoyada en un sofá o en una silla contra la pared, y la pesa sujeta con las dos manos sobre la cadera. Sube hasta alinear la cadera con el tronco y aprieta arriba.',
     work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
     imageUrl: null,
+    startLoadKg: 10,
   },
   {
     // D-020.1. El único movimiento lateral de piernas: aductores, glúteo medio y
@@ -976,6 +988,478 @@ export const EXERCISE_CATALOG: readonly Exercise[] = [
     work: { sets: 2, reps: 30, restSeconds: 30, isTimed: true, tempo: null },
     imageUrl: null,
   },
+  // ---------------------------------------------------------------------------
+  // MATERIAL DE CASA (D-046)
+  //
+  // Solo entran en la sesión de quien tiene el material. Al final del catálogo
+  // para no mover el orden de los anteriores, que desempata la rotación (D-020).
+  // ---------------------------------------------------------------------------
+
+  // --- Barra de dominadas ------------------------------------------------------
+  {
+    id: 'colgarse-barra',
+    name: 'Colgarse de la barra',
+    family: 'dominada',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['brazos', 'hombros'],
+    equipment: ['barra_dominadas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: 'dominadas-negativas',
+    regressionId: null,
+    stimulus: 'estabilidad',
+    instructions:
+      'Agarra la barra con las palmas hacia delante, algo más abiertas que los hombros, y cuélgate con los brazos estirados. Baja los hombros lejos de las orejas y aprieta el abdomen para no balancearte. Es la base de la dominada: fuerza de agarre y hombros estables.',
+    work: { sets: 3, reps: 20, restSeconds: 60, isTimed: true, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'dominadas-negativas',
+    name: 'Dominadas negativas',
+    family: 'dominada',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['brazos', 'hombros'],
+    equipment: ['barra_dominadas', 'superficie_elevada'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: 'dominadas-supinas',
+    regressionId: 'colgarse-barra',
+    stimulus: 'fuerza',
+    instructions:
+      'Sube con ayuda de una silla hasta tener la barbilla por encima de la barra. Quita los pies y baja muy despacio, unos cuatro segundos, hasta estirar los brazos. Vuelve a subir con la silla y repite.',
+    work: { sets: 3, reps: 5, restSeconds: 90, isTimed: false, tempo: '4-0-1' },
+    imageUrl: null,
+  },
+  {
+    id: 'dominadas-asistidas-goma',
+    name: 'Dominadas asistidas con goma',
+    family: 'dominada',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['brazos', 'hombros'],
+    equipment: ['barra_dominadas', 'gomas'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: 'dominadas-supinas',
+    regressionId: 'colgarse-barra',
+    stimulus: 'fuerza',
+    instructions:
+      'Ata la goma a la barra y apoya en ella una rodilla o un pie. Desde los brazos estirados, tira llevando los codos hacia abajo hasta pasar la barbilla por encima de la barra, y baja controlando. Cuanto más gruesa la goma, más ayuda.',
+    work: { sets: 3, reps: 6, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'dominadas-supinas',
+    name: 'Dominadas supinas',
+    family: 'dominada',
+    category: 'tiron',
+    primaryMuscles: ['espalda', 'brazos'],
+    secondaryMuscles: ['hombros', 'core'],
+    equipment: ['barra_dominadas'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: 'dominadas',
+    regressionId: 'dominadas-negativas',
+    stimulus: 'fuerza',
+    instructions:
+      'Agarra la barra con las palmas hacia ti, a la anchura de los hombros, y cuélgate con los brazos estirados. Tira llevando el pecho hacia la barra hasta pasar la barbilla, sin balancearte, y baja del todo controlando. El bíceps ayuda más que en la dominada normal.',
+    work: { sets: 3, reps: 6, restSeconds: 120, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'dominadas',
+    name: 'Dominadas',
+    family: 'dominada',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['brazos', 'hombros', 'core'],
+    equipment: ['barra_dominadas'],
+    unilateral: false,
+    difficulty: 4,
+    progressionId: null,
+    regressionId: 'dominadas-supinas',
+    stimulus: 'fuerza',
+    instructions:
+      'Agarra la barra con las palmas hacia delante, algo más abiertas que los hombros, y cuélgate con los brazos estirados. Tira llevando los codos hacia las costillas hasta pasar la barbilla por encima de la barra, y baja del todo controlando. Sin balanceo ni medias repeticiones.',
+    work: { sets: 3, reps: 6, restSeconds: 120, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'elevaciones-rodillas-colgado',
+    name: 'Elevaciones de rodillas colgado',
+    category: 'core',
+    primaryMuscles: ['core'],
+    secondaryMuscles: ['hombros'],
+    equipment: ['barra_dominadas'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'dead-bug',
+    stimulus: 'fuerza',
+    instructions:
+      'Cuélgate de la barra con los brazos estirados y los hombros activos. Sube las rodillas hacia el pecho enrollando un poco la pelvis y bájalas despacio sin balancearte. Si te balanceas, para un segundo abajo antes de la siguiente.',
+    work: { sets: 3, reps: 10, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+
+  // --- Gomas elásticas ---------------------------------------------------------
+  {
+    id: 'remo-goma',
+    name: 'Remo con goma',
+    family: 'remo',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['brazos'],
+    equipment: ['gomas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Sentado en el suelo con las piernas estiradas, pasa la goma por la planta de los pies y agarra un extremo en cada mano. Tira llevando los codos atrás, pegados al cuerpo, y junta las escápulas al final. Vuelve despacio sin redondear la espalda.',
+    work: { sets: 3, reps: 15, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'jalon-goma',
+    name: 'Jalón con goma',
+    family: 'dominada',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['brazos'],
+    equipment: ['gomas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: 'dominadas-asistidas-goma',
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Ancla la goma en lo alto de una puerta y arrodíllate de cara a ella con un extremo en cada mano y los brazos arriba. Tira hacia abajo llevando los codos hacia las costillas hasta que las manos lleguen a los hombros. Sube despacio sin dejar que la goma te tire.',
+    work: { sets: 3, reps: 15, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'face-pull-goma',
+    name: 'Face pull con goma',
+    family: 'deltoide-posterior',
+    category: 'tiron',
+    primaryMuscles: ['hombros'],
+    secondaryMuscles: ['espalda'],
+    equipment: ['gomas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Ancla la goma a la altura de la cara y agárrala con las palmas hacia abajo. Tira hacia la frente separando las manos y llevando los codos altos y atrás, hasta que los puños queden a los lados de la cabeza. Vuelve despacio; es salud de hombro, no fuerza bruta.',
+    work: { sets: 3, reps: 15, restSeconds: 45, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'separacion-goma',
+    name: 'Separación de brazos con goma',
+    family: 'deltoide-posterior',
+    category: 'tiron',
+    primaryMuscles: ['hombros'],
+    secondaryMuscles: ['espalda'],
+    equipment: ['gomas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'resistencia',
+    instructions:
+      'De pie, sujeta la goma delante del pecho con los brazos estirados y las manos a la anchura de los hombros. Ábrelos hacia los lados hasta que la goma toque el pecho, juntando las escápulas, y vuelve despacio. Hombros bajos, lejos de las orejas.',
+    work: { sets: 3, reps: 15, restSeconds: 45, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'press-pecho-goma',
+    name: 'Press de pecho con goma',
+    family: 'press-pecho',
+    category: 'empuje',
+    primaryMuscles: ['pecho'],
+    secondaryMuscles: ['hombros', 'brazos'],
+    equipment: ['gomas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Pasa la goma por la espalda a la altura de las axilas y agarra un extremo en cada mano junto al pecho. Empuja hacia delante hasta estirar los brazos, como en un press, y vuelve despacio. De pie con un pie adelantado para no perder el equilibrio.',
+    work: { sets: 3, reps: 15, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'extension-triceps-goma',
+    name: 'Extensión de tríceps con goma',
+    family: 'triceps',
+    category: 'empuje',
+    primaryMuscles: ['brazos'],
+    secondaryMuscles: [],
+    equipment: ['gomas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Ancla la goma en lo alto de una puerta y agárrala con los codos doblados y pegados al cuerpo. Estira los brazos hacia abajo sin mover los codos y vuelve despacio hasta el ángulo recto. Solo se mueve el antebrazo.',
+    work: { sets: 3, reps: 15, restSeconds: 45, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+  {
+    id: 'press-pallof-goma',
+    name: 'Press Pallof con goma',
+    category: 'core',
+    primaryMuscles: ['core'],
+    secondaryMuscles: ['hombros'],
+    equipment: ['gomas'],
+    unilateral: true,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'estabilidad',
+    instructions:
+      'De lado a la goma anclada a la altura del pecho, agárrala con las dos manos junto al esternón. Estira los brazos al frente sin dejar que el tronco gire hacia el ancla, aguanta un segundo y vuelve. Haz todas de un lado y cambia.',
+    work: { sets: 3, reps: 10, restSeconds: 45, isTimed: false, tempo: '1-2-1' },
+    imageUrl: null,
+  },
+  {
+    id: 'paseo-lateral-goma',
+    name: 'Paseo lateral con goma',
+    category: 'piernas',
+    // El glúteo medio y los abductores: de frente, el glúteo no se ve y el muslo sí.
+    primaryMuscles: ['gluteos', 'piernas'],
+    secondaryMuscles: [],
+    equipment: ['gomas'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'estabilidad',
+    instructions:
+      'Con una goma corta alrededor de las piernas, justo encima de las rodillas, flexiona un poco cadera y rodillas. Da pasos cortos hacia un lado sin juntar los pies del todo y con las rodillas hacia fuera, y vuelve hacia el otro. Cada paso cuenta como una repetición.',
+    work: { sets: 3, reps: 12, restSeconds: 45, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
+
+  // --- Un par de pesas ---------------------------------------------------------
+  {
+    id: 'press-suelo-mancuernas',
+    name: 'Press de suelo con mancuernas',
+    family: 'press-pecho',
+    category: 'empuje',
+    primaryMuscles: ['pecho'],
+    secondaryMuscles: ['brazos', 'hombros'],
+    equipment: ['par_pesas'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: 'press-banca-mancuernas',
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'Tumbado boca arriba con las rodillas dobladas y una pesa en cada mano a los lados del pecho. Empuja las dos hacia el techo hasta estirar los brazos y baja hasta que los codos rocen el suelo. Codos a unos 45 grados del cuerpo, no abiertos del todo.',
+    work: { sets: 3, reps: 10, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 6,
+  },
+  {
+    id: 'press-banca-mancuernas',
+    name: 'Press de banca con mancuernas',
+    family: 'press-pecho',
+    category: 'empuje',
+    primaryMuscles: ['pecho'],
+    secondaryMuscles: ['brazos', 'hombros'],
+    equipment: ['banco', 'par_pesas'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'press-suelo-mancuernas',
+    stimulus: 'fuerza',
+    instructions:
+      'Tumbado en el banco con los pies en el suelo y una pesa en cada mano sobre el pecho. Baja las pesas a los lados del pecho con los codos a unos 45 grados y empuja hasta estirar los brazos. Escápulas juntas y apoyadas en el banco todo el rato.',
+    work: { sets: 3, reps: 10, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 6,
+  },
+  {
+    id: 'press-hombro-mancuernas',
+    name: 'Press de hombro con mancuernas',
+    family: 'press-hombro',
+    category: 'empuje',
+    primaryMuscles: ['hombros'],
+    secondaryMuscles: ['brazos', 'core'],
+    equipment: ['par_pesas'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'press-hombro-unilateral',
+    stimulus: 'fuerza',
+    instructions:
+      'De pie o sentado, con una pesa en cada mano a la altura de los hombros y las palmas hacia delante. Empuja las dos hacia arriba hasta estirar los brazos y baja despacio a los hombros. Abdomen apretado para no arquear la espalda.',
+    work: { sets: 3, reps: 10, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 4,
+  },
+  {
+    id: 'elevaciones-laterales',
+    name: 'Elevaciones laterales',
+    category: 'empuje',
+    primaryMuscles: ['hombros'],
+    secondaryMuscles: [],
+    equipment: ['par_pesas'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'De pie, con una pesa en cada mano a los lados y los codos un poco doblados. Sube los brazos hacia los lados hasta la altura de los hombros, sin encogerlos, y baja despacio. Mejor poco peso y sin impulso.',
+    work: { sets: 3, reps: 12, restSeconds: 60, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 2,
+  },
+  {
+    id: 'remo-inclinado-mancuernas',
+    name: 'Remo inclinado con mancuernas',
+    family: 'remo',
+    category: 'tiron',
+    primaryMuscles: ['espalda'],
+    secondaryMuscles: ['brazos', 'hombros'],
+    equipment: ['par_pesas'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'remo-unilateral',
+    stimulus: 'fuerza',
+    instructions:
+      'De pie con las rodillas un poco dobladas, inclina el tronco adelante con la espalda recta y deja colgar una pesa en cada mano. Tira de las dos hacia la cadera llevando los codos atrás y junta las escápulas. Baja despacio sin levantar el tronco.',
+    work: { sets: 3, reps: 10, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 6,
+  },
+  {
+    id: 'curl-mancuernas',
+    name: 'Curl de bíceps con mancuernas',
+    family: 'curl',
+    category: 'tiron',
+    primaryMuscles: ['brazos'],
+    secondaryMuscles: [],
+    equipment: ['par_pesas'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: 'curl-biceps-unilateral',
+    stimulus: 'fuerza',
+    instructions:
+      'De pie, con una pesa en cada mano, los brazos estirados y las palmas hacia delante. Sube las dos hacia los hombros doblando los codos, que se quedan pegados al cuerpo, y baja controlando. Sin balancear el tronco.',
+    work: { sets: 3, reps: 10, restSeconds: 60, isTimed: false, tempo: '1-1-2' },
+    imageUrl: null,
+    startLoadKg: 4,
+  },
+  {
+    id: 'peso-muerto-rumano-mancuernas',
+    name: 'Peso muerto rumano con mancuernas',
+    family: 'peso-muerto',
+    category: 'piernas',
+    primaryMuscles: ['gluteos', 'piernas'],
+    secondaryMuscles: ['espalda', 'core'],
+    equipment: ['par_pesas'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: 'peso-muerto-kettlebell',
+    stimulus: 'fuerza',
+    instructions:
+      'De pie, con una pesa en cada mano delante de los muslos y las rodillas un poco dobladas. Lleva la cadera atrás bajando las pesas pegadas a las piernas, con la espalda recta, hasta notar los isquios estirados. Sube empujando la cadera adelante y aprieta los glúteos.',
+    work: { sets: 3, reps: 10, restSeconds: 90, isTimed: false, tempo: '3-0-1' },
+    imageUrl: null,
+    startLoadKg: 8,
+  },
+  {
+    id: 'zancadas-mancuernas',
+    name: 'Zancadas con mancuernas',
+    family: 'zancada',
+    category: 'piernas',
+    primaryMuscles: ['piernas', 'gluteos'],
+    secondaryMuscles: ['core'],
+    equipment: ['par_pesas'],
+    unilateral: true,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'zancadas',
+    stimulus: 'fuerza',
+    instructions:
+      'De pie con una pesa colgando en cada mano. Da un paso largo adelante y baja hasta que la rodilla de atrás casi toque el suelo, con el tronco recto. Empuja con la pierna de delante para volver y alterna las piernas.',
+    work: { sets: 3, reps: 10, restSeconds: 90, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 5,
+  },
+
+  // --- Kettlebell --------------------------------------------------------------
+  {
+    id: 'peso-muerto-kettlebell',
+    name: 'Peso muerto con kettlebell',
+    family: 'peso-muerto',
+    category: 'piernas',
+    primaryMuscles: ['gluteos', 'piernas'],
+    secondaryMuscles: ['espalda', 'core'],
+    equipment: ['kettlebell'],
+    unilateral: false,
+    difficulty: 1,
+    progressionId: 'swing-kettlebell',
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'De pie con la kettlebell en el suelo entre los pies. Lleva la cadera atrás con la espalda recta, agarra el asa con las dos manos y sube empujando el suelo hasta quedar de pie. Baja igual, con la cadera atrás, no doblando la espalda.',
+    work: { sets: 3, reps: 12, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 12,
+  },
+  {
+    id: 'swing-kettlebell',
+    name: 'Swing con kettlebell',
+    category: 'piernas',
+    primaryMuscles: ['gluteos'],
+    secondaryMuscles: ['piernas', 'espalda', 'core'],
+    equipment: ['kettlebell'],
+    unilateral: false,
+    difficulty: 3,
+    progressionId: null,
+    regressionId: 'peso-muerto-kettlebell',
+    stimulus: 'resistencia',
+    instructions:
+      'Pies algo más abiertos que la cadera y la kettlebell agarrada con las dos manos. Llévala hacia atrás entre las piernas con la cadera atrás y la espalda recta, y lánzala hasta la altura del pecho con un golpe de cadera. Los brazos solo guían: empujan los glúteos.',
+    work: { sets: 3, reps: 15, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+    startLoadKg: 8,
+  },
+
+  // --- Banco -------------------------------------------------------------------
+  {
+    id: 'fondos-banco',
+    name: 'Fondos en banco',
+    family: 'triceps',
+    category: 'empuje',
+    primaryMuscles: ['brazos'],
+    secondaryMuscles: ['pecho', 'hombros'],
+    equipment: ['banco'],
+    unilateral: false,
+    difficulty: 2,
+    progressionId: null,
+    regressionId: null,
+    stimulus: 'fuerza',
+    instructions:
+      'De espaldas al banco, apoya las manos en el borde con los dedos hacia delante y las piernas dobladas delante de ti. Baja doblando los codos hacia atrás hasta unos 90 grados, con la espalda cerca del banco, y empuja hasta estirar los brazos. Si molesta el hombro, baja menos.',
+    work: { sets: 3, reps: 10, restSeconds: 75, isTimed: false, tempo: null },
+    imageUrl: null,
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -992,14 +1476,14 @@ export function findExercise(
 /** `true` si todo lo que el ejercicio necesita está disponible. */
 export function isAvailable(
   exercise: Exercise,
-  available: readonly Equipment[] = AVAILABLE_EQUIPMENT,
+  available: readonly Equipment[] = DEFAULT_EQUIPMENT,
 ): boolean {
   return exercise.equipment.every((item) => available.includes(item))
 }
 
 export function availableExercises(
   catalog: readonly Exercise[] = EXERCISE_CATALOG,
-  available: readonly Equipment[] = AVAILABLE_EQUIPMENT,
+  available: readonly Equipment[] = DEFAULT_EQUIPMENT,
 ): Exercise[] {
   return catalog.filter((exercise) => isAvailable(exercise, available))
 }
@@ -1038,7 +1522,7 @@ export function variantOf(
   exercise: Exercise,
   direction: 'easier' | 'harder',
   catalog: readonly Exercise[] = EXERCISE_CATALOG,
-  available: readonly Equipment[] = AVAILABLE_EQUIPMENT,
+  available: readonly Equipment[] = DEFAULT_EQUIPMENT,
 ): Exercise {
   const id = direction === 'easier' ? exercise.regressionId : exercise.progressionId
   if (!id) return exercise

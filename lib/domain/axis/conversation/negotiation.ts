@@ -70,6 +70,8 @@ export type ChangeRequestKind =
   | 'cannot_planned'
   /** Cansancio contado en la conversación (D-022). */
   | 'tired'
+  /** «Hoy estoy sin material» (D-046). */
+  | 'no_equipment'
   | 'unclear'
 
 /**
@@ -1195,8 +1197,36 @@ function askBlockReason(briefing: AxisBriefing): ChangeVerdict {
 }
 
 /**
+ * Hoy sin material (D-046): la sesión se rehace solo con el cuerpo y una silla,
+ * con su botón de confirmar. Vale para hoy; el perfil no cambia.
+ */
+export function evaluateNoEquipment(briefing: AxisBriefing): ChangeVerdict {
+  if (activeToday(briefing)) return ALREADY_TRAINED
+  if (briefing.reorganization.withoutEquipment) {
+    return { outcome: 'accept', text: 'Ya tengo en cuenta que hoy entrenas sin material.', proposedTarget: null }
+  }
+  if (!briefing.proposal?.session) {
+    return { outcome: 'accept', text: 'Hoy no tienes entrenamiento previsto, así que no hay sesión que rehacer.', proposedTarget: null }
+  }
+  const onlyBody = briefing.equipment.every((item) => item === 'ninguno' || item === 'superficie_elevada')
+  if (onlyBody) {
+    return {
+      outcome: 'accept',
+      text: 'Tu sesión de hoy ya es solo con tu peso corporal y, como mucho, una silla: puedes hacerla en cualquier sitio.',
+      proposedTarget: null,
+    }
+  }
+  return {
+    outcome: 'accept',
+    text: 'Rehago la sesión de hoy solo con tu peso corporal y una silla, con el mismo criterio de siempre. Vale solo para hoy: mañana vuelvo a contar con tu material.',
+    proposedTarget: null,
+    proposedEffect: { kind: 'train_without_equipment' },
+  }
+}
+
+/**
  * La respuesta al motivo (D-022). El tiempo se trata como minutos; la zona,
- * como evitar una zona; el material o el sitio no tienen filtro en v1 y se dice.
+ * como evitar una zona; el material o el sitio, como un día sin material (D-046).
  */
 export function evaluateBlockReason(
   reason: BlockReason,
@@ -1220,11 +1250,7 @@ export function evaluateBlockReason(
         proposedTarget: null,
       }
     case 'material':
-      return {
-        outcome: 'compromise',
-        text: 'No rehago la sesión por el material. Haz los ejercicios que puedas con lo que tengas y salta los demás: lo saltado queda registrado y la próxima propuesta parte de ahí. Si no tienes sitio para entrenar, dime «hoy no puedo» y lo dejamos.',
-        proposedTarget: null,
-      }
+      return evaluateNoEquipment(briefing)
     case 'other':
       return {
         outcome: 'need_info',

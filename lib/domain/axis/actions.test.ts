@@ -414,14 +414,29 @@ test('una carga por encima del material disponible se rechaza', () => {
 })
 
 test('el catálogo real no contiene nada que necesite gimnasio', () => {
-  // Salvaguarda del alcance: si alguien añade un ejercicio de barra o banco, este
-  // test lo caza antes de que AXIS pueda proponerlo.
+  // Salvaguarda del alcance (D-046): material de casa, nada de barra olímpica,
+  // rack, máquinas ni poleas. Si alguien añade uno, este test lo caza.
+  const home = ['ninguno', 'superficie_elevada', 'pesa', 'par_pesas', 'kettlebell', 'barra_dominadas', 'gomas', 'banco']
   for (const exercise of EXERCISE_CATALOG) {
     assert.ok(
-      exercise.equipment.every((item) => ['ninguno', 'pesa', 'superficie_elevada'].includes(item)),
-      `${exercise.id} necesita material que no hay`,
+      exercise.equipment.every((item) => home.includes(item)),
+      `${exercise.id} necesita material que no es de casa`,
     )
   }
+})
+
+test('una carga que el usuario no tiene se rechaza, y una que sí tiene pasa (D-046)', () => {
+  const w = world()
+  const conSesion = [w.decision.primary, ...w.decision.alternatives].find((p) => p.session)
+  assert.ok(conSesion?.session)
+  const con = (kg: number): AxisProposal => ({
+    ...conSesion,
+    session: { ...conSesion.session!, exercises: [{ ...conSesion.session!.exercises[0], suggestedWeightKg: kg }] },
+  })
+  const gear = { items: [], weights: [{ kind: 'mancuerna' as const, kg: 12.5, pair: true }] }
+  assert.equal(isSessionValid(con(12.5), EXERCISE_CATALOG, gear), true)
+  assert.equal(isSessionValid(con(15), EXERCISE_CATALOG, gear), false)
+  assert.equal(isSessionValid(con(5), EXERCISE_CATALOG, { items: [], weights: [] }), false, 'sin pesas no hay carga')
 })
 
 // ---------------------------------------------------------------------------

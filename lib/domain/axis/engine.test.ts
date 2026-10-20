@@ -9,7 +9,7 @@ import { buildAxisContext } from './context'
 import { deriveFacts } from './facts'
 import { decide } from './engine'
 import { isTrainingRecommendation } from './types'
-import { EXERCISE_CATALOG, findExercise, isAvailable, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
+import { EXERCISE_CATALOG, findExercise, isAvailable, LEGACY_LOAD_KG } from '../workouts/catalog'
 import { isMainExercise, usesLoad } from '../workouts/types'
 
 // 2026-09-08 es lunes. Todos los tests fijan la hora para ser deterministas.
@@ -317,14 +317,14 @@ test('con la única pesa ya al máximo, la progresión pasa a repeticiones', () 
           dayKey: SUNDAY_KEY,
           focus: 'tren_inferior',
           muscleGroups: ['piernas'],
-          exercises: [performed('remo-unilateral', MAX_AVAILABLE_LOAD_KG, true)],
+          exercises: [performed('remo-unilateral', LEGACY_LOAD_KG, true)],
         }),
       ],
     }),
   )
   const row = withHistory.primary.session?.exercises.find((item) => item.exerciseId === 'remo-unilateral' && isMainExercise(item))
   assert.ok(row)
-  assert.equal(row!.suggestedWeightKg, MAX_AVAILABLE_LOAD_KG, 'no hay más pesa que sugerir')
+  assert.equal(row!.suggestedWeightKg, LEGACY_LOAD_KG, 'no hay más pesa que sugerir')
   assert.ok(row!.reps > 12, `las repeticiones deberían subir, fueron ${row!.reps}`)
 })
 
@@ -336,7 +336,7 @@ test('nunca se sugiere más carga de la que existe', () => {
           dayKey: SUNDAY_KEY,
           focus: 'tren_inferior',
           muscleGroups: ['piernas'],
-          exercises: [performed('remo-unilateral', MAX_AVAILABLE_LOAD_KG, true)],
+          exercises: [performed('remo-unilateral', LEGACY_LOAD_KG, true)],
         }),
       ],
     }),
@@ -344,8 +344,8 @@ test('nunca se sugiere más carga de la que existe', () => {
   for (const exercise of decision.primary.session?.exercises ?? []) {
     if (exercise.suggestedWeightKg === null) continue
     assert.ok(
-      exercise.suggestedWeightKg <= MAX_AVAILABLE_LOAD_KG,
-      `${exercise.name} sugiere ${exercise.suggestedWeightKg} kg y solo hay una pesa de ${MAX_AVAILABLE_LOAD_KG}`,
+      exercise.suggestedWeightKg <= LEGACY_LOAD_KG,
+      `${exercise.name} sugiere ${exercise.suggestedWeightKg} kg y solo hay una pesa de ${LEGACY_LOAD_KG}`,
     )
   }
 })
@@ -376,7 +376,7 @@ test('los ejercicios de peso corporal nunca llevan carga sugerida', () => {
     if (!usesLoad(exercise!)) {
       assert.equal(planned.suggestedWeightKg, null, `${planned.name} no usa pesa`)
     } else {
-      assert.equal(planned.suggestedWeightKg, MAX_AVAILABLE_LOAD_KG)
+      assert.equal(planned.suggestedWeightKg, LEGACY_LOAD_KG)
     }
   }
 })

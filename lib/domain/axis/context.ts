@@ -12,6 +12,7 @@ import { computeRecoveryScore } from '../recovery/score'
 import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
 import { todayKey, type DayKey } from '../shared/dates'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { equipmentOf, NO_EQUIPMENT, type UserEquipment } from '../workouts/equipment'
 import type { Exercise, WorkoutSession } from '../workouts/types'
 import type { AxisContext } from './types'
 
@@ -27,6 +28,8 @@ export type AxisContextInput = {
   availableMinutesToday?: number | null
   /** El entrenamiento de ayer se movió a hoy (D-022). */
   movedFromYesterday?: boolean
+  /** Hoy se entrena sin material (D-046). */
+  withoutEquipmentToday?: boolean
   /** Tests de evolución guardados (D-021). Por defecto, ninguno. */
   assessments?: readonly Assessment[]
   /** Escaneos corporales guardados (D-023). Por defecto, ninguno. */
@@ -60,8 +63,17 @@ export function buildAxisContext(input: AxisContextInput): AxisContext {
     cancelledToday: input.cancelledToday ?? [],
     availableMinutesToday: input.availableMinutesToday ?? null,
     movedFromYesterday: input.movedFromYesterday ?? false,
+    withoutEquipmentToday: input.withoutEquipmentToday ?? false,
     assessments: input.assessments ?? [],
     scans: input.scans ?? [],
     catalog: input.catalog ?? EXERCISE_CATALOG,
   }
+}
+
+/**
+ * El material con el que se entrena hoy (D-046): el del perfil, o solo el
+ * cuerpo si hoy el usuario ha dicho que está sin material.
+ */
+export function gearToday(context: Pick<AxisContext, 'profile' | 'withoutEquipmentToday'>): UserEquipment {
+  return context.withoutEquipmentToday ? NO_EQUIPMENT : equipmentOf(context.profile)
 }

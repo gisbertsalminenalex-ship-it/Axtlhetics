@@ -84,6 +84,11 @@ export type AxisDayMemory = {
    * día anterior que se aplica.
    */
   movedTo?: DayKey | null
+  /**
+   * Hoy se entrena sin material (D-046), confirmado en la conversación. Solo
+   * vale para este día. Ausente en los registros anteriores.
+   */
+  withoutEquipment?: boolean
   /** Lo necesario para deshacer la última acción aplicada hoy (D-022). */
   lastApplied?: LastApplied | null
   /**
@@ -101,6 +106,7 @@ export type DayChanges = {
   override?: DayPlanOverride | null
   availableMinutes?: number | null
   movedTo?: DayKey | null
+  withoutEquipment?: boolean
 }
 
 /**
@@ -116,6 +122,8 @@ export type LastApplied = {
     override: DayPlanOverride | null
     availableMinutes: number | null
     movedTo: DayKey | null
+    /** Ausente en lo guardado antes de D-046: se lee como `false`. */
+    withoutEquipment?: boolean
   }
   /** La actividad que creó la acción, si creó una: deshacer la retira. */
   createdActivity: ScheduledActivity | null
@@ -170,6 +178,10 @@ function isOptionalMinutes(value: unknown): boolean {
   return value === undefined || value === null || (typeof value === 'number' && Number.isInteger(value) && value > 0)
 }
 
+function isOptionalFlag(value: unknown): boolean {
+  return value === undefined || typeof value === 'boolean'
+}
+
 function isOptionalDay(value: unknown): boolean {
   return value === undefined || value === null || isDayKey(value)
 }
@@ -183,6 +195,7 @@ function isLastAppliedShape(value: unknown): boolean {
     (previous.override === null || isRecord(previous.override)) &&
     isOptionalMinutes(previous.availableMinutes) &&
     isOptionalDay(previous.movedTo) &&
+    isOptionalFlag(previous.withoutEquipment) &&
     (value.createdActivity === null || isScheduledActivity(value.createdActivity))
   )
 }
@@ -191,6 +204,7 @@ export function isAxisDayMemory(value: unknown): value is AxisDayMemory {
   if (!isRecord(value)) return false
   if (!isOptionalMinutes(value.availableMinutes)) return false
   if (!isOptionalDay(value.movedTo)) return false
+  if (!isOptionalFlag(value.withoutEquipment)) return false
   if (!isLastAppliedShape(value.lastApplied)) return false
   if (
     value.discomforts !== undefined &&
@@ -428,6 +442,7 @@ export function applyDayChanges(
       override: memory.override,
       availableMinutes: memory.availableMinutes ?? null,
       movedTo: memory.movedTo ?? null,
+      withoutEquipment: memory.withoutEquipment ?? false,
     },
     createdActivity,
   }
@@ -469,6 +484,7 @@ export function undoLastApplied(
       override: previous.override,
       availableMinutes: previous.availableMinutes,
       movedTo: previous.movedTo,
+      withoutEquipment: previous.withoutEquipment ?? false,
       lastApplied: null,
       actionStatuses: { ...memory.actionStatuses, [actionId]: { state: 'undone' } },
     },

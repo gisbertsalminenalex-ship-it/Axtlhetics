@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { EXERCISE_CATALOG, findExercise, LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
+import { EXERCISE_CATALOG, findExercise, isAvailable, LEGACY_LOAD_KG } from '../workouts/catalog'
 import type { CompletedSet, Exercise, WorkoutSession } from '../workouts/types'
 import { FOCUS_CATEGORIES, isMainExercise, usesLoad, type ExercisePhase } from '../workouts/types'
 import {
@@ -127,7 +127,7 @@ test('sin historial la carga sugerida es la pesa disponible y las reps las del e
   const remo = exercise('remo-unilateral')
   assert.ok(usesLoad(remo))
   const work = suggestWorkFor(remo, BASE)
-  assert.equal(work.weightKg, MAX_AVAILABLE_LOAD_KG)
+  assert.equal(work.weightKg, LEGACY_LOAD_KG)
   assert.equal(work.reps, remo.work.reps)
 })
 
@@ -135,14 +135,14 @@ test('con todas las series hechas y carga por debajo del máximo, sube la carga 
   const remo = exercise('remo-unilateral')
   const history = [performed('remo-unilateral', [{ reps: 12, weightKg: 2.5, completed: true }])]
   const work = suggestWorkFor(remo, { ...BASE, history })
-  assert.equal(work.weightKg, Math.min(2.5 + LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG))
+  assert.equal(work.weightKg, LEGACY_LOAD_KG)
 })
 
 test('con la pesa al máximo, la progresión pasa a repeticiones y se detiene en el tope', () => {
   const remo = exercise('remo-unilateral')
   const history = [performed('remo-unilateral', [{ reps: 12, weightKg: 5, completed: true }])]
   const work = suggestWorkFor(remo, { ...BASE, history })
-  assert.equal(work.weightKg, MAX_AVAILABLE_LOAD_KG, 'la carga no puede pasar del material que hay')
+  assert.equal(work.weightKg, LEGACY_LOAD_KG, 'la carga no puede pasar del material que hay')
   assert.equal(work.reps, 14)
 
   const atCap = [performed('remo-unilateral', [{ reps: 99, weightKg: 5, completed: true }])]
@@ -236,7 +236,7 @@ test('ninguna sesión sugiere más carga que la pesa disponible', () => {
   for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo', 'core_movilidad'] as const) {
     const session = buildSession({ focus, intensity: 'alta', availableMinutes: 60, goals: ['fuerza'], experience: 'avanzado' })
     for (const item of session.exercises) {
-      if (item.suggestedWeightKg !== null) assert.ok(item.suggestedWeightKg <= MAX_AVAILABLE_LOAD_KG, item.exerciseId)
+      if (item.suggestedWeightKg !== null) assert.ok(item.suggestedWeightKg <= LEGACY_LOAD_KG, item.exerciseId)
     }
   }
 })
@@ -314,7 +314,7 @@ test('con el flujo real, menos reps de las previstas no suben la carga', () => {
 test('con el flujo real, lo previsto entero sí sube la carga', () => {
   const full = realSession((w) => completeSet(completeSet(completeSet(w))))
   const work = suggestWorkFor(exercise('remo-unilateral'), { ...BASE, history: [full] })
-  assert.equal(work.weightKg, Math.min(2.5 + LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG))
+  assert.equal(work.weightKg, LEGACY_LOAD_KG)
 })
 
 // ---------------------------------------------------------------------------
@@ -398,6 +398,7 @@ test('con el tiempo salen todos los ejercicios de dificultad equivalente: ningun
   const expected = EXERCISE_CATALOG.filter(
     (item) =>
       (item.category === 'empuje' || item.category === 'tiron') &&
+      isAvailable(item) &&
       Math.abs(item.difficulty - target) <= ROTATION_DIFFICULTY_BAND &&
       adaptDifficulty(item, target).id === item.id,
   )

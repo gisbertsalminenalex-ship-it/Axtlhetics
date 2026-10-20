@@ -8,24 +8,29 @@
  *
  * 1. **Solo se proponen ejercicios ejecutables.** Un ejercicio que necesita material
  *    inexistente no entra en el pool, punto.
- * 2. **La progresión no es solo carga.** Con una única pesa de 5 kg no se puede subir
- *    peso indefinidamente, así que el sistema progresa por repeticiones y, cuando el
- *    ejercicio se domina, cambiando a una variante más exigente.
+ * 2. **La progresión no es solo carga.** Se sube con los pesos que el usuario
+ *    tiene (D-046): repeticiones hasta el techo, luego el siguiente peso y, cuando
+ *    ya no hay uno mayor, una variante más exigente.
  */
 
 import type { ExperienceLevel, TrainingGoal } from '../profile/types'
 import type { DayKey } from '../shared/dates'
 import { clamp } from '../shared/ids'
 import {
-  AVAILABLE_EQUIPMENT,
   EXERCISE_CATALOG,
   exercisesAvoidingGroups,
   exercisesForFocus,
   isAvailable,
-  LOAD_STEP_KG,
-  MAX_AVAILABLE_LOAD_KG,
   variantOf,
 } from '../workouts/catalog'
+import {
+  availableEquipment,
+  LEGACY_EQUIPMENT,
+  loadsFor,
+  nextLoad,
+  startingLoad,
+  type UserEquipment,
+} from '../workouts/equipment'
 import type {
   Difficulty,
   Equipment,
@@ -138,7 +143,11 @@ export type SessionBuildOptions = {
   /** Grupos que la sesión debe evitar, por ejemplo por una actividad fija cercana. */
   avoidMuscleGroups?: readonly MuscleGroup[]
   catalog?: readonly Exercise[]
-  equipment?: readonly Equipment[]
+  /**
+   * El material del usuario (D-046): qué ejercicios caben y con qué kilos. Por
+   * defecto, el de un perfil anterior: una pesa de 5 kg.
+   */
+  gear?: UserEquipment
   /** Historial reciente, de la sesión más nueva a la más antigua. */
   history?: readonly WorkoutSession[]
   /**
@@ -392,16 +401,20 @@ export function repCapFor(exercise: Exercise): number {
 }
 
 /**
- * `true` si la última vez se completó todo y ya se está en el techo de repeticiones.
- * Es la señal para pasar a la variante más exigente, no para subir más el peso.
+ * `true` si la última vez se completó todo, ya se está en el techo de
+ * repeticiones y, con carga, no queda un peso mayor (D-046). Es la señal para
+ * pasar a la variante más exigente.
  */
 export function hasMastered(
   exercise: Exercise,
   history: readonly WorkoutSession[],
+  gear: UserEquipment = LEGACY_EQUIPMENT,
 ): boolean {
   const last = lastPerformanceOf(exercise.id, history)
   if (!last || !last.allSetsCompleted) return false
-  return last.reps >= repCapFor(exercise)
+  if (last.reps < repCapFor(exercise)) return false
+  if (!usesLoad(exercise)) return true
+  return nextLoad(loadsFor(exercise, gear), last.weightKg ?? 0) === null
 }
 
 export type SuggestedWork = {
@@ -418,12 +431,14 @@ export type SuggestedWork = {
  * 1. Si la última vez no se completó todo → se repiten los mismos parámetros.
  * 2. Si la última vez fue «al límite» → también se repite: hecho, pero sin
  *    margen para subir (D-031).
- * 3. Si el ejercicio usa pesa y aún queda margen de carga → sube la carga.
- * 4. En cualquier otro caso → sube repeticiones (o segundos en los
+ * 3. Si se usó menos que el peso de partida → se vuelve al de partida.
+ * 4. Si ya se está en el techo de repeticiones y hay un peso mayor → el
+ *    siguiente peso, con las repeticiones de partida (doble progresión, D-046).
+ * 5. En cualquier otro caso → sube repeticiones (o segundos en los
  *    isométricos), el doble si la última vez fue fácil o muy fácil (D-031).
  *
  * En una semana de descarga (D-031) hay una serie menos y no se sube nada.
- * Nunca se sugiere una carga por encima de la pesa que existe.
+ * Solo se sugieren pesos que el usuario tiene (D-046).
  */
 export function suggestWorkFor(
   exercise: Exercise,
@@ -433,9 +448,10 @@ export function suggestWorkFor(
     experience: ExperienceLevel
     history?: readonly WorkoutSession[]
     deload?: boolean
+    gear?: UserEquipment
   },
 ): SuggestedWork {
-  const { intensity, goals, experience, history = [], deload = false } = options
+  const { intensity, goals, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT } = options
 
   const maxSets = MAX_SETS_BY_EXPERIENCE[experience] ?? MAX_SETS_BY_EXPERIENCE[DEFAULT_EXPERIENCE]
   const normalSets = clamp(exercise.work.sets + SET_SHIFT[intensity], MIN_SETS, maxSets)
@@ -448,27 +464,29 @@ export function suggestWorkFor(
     ? exercise.work.reps
     : Math.max(5, Math.round(exercise.work.reps * repFactor))
 
-  const loaded = usesLoad(exercise)
-  const baseWeight = loaded ? MAX_AVAILABLE_LOAD_KG : null
+  const loads = usesLoad(exercise) ? loadsFor(exercise, gear) : []
+  const baseWeight = startingLoad(exercise, loads, experience)
 
   const last = lastPerformanceOf(exercise.id, history)
   if (!last) {
     return { sets, reps: baseReps, weightKg: baseWeight }
   }
 
-  const lastWeight = loaded ? (last.weightKg ?? baseWeight) : null
+  const lastWeight = baseWeight === null ? null : (last.weightKg ?? baseWeight)
   const lastReps = Math.max(baseReps, last.reps)
 
   if (!last.allSetsCompleted || deload || (last.effort !== null && last.effort >= AT_LIMIT_EFFORT)) {
     return { sets, reps: lastReps, weightKg: lastWeight }
   }
 
-  if (loaded && lastWeight !== null && lastWeight < MAX_AVAILABLE_LOAD_KG) {
-    return {
-      sets,
-      reps: lastReps,
-      weightKg: Math.min(lastWeight + LOAD_STEP_KG, MAX_AVAILABLE_LOAD_KG),
-    }
+  if (lastWeight !== null && baseWeight !== null && lastWeight < baseWeight) {
+    return { sets, reps: lastReps, weightKg: baseWeight }
+  }
+
+  // En el techo y con un peso mayor a mano: se sube de peso y se vuelve a las repeticiones de partida.
+  const heavier = lastWeight === null ? null : nextLoad(loads, lastWeight)
+  if (heavier !== null && lastReps >= repCapFor(exercise)) {
+    return { sets, reps: baseReps, weightKg: heavier }
   }
 
   const baseStep = exercise.work.isTimed ? HOLD_PROGRESSION_STEP : REP_PROGRESSION_STEP
@@ -497,16 +515,17 @@ export function adaptDifficulty(
   options: {
     history?: readonly WorkoutSession[]
     catalog?: readonly Exercise[]
-    equipment?: readonly Equipment[]
+    gear?: UserEquipment
   } = {},
 ): Exercise {
-  const { history = [], catalog, equipment } = options
+  const { history = [], catalog, gear = LEGACY_EQUIPMENT } = options
+  const equipment = availableEquipment(gear)
 
   if (exercise.difficulty > target) {
     return variantOf(exercise, 'easier', catalog, equipment)
   }
   // Solo se sube de variante cuando el ejercicio actual ya se domina.
-  if (exercise.difficulty < target && hasMastered(exercise, history)) {
+  if (exercise.difficulty < target && hasMastered(exercise, history, gear)) {
     return variantOf(exercise, 'harder', catalog, equipment)
   }
   return exercise
@@ -663,7 +682,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     experience,
     avoidMuscleGroups = [],
     catalog,
-    equipment = AVAILABLE_EQUIPMENT,
+    gear = LEGACY_EQUIPMENT,
     history = [],
     today,
     deload = false,
@@ -674,6 +693,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     preferUnilateral = false,
   } = options
 
+  const equipment = availableEquipment(gear)
   // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
   const usage = exerciseUsage(history, { catalog: catalog ?? EXERCISE_CATALOG, today })
 
@@ -721,7 +741,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     focus,
     count,
     // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
-    (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, equipment }),
+    (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear }),
     target,
     usage,
   )
@@ -736,7 +756,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const main = jump ? [jump, ...prioritized] : prioritized
 
   const exercises: PlannedExercise[] = main.map((exercise) => {
-    const work = suggestWorkFor(exercise, { intensity, goals, experience, history, deload })
+    const work = suggestWorkFor(exercise, { intensity, goals, experience, history, deload, gear })
     return {
       exerciseId: exercise.id,
       name: exercise.name,

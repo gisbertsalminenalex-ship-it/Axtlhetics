@@ -183,7 +183,7 @@ export function createAxisConversation(
      * respuesta de datos sin datos (D-027): no hay cifras que redactar, y es
      * justo donde el modelo podría convertir una ausencia en un hecho.
      */
-    const intent = matchIntent(understandMessage(question, briefing), memory?.lastIntent ?? null).intent
+    const intent = matchIntent(understandMessage(question, briefing), memory?.lastIntent ?? null, briefing.equipment).intent
 
     // Lo que ni corregido se entiende lo reescribe el modelo y lo responde el determinista (D-028).
     if (intent === 'unknown' && local.intent === 'unknown' && (await ai.isAvailable())) {

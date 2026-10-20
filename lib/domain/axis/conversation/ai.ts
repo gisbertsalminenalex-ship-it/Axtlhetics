@@ -133,13 +133,16 @@ export function tidyChatText(text: string, name: string | null): string {
  * Y se quita el bloque `scan` (D-023): el escaneo corporal es lo más personal que
  * guarda la app. Las respuestas sobre él son deterministas y nada de él sale del
  * dispositivo.
+ *
+ * Y el material (D-046): solo sirve para resolver nombres de ejercicio, que es
+ * determinista.
  */
-export type AxisAiBriefing = Omit<AxisBriefing, 'profile' | 'assessment' | 'scan'> & {
+export type AxisAiBriefing = Omit<AxisBriefing, 'profile' | 'assessment' | 'scan' | 'equipment'> & {
   profile: Omit<NonNullable<AxisBriefing['profile']>, 'name'> | null
 }
 
 export function toAiBriefing(briefing: AxisBriefing): AxisAiBriefing {
-  const { assessment: _assessment, scan: _scan, profile, ...shared } = briefing
+  const { assessment: _assessment, scan: _scan, equipment: _equipment, profile, ...shared } = briefing
   if (!profile) return { ...shared, profile: null }
 
   const { name: _name, ...rest } = profile

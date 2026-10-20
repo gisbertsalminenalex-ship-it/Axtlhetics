@@ -494,6 +494,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       cancelledToday: memory.cancelledActivities,
       availableMinutesToday: memory.availableMinutes ?? null,
       movedFromYesterday,
+      withoutEquipmentToday: memory.withoutEquipment ?? false,
       // Modelos del dominio, ya validados por el repositorio: AXIS no ve el almacén.
       assessments: assessments.assessments,
       scans: scans.scans,
@@ -508,6 +509,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     memory.cancelledActivities,
     memory.availableMinutes,
     movedFromYesterday,
+    memory.withoutEquipment,
     assessments.assessments,
     scans.scans,
   ])

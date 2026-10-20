@@ -116,6 +116,7 @@ type Setup = {
   movedFromYesterday?: boolean
   availableMinutesToday?: number | null
   movedTo?: string | null
+  withoutEquipmentToday?: boolean
 }
 
 function setup(options: Setup = {}) {
@@ -127,6 +128,7 @@ function setup(options: Setup = {}) {
     activities: options.activities ?? [],
     movedFromYesterday: options.movedFromYesterday,
     availableMinutesToday: options.availableMinutesToday,
+    withoutEquipmentToday: options.withoutEquipmentToday,
     now: MONDAY,
   })
   const decision = decide(context)
@@ -490,12 +492,64 @@ const AFTER_ASKING = {
   lastChangeRequest: { kind: 'cannot_planned', focus: null },
 }
 
-test('el motivo material o sitio no es descansar, y no hay filtro por material', () => {
+test('el motivo material o sitio no es descansar: hoy se entrena sin material (D-046)', () => {
   const { briefing } = setup()
-  const answer = answerFromBriefing('no tengo material para entrenar', briefing, AFTER_ASKING)
-  assert.equal(answer.verdict, 'compromise')
+  const answer = answerFromBriefing('el material, estoy fuera', briefing, AFTER_ASKING)
+  assert.equal(answer.verdict, 'accept')
   assert.equal(answer.proposedTarget ?? null, null)
+  assert.deepEqual(answer.proposedEffect, { kind: 'train_without_equipment' })
+})
+
+// ---------------------------------------------------------------------------
+// 8. «Hoy estoy sin material» (D-046)
+// ---------------------------------------------------------------------------
+
+test('«hoy estoy sin material», «estoy de viaje» o «no tengo las pesas» proponen rehacer la sesión sin material', () => {
+  const { briefing } = setup()
+  for (const message of ['hoy estoy sin material', 'estoy de viaje', 'no tengo las pesas aquí', 'hoy entreno sin pesas']) {
+    const answer = answerFromBriefing(message, briefing)
+    assert.deepEqual(answer.proposedEffect, { kind: 'train_without_equipment' }, message)
+    assert.match(answer.text, /solo con tu peso corporal/, message)
+  }
+})
+
+test('sin material hoy, la sesión no lleva carga y el perfil no cambia', () => {
+  const normal = setup().decision.primary.session!
+  assert.ok(normal.exercises.some((item) => item.suggestedWeightKg !== null), 'con la pesa de 5 kg hay carga')
+  const bare = setup({ withoutEquipmentToday: true }).decision.primary.session!
+  assert.ok(bare.exercises.every((item) => item.suggestedWeightKg === null))
+  assert.equal(bare.focus, normal.focus, 'el criterio del día no cambia: solo el material')
+})
+
+test('confirmar «sin material» lo guarda en el día, y deshacerlo devuelve el material', async () => {
+  const { briefing, day } = setup()
+  const action = proposeAction(day, answerFromBriefing('hoy estoy sin material', briefing))!
+  assert.equal(action.type, 'train_without_equipment')
+  assert.ok(isActionProposal(action))
+
+  const disk = port()
+  const applied = await executeAction(action, day, emptyDayMemory(TODAY, NOW), disk, NOW)
+  assert.ok(applied.ok)
+  if (!applied.ok) return
+  assert.equal(applied.memory.withoutEquipment, true)
+  assert.ok(isAxisDayMemory(applied.memory))
+
+  const undone = await undoAction(action.id, applied.memory, disk, { workoutStarted: false }, NOW)
+  assert.ok(undone.ok)
+  if (undone.ok) assert.equal(undone.memory.withoutEquipment, false)
+})
+
+test('si ya se entrena sin material, o el perfil no tiene material, no hay nada que cambiar', () => {
+  const already = setup({ withoutEquipmentToday: true })
+  const answer = answerFromBriefing('hoy estoy sin material', already.briefing)
   assert.equal(answer.proposedEffect ?? null, null)
+  assert.match(answer.text, /Ya tengo en cuenta/)
+
+  const bare = setup({ profile: profile({ equipment: { items: [], weights: [] } }) })
+  const noGear = answerFromBriefing('hoy estoy sin material', bare.briefing)
+  assert.equal(noGear.proposedEffect ?? null, null)
+  const action = proposeAction(bare.day, { proposedEffect: { kind: 'train_without_equipment' } })!
+  assert.equal(validateAction(action, bare.decision, bare.context, bare.day.selected).ok, false)
 })
 
 test('el motivo tiempo se trata como minutos; la zona, como evitar la zona', () => {

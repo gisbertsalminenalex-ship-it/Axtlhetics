@@ -8,6 +8,7 @@
 
 import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { gearToday } from './context'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
 import { planSummary, type PhysiquePlan } from '../scanner/physique'
@@ -119,6 +120,8 @@ function planSession(
     availableMinutes: minutes,
     goals: context.profile?.goals ?? DEFAULT_GOALS,
     experience: context.profile?.experience ?? DEFAULT_EXPERIENCE,
+    // Lo que se puede hacer con su material, y con qué kilos (D-046).
+    gear: gearToday(context),
     avoidMuscleGroups: muscleGroupsToAvoid(facts),
     catalog: context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG,
     history: context.recentSessions,

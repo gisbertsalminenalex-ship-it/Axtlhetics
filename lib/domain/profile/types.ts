@@ -8,6 +8,7 @@
  */
 
 import { weekdayOfKey, type DayKey, type Weekday } from '../shared/dates'
+import { isUserEquipment, type UserEquipment } from '../workouts/equipment'
 import {
   isArrayOf,
   isDayKey,
@@ -170,6 +171,11 @@ export type UserProfile = {
    * propone mientras haya alternativas. Ausente en los perfiles anteriores.
    */
   dislikedExercises?: string[]
+  /**
+   * El material con el que entrena (D-046). Ausente en los perfiles anteriores,
+   * que se leen como una pesa de 5 kg (`equipmentOf`).
+   */
+  equipment?: UserEquipment
   createdAt: string
   updatedAt: string
 }
@@ -339,6 +345,7 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (value.dislikedExercises !== undefined && !isArrayOf(value.dislikedExercises, (item): item is string => typeof item === 'string')) {
     return false
   }
+  if (value.equipment !== undefined && !isUserEquipment(value.equipment)) return false
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }
 

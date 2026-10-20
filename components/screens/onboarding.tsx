@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
+import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -24,6 +25,7 @@ import {
 } from '@/lib/domain/profile/types'
 import { WEEKDAY_LABELS, type Weekday } from '@/lib/domain/shared/dates'
 import { MUSCLE_GROUP_LABELS } from '@/lib/domain/workouts/types'
+import { NO_EQUIPMENT } from '@/lib/domain/workouts/equipment'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -48,6 +50,7 @@ const DEFAULT_DRAFT: UserProfileDraft = {
   experience: 'principiante',
   availableWeekdays: [0, 2, 4],
   typicalSessionMinutes: 45,
+  equipment: NO_EQUIPMENT,
 }
 
 type SportDraft = {
@@ -82,6 +85,7 @@ type StepId =
   | 'experience'
   | 'weekdays'
   | 'duration'
+  | 'equipment'
   | 'body'
   | 'sports'
   | { kind: 'sport-days'; sportIndex: number }
@@ -150,6 +154,13 @@ export function OnboardingScreen() {
         id: 'duration',
         question: '¿Cuánto tiempo sueles tener?',
         hint: 'Determina cuántos ejercicios entran en la sesión.',
+        canContinue: true,
+      },
+      {
+        key: 'equipment',
+        id: 'equipment',
+        question: '¿Con qué material entrenas?',
+        hint: 'AXIS solo te propondrá ejercicios que puedas hacer, y con los pesos que tienes. Si no tienes nada, sigue: se entrena con tu peso corporal.',
         canContinue: true,
       },
       {
@@ -369,6 +380,13 @@ export function OnboardingScreen() {
               min={20}
               max={120}
               onChange={(typicalSessionMinutes) => patch({ typicalSessionMinutes })}
+            />
+          )}
+
+          {step.id === 'equipment' && (
+            <EquipmentPicker
+              value={draft.equipment ?? NO_EQUIPMENT}
+              onChange={(equipment) => patch({ equipment })}
             />
           )}
 

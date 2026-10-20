@@ -54,8 +54,14 @@ export type FigureSpec = {
   /** De frente: los dos lados se ven igual y los hombros y caderas se separan. */
   readonly view?: 'side' | 'front'
   readonly props?: readonly Prop[]
-  /** Si lleva pesa: va en la mano cercana (si se sujeta con las dos, las dos manos llegan al mismo sitio). */
-  readonly weight?: boolean
+  /**
+   * Si lleva pesa: `true`, una en la mano cercana (si se sujeta con las dos, las
+   * dos manos llegan al mismo sitio); `'pair'`, una en cada mano; `'kettlebell'`,
+   * una kettlebell colgando de la mano cercana (D-046).
+   */
+  readonly weight?: boolean | 'pair' | 'kettlebell'
+  /** Goma elástica (D-046): del punto de anclaje a la mano cercana, o a las dos. */
+  readonly band?: { readonly from: Point; readonly both?: boolean }
 }
 
 export type Limb = { root: Point; joint: Point; end: Point; tip: Point | null }

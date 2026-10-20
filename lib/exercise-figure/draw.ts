@@ -52,6 +52,15 @@ function limbShapes(limb: Limb, upper: number, lower: number, color: Tone): Shap
   return shapes
 }
 
+/** Una kettlebell: el asa en la mano y la bola colgando en la dirección del antebrazo. */
+function kettlebellShapes(hand: Point, along_: number): Shape[] {
+  const center = along(hand, along_, 10)
+  return [
+    { kind: 'line', a: hand, b: along(hand, along_, 4), width: 3.5, tone: 'ink' },
+    { kind: 'circle', c: center, r: 7.5, tone: 'ink' },
+  ]
+}
+
 function weightShapes(at: Point, across: number): Shape[] {
   // Una pesa vista de lado: el mango y los dos discos, perpendicular al antebrazo.
   const a = along(at, across, 9)
@@ -72,6 +81,12 @@ export function figureShapes(spec: FigureSpec, s: Skeleton, muscles: MuscleMap):
   for (const prop of spec.props ?? []) {
     if (prop.kind === 'box') shapes.push({ kind: 'rect', x: prop.x, y: prop.y, w: prop.w, h: prop.h, tone: 'prop' })
     else shapes.push({ kind: 'rect', x: prop.x, y: 12, w: 6, h: FLOOR_Y - 12, tone: 'prop' })
+  }
+
+  // La goma, detrás del cuerpo: del anclaje a las manos (D-046).
+  if (spec.band) {
+    const hands = spec.band.both ? [s.farArm.end, s.arm.end] : [s.arm.end]
+    for (const hand of hands) shapes.push({ kind: 'line', a: spec.band.from, b: hand, width: 2, tone: 'ink' })
   }
 
   // Lo que queda detrás.
@@ -111,6 +126,11 @@ export function figureShapes(spec: FigureSpec, s: Skeleton, muscles: MuscleMap):
   }
 
   // La pesa va en la mano cercana; si se sujeta con las dos, las dos manos llegan al mismo sitio.
-  if (spec.weight) shapes.push(...weightShapes(s.arm.end, angleOf(s.arm.joint, s.arm.end) + 90))
+  // Con un par, también en la lejana; la kettlebell cuelga de la mano (D-046).
+  if (spec.weight === 'kettlebell') shapes.push(...kettlebellShapes(s.arm.end, angleOf(s.arm.joint, s.arm.end)))
+  else if (spec.weight) {
+    if (spec.weight === 'pair') shapes.push(...weightShapes(s.farArm.end, angleOf(s.farArm.joint, s.farArm.end) + 90))
+    shapes.push(...weightShapes(s.arm.end, angleOf(s.arm.joint, s.arm.end) + 90))
+  }
   return shapes
 }

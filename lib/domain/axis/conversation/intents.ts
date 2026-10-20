@@ -13,8 +13,8 @@
  *    seguimiento se resuelve contra lo último que se habló.
  */
 
-import { EXERCISE_CATALOG } from '../../workouts/catalog'
-import type { Exercise } from '../../workouts/types'
+import { DEFAULT_EQUIPMENT, EXERCISE_CATALOG, isAvailable } from '../../workouts/catalog'
+import type { Equipment, Exercise } from '../../workouts/types'
 import { FOCUS_TERMS, type SessionFocus } from '../knowledge/focus'
 import { SPORT_TERMS } from '../knowledge/sports'
 import type { AxisIntent } from './types'
@@ -356,19 +356,28 @@ function exerciseQuestionQuery(question: string): string | null {
 export function resolveExercise(
   question: string,
   catalog: readonly Exercise[] = EXERCISE_CATALOG,
+  /** Lo que el material del usuario permite (D-046). Por defecto, el de un perfil anterior. */
+  available: readonly Equipment[] = DEFAULT_EQUIPMENT,
 ): ExerciseResolution {
   const text = normalizeQuestion(question)
   const byLength = [...catalog].sort((a, b) => b.name.length - a.name.length)
   const fullName = byLength.find((exercise) => includesWord(text, normalizeQuestion(exercise.name))) ?? null
 
   const asked = new Set(exerciseWords(question))
-  const scored = catalog
+  const matching = catalog
     .map((exercise) => {
       const words = [...new Set(exerciseWords(exercise.name))]
       const matched = words.filter((word) => asked.has(word))
       return { exercise, words, matched }
     })
     .filter(({ words, matched }) => words.length > 0 && (matched.includes(words[0]) || matched.length >= 2))
+  /*
+   * Entre los que encajan, cuentan los que el usuario puede hacer con su
+   * material (D-046): con una sola pesa, «el press de suelo» es el de una mano.
+   * Si no puede hacer ninguno, se sigue respondiendo por el nombre.
+   */
+  const doable = matching.filter(({ exercise }) => isAvailable(exercise, available))
+  const scored = doable.length > 0 ? doable : matching
 
   // Sin ejercicio: `query` dice si al menos se preguntaba por uno.
   const query = exerciseQuestionQuery(question)
@@ -429,8 +438,12 @@ export const INTENT_VOCABULARY: readonly (string | RegExp)[] = [
 ]
 
 /** El ejercicio que nombra el mensaje, solo si no hay dudas. */
-export function detectExercise(question: string, catalog: readonly Exercise[] = EXERCISE_CATALOG): Exercise | null {
-  const resolution = resolveExercise(question, catalog)
+export function detectExercise(
+  question: string,
+  catalog: readonly Exercise[] = EXERCISE_CATALOG,
+  available: readonly Equipment[] = DEFAULT_EQUIPMENT,
+): Exercise | null {
+  const resolution = resolveExercise(question, catalog, available)
   return resolution.kind === 'found' ? resolution.exercise : null
 }
 
@@ -441,6 +454,8 @@ export function detectIntent(question: string, previous: AxisIntent | null = nul
 export function matchIntent(
   question: string,
   previous: AxisIntent | null = null,
+  /** Lo que el material del usuario permite (D-046), para resolver el ejercicio. */
+  available: readonly Equipment[] = DEFAULT_EQUIPMENT,
 ): IntentMatch {
   const text = normalizeQuestion(question)
   const focus = detectFocus(question)
@@ -472,7 +487,7 @@ export function matchIntent(
    * pregunta de ejercicio si hay ejercicio, si hay dudas sobre cuál, o si tiene
    * la forma de una y no está en el catálogo.
    */
-  const exercise = resolveExercise(question)
+  const exercise = resolveExercise(question, EXERCISE_CATALOG, available)
   if (exercise.kind !== 'not_found' || exercise.query !== null) {
     return { intent: 'exercise', focus, isFollowUp, exercise }
   }

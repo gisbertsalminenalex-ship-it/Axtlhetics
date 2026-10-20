@@ -65,10 +65,25 @@ export const FOCUS_MUSCLE_GROUPS: Record<SessionFocus, MuscleGroup[]> = {
 export type SessionIntensity = 'ligera' | 'moderada' | 'alta'
 
 /**
- * Equipamiento. `superficie_elevada` no es material: es cualquier superficie estable
- * del entorno (una silla, un sofá, un escalón).
+ * Lo que un ejercicio necesita. `superficie_elevada` no es material: es cualquier
+ * superficie estable del entorno (una silla, un sofá, un escalón).
+ *
+ * Con pesas (D-046): `pesa` se cumple con cualquier peso, mancuerna o
+ * kettlebell; `par_pesas`, con un par del mismo peso; `kettlebell`, solo con una
+ * kettlebell. Qué tiene cada usuario lo dice su perfil (`workouts/equipment.ts`).
  */
-export type Equipment = 'ninguno' | 'pesa' | 'superficie_elevada'
+export type Equipment =
+  | 'ninguno'
+  | 'superficie_elevada'
+  | 'pesa'
+  | 'par_pesas'
+  | 'kettlebell'
+  | 'barra_dominadas'
+  | 'gomas'
+  | 'banco'
+
+/** Lo que pide carga externa: es lo que progresa en kg. */
+export const LOAD_EQUIPMENT: readonly Equipment[] = ['pesa', 'par_pesas', 'kettlebell']
 
 /**
  * Patrón de movimiento. Es lo que AXIS usa para equilibrar una sesión.
@@ -130,11 +145,16 @@ export type Exercise = {
   family?: string
   /** Solo para la activación del calentamiento (D-045): nunca se elige como entrenamiento. */
   warmupOnly?: boolean
+  /**
+   * Con carga (D-046): los kg de partida de un principiante, por mano. AXIS
+   * empieza por el peso más pesado del usuario que no la pase.
+   */
+  startLoadKg?: number
 }
 
 /** `true` si el ejercicio admite progresión por carga externa. */
-export function usesLoad(exercise: Exercise): boolean {
-  return exercise.equipment.includes('pesa')
+export function usesLoad(exercise: Pick<Exercise, 'equipment'>): boolean {
+  return exercise.equipment.some((item) => LOAD_EQUIPMENT.includes(item))
 }
 
 /**

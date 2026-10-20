@@ -30,7 +30,9 @@ import { computeHistoryStats } from '../history/stats'
 import { RECOVERY_FACTOR_LABELS } from '../recovery/types'
 import { formatMinutesOfDay, type DayKey } from '../shared/dates'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
-import type { SessionFocus, WorkoutSession } from '../workouts/types'
+import type { Equipment, SessionFocus, WorkoutSession } from '../workouts/types'
+import { availableEquipment } from '../workouts/equipment'
+import { gearToday } from './context'
 import { isMainExercise, MUSCLE_GROUP_LABELS } from '../workouts/types'
 import { EXERCISE_CATALOG, findExercise } from '../workouts/catalog'
 import { targetProgress, type TargetStatus } from '../workouts/targets'
@@ -202,6 +204,12 @@ export type AxisBriefing = {
    * lenguaje (`toAiBriefing` lo quita).
    */
   scan: BriefingScan | null
+  /**
+   * Lo que el material de hoy permite (D-046). Sirve para que «el remo» sea el
+   * remo que el usuario puede hacer. Como el escaneo, **nunca** se envía a la
+   * capa de lenguaje (`toAiBriefing` lo quita).
+   */
+  equipment: Equipment[]
 }
 
 export type BriefingScan = {
@@ -247,6 +255,8 @@ export type BriefingReorganization = {
   movedFromYesterday: boolean
   /** Minutos que el usuario dijo tener hoy y confirmó. */
   statedMinutes: number | null
+  /** Hoy se entrena sin material, confirmado (D-046). */
+  withoutEquipment: boolean
 }
 
 /**
@@ -357,9 +367,11 @@ export function buildBriefing(
       movedTo,
       movedFromYesterday: context.movedFromYesterday === true,
       statedMinutes: context.availableMinutesToday ?? null,
+      withoutEquipment: context.withoutEquipmentToday === true,
     },
     assessment: briefingAssessment(context, facts, decision),
     scan: briefingScan(context, sessions),
+    equipment: availableEquipment(gearToday(context)),
   }
 }
 

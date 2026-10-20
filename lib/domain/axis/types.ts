@@ -139,6 +139,11 @@ export type AxisContext = {
    */
   movedFromYesterday?: boolean
   /**
+   * Hoy se entrena sin material (D-046): «estoy de viaje», confirmado en la
+   * conversación. Solo cuenta para hoy; el perfil no cambia.
+   */
+  withoutEquipmentToday?: boolean
+  /**
    * Los tests de evolución guardados (D-021): modelos del dominio, nunca filas del
    * almacén. AXIS solo deriva de ellos si hoy hubo test y si el siguiente está
    * disponible; no los usa para elegir ni para cargar una sesión.

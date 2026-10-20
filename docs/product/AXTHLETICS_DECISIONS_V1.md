@@ -1787,6 +1787,44 @@ Las sesiones ya no terminan con estiramientos. Las sesiones guardadas que la ten
 
 ---
 
+## D-046 — Tu material
+
+**Fecha:** 2026-10-19 · **Estado:** aprobada e implementada · Decidido por Alex: «que el usuario lo pueda utilizar perfectamente»; eligió **material de casa completo**, **lista de pesos** y **un solo material por perfil**. **Amplía D-008 y D-020**: el equipamiento deja de ser fijo en el código.
+
+### El problema
+
+El catálogo y la progresión suponían el material de Alex: peso corporal, una silla y **una sola pesa de 5 kg**. Cualquier otra persona recibía esas sesiones aunque tuviera barra de dominadas, un par de mancuernas o una kettlebell, y la carga nunca podía pasar de 5 kg.
+
+### Qué se guarda
+
+En el perfil, **`equipment`**: qué material tiene (barra de dominadas, gomas elásticas, banco) y **la lista de sus pesos**: cada uno con su tipo (mancuerna o kettlebell), sus kg y si es **una** o **un par**. El peso corporal y una silla o escalón se dan siempre por supuestos. Un perfil anterior a D-046 se lee como **una pesa de 5 kg**, así que para Alex nada cambia hasta que lo edite.
+
+Se pregunta en el onboarding («¿Con qué material entrenas?», después de la duración) y se cambia en Perfil, en **«Tu material»**. Un solo material: si un día se entrena en otro sitio, se le dice a AXIS en el chat (ver «Hoy, sin material»).
+
+### Qué se puede proponer
+
+- Un ejercicio entra solo si **todo** lo que necesita está en el material. Con pesa: `pesa` basta con cualquier peso (mancuerna o kettlebell), `par_pesas` necesita un par del mismo peso y `kettlebell` una kettlebell.
+- **Catálogo: +25 ejercicios** (51 → 76), todos de casa: con barra (colgarse, dominadas negativas, asistidas con goma, supinas, dominadas y elevaciones de rodillas colgado), con gomas (remo, jalón, face pull, separación, press de pecho, extensión de tríceps, press Pallof y paseo lateral), con un par de mancuernas (press en el suelo, press de banca, press de hombro, elevaciones laterales, remo inclinado, curl, peso muerto rumano y zancadas), con kettlebell (peso muerto y swing) y con banco (fondos). Cada uno con su figura animada (D-024) e instrucciones completas (D-043). **Nada de gimnasio**: barra olímpica, rack, máquinas y poleas quedan para otra decisión.
+- Familias nuevas para no juntar dos variantes de lo mismo (D-020.1): `dominada`, `press-pecho`, `press-hombro`, `peso-muerto` y `deltoide-posterior`. El press de hombro a una mano y el press en el suelo a una mano entran en las suyas.
+
+### Cómo se carga
+
+- **Solo se sugieren pesos que el usuario tiene.**
+- **Peso de partida**: cada ejercicio con carga lleva una referencia para un principiante (`startLoadKg`), ×1,5 para intermedio y ×2 para avanzado; se elige el peso más pesado que no la pase, o el más ligero si todos la pasan. Con una sola pesa de 5 kg sale siempre 5 kg, como antes.
+- **Doble progresión** (sustituye a «primero la carga» de D-019): con todo hecho y sin ir al límite, suben las repeticiones (D-031) hasta el techo del ejercicio; en el techo, si hay un peso mayor, **se pasa al siguiente y las repeticiones vuelven a las de partida**. Sin un peso mayor, el ejercicio se da por dominado y se pasa a la variante más difícil, como hasta ahora. Si la última vez se usó menos que el peso de partida y se completó, se vuelve al de partida.
+- La validación de una sesión (`isSessionValid`) compara la carga con el **peso más pesado del usuario**, no con 5 kg.
+
+### Hoy, sin material
+
+«Hoy estoy sin material», «estoy de viaje», «no tengo las pesas»: AXIS propone rehacer la sesión de hoy **solo con el cuerpo** y una silla, con su botón de confirmar (D-012), y se puede deshacer como cualquier reorganización (D-022). Vale solo para ese día. Sustituye a la respuesta anterior («no rehago la sesión por el material»).
+
+### Lo que no cambia
+
+- **El test de evolución** sigue siendo el mismo protocolo (v1): el remo se hace con 5 kg, y si no se tiene una pesa de 5 kg, con una garrafa de agua de 5 litros. Cambiarlo rompería la comparación con los tests anteriores.
+- El material no sale del móvil ni llega a la capa de lenguaje.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

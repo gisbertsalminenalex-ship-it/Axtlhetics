@@ -2,18 +2,19 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  AVAILABLE_EQUIPMENT,
+  DEFAULT_EQUIPMENT,
   availableExercises,
   EXERCISE_CATALOG,
   exercisesAvoidingGroups,
   exercisesForFocus,
   findExercise,
   isAvailable,
-  MAX_AVAILABLE_LOAD_KG,
+  LEGACY_LOAD_KG,
   SINGLE_WEIGHT_BILATERAL_IDS,
   variantOf,
 } from './catalog'
 import { MAX_REPS, MAX_SECONDS } from './active-workout'
+import { availableEquipment } from './equipment'
 import { repCapFor } from '../axis/session-builder'
 import type { ExerciseCategory, MuscleGroup } from './types'
 import { FOCUS_CATEGORIES, usesLoad } from './types'
@@ -22,10 +23,14 @@ import { FOCUS_CATEGORIES, usesLoad } from './types'
 // Equipamiento real
 // ---------------------------------------------------------------------------
 
-test('todo el catálogo es ejecutable con el equipamiento disponible', () => {
+test('todo el catálogo es ejecutable con el material de casa completo (D-046)', () => {
+  const full = availableEquipment({
+    items: ['barra_dominadas', 'gomas', 'banco'],
+    weights: [{ kind: 'mancuerna', kg: 10, pair: true }, { kind: 'kettlebell', kg: 12, pair: false }],
+  })
   for (const exercise of EXERCISE_CATALOG) {
     assert.ok(
-      isAvailable(exercise),
+      isAvailable(exercise, full),
       `${exercise.name} necesita ${exercise.equipment.join(', ')}`,
     )
   }
@@ -37,9 +42,10 @@ test('ningún ejercicio declara equipamiento vacío', () => {
   }
 })
 
-test('todo ejercicio que usa carga es unilateral, salvo la lista explícita de bilaterales', () => {
+test('todo ejercicio con una sola pesa es unilateral, salvo la lista explícita de bilaterales', () => {
   for (const exercise of EXERCISE_CATALOG) {
-    if (!usesLoad(exercise)) continue
+    // Lo que pide un par o una kettlebell se hace con las dos manos (D-046).
+    if (!exercise.equipment.includes('pesa')) continue
     // La pesa sujeta entera con las dos manos: solo los de la lista (D-008, D-020).
     if (SINGLE_WEIGHT_BILATERAL_IDS.includes(exercise.id)) continue
     assert.ok(exercise.unilateral, `${exercise.name} necesitaría dos pesas`)
@@ -78,8 +84,8 @@ test('sin ningún equipamiento solo quedan ejercicios de peso corporal puro', ()
 })
 
 test('la pesa disponible es de 5 kg y el catálogo no supone más', () => {
-  assert.equal(MAX_AVAILABLE_LOAD_KG, 5)
-  assert.ok(AVAILABLE_EQUIPMENT.includes('pesa'))
+  assert.equal(LEGACY_LOAD_KG, 5)
+  assert.ok(DEFAULT_EQUIPMENT.includes('pesa'))
 })
 
 // ---------------------------------------------------------------------------
@@ -225,9 +231,21 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 51 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033 y 2 de D-045', () => {
-  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44 y 49.
-  assert.equal(EXERCISE_CATALOG.length, 51)
+test('el catálogo tiene 76 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033, 2 de D-045 y 25 de D-046', () => {
+  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44, 49 y 51.
+  assert.equal(EXERCISE_CATALOG.length, 76)
+})
+
+test('con una sola pesa, el catálogo de antes: lo nuevo de D-046 pide material que no hay', () => {
+  const legacy = availableExercises(EXERCISE_CATALOG, DEFAULT_EQUIPMENT)
+  assert.equal(legacy.length, 51)
+})
+
+test('todo lo que lleva carga tiene peso de partida, y nada más lo tiene (D-046)', () => {
+  for (const exercise of EXERCISE_CATALOG) {
+    if (usesLoad(exercise)) assert.ok((exercise.startLoadKg ?? 0) > 0, `${exercise.id} sin peso de partida`)
+    else assert.equal(exercise.startLoadKg, undefined, exercise.id)
+  }
 })
 
 test('las flexiones con rodillas (D-025): iniciación sin material, sin tocar la cadena de las flexiones', () => {
@@ -404,7 +422,10 @@ test('las familias son pocas, semánticas y solo agrupan variantes del mismo pat
   }
   assert.deepEqual(
     [...families.keys()].sort(),
-    ['curl', 'flexion', 'gemelos', 'plancha', 'puente', 'remo', 'salto-vertical', 'sentadilla', 'triceps', 'zancada'],
+    [
+      'curl', 'deltoide-posterior', 'dominada', 'flexion', 'gemelos', 'peso-muerto', 'plancha', 'press-hombro',
+      'press-pecho', 'puente', 'remo', 'salto-vertical', 'sentadilla', 'triceps', 'zancada',
+    ],
   )
   for (const [family, ids] of families) {
     assert.ok(ids.length >= 2, `${family} con un solo ejercicio no separa nada`)
@@ -416,7 +437,9 @@ test('las familias son pocas, semánticas y solo agrupan variantes del mismo pat
 test('lo que se diferencia de verdad no comparte familia', () => {
   // Otro plano, otro patrón, o movilidad: pueden ir juntos en una sesión.
   for (const id of [
-    'zancada-lateral', 'flexion-pica', 'press-hombro-unilateral', 'press-suelo-unilateral',
+    // El press de hombro y el de suelo a una mano tienen familia desde D-046:
+    // con un par de pesas, sus versiones a dos manos son lo mismo.
+    'zancada-lateral', 'flexion-pica',
     'plancha-lateral', 'subida-escalon', 'ytw-boca-abajo',
     'gato-camello', 'rotacion-toracica', 'estiramiento-flexor-cadera',
     'estiramiento-isquiotibiales', 'tobillo-pared', 'angeles-pared',

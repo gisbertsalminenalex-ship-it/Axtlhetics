@@ -6,6 +6,8 @@
  * lo decide el store; aquí solo se reconoce.
  */
 
+import { DEFAULT_EQUIPMENT } from '../../workouts/catalog'
+import type { Equipment } from '../../workouts/types'
 import { normalizeQuestion } from './intents'
 import { detectExercise } from './intents'
 
@@ -17,11 +19,15 @@ const LIKE = /\b(ya me gusta|ya me gustan|vuelve a poner|vuelve a proponer|me gu
 export type ExercisePreference = { exerciseId: string; name: string; liked: boolean }
 
 /** Una preferencia sobre un ejercicio concreto, o `null` si el mensaje no la expresa. */
-export function detectPreference(message: string): ExercisePreference | null {
+export function detectPreference(
+  message: string,
+  /** Lo que el material del usuario permite (D-046): «el remo» es el que puede hacer. */
+  available: readonly Equipment[] = DEFAULT_EQUIPMENT,
+): ExercisePreference | null {
   const text = normalizeQuestion(message)
   const liked = LIKE.test(text)
   if (!liked && !DISLIKE.test(text)) return null
-  const exercise = detectExercise(message)
+  const exercise = detectExercise(message, undefined, available)
   if (!exercise) return null
   return { exerciseId: exercise.id, name: exercise.name, liked }
 }

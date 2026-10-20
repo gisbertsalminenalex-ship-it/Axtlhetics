@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
 
-import { EXERCISE_CATALOG, findExercise, MAX_AVAILABLE_LOAD_KG } from '../workouts/catalog'
+import { EXERCISE_CATALOG, findExercise, LEGACY_LOAD_KG } from '../workouts/catalog'
 import {
   ASSESSMENT_INTERVAL_DAYS,
   ASSESSMENT_PROTOCOL,
@@ -51,7 +51,7 @@ test('los ejercicios fijos existen en el catálogo y miden igual que en él', ()
 test('la única carga es la pesa de 5 kg del remo, dentro del material de D-008', () => {
   const loads = ASSESSMENT_PROTOCOL.filter((item) => item.loadKg !== null)
   assert.deepEqual(loads.map((item) => [item.key, item.loadKg]), [['pull', 5]])
-  assert.ok(loads.every((item) => (item.loadKg ?? 0) <= MAX_AVAILABLE_LOAD_KG))
+  assert.ok(loads.every((item) => (item.loadKg ?? 0) <= LEGACY_LOAD_KG))
 })
 
 test('las variantes de flexiones son de la familia del catálogo y excluyen las negativas', () => {

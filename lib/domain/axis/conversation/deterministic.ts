@@ -41,6 +41,7 @@ import { detectDiscomfortZone, detectPreference, type ExercisePreference } from 
 import {
   evaluateBlockReason,
   evaluateChange,
+  evaluateNoEquipment,
   FATIGUE_NOT_REGISTERED,
   parseChangeRequest,
   type ChangeRequest,
@@ -54,6 +55,7 @@ import {
   saysCannotTrainToday,
   saysMatchTomorrow,
   saysMissedYesterday,
+  saysNoEquipmentToday,
   statedMinutes,
 } from './reorganization'
 import type {
@@ -98,7 +100,7 @@ export function answerFromBriefing(
 
   // Todos los detectores leen el mensaje con las faltas corregidas (D-026).
   const question = understandMessage(message, briefing)
-  const match = matchIntent(question, memory?.lastIntent ?? null)
+  const match = matchIntent(question, memory?.lastIntent ?? null, briefing.equipment)
 
   /*
    * Lo que se cuenta, no se pide (D-022): «ayer no pude entrenar» y «mañana
@@ -108,7 +110,7 @@ export function answerFromBriefing(
    */
   if (match.intent !== 'medical' && match.intent !== 'out_of_scope') {
     // «No me gustan las zancadas»: se apunta antes de leerlo como un cambio (D-037).
-    const preference = detectPreference(question)
+    const preference = detectPreference(question, briefing.equipment)
     if (preference) return answerPreference(preference)
 
     const statement = answerStatement(question, briefing, memory)
@@ -247,7 +249,7 @@ export function answerFromBriefing(
     case 'shorten':
       return answerShorten(briefing)
     case 'exercise':
-      return answerExercise(briefing, match.exercise ?? resolveExercise(question))
+      return answerExercise(briefing, match.exercise ?? resolveExercise(question, undefined, briefing.equipment))
     case 'medical':
       return { ...answerMedical(), discomfort: detectDiscomfortZone(question) }
     case 'out_of_scope':
@@ -643,6 +645,14 @@ function answerStatement(
   memory?: AxisConversationMemory,
 ): AxisAnswer | null {
   if (saysMissedYesterday(question)) return answerMissedYesterday(briefing)
+
+  // «Hoy estoy sin material» (D-046): se rehace la sesión, con botón.
+  if (saysNoEquipmentToday(question)) {
+    return answerVerdict(evaluateNoEquipment(briefing), {
+      ...parseChangeRequest(question, briefing.activitiesToday.map((activity) => activity.name)),
+      kind: 'no_equipment',
+    })
+  }
 
   // El test de evolución, solo porque el usuario pregunta por él (D-021).
   if (asksAboutAssessment(question, memory?.lastIntent ?? null)) return answerAssessment(question, briefing)

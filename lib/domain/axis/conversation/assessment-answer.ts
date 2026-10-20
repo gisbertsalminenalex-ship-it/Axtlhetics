@@ -40,7 +40,7 @@ export function answerAssessment(question: string, briefing: AxisBriefing): Axis
 function describeProtocol(assessment: BriefingAssessment): string[] {
   const push = assessment.pushUp?.name.toLowerCase() ?? 'flexiones'
   const parts = [
-    `El test de evolución son 4 pruebas, siempre en este orden: ${push}, plancha, sentadilla isométrica en pared y remo unilateral con la pesa de 5 kg, cada lado por separado.`,
+    `El test de evolución son 4 pruebas, siempre en este orden: ${push}, plancha, sentadilla isométrica en pared y remo unilateral con 5 kg (una pesa o una garrafa de agua de 5 litros), cada lado por separado.`,
     'Se mide cuántas repeticiones o segundos aguantas con buena técnica, se para cuando la técnica deja de ser válida y se compara solo con tu test anterior. Son unos 10–15 minutos.',
   ]
   if (assessment.pushUp && !assessment.pushUp.fixed) {

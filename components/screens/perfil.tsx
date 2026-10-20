@@ -7,6 +7,7 @@ import { DailyReminder } from '@/components/profile/daily-reminder'
 import { TrainingNotifications } from '@/components/profile/training-notifications'
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { BackupControls } from '@/components/profile/backup-controls'
+import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -41,6 +42,7 @@ import {
   type Weekday,
 } from '@/lib/domain/shared/dates'
 import { MUSCLE_GROUP_LABELS } from '@/lib/domain/workouts/types'
+import { equipmentOf, NO_EQUIPMENT } from '@/lib/domain/workouts/equipment'
 import { useAxtlhetics } from '@/lib/state/store'
 
 /**
@@ -59,6 +61,7 @@ const DEFAULT_DRAFT: UserProfileDraft = {
   experience: 'principiante',
   availableWeekdays: [0, 2, 4],
   typicalSessionMinutes: 45,
+  equipment: NO_EQUIPMENT,
 }
 
 const GOAL_OPTIONS = TRAINING_GOAL_ORDER.map((value) => ({
@@ -124,6 +127,8 @@ export function PerfilScreen({
           experience: profile.experience,
           availableWeekdays: [...profile.availableWeekdays],
           typicalSessionMinutes: profile.typicalSessionMinutes,
+          // Un perfil anterior a D-046 se enseña con la pesa de 5 kg que se le supone.
+          equipment: equipmentOf(profile),
         }
       : DEFAULT_DRAFT,
   )
@@ -268,6 +273,17 @@ export function PerfilScreen({
           min={20}
           max={120}
           onChange={(typicalSessionMinutes) => patch({ typicalSessionMinutes })}
+        />
+      </div>
+
+      <SectionTitle>Tu material</SectionTitle>
+      <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+        AXIS solo te propone ejercicios que puedes hacer con él, y con los pesos que tienes.
+      </p>
+      <div className="mt-1">
+        <EquipmentPicker
+          value={draft.equipment ?? NO_EQUIPMENT}
+          onChange={(equipment) => patch({ equipment })}
         />
       </div>
 

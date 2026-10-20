@@ -160,6 +160,23 @@ export function saysMissedYesterday(message: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// «Hoy estoy sin material» (D-046)
+// ---------------------------------------------------------------------------
+
+const NO_EQUIPMENT_PATTERNS: readonly RegExp[] = [
+  /\bsin (material|pesas|mancuernas|equipo|equipamiento)\b/,
+  /\bno tengo (aqui |hoy )?(el |las |los |mis |la )?(material|pesas|pesa|mancuernas|mancuerna|equipo|kettlebell|barra|gomas)\b/,
+  /\b(estoy|me voy|me he ido) de viaje\b/,
+  /\bestoy (viajando|en un hotel|fuera de casa)\b/,
+]
+
+/** «Hoy estoy sin material», «estoy de viaje», «no tengo las pesas». */
+export function saysNoEquipmentToday(message: string): boolean {
+  const text = normalizeQuestion(message)
+  return NO_EQUIPMENT_PATTERNS.some((pattern) => pattern.test(text))
+}
+
+// ---------------------------------------------------------------------------
 // «Mañana tengo un partido»
 // ---------------------------------------------------------------------------
 
@@ -202,6 +219,7 @@ export const REORGANIZATION_VOCABULARY: readonly (string | RegExp)[] = [
   OTHER_TERMS,
   ...TIRED_PATTERNS,
   ...MISSED_YESTERDAY_PATTERNS,
+  ...NO_EQUIPMENT_PATTERNS,
   MATCH_TERMS,
   ...INTENSITY_TERMS.map((entry) => entry.pattern),
   'minutos manana juego',
