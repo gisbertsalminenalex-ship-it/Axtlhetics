@@ -5,6 +5,7 @@ import type { AxisProposal } from '../axis/types'
 import {
   adjustReps,
   adjustWeight,
+  takesWeight,
   canUndoLastSet,
   completedSetsTotal,
   completeSet,
@@ -168,14 +169,22 @@ test('una serie registrada con medio kilo conserva el valor exacto', () => {
   assert.equal(workout.entries[0].sets[0].weightKg, 80.5)
 })
 
-test('un ejercicio sin carga sugerida empieza en nulo y sube desde cero', () => {
+test('un ejercicio sin carga sugerida y sin pesa en el catálogo no admite kilos', () => {
   let workout = fresh()
   workout = completeSet(workout)
   workout = completeSet(workout)
   assert.equal(currentEntry(workout)?.weightKg, null)
 
   workout = adjustWeight(workout, 1)
-  assert.equal(currentEntry(workout)?.weightKg, WEIGHT_STEP_KG)
+  assert.equal(currentEntry(workout)?.weightKg, null, 'no hay selector de kg que pulsar')
+})
+
+test('admite kilos lo que lleva pesa o ya trae carga; una flexión o una plancha, no', () => {
+  assert.equal(takesWeight({ exerciseId: 'remo-unilateral', weightKg: null }), true)
+  assert.equal(takesWeight({ exerciseId: 'press-banca', weightKg: 80 }), true)
+  assert.equal(takesWeight({ exerciseId: 'flexiones', weightKg: null }), false)
+  assert.equal(takesWeight({ exerciseId: 'plancha', weightKg: null }), false)
+  assert.equal(takesWeight({ exerciseId: 'movilidad-articular', weightKg: null }), false)
 })
 
 test('las repeticiones se mantienen dentro de un rango razonable', () => {

@@ -16,6 +16,7 @@ import {
   hasProgress,
   nextEntry,
   restState,
+  takesWeight,
   WEIGHT_STEP_KG,
   type ActiveExerciseEntry,
   type RestState,
@@ -220,16 +221,18 @@ export function EntrenamientoActivo() {
             )}
           </div>
 
-          {/* Weight + reps */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <ValueStepper
-              value={entry.weightKg === null ? '—' : formatKg(entry.weightKg)}
-              unit="kg"
-              onDecrease={() => adjustWeight(-1)}
-              onIncrease={() => adjustWeight(1)}
-              decreaseLabel={`Reducir carga ${formatKg(WEIGHT_STEP_KG)} kg`}
-              increaseLabel={`Aumentar carga ${formatKg(WEIGHT_STEP_KG)} kg`}
-            />
+          {/* Carga y repeticiones. Sin pesa no hay kilos que poner: solo repeticiones o segundos. */}
+          <div className={cn('mt-6 grid gap-3', takesWeight(entry) ? 'grid-cols-2' : 'grid-cols-1')}>
+            {takesWeight(entry) && (
+              <ValueStepper
+                value={entry.weightKg === null ? '—' : formatKg(entry.weightKg)}
+                unit="kg"
+                onDecrease={() => adjustWeight(-1)}
+                onIncrease={() => adjustWeight(1)}
+                decreaseLabel={`Reducir carga ${formatKg(WEIGHT_STEP_KG)} kg`}
+                increaseLabel={`Aumentar carga ${formatKg(WEIGHT_STEP_KG)} kg`}
+              />
+            )}
             <ValueStepper
               value={String(entry.reps)}
               unit={entry.isTimed ? 'seg' : 'reps'}

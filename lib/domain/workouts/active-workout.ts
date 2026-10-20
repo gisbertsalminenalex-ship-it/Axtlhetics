@@ -32,7 +32,8 @@ import type {
   WorkoutSessionStatus,
   WarmupPart,
 } from './types'
-import { isExercisePhase, isMainExercise, isWarmupPart, volumeOfSession } from './types'
+import { isExercisePhase, isMainExercise, isWarmupPart, usesLoad, volumeOfSession } from './types'
+import { findExercise } from './catalog'
 
 /** Escalón del selector de carga, en kg. */
 export const WEIGHT_STEP_KG = 0.5
@@ -161,11 +162,22 @@ function replaceEntry(
   }
 }
 
+/**
+ * `true` si al ejercicio se le pueden poner kilos: lleva pesa en el catálogo o
+ * ya trae una carga. A una flexión o a una plancha no: no hay selector de kg.
+ */
+export function takesWeight(entry: Pick<ActiveExerciseEntry, 'exerciseId' | 'weightKg'>): boolean {
+  if (entry.weightKg !== null) return true
+  const exercise = findExercise(entry.exerciseId)
+  return exercise !== null && usesLoad(exercise)
+}
+
 export function adjustWeight(workout: ActiveWorkout, delta: number): ActiveWorkout {
-  return replaceEntry(workout, workout.exerciseIndex, (entry) => ({
-    ...entry,
-    weightKg: clamp((entry.weightKg ?? 0) + delta * WEIGHT_STEP_KG, 0, MAX_WEIGHT_KG),
-  }))
+  return replaceEntry(workout, workout.exerciseIndex, (entry) =>
+    takesWeight(entry)
+      ? { ...entry, weightKg: clamp((entry.weightKg ?? 0) + delta * WEIGHT_STEP_KG, 0, MAX_WEIGHT_KG) }
+      : entry,
+  )
 }
 
 export function adjustReps(workout: ActiveWorkout, delta: number): ActiveWorkout {
