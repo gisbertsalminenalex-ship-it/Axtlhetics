@@ -1971,6 +1971,29 @@ Los grupos que carga un deporte **exigente de mañana** se evitan hoy igual que 
 
 ---
 
+## D-052 — Cuántas te quedaban: la progresión por ejercicio
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: una **pregunta tras la última serie** de cada ejercicio. **Amplía** D-019 y D-031.
+
+### El problema
+
+El paso de la progresión salía del esfuerzo de **toda la sesión**: si un ejercicio fue fácil y otro al límite, los dos subían o se repetían igual.
+
+### La pregunta
+
+- Al terminar la **última serie** de un ejercicio, durante el descanso, un toque opcional: **«¿Cuántas te quedaban?» — 0 · 1–2 · 3 o más**.
+- Solo en el entrenamiento, no en el calentamiento, y solo en ejercicios por repeticiones. Se puede cambiar mientras dura el descanso.
+- Se guarda con el ejercicio (`reserve`).
+
+### Qué hace
+
+- **0** (al fallo): la próxima vez se repite, como «al límite» (D-031).
+- **1–2**: el paso normal.
+- **3 o más**: el paso doble, como «fácil».
+- Sin respuesta, manda el esfuerzo de la sesión, como hasta ahora.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

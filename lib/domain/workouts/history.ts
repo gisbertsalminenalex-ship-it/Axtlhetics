@@ -12,7 +12,7 @@
  */
 
 import { daysBetween, type DayKey } from '../shared/dates'
-import type { CompletedSet, Exercise, PerformedExercise, WorkoutSession } from './types'
+import type { CompletedSet, Exercise, PerformedExercise, RepsInReserve, WorkoutSession } from './types'
 import { isMainExercise, metTarget } from './types'
 
 export type LastPerformance = {
@@ -29,6 +29,8 @@ export type LastPerformance = {
    * valoró. Modula el paso de la progresión (D-031).
    */
   effort: number | null
+  /** Cuántas quedaban en la última serie (D-052). `null` si no se contestó. */
+  reserve: RepsInReserve | null
 }
 
 /** La sesión completada más reciente que tiene el ejercicio, y el ejercicio tal como se hizo en ella. */
@@ -67,6 +69,7 @@ export function lastPerformanceOf(
     allSetsCompleted: metTarget(performed),
     sets: performed.sets.length,
     effort: session.effort ?? null,
+    reserve: performed.reserve ?? null,
   }
 }
 

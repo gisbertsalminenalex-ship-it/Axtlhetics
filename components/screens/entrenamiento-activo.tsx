@@ -15,6 +15,7 @@ import {
   currentVolumeKg,
   hasProgress,
   nextEntry,
+  reserveQuestionFor,
   restState,
   takesWeight,
   WEIGHT_STEP_KG,
@@ -23,7 +24,7 @@ import {
 } from '@/lib/domain/workouts/active-workout'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { formatKg, formatSets, lastPerformedExercise } from '@/lib/domain/workouts/history'
-import { phaseLabel } from '@/lib/domain/workouts/types'
+import { phaseLabel, REPS_IN_RESERVE_LABELS, REPS_IN_RESERVE_ORDER, type RepsInReserve } from '@/lib/domain/workouts/types'
 import { formatDuration } from '@/lib/domain/shared/dates'
 import { formatVolume } from '@/lib/domain/history/stats'
 import { useAxtlhetics } from '@/lib/state/store'
@@ -40,6 +41,7 @@ export function EntrenamientoActivo() {
     skipExercise,
     skipRest,
     extendRest,
+    setReserve,
     finishWorkout,
     abandonWorkout,
   } = useAxtlhetics()
@@ -185,6 +187,7 @@ export function EntrenamientoActivo() {
           onSkip={skipRest}
           onExtend={extendRest}
           onUndo={undoLastSet}
+          reserve={reserveFor(activeWorkout, setReserve)}
         />
       ) : (
         <>
@@ -373,7 +376,20 @@ function LastTime({
   )
 }
 
-/** Descanso entre series (D-019): el RestTimer compartido, con deshacer. */
+type ReserveQuestion = { name: string; value: RepsInReserve | null; onSelect: (value: RepsInReserve) => void }
+
+/** La pregunta de la última serie, si toca (D-052). */
+function reserveFor(
+  workout: Parameters<typeof reserveQuestionFor>[0],
+  setReserve: (index: number, value: RepsInReserve) => void,
+): ReserveQuestion | null {
+  const index = reserveQuestionFor(workout)
+  if (index === null) return null
+  const finished = workout.entries[index]
+  return { name: finished.name, value: finished.reserve ?? null, onSelect: (value) => setReserve(index, value) }
+}
+
+/** Descanso entre series (D-019): el RestTimer compartido, con deshacer y, tras la última serie, la pregunta de D-052. */
 function RestPanel({
   rest,
   entry,
@@ -382,6 +398,7 @@ function RestPanel({
   onSkip,
   onExtend,
   onUndo,
+  reserve,
 }: {
   rest: RestState
   entry: ActiveExerciseEntry
@@ -390,6 +407,7 @@ function RestPanel({
   onSkip: () => void
   onExtend: () => void
   onUndo: () => void
+  reserve: ReserveQuestion | null
 }) {
   const next = [
     `Serie ${setNumber} de ${entry.targetSets}`,
@@ -401,8 +419,37 @@ function RestPanel({
 
   return (
     <RestTimer rest={rest} nextName={entry.name} nextDetail={next} onSkip={onSkip} onExtend={onExtend}>
+      {reserve && <ReservePicker question={reserve} />}
       {canUndo && <UndoButton onUndo={onUndo} />}
     </RestTimer>
+  )
+}
+
+/** «¿Cuántas te quedaban?» tras la última serie de un ejercicio (D-052). Opcional. */
+function ReservePicker({ question }: { question: ReserveQuestion }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-surface px-4 py-3.5 text-left">
+      <p className="text-[13.5px] font-semibold">¿Cuántas te quedaban en la última serie?</p>
+      <p className="mt-0.5 text-[12.5px] text-muted-foreground">{question.name} · AXIS ajusta la próxima vez</p>
+      <div className="mt-3 flex gap-1.5">
+        {REPS_IN_RESERVE_ORDER.map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => question.onSelect(value)}
+            aria-pressed={question.value === value}
+            className={cn(
+              'ax-press h-11 flex-1 rounded-full border text-[14px] font-semibold transition-colors',
+              question.value === value
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-background text-muted-foreground',
+            )}
+          >
+            {REPS_IN_RESERVE_LABELS[value]}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

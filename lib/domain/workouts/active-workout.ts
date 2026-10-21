@@ -32,7 +32,8 @@ import type {
   WorkoutSessionStatus,
   WarmupPart,
 } from './types'
-import { isExercisePhase, isMainExercise, isWarmupPart, usesLoad, volumeOfSession } from './types'
+import { isExercisePhase, isMainExercise, isRepsInReserve, isWarmupPart, usesLoad, volumeOfSession } from './types'
+import type { RepsInReserve } from './types'
 import { findExercise } from './catalog'
 
 /** Escalón del selector de carga, en kg. */
@@ -63,6 +64,8 @@ export type ActiveExerciseEntry = {
   phase?: ExercisePhase
   /** La parte del calentamiento (D-045). */
   warmupPart?: WarmupPart
+  /** Cuántas quedaban en la última serie (D-052). */
+  reserve?: RepsInReserve
 }
 
 export type ActiveWorkout = {
@@ -223,6 +226,27 @@ export function completeSet(workout: ActiveWorkout, now: Date = new Date()): Act
   }
 }
 
+/**
+ * El ejercicio por el que preguntar «¿cuántas te quedaban?» (D-052): el que se
+ * acaba de terminar con su última serie, si es del entrenamiento y por
+ * repeticiones. `null` si no toca preguntar.
+ */
+export function reserveQuestionFor(workout: ActiveWorkout): number | null {
+  const index = workout.lastSet?.exerciseIndex
+  if (index === undefined || index === null) return null
+  const entry = workout.entries[index]
+  if (!entry || entry.phase || entry.isTimed) return null
+  if (entry.sets.length < entry.targetSets) return null
+  // Solo justo después: si ya se pasó a otro ejercicio con series, ya no toca.
+  return index === workout.exerciseIndex - 1 ? index : null
+}
+
+/** Apunta cuántas quedaban en la última serie de ese ejercicio (D-052). */
+export function setReserve(workout: ActiveWorkout, index: number, reserve: RepsInReserve): ActiveWorkout {
+  if (!workout.entries[index]) return workout
+  return replaceEntry(workout, index, (entry) => ({ ...entry, reserve }))
+}
+
 /** Pasa al siguiente ejercicio dejando constancia de que se saltó. */
 export function skipExercise(workout: ActiveWorkout): ActiveWorkout {
   const entry = currentEntry(workout)
@@ -315,6 +339,7 @@ export function performedExercises(workout: ActiveWorkout): PerformedExercise[] 
       targetReps: entry.targetReps,
       ...(entry.phase ? { phase: entry.phase } : {}),
       ...(entry.warmupPart ? { warmupPart: entry.warmupPart } : {}),
+      ...(entry.reserve ? { reserve: entry.reserve } : {}),
     }))
 }
 
@@ -437,7 +462,8 @@ function isActiveEntry(value: unknown): value is ActiveExerciseEntry {
     Array.isArray(value.sets) &&
     value.sets.every(isCompletedSet) &&
     (value.phase === undefined || isExercisePhase(value.phase)) &&
-    (value.warmupPart === undefined || isWarmupPart(value.warmupPart))
+    (value.warmupPart === undefined || isWarmupPart(value.warmupPart)) &&
+    (value.reserve === undefined || isRepsInReserve(value.reserve))
   )
 }
 

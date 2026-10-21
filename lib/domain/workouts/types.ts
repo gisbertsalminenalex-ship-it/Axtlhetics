@@ -260,10 +260,30 @@ export type CompletedSet = {
   completed: boolean
 }
 
+/**
+ * Cuántas repeticiones quedaban en la última serie (D-052): ninguna (al fallo),
+ * una o dos, o tres o más.
+ */
+export type RepsInReserve = 'ninguna' | 'una_dos' | 'tres_mas'
+
+export const REPS_IN_RESERVE_LABELS: Record<RepsInReserve, string> = {
+  ninguna: '0',
+  una_dos: '1–2',
+  tres_mas: '3 o más',
+}
+
+export const REPS_IN_RESERVE_ORDER = Object.keys(REPS_IN_RESERVE_LABELS) as RepsInReserve[]
+
+export function isRepsInReserve(value: unknown): value is RepsInReserve {
+  return isOneOf(value, REPS_IN_RESERVE_ORDER)
+}
+
 export type PerformedExercise = {
   exerciseId: string
   name: string
   sets: CompletedSet[]
+  /** Cuántas quedaban en la última serie (D-052). Ausente si no se contestó. */
+  reserve?: RepsInReserve
   /**
    * Lo que estaba previsto para el ejercicio: series y repeticiones (o segundos).
    * Sin esto no se puede saber si se hizo entero, y la progresión subiría carga
@@ -425,7 +445,8 @@ function isPerformedExercise(value: unknown): value is PerformedExercise {
     isOptionalCount(value.targetSets) &&
     isOptionalCount(value.targetReps) &&
     (value.phase === undefined || isExercisePhase(value.phase)) &&
-    (value.warmupPart === undefined || isWarmupPart(value.warmupPart))
+    (value.warmupPart === undefined || isWarmupPart(value.warmupPart)) &&
+    (value.reserve === undefined || isRepsInReserve(value.reserve))
   )
 }
 

@@ -536,7 +536,9 @@ export function suggestWorkFor(
   // Lo hecho en una sesión de otro objetivo puede pasar del techo de esta (D-047): se parte del techo.
   const lastReps = Math.min(Math.max(baseReps, last.reps), cap)
 
-  if (!last.allSetsCompleted || deload || (last.effort !== null && last.effort >= AT_LIMIT_EFFORT)) {
+  // Lo dicho del propio ejercicio manda sobre el esfuerzo de la sesión (D-052).
+  const atLimit = last.reserve !== null ? last.reserve === 'ninguna' : last.effort !== null && last.effort >= AT_LIMIT_EFFORT
+  if (!last.allSetsCompleted || deload || atLimit) {
     return { sets, reps: lastReps, weightKg: lastWeight }
   }
 
@@ -551,7 +553,7 @@ export function suggestWorkFor(
   }
 
   const baseStep = exercise.work.isTimed ? HOLD_PROGRESSION_STEP : REP_PROGRESSION_STEP
-  const easy = last.effort !== null && last.effort <= EASY_EFFORT
+  const easy = last.reserve !== null ? last.reserve === 'tres_mas' : last.effort !== null && last.effort <= EASY_EFFORT
   const step = easy ? baseStep * 2 : baseStep
   return {
     sets,

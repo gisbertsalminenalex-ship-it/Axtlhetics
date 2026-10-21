@@ -74,6 +74,7 @@ import {
   hasProgress,
   markProposalChanged,
   reconcileStoredWorkout,
+  setReserve as setReserveIn,
   skipExercise as skipExerciseIn,
   skipRest as skipRestIn,
   startWorkout as startWorkoutFrom,
@@ -104,7 +105,7 @@ import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
 import { EXERCISE_CATALOG } from '../domain/workouts/catalog'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
-import type { WorkoutSession } from '../domain/workouts/types'
+import type { RepsInReserve, WorkoutSession } from '../domain/workouts/types'
 
 /** Cuántas sesiones carga la aplicación. Suficiente para historial y para AXIS. */
 const SESSION_HISTORY_LIMIT = 200
@@ -279,6 +280,8 @@ type AxtlheticsStore = {
   skipRest(): void
   /** Añade 15 s al descanso en curso (D-019). */
   extendRest(): void
+  /** Cuántas quedaban en la última serie de ese ejercicio (D-052). */
+  setReserve(exerciseIndex: number, reserve: RepsInReserve): void
   finishWorkout(effort: number | null): Promise<void>
   abandonWorkout(): Promise<void>
   /** Registra cuánto costó la sesión recién guardada, 1–5 (D-019). */
@@ -928,6 +931,12 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [updateActiveWorkout],
   )
 
+  const setReserve = useCallback(
+    (exerciseIndex: number, reserve: RepsInReserve) =>
+      updateActiveWorkout((current) => setReserveIn(current, exerciseIndex, reserve)),
+    [updateActiveWorkout],
+  )
+
   const saveSession = useCallback(async (session: WorkoutSession) => {
     setSessions((current) => withSession(current, session))
     try {
@@ -1366,6 +1375,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       skipExercise,
       skipRest,
       extendRest,
+      setReserve,
       finishWorkout,
       abandonWorkout,
       rateLastSession,
@@ -1430,6 +1440,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       skipExercise,
       skipRest,
       extendRest,
+      setReserve,
       finishWorkout,
       abandonWorkout,
       rateLastSession,
