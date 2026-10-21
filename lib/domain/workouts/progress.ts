@@ -10,6 +10,7 @@
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import type { Exercise, WorkoutSession } from './types'
 import { isMainExercise } from './types'
+import { bestOneRepMax, roundKg } from './strength'
 
 export type ExercisePoint = {
   dayKey: DayKey
@@ -27,6 +28,24 @@ export function exerciseHistory(exerciseId: string, sessions: readonly WorkoutSe
       .flatMap((performed) => performed.sets.filter((set) => set.completed))
     if (sets.length === 0) continue
     points.push({ dayKey: session.dayKey, best: Math.max(...sets.map((set) => set.reps)) })
+  }
+  return points.sort((a, b) => a.dayKey.localeCompare(b.dayKey))
+}
+
+/**
+ * El 1RM estimado de cada sesión completada con el ejercicio (D-056), al medio
+ * kilo, de la más antigua a la más reciente. Solo las sesiones con carga que
+ * sirva para estimar.
+ */
+export function oneRepMaxHistory(exerciseId: string, sessions: readonly WorkoutSession[]): ExercisePoint[] {
+  const points: ExercisePoint[] = []
+  for (const session of sessions) {
+    if (session.status !== 'completed') continue
+    const sets = session.exercises
+      .filter((performed) => performed.exerciseId === exerciseId && isMainExercise(performed))
+      .flatMap((performed) => performed.sets)
+    const estimate = bestOneRepMax(sets)
+    if (estimate !== null) points.push({ dayKey: session.dayKey, best: roundKg(estimate) })
   }
   return points.sort((a, b) => a.dayKey.localeCompare(b.dayKey))
 }

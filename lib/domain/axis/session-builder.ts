@@ -49,6 +49,7 @@ import type {
 } from '../workouts/types'
 import { FOCUS_CATEGORIES, FOCUS_MUSCLE_GROUPS, isMainExercise, SESSION_FOCUS_LABELS, usesLoad } from '../workouts/types'
 import { exerciseUsage, lastPerformanceOf, type ExerciseUsage, type LastPerformance } from '../workouts/history'
+import { repsAt, RESERVE_REPS, targetReserveFor } from '../workouts/strength'
 
 export const DEFAULT_GOAL: TrainingGoal = 'salud_general'
 export const DEFAULT_GOALS: readonly TrainingGoal[] = [DEFAULT_GOAL]
@@ -494,6 +495,10 @@ export type SuggestedWork = {
  * 5. En cualquier otro caso → sube repeticiones (o segundos en los
  *    isométricos), el doble si la última vez fue fácil o muy fácil (D-031).
  *
+ * Con la reserva contestada en alguna serie (D-056), 2 a 5 los decide lo que
+ * el usuario puede hacer de verdad (`fromCapacity`): el peso y las
+ * repeticiones que caben dejando la reserva buscada.
+ *
  * En una semana de descarga (D-031) hay una serie menos y no se sube nada.
  * Solo se sugieren pesos que el usuario tiene (D-046).
  */
@@ -537,9 +542,27 @@ export function suggestWorkFor(
   // Lo hecho en una sesión de otro objetivo puede pasar del techo de esta (D-047): se parte del techo.
   const lastReps = Math.min(Math.max(baseReps, last.reps), cap)
 
+  if (!last.allSetsCompleted || deload) {
+    return { sets, reps: lastReps, weightKg: lastWeight }
+  }
+
+  const baseStep = exercise.work.isTimed ? HOLD_PROGRESSION_STEP : REP_PROGRESSION_STEP
+  if (last.capacity && !exercise.work.isTimed) {
+    const work = fromCapacity(last.capacity, {
+      loads,
+      lastWeight,
+      lastReps,
+      baseReps,
+      cap,
+      step: baseStep,
+      reserve: RESERVE_REPS[targetReserveFor({ intensity })],
+    })
+    if (work) return { sets, ...work }
+  }
+
   // Lo dicho del propio ejercicio manda sobre el esfuerzo de la sesión (D-052).
   const atLimit = last.reserve !== null ? last.reserve === 'ninguna' : last.effort !== null && last.effort >= AT_LIMIT_EFFORT
-  if (!last.allSetsCompleted || deload || atLimit) {
+  if (atLimit) {
     return { sets, reps: lastReps, weightKg: lastWeight }
   }
 
@@ -553,7 +576,6 @@ export function suggestWorkFor(
     return { sets, reps: baseReps, weightKg: heavier }
   }
 
-  const baseStep = exercise.work.isTimed ? HOLD_PROGRESSION_STEP : REP_PROGRESSION_STEP
   const easy = last.reserve !== null ? last.reserve === 'tres_mas' : last.effort !== null && last.effort <= EASY_EFFORT
   const step = easy ? baseStep * 2 : baseStep
   return {
@@ -561,6 +583,59 @@ export function suggestWorkFor(
     reps: Math.min(lastReps + step, cap),
     weightKg: lastWeight,
   }
+}
+
+/**
+ * La carga exacta a partir de lo que el usuario puede hacer (D-056).
+ *
+ * - Con carga y un 1RM estimado, dejando la reserva buscada: el siguiente peso
+ *   si con él caben las repeticiones de partida (o, ya en el techo, dos pasos
+ *   menos: un salto de 8 a 10 kg es un 25 %); si no, el mismo peso si caben
+ *   casi las de la última vez (un paso menos como mucho); si tampoco, el peso
+ *   más ligero con el que caben las de partida. Ni con el más ligero, el más
+ *   ligero con las que quepan.
+ * - Sin carga: las repeticiones hasta el fallo menos la reserva.
+ *
+ * Con el mismo peso, nunca más de dos pasos por encima ni uno por debajo de la
+ * última vez: la estimación orienta, no da saltos. `null` si no hay con qué
+ * estimar y manda la progresión de siempre.
+ */
+function fromCapacity(
+  capacity: NonNullable<LastPerformance['capacity']>,
+  options: {
+    loads: readonly number[]
+    lastWeight: number | null
+    lastReps: number
+    baseReps: number
+    cap: number
+    step: number
+    reserve: number
+  },
+): Omit<SuggestedWork, 'sets'> | null {
+  const { loads, lastWeight, lastReps, baseReps, cap, step, reserve } = options
+  const bounded = (reps: number) => clamp(reps, Math.max(1, lastReps - step), Math.min(cap, lastReps + 2 * step))
+
+  if (lastWeight === null) {
+    return { reps: bounded(capacity.repsToFailure - reserve), weightKg: null }
+  }
+  if (capacity.oneRepMax === null || loads.length === 0) return null
+
+  const oneRepMax = capacity.oneRepMax
+  const at = (kg: number) => repsAt(oneRepMax, kg, reserve)
+
+  const heavier = nextLoad(loads, lastWeight)
+  const enough = lastReps >= cap ? baseReps - 2 * step : baseReps
+  if (heavier !== null && at(heavier) >= Math.max(1, enough)) return { reps: Math.min(at(heavier), cap), weightKg: heavier }
+
+  if (at(lastWeight) >= Math.max(1, Math.min(baseReps, lastReps) - step)) {
+    return { reps: bounded(at(lastWeight)), weightKg: lastWeight }
+  }
+
+  const lighter = loads.filter((kg) => kg < lastWeight).reverse()
+  const fitting = lighter.find((kg) => at(kg) >= baseReps)
+  if (fitting !== undefined) return { reps: Math.min(at(fitting), cap), weightKg: fitting }
+  const lightest = lighter[lighter.length - 1] ?? lastWeight
+  return { reps: clamp(at(lightest), 1, cap), weightKg: lightest }
 }
 
 // ---------------------------------------------------------------------------

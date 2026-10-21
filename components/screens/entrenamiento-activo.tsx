@@ -16,7 +16,9 @@ import {
   currentVolumeKg,
   hasProgress,
   nextEntry,
+  nextSetAdvice,
   reserveQuestionFor,
+  targetReserveOf,
   restState,
   workState,
   type WorkState,
@@ -228,6 +230,11 @@ export function EntrenamientoActivo() {
                 Serie {currentSetNumber(activeWorkout)} de {entry.targetSets}
                 {entry.unilateral ? ' · por lado' : ''}
               </p>
+              {!entry.phase && !entry.isTimed && (
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  Deja {REPS_IN_RESERVE_LABELS[targetReserveOf(activeWorkout)]} en reserva
+                </p>
+              )}
               <LastTime entry={entry} sessions={sessions} />
             </div>
             {hasExerciseFigure(entry.exerciseId) ? (
@@ -420,17 +427,33 @@ function LastTime({
   )
 }
 
-type ReserveQuestion = { name: string; value: RepsInReserve | null; onSelect: (value: RepsInReserve) => void }
+type ReserveQuestion = {
+  name: string
+  value: RepsInReserve | null
+  target: RepsInReserve
+  /** La última serie del ejercicio: lo contestado cuenta para la próxima sesión. */
+  last: boolean
+  /** Lo que AXIS cambió en la siguiente serie, si cambió algo (D-055). */
+  advice: string | null
+  onSelect: (value: RepsInReserve) => void
+}
 
-/** La pregunta de la última serie, si toca (D-052). */
+/** La pregunta de la serie recién hecha, si toca (D-052, D-055). */
 function reserveFor(
   workout: Parameters<typeof reserveQuestionFor>[0],
   setReserve: (index: number, value: RepsInReserve) => void,
 ): ReserveQuestion | null {
   const index = reserveQuestionFor(workout)
   if (index === null) return null
-  const finished = workout.entries[index]
-  return { name: finished.name, value: finished.reserve ?? null, onSelect: (value) => setReserve(index, value) }
+  const done = workout.entries[index]
+  return {
+    name: done.name,
+    value: done.sets[done.sets.length - 1]?.reserve ?? null,
+    target: targetReserveOf(workout),
+    last: done.sets.length >= done.targetSets,
+    advice: nextSetAdvice(workout, index),
+    onSelect: (value) => setReserve(index, value),
+  }
 }
 
 /** Descanso entre series (D-019): el RestTimer compartido, con deshacer y, tras la última serie, la pregunta de D-052. */
@@ -516,12 +539,15 @@ function WorkPanel({
   )
 }
 
-/** «¿Cuántas te quedaban?» tras la última serie de un ejercicio (D-052). Opcional. */
+/** «¿Cuántas te quedaban?» tras cada serie (D-052, D-055). Opcional. */
 function ReservePicker({ question }: { question: ReserveQuestion }) {
   return (
     <div className="mt-4 rounded-2xl border border-border bg-surface px-4 py-3.5 text-left">
-      <p className="text-[13.5px] font-semibold">¿Cuántas te quedaban en la última serie?</p>
-      <p className="mt-0.5 text-[12.5px] text-muted-foreground">{question.name} · AXIS ajusta la próxima vez</p>
+      <p className="text-[13.5px] font-semibold">¿Cuántas te quedaban?</p>
+      <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+        {question.name} · buscamos {REPS_IN_RESERVE_LABELS[question.target]} ·{' '}
+        {question.last ? 'AXIS ajusta la próxima vez' : 'AXIS ajusta la siguiente serie'}
+      </p>
       <div className="mt-3 flex gap-1.5">
         {REPS_IN_RESERVE_ORDER.map((value) => (
           <button
@@ -540,6 +566,11 @@ function ReservePicker({ question }: { question: ReserveQuestion }) {
           </button>
         ))}
       </div>
+      {question.advice && (
+        <p key={question.advice} className="ax-fade mt-3 text-[13.5px] font-medium text-primary">
+          {question.advice}
+        </p>
+      )}
     </div>
   )
 }

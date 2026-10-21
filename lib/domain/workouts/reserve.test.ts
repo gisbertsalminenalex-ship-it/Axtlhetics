@@ -50,12 +50,12 @@ const proposal: AxisProposal = {
 
 const START = new Date(2026, 8, 8, 18, 0, 0)
 
-test('se pregunta solo tras la última serie de un ejercicio del entrenamiento y por repeticiones', () => {
+test('se pregunta tras cada serie de un ejercicio del entrenamiento y por repeticiones (D-055)', () => {
   let workout = startWorkout(proposal, START)!
   workout = completeSet(workout, START) // calentamiento
   assert.equal(reserveQuestionFor(workout), null, 'el calentamiento no')
   workout = completeSet(workout, START) // flexiones 1/2
-  assert.equal(reserveQuestionFor(workout), null, 'no en una serie intermedia')
+  assert.equal(reserveQuestionFor(workout), 1, 'también en una serie intermedia')
   workout = completeSet(workout, START) // flexiones 2/2
   assert.equal(reserveQuestionFor(workout), 1, 'sí tras la última')
   workout = completeSet(workout, START)

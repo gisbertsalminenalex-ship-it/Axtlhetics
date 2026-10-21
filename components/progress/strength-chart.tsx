@@ -16,7 +16,15 @@ const PAD = { top: 12, right: 12, bottom: 22, left: 30 }
  * fija: línea vertical y, encima, su fecha y su valor. Debajo, los mismos datos
  * en una tabla.
  */
-export function StrengthChart({ points, unit }: { points: readonly ExercisePoint[]; unit: string }) {
+export function StrengthChart({
+  points,
+  unit,
+  title = 'Mejor serie por sesión',
+}: {
+  points: readonly ExercisePoint[]
+  unit: string
+  title?: string
+}) {
   const [selected, setSelected] = useState<number | null>(null)
   // Solo letras y cifras: los ids de React llevan signos que rompen url(#…).
   const gradientId = `strength-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
@@ -38,13 +46,13 @@ export function StrengthChart({ points, unit }: { points: readonly ExercisePoint
   return (
     <figure className="mt-4">
       <figcaption className="flex items-baseline justify-between">
-        <span className="text-[13px] font-medium">Mejor serie por sesión</span>
+        <span className="text-[13px] font-medium">{title}</span>
         <span className="text-[12px] tabular-nums text-muted-foreground">
-          {formatShortDate(shown.dayKey)} · {shown.best} {unit}
+          {formatShortDate(shown.dayKey)} · {formatValue(shown.best)} {unit}
         </span>
       </figcaption>
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label={`Mejor serie por sesión: de ${points[0].best} a ${points[points.length - 1].best} ${unit}`}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label={`${title}: de ${formatValue(points[0].best)} a ${formatValue(points[points.length - 1].best)} ${unit}`}>
         {guides.map((value) => (
           <g key={value}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(value)} y2={y(value)} stroke="var(--border)" strokeWidth={1} opacity={value === 0 ? 1 : 0.5} />
@@ -92,7 +100,7 @@ export function StrengthChart({ points, unit }: { points: readonly ExercisePoint
               onPointerEnter={() => setSelected(i)}
               onClick={() => setSelected(i)}
             >
-              <title>{`${formatShortDate(point.dayKey)}: ${point.best} ${unit}`}</title>
+              <title>{`${formatShortDate(point.dayKey)}: ${formatValue(point.best)} ${unit}`}</title>
             </rect>
           )
         })}
@@ -125,7 +133,7 @@ export function StrengthChart({ points, unit }: { points: readonly ExercisePoint
               <tr key={point.dayKey + i} className="border-t border-border">
                 <td className="py-1.5">{formatShortDate(point.dayKey)}</td>
                 <td className="py-1.5 text-right">
-                  {point.best} {unit}
+                  {formatValue(point.best)} {unit}
                 </td>
               </tr>
             ))}

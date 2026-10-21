@@ -258,6 +258,8 @@ export type CompletedSet = {
   reps: number
   weightKg: number | null
   completed: boolean
+  /** Cuántas quedaban en esta serie (D-055). Ausente si no se contestó o no se preguntó. */
+  reserve?: RepsInReserve
 }
 
 /**
@@ -428,7 +430,8 @@ function isCompletedSetValue(value: unknown): value is CompletedSet {
     isRecord(value) &&
     isFiniteNumber(value.reps) &&
     isNullableNumber(value.weightKg) &&
-    typeof value.completed === 'boolean'
+    typeof value.completed === 'boolean' &&
+    (value.reserve === undefined || isRepsInReserve(value.reserve))
   )
 }
 

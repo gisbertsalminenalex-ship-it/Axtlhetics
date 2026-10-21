@@ -35,6 +35,7 @@ import type {
 import { isExercisePhase, isMainExercise, isRepsInReserve, isWarmupPart, usesLoad, volumeOfSession } from './types'
 import type { RepsInReserve } from './types'
 import { findExercise } from './catalog'
+import { nextSetAfter, targetReserveFor } from './strength'
 
 /** Escalón del selector de carga, en kg. */
 export const WEIGHT_STEP_KG = 0.5
@@ -66,6 +67,12 @@ export type ActiveExerciseEntry = {
   warmupPart?: WarmupPart
   /** Cuántas quedaban en la última serie (D-052). */
   reserve?: RepsInReserve
+  /**
+   * Los pesos del usuario que sirven para este ejercicio, de menor a mayor
+   * (D-046). Es lo que permite bajar o subir de peso a mitad del ejercicio
+   * (D-055). Ausente en lo guardado antes y en los ejercicios sin carga.
+   */
+  loads?: number[]
 }
 
 export type ActiveWorkout = {
@@ -124,6 +131,8 @@ export function snapshotOf(proposal: AxisProposal): ProposalSnapshot {
 export function startWorkout(
   proposal: AxisProposal,
   now: Date = new Date(),
+  /** Los pesos del usuario para cada ejercicio (D-055). */
+  loadsOf: (exerciseId: string) => number[] = () => [],
 ): ActiveWorkout | null {
   if (!proposal.session) return null
 
@@ -147,10 +156,15 @@ export function startWorkout(
       sets: [],
       ...(exercise.phase ? { phase: exercise.phase } : {}),
       ...(exercise.warmupPart ? { warmupPart: exercise.warmupPart } : {}),
+      ...withLoads(exercise.suggestedWeightKg === null ? [] : loadsOf(exercise.exerciseId)),
     })),
     exerciseIndex: 0,
     modifications: [],
   }
+}
+
+function withLoads(loads: number[]): { loads?: number[] } {
+  return loads.length > 0 ? { loads } : {}
 }
 
 export function currentEntry(workout: ActiveWorkout): ActiveExerciseEntry | null {
@@ -246,24 +260,66 @@ export function completeSet(workout: ActiveWorkout, now: Date = new Date()): Act
 }
 
 /**
- * El ejercicio por el que preguntar «¿cuántas te quedaban?» (D-052): el que se
- * acaba de terminar con su última serie, si es del entrenamiento y por
- * repeticiones. `null` si no toca preguntar.
+ * El ejercicio por el que preguntar «¿cuántas te quedaban?»: el de la serie
+ * recién hecha, en cada serie (D-055) y no solo en la última (D-052), si es del
+ * entrenamiento y por repeticiones. `null` si no toca preguntar.
  */
 export function reserveQuestionFor(workout: ActiveWorkout): number | null {
   const index = workout.lastSet?.exerciseIndex
   if (index === undefined || index === null) return null
   const entry = workout.entries[index]
-  if (!entry || entry.phase || entry.isTimed) return null
-  if (entry.sets.length < entry.targetSets) return null
-  // Solo justo después: si ya se pasó a otro ejercicio con series, ya no toca.
-  return index === workout.exerciseIndex - 1 ? index : null
+  if (!entry || entry.phase || entry.isTimed || entry.sets.length === 0) return null
+  // Solo justo después: la serie del ejercicio en curso, o la última del que se acaba de terminar.
+  if (index === workout.exerciseIndex) return index
+  return index === workout.exerciseIndex - 1 && entry.sets.length >= entry.targetSets ? index : null
 }
 
-/** Apunta cuántas quedaban en la última serie de ese ejercicio (D-052). */
+/** La reserva que se busca en cada serie de esta sesión (D-055). */
+export function targetReserveOf(workout: ActiveWorkout): RepsInReserve {
+  return targetReserveFor(workout.plan)
+}
+
+/**
+ * Apunta cuántas quedaban en la serie recién hecha (D-055). En la última del
+ * ejercicio queda además como la reserva del ejercicio, la que lee la
+ * progresión (D-052). Si quedan series, la siguiente se ajusta: más ligera si
+ * quedaban menos de las buscadas, más pesada si quedaban más.
+ */
 export function setReserve(workout: ActiveWorkout, index: number, reserve: RepsInReserve): ActiveWorkout {
-  if (!workout.entries[index]) return workout
-  return replaceEntry(workout, index, (entry) => ({ ...entry, reserve }))
+  const entry = workout.entries[index]
+  const done = entry?.sets[entry.sets.length - 1]
+  if (!entry || !done) return workout
+
+  const target = targetReserveOf(workout)
+  const finished = entry.sets.length >= entry.targetSets
+  return replaceEntry(workout, index, (current) => {
+    const sets = [...current.sets.slice(0, -1), { ...done, reserve }]
+    if (finished) return { ...current, sets, reserve }
+    const next = nextSetAfter(done, reserve, target, {
+      loads: current.loads ?? [],
+      targetReps: current.targetReps,
+      maxReps: MAX_REPS,
+    })
+    return { ...current, sets, reps: next.reps, weightKg: next.weightKg }
+  })
+}
+
+/**
+ * Lo que AXIS dice de la siguiente serie tras el ajuste (D-055), o `null` si
+ * no cambió nada. Se lee comparando la serie hecha con lo que queda preparado.
+ */
+export function nextSetAdvice(workout: ActiveWorkout, index: number): string | null {
+  const entry = workout.entries[index]
+  const done = entry?.sets[entry.sets.length - 1]
+  if (!entry || !done?.reserve || entry.sets.length >= entry.targetSets) return null
+  const kg = (value: number) => `${value.toLocaleString('es-ES', { maximumFractionDigits: 1 })} kg`
+  if (entry.weightKg !== null && done.weightKg !== null && entry.weightKg !== done.weightKg) {
+    const verb = entry.weightKg < done.weightKg ? 'Baja' : 'Sube'
+    return `${verb} a ${kg(entry.weightKg)} y ${entry.reps} repeticiones en la siguiente.`
+  }
+  if (entry.reps < done.reps) return `Mismo peso, ${entry.reps} repeticiones en la siguiente.`
+  if (entry.reps > done.reps) return `Te sobra margen: ${entry.reps} repeticiones en la siguiente.`
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -380,12 +436,11 @@ export function undoLastSet(workout: ActiveWorkout): ActiveWorkout {
   const entry = workout.entries[index]
   const removed = entry.sets[entry.sets.length - 1]
 
-  const updated = replaceEntry(workout, index, (current) => ({
-    ...current,
-    reps: removed.reps,
-    weightKg: removed.weightKg,
-    sets: current.sets.slice(0, -1),
-  }))
+  const updated = replaceEntry(workout, index, (current) => {
+    // La reserva del ejercicio era la de su última serie: si se deshace, se va con ella.
+    const { reserve: _reserve, ...rest } = current
+    return { ...rest, reps: removed.reps, weightKg: removed.weightKg, sets: current.sets.slice(0, -1) }
+  })
 
   return { ...updated, exerciseIndex: index, rest: null, work: null, lastSet: null }
 }
@@ -505,7 +560,8 @@ function isCompletedSet(value: unknown): value is CompletedSet {
     isRecord(value) &&
     typeof value.reps === 'number' &&
     (value.weightKg === null || typeof value.weightKg === 'number') &&
-    typeof value.completed === 'boolean'
+    typeof value.completed === 'boolean' &&
+    (value.reserve === undefined || isRepsInReserve(value.reserve))
   )
 }
 
@@ -526,7 +582,9 @@ function isActiveEntry(value: unknown): value is ActiveExerciseEntry {
     value.sets.every(isCompletedSet) &&
     (value.phase === undefined || isExercisePhase(value.phase)) &&
     (value.warmupPart === undefined || isWarmupPart(value.warmupPart)) &&
-    (value.reserve === undefined || isRepsInReserve(value.reserve))
+    (value.reserve === undefined || isRepsInReserve(value.reserve)) &&
+    (value.loads === undefined ||
+      (Array.isArray(value.loads) && value.loads.every((kg) => typeof kg === 'number' && kg > 0)))
   )
 }
 

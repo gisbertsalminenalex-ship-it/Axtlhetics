@@ -47,7 +47,8 @@ import {
   type AxisActionStatus,
 } from '../domain/axis/actions'
 import { projectWeek, type WeekDayView } from '../domain/axis/week-view'
-import { buildAxisContext } from '../domain/axis/context'
+import { buildAxisContext, gearToday } from '../domain/axis/context'
+import { loadsFor } from '../domain/workouts/equipment'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
 import { computeHistoryStats, weeklyActivityFor, type HistoryRange, type HistoryStats } from '../domain/history/stats'
@@ -105,7 +106,7 @@ import type { AxisFallbackNotice, AxisMessage, AxisSuggestion } from '../domain/
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { bestSetOf } from '../domain/workouts/targets'
 import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
-import { EXERCISE_CATALOG } from '../domain/workouts/catalog'
+import { EXERCISE_CATALOG, findExercise } from '../domain/workouts/catalog'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
 import type { RepsInReserve, WorkoutSession } from '../domain/workouts/types'
@@ -896,14 +897,19 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     // Ya hay una en marcha: se sigue con ella. Nunca dos sesiones a la vez.
     if (workoutRef.current) return
     if (!proposal || !decision) return
-    const started = startWorkoutFrom(proposal)
+    // Los pesos del usuario viajan con cada ejercicio: con ellos se ajusta la serie siguiente (D-055).
+    const gear = axisContext ? gearToday(axisContext) : null
+    const started = startWorkoutFrom(proposal, new Date(), (exerciseId) => {
+      const exercise = findExercise(exerciseId)
+      return exercise && gear ? loadsFor(exercise, gear) : []
+    })
     if (!started) return
 
     const changed = proposal.id !== decision.primary.id
     replaceActiveWorkout(
       changed ? markProposalChanged(started, decision.primary.headline) : started,
     )
-  }, [proposal, decision, replaceActiveWorkout])
+  }, [proposal, decision, axisContext, replaceActiveWorkout])
 
   const adjustWeight = useCallback(
     (delta: number) => updateActiveWorkout((current) => adjustWeightIn(current, delta)),

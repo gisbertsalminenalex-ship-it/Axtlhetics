@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-17.
+**Última actualización:** 2026-10-21.
 
 ## Qué es este documento
 
@@ -2020,6 +2020,47 @@ El paso de la progresión salía del esfuerzo de **toda la sesión**: si un ejer
 - **«Terminar ya»** registra los segundos hechos; **«Cancelar»** vuelve sin registrar nada. Debajo de «Empezar» queda **«Ya lo hice: completar serie»**, para quien no quiera el cronómetro.
 - Se guarda como el descanso, con dos instantes (`work` en la sesión en curso): al recargar sigue donde iba. Saltar el ejercicio o deshacer una serie lo cierra.
 - El test de evolución (D-021) no cambia: sus pruebas de tiempo se cronometran fuera.
+
+---
+
+## D-055 — La reserva en cada serie, y la siguiente se ajusta
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: que AXTHLETICS actúe como un entrenador personal (punto 3 de la lista P1). **Amplía** D-052.
+
+- **«¿Cuántas te quedaban?» tras cada serie**, no solo tras la última: durante el descanso, mismo toque opcional (0 · 1–2 · 3 o más). Solo en el entrenamiento y en ejercicios por repeticiones. Se guarda con la serie (`reserve` en `CompletedSet`); la de la última serie sigue siendo la del ejercicio (D-052).
+- **Reserva buscada**: **1–2** en una sesión normal o fuerte, **3 o más** en una ligera o de descarga. La pantalla del ejercicio la dice: «Deja 1–2 en reserva».
+- **La siguiente serie se ajusta** (`nextSetAfter`, `lib/domain/workouts/strength.ts`):
+  - Lo contestado coincide con lo buscado: se repite.
+  - Quedaban menos: el peso más ligero del usuario con las mismas repeticiones; sin otro peso, 2 repeticiones menos.
+  - Quedaban más: el siguiente peso con las repeticiones que caben dejando la reserva buscada, si no son más de 2 menos que las previstas; si no, 2 repeticiones más.
+  - AXIS lo dice debajo de la pregunta: «Baja a 5 kg y 12 repeticiones en la siguiente.»
+- El ajuste parte siempre de la serie hecha: cambiar de respuesta no acumula. Deshacer la serie quita su respuesta.
+- Los pesos del usuario para cada ejercicio viajan con la sesión en curso (`loads`), con el material del día (D-046).
+
+---
+
+## D-056 — Fuerza estimada (1RM) y carga exacta
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: punto 2 de la lista P1. **Amplía** D-031, D-046 y D-052.
+
+### La estimación
+
+- Con kg, repeticiones y reserva, **fórmula de Epley**: 1RM ≈ kg × (1 + (repeticiones + reserva) / 30). «1–2» cuenta 1 y «3 o más» cuenta 3: lo mínimo que dicen. Una serie sin respuesta cuenta como hecha al fallo (lo prudente). Series de más de 20 repeticiones hasta el fallo no estiman: la fórmula exagera.
+- Sin carga, lo que se estima son las **repeticiones hasta el fallo**.
+- Es una estimación: **nunca se pide un test de 1RM**.
+
+### La carga de la próxima sesión
+
+Si en la última sesión del ejercicio se contestó la reserva de alguna serie, la progresión sale de la **última serie contestada** (llega con la fatiga de las anteriores, como llegarán las que se prescriban), dejando la reserva buscada (D-055):
+
+- **Con carga**: el siguiente peso del usuario si con él caben las repeticiones de partida (o, ya en el techo, dos pasos menos: de 8 a 10 kg hay un 25 %); si no, el mismo peso si caben las de la última vez menos un paso como mucho; si tampoco, el peso más ligero con el que caben las de partida.
+- **Sin carga**: las repeticiones hasta el fallo menos la reserva.
+- Con el mismo peso, nunca más de dos pasos por encima ni uno por debajo de la última vez: la estimación orienta, no da saltos.
+- Lo de antes no cambia: un ejercicio a medias o una semana de descarga repiten; sin reservas contestadas, manda la doble progresión de D-046 con el esfuerzo de la sesión (D-031) y la reserva del ejercicio (D-052). El paso a la variante más difícil sigue siendo al dominar el techo.
+
+### Dónde se ve
+
+En «Tu fuerza» (Entrenamiento), debajo de la mejor serie, **«1RM estimado»** por sesión para los ejercicios con carga.
 
 ---
 

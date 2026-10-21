@@ -7,7 +7,7 @@ import { isFirstCompletedTest } from '@/lib/domain/assessment/targets'
 import { formatShortDate } from '@/lib/domain/shared/dates'
 import { safeDivide } from '@/lib/domain/shared/ids'
 import { EXERCISE_CATALOG, findExercise } from '@/lib/domain/workouts/catalog'
-import { exerciseHistory, trainedExercises, weeklySetTotals } from '@/lib/domain/workouts/progress'
+import { exerciseHistory, oneRepMaxHistory, trainedExercises, weeklySetTotals } from '@/lib/domain/workouts/progress'
 import { TARGET_STATUS_LABELS, targetProgress } from '@/lib/domain/workouts/targets'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
@@ -98,6 +98,8 @@ export function ProgressSection() {
             ))}
           </select>
           <StrengthChart points={exerciseHistory(chosen.id, sessions)} unit={chosen.work.isTimed ? 's' : 'reps'} />
+          {/* Con carga, también lo que levantarías a una repetición (D-056): una estimación, nunca un test. */}
+          <StrengthChart points={oneRepMaxHistory(chosen.id, sessions)} unit="kg" title="1RM estimado" />
         </>
       ) : (
         <p className="mt-4 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-[13.5px] text-muted-foreground">
