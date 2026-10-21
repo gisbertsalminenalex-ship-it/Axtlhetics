@@ -69,7 +69,9 @@ import type { ActiveWorkout } from '../domain/workouts/active-workout'
 import {
   adjustReps as adjustRepsIn,
   adjustWeight as adjustWeightIn,
+  cancelWork as cancelWorkIn,
   completeSet as completeSetIn,
+  completeWork as completeWorkIn,
   extendRest as extendRestIn,
   hasProgress,
   markProposalChanged,
@@ -77,6 +79,7 @@ import {
   setReserve as setReserveIn,
   skipExercise as skipExerciseIn,
   skipRest as skipRestIn,
+  startWork as startWorkIn,
   startWorkout as startWorkoutFrom,
   toWorkoutSession,
   undoLastSet as undoLastSetIn,
@@ -282,6 +285,12 @@ type AxtlheticsStore = {
   extendRest(): void
   /** Cuántas quedaban en la última serie de ese ejercicio (D-052). */
   setReserve(exerciseIndex: number, reserve: RepsInReserve): void
+  /** Arranca el cronómetro del ejercicio por tiempo actual (D-054). */
+  startWork(): void
+  /** Cierra el cronómetro y registra la serie con los segundos hechos (D-054). */
+  finishWork(): void
+  /** Para el cronómetro sin registrar nada (D-054). */
+  cancelWork(): void
   finishWorkout(effort: number | null): Promise<void>
   abandonWorkout(): Promise<void>
   /** Registra cuánto costó la sesión recién guardada, 1–5 (D-019). */
@@ -937,6 +946,18 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [updateActiveWorkout],
   )
 
+  const startWork = useCallback(
+    () => updateActiveWorkout((current) => startWorkIn(current, new Date())),
+    [updateActiveWorkout],
+  )
+
+  const finishWork = useCallback(
+    () => updateActiveWorkout((current) => completeWorkIn(current, new Date())),
+    [updateActiveWorkout],
+  )
+
+  const cancelWork = useCallback(() => updateActiveWorkout(cancelWorkIn), [updateActiveWorkout])
+
   const saveSession = useCallback(async (session: WorkoutSession) => {
     setSessions((current) => withSession(current, session))
     try {
@@ -1376,6 +1397,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       skipRest,
       extendRest,
       setReserve,
+      startWork,
+      finishWork,
+      cancelWork,
       finishWorkout,
       abandonWorkout,
       rateLastSession,
@@ -1441,6 +1465,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       skipRest,
       extendRest,
       setReserve,
+      startWork,
+      finishWork,
+      cancelWork,
       finishWorkout,
       abandonWorkout,
       rateLastSession,

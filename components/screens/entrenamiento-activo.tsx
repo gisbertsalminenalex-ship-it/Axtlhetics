@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, Check, ChevronRight, SkipForward, Undo2 } from 'lucide-react'
+import { ArrowLeft, Check, ChevronRight, Play, SkipForward, Undo2 } from 'lucide-react'
 import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
 import { Confirmation } from '@/components/workout/confirmation'
 import { RestTimer } from '@/components/workout/rest-timer'
+import { CountdownRing } from '@/components/workout/countdown-ring'
 import { ValueStepper } from '@/components/workout/value-stepper'
 import {
   canUndoLastSet,
@@ -17,6 +18,8 @@ import {
   nextEntry,
   reserveQuestionFor,
   restState,
+  workState,
+  type WorkState,
   takesWeight,
   WEIGHT_STEP_KG,
   type ActiveExerciseEntry,
@@ -42,6 +45,9 @@ export function EntrenamientoActivo() {
     skipRest,
     extendRest,
     setReserve,
+    startWork,
+    finishWork,
+    cancelWork,
     finishWorkout,
     abandonWorkout,
   } = useAxtlhetics()
@@ -66,6 +72,14 @@ export function EntrenamientoActivo() {
     if (finished) void finishWorkout(null)
   }, [finished, finishWorkout])
 
+  // El cronómetro llega a cero (D-054): vibra y la serie se registra sola.
+  const workDone = activeWorkout !== null && workState(activeWorkout, now)?.finished === true
+  useEffect(() => {
+    if (!workDone) return
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(300)
+    finishWork()
+  }, [workDone, finishWork])
+
   if (!activeWorkout) return null
 
   const entry = currentEntry(activeWorkout)
@@ -77,6 +91,7 @@ export function EntrenamientoActivo() {
   if (!entry) return null
 
   const rest = restState(activeWorkout, now)
+  const work = workState(activeWorkout, now)
   const canUndo = canUndoLastSet(activeWorkout)
 
   /*
@@ -189,6 +204,14 @@ export function EntrenamientoActivo() {
           onUndo={undoLastSet}
           reserve={reserveFor(activeWorkout, setReserve)}
         />
+      ) : work ? (
+        <WorkPanel
+          work={work}
+          entry={entry}
+          setNumber={currentSetNumber(activeWorkout)}
+          onFinish={finishWork}
+          onCancel={cancelWork}
+        />
       ) : (
         <>
           {/* Current exercise */}
@@ -246,14 +269,35 @@ export function EntrenamientoActivo() {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={completeSet}
-            className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
-          >
-            Completar serie
-            <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
-          </button>
+          {/* Por tiempo, el cronómetro (D-054); por repeticiones, se completa la serie. */}
+          {entry.isTimed ? (
+            <>
+              <button
+                type="button"
+                onClick={startWork}
+                className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground tabular-nums"
+              >
+                <Play className="h-[18px] w-[18px]" strokeWidth={2.25} />
+                Empezar · {entry.reps} s
+              </button>
+              <button
+                type="button"
+                onClick={completeSet}
+                className="ax-press mt-1 min-h-11 w-full text-[13.5px] font-medium text-muted-foreground"
+              >
+                Ya lo hice: completar serie
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={completeSet}
+              className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+            >
+              Completar serie
+              <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
+            </button>
+          )}
 
           {canUndo && <UndoButton onUndo={undoLastSet} />}
 
@@ -422,6 +466,53 @@ function RestPanel({
       {reserve && <ReservePicker question={reserve} />}
       {canUndo && <UndoButton onUndo={onUndo} />}
     </RestTimer>
+  )
+}
+
+/**
+ * El cronómetro de un ejercicio por tiempo (D-054): la misma cuenta atrás que el
+ * descanso. Al llegar a cero la serie se registra sola; «Terminar ya» registra
+ * los segundos hechos y «Cancelar» vuelve sin registrar nada.
+ */
+function WorkPanel({
+  work,
+  entry,
+  setNumber,
+  onFinish,
+  onCancel,
+}: {
+  work: WorkState
+  entry: ActiveExerciseEntry
+  setNumber: number
+  onFinish: () => void
+  onCancel: () => void
+}) {
+  return (
+    <section className="ax-enter" aria-label="Cronómetro">
+      <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">EN MARCHA</p>
+      <CountdownRing remainingSeconds={work.remainingSeconds} totalSeconds={work.totalSeconds} />
+      <p className="mt-6 text-[17px] font-semibold tracking-[-0.01em]">{entry.name}</p>
+      <p className="mt-0.5 text-[14px] text-muted-foreground tabular-nums">
+        Serie {setNumber} de {entry.targetSets}
+        {entry.unilateral ? ' · por lado' : ''}
+      </p>
+      <button
+        type="button"
+        onClick={onFinish}
+        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+      >
+        Terminar ya
+        <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-muted-foreground"
+      >
+        Cancelar
+      </button>
+      <HowTo exerciseId={entry.exerciseId} />
+    </section>
   )
 }
 

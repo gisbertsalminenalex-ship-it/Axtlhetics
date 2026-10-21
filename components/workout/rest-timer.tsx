@@ -1,8 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { CircularMetric } from '@/components/circular-metric'
-import { formatDuration } from '@/lib/domain/shared/dates'
+import { CountdownRing } from '@/components/workout/countdown-ring'
 import { REST_EXTENSION_SECONDS, type RestState } from '@/lib/domain/shared/rest'
 
 /**
@@ -37,23 +36,7 @@ export function RestTimer({
     <section className="ax-enter" aria-label="Descanso">
       <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">DESCANSO</p>
 
-      <div className="mt-5 flex justify-center">
-        <CircularMetric
-          value={rest.remainingSeconds}
-          max={rest.totalSeconds}
-          size={200}
-          stroke={8}
-          tone="primary"
-        >
-          <span
-            className="text-[44px] font-bold tracking-[-0.02em] tabular-nums"
-            role="timer"
-            aria-live="off"
-          >
-            {formatDuration(rest.remainingSeconds)}
-          </span>
-        </CircularMetric>
-      </div>
+      <CountdownRing remainingSeconds={rest.remainingSeconds} totalSeconds={rest.totalSeconds} />
 
       <p className="mt-6 text-[13px] text-muted-foreground">{nextLabel}</p>
       <p className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em]">{nextName}</p>

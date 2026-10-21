@@ -89,6 +89,24 @@ export type ActiveWorkout = {
    * última: deshacer no es un historial, es corregir un toque por error.
    */
   lastSet?: { exerciseIndex: number } | null
+  /**
+   * El cronómetro de un ejercicio por tiempo en marcha (D-054): dos instantes,
+   * como el descanso, para que al recargar siga donde iba. Ausente o `null` si
+   * no hay ninguno.
+   */
+  work?: WorkWindow | null
+}
+
+/** Un cronómetro de trabajo: de qué ejercicio, cuándo empezó y cuándo acaba. */
+export type WorkWindow = RestWindow & { exerciseIndex: number }
+
+export type WorkState = {
+  remainingSeconds: number
+  totalSeconds: number
+  /** Segundos hechos hasta ahora, sin pasar del total. */
+  elapsedSeconds: number
+  /** `true` cuando ya llegó a cero. */
+  finished: boolean
 }
 
 export function snapshotOf(proposal: AxisProposal): ProposalSnapshot {
@@ -222,6 +240,7 @@ export function completeSet(workout: ActiveWorkout, now: Date = new Date()): Act
     exerciseIndex,
     rest:
       somethingLeft && entry.restSeconds > 0 ? startRestWindow(entry.restSeconds, now) : null,
+    work: null,
     lastSet: { exerciseIndex: workout.exerciseIndex },
   }
 }
@@ -247,6 +266,49 @@ export function setReserve(workout: ActiveWorkout, index: number, reserve: RepsI
   return replaceEntry(workout, index, (entry) => ({ ...entry, reserve }))
 }
 
+// ---------------------------------------------------------------------------
+// Cronómetro de los ejercicios por tiempo (D-054)
+// ---------------------------------------------------------------------------
+
+/** Arranca el cronómetro del ejercicio actual, si es por tiempo y no hay descanso en curso. */
+export function startWork(workout: ActiveWorkout, now: Date = new Date()): ActiveWorkout {
+  const entry = currentEntry(workout)
+  if (!entry || !entry.isTimed || restRemaining(workout.rest, now)) return workout
+  return { ...workout, rest: null, work: { ...startRestWindow(entry.reps, now), exerciseIndex: workout.exerciseIndex } }
+}
+
+/** El cronómetro en marcha en el instante `now`, o `null` si no hay ninguno del ejercicio actual. */
+export function workState(workout: ActiveWorkout, now: Date = new Date()): WorkState | null {
+  const work = workout.work
+  if (!work || work.exerciseIndex !== workout.exerciseIndex) return null
+  const startedAt = new Date(work.startedAt).getTime()
+  const endsAt = new Date(work.endsAt).getTime()
+  const totalSeconds = Math.max(1, Math.round((endsAt - startedAt) / 1000))
+  const remainingMs = endsAt - now.getTime()
+  const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
+  const elapsedSeconds = Math.min(totalSeconds, Math.max(0, Math.floor((now.getTime() - startedAt) / 1000)))
+  return { remainingSeconds, totalSeconds, elapsedSeconds, finished: remainingMs <= 0 }
+}
+
+/**
+ * Cierra el cronómetro y registra la serie con los segundos hechos: los del
+ * total si llegó a cero, los que van si se termina antes. Sin un segundo
+ * hecho no registra nada.
+ */
+export function completeWork(workout: ActiveWorkout, now: Date = new Date()): ActiveWorkout {
+  const state = workState(workout, now)
+  if (!state) return workout
+  const seconds = state.finished ? state.totalSeconds : state.elapsedSeconds
+  if (seconds < 1) return { ...workout, work: null }
+  const withSeconds = replaceEntry(workout, workout.exerciseIndex, (entry) => ({ ...entry, reps: seconds }))
+  return completeSet({ ...withSeconds, work: null }, now)
+}
+
+/** Para el cronómetro sin registrar nada. */
+export function cancelWork(workout: ActiveWorkout): ActiveWorkout {
+  return workout.work ? { ...workout, work: null } : workout
+}
+
 /** Pasa al siguiente ejercicio dejando constancia de que se saltó. */
 export function skipExercise(workout: ActiveWorkout): ActiveWorkout {
   const entry = currentEntry(workout)
@@ -262,8 +324,9 @@ export function skipExercise(workout: ActiveWorkout): ActiveWorkout {
     ...workout,
     exerciseIndex: workout.exerciseIndex + 1,
     modifications: [...workout.modifications, ...skipped],
-    // Saltar cierra lo que hubiera pendiente: ni descanso ni serie que deshacer.
+    // Saltar cierra lo que hubiera pendiente: ni descanso, ni cronómetro, ni serie que deshacer.
     rest: null,
+    work: null,
     lastSet: null,
   }
 }
@@ -324,7 +387,7 @@ export function undoLastSet(workout: ActiveWorkout): ActiveWorkout {
     sets: current.sets.slice(0, -1),
   }))
 
-  return { ...updated, exerciseIndex: index, rest: null, lastSet: null }
+  return { ...updated, exerciseIndex: index, rest: null, work: null, lastSet: null }
 }
 
 export function performedExercises(workout: ActiveWorkout): PerformedExercise[] {
@@ -507,12 +570,26 @@ export function isActiveWorkout(value: unknown): value is ActiveWorkout {
   if (!Array.isArray(value.entries) || !value.entries.every(isActiveEntry)) return false
   if (!Array.isArray(value.modifications)) return false
   if (!isOptionalRest(value.rest)) return false
+  if (!isOptionalWork(value.work, value.entries.length)) return false
   if (!isOptionalLastSet(value.lastSet, value.entries.length)) return false
   return (
     typeof value.exerciseIndex === 'number' &&
     Number.isInteger(value.exerciseIndex) &&
     value.exerciseIndex >= 0 &&
     value.exerciseIndex <= value.entries.length
+  )
+}
+
+/** Ausente o `null` en lo guardado antes de D-054; si está, dos instantes y un ejercicio que existe. */
+function isOptionalWork(value: unknown, entryCount: number): boolean {
+  if (value === undefined || value === null) return true
+  return (
+    isOptionalRest(value) &&
+    isRecord(value) &&
+    typeof value.exerciseIndex === 'number' &&
+    Number.isInteger(value.exerciseIndex) &&
+    value.exerciseIndex >= 0 &&
+    value.exerciseIndex < entryCount
   )
 }
 

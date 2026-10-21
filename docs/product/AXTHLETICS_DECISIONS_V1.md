@@ -2011,6 +2011,18 @@ El paso de la progresión salía del esfuerzo de **toda la sesión**: si un ejer
 
 ---
 
+## D-054 — Cronómetro en los ejercicios por tiempo
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: «en un ejercicio de segundos, que salga un crono como el de descanso».
+
+- En un ejercicio por tiempo (activación, movilidad articular, planchas, intervalos…), el botón principal es **«Empezar · 60 s»** (los segundos de la serie). Al pulsarlo sale una cuenta atrás con el **mismo anillo que el descanso** (`CountdownRing`), el nombre del ejercicio y «Cómo se hace».
+- **Al llegar a cero** el móvil vibra, la serie se registra sola con los segundos previstos y empieza el descanso, como siempre.
+- **«Terminar ya»** registra los segundos hechos; **«Cancelar»** vuelve sin registrar nada. Debajo de «Empezar» queda **«Ya lo hice: completar serie»**, para quien no quiera el cronómetro.
+- Se guarda como el descanso, con dos instantes (`work` en la sesión en curso): al recargar sigue donde iba. Saltar el ejercicio o deshacer una serie lo cierra.
+- El test de evolución (D-021) no cambia: sus pruebas de tiempo se cronometran fuera.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
