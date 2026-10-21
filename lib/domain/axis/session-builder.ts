@@ -205,6 +205,11 @@ export type SessionBuildOptions = {
    */
   priorityExerciseIds?: readonly string[]
   /**
+   * Los principales del bloque (D-057): abren la sesión, en su orden, mientras
+   * se puedan hacer hoy. Lo demás rota como siempre.
+   */
+  anchorExerciseIds?: readonly string[]
+  /**
    * Ejercicios que no gustan, dichos o deducidos de los saltos (D-037): fuera
    * de la sesión mientras queden suficientes alternativas.
    */
@@ -289,6 +294,29 @@ function withPriority(
     if (slot >= 0) result[slot] = wanted
   }
   return result
+}
+
+/**
+ * Los principales del bloque abren la sesión (D-057). Cada uno ocupa el hueco
+ * del elegido de su familia (casi lo mismo dos veces sobra, D-020.1) o, si no
+ * hay, el de su mismo patrón, o el último; y los principales van primero en su
+ * orden. Con menos huecos que principales, entran los que caben.
+ */
+export function withAnchors(selected: readonly Exercise[], anchors: readonly Exercise[]): Exercise[] {
+  const kept = anchors.slice(0, selected.length)
+  const rest = [...selected]
+  for (const anchor of kept) {
+    const at = rest.findIndex((exercise) => exercise.id === anchor.id)
+    if (at >= 0) {
+      rest.splice(at, 1)
+      continue
+    }
+    const sameCategory = rest.findIndex((exercise) => exercise.category === anchor.category)
+    const sameFamily = anchor.family ? rest.findIndex((exercise) => exercise.family === anchor.family) : -1
+    const slot = sameFamily >= 0 ? sameFamily : sameCategory >= 0 ? sameCategory : rest.length - 1
+    if (slot >= 0) rest.splice(slot, 1)
+  }
+  return [...kept, ...rest]
 }
 
 /**
@@ -833,6 +861,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     deload = false,
     jumpSport = false,
     priorityExerciseIds = [],
+    anchorExerciseIds = [],
     dislikedExerciseIds = [],
     warmupExtras = [],
     preferUnilateral = false,
@@ -891,21 +920,19 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       ? jumpExerciseFor(phaseCatalog, equipment, target, usage, dislikedExerciseIds, careZones)
       : null
   /** La sesión con `count` ejercicios de entrenamiento (sin contar el salto). */
+  // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
+  const adapt = (exercise: Exercise) => {
+    const variant = adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal })
+    // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051).
+    return cares(variant) ? variant : exercise
+  }
+  // Los principales del bloque que se pueden hacer hoy, en su variante del día (D-057).
+  const anchors = anchorExerciseIds
+    .map((id) => pool.find((exercise) => exercise.id === id))
+    .filter((exercise): exercise is Exercise => exercise !== undefined)
+    .map(adapt)
   const assemble = (count: number): PlannedSession => {
-    const selected = selectExercises(
-      pool,
-      focus,
-      count,
-      // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
-      (exercise) => {
-        const variant = adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal })
-        // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051).
-        return cares(variant) ? variant : exercise
-      },
-      target,
-      usage,
-      lagging,
-    )
+    const selected = withAnchors(selectExercises(pool, focus, count, adapt, target, usage, lagging), anchors)
 
     // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
     // Un objetivo lo pidió el usuario: entra aunque el ejercicio esté entre los que no gustan.

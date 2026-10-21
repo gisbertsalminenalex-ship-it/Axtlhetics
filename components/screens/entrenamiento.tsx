@@ -12,6 +12,7 @@ import { ProgressSection } from '@/components/progress/progress-section'
 import { EXERCISE_CATALOG } from '@/lib/domain/workouts/catalog'
 import { weeklyVolume } from '@/lib/domain/workouts/weekly-volume'
 import { describeQuota, weekIndexOf, weeklyQuota } from '@/lib/domain/workouts/weekly-plan'
+import { currentBlock, describeBlock } from '@/lib/domain/workouts/blocks'
 import { isTrainingRecommendation } from '@/lib/domain/axis/types'
 import { formatDuration, formatRelativeDay } from '@/lib/domain/shared/dates'
 import { isMainExercise, phaseLabel } from '@/lib/domain/workouts/types'
@@ -214,6 +215,8 @@ export function EntrenamientoScreen({
       {quota.length > 1 && (
         <p className="mt-1 text-[13px] text-muted-foreground">{describeQuota(quota)}</p>
       )}
+      {/* El bloque en que estás (D-057). */}
+      <p className="mt-1 text-[13px] text-muted-foreground">{describeBlock(currentBlock(sessions, today))}</p>
       <WeekPlan key={today} days={weekView} className="mt-3" />
       <WeeklyVolume volumes={volumes} className="mt-6" />
 

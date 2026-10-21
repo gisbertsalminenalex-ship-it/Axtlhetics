@@ -2064,6 +2064,33 @@ En «Tu fuerza» (Entrenamiento), debajo de la mejor serie, **«1RM estimado»**
 
 ---
 
+## D-057 — Bloques con ejercicios principales fijos
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: punto 4 de la lista P1. **Matiza** la rotación de D-020 y D-020.1, que sigue para todo lo demás.
+
+### El problema
+
+La sesión se reinventaba cada día con la rotación: un entrenador fija los ejercicios principales durante unas semanas para que el progreso se pueda medir, y rota solo los accesorios.
+
+### El bloque (`lib/domain/workouts/blocks.ts`)
+
+- Un bloque son **hasta 4 semanas seguidas entrenando** (al menos una sesión completada) **más la semana de descarga** que lo cierra (D-031). Una semana sin entrenar o una descarga empiezan un bloque nuevo; quien entrena tan poco que no llega a descargar empieza uno nuevo cada 5 semanas igualmente.
+- Se calcula del historial, sin almacén propio: el mismo historial da el mismo bloque cualquier día, y la copia de seguridad lo trae consigo.
+
+### Los principales
+
+- Por zona: **2 en tren superior, 2 en tren inferior, 3 en cuerpo completo**; el core, la movilidad y los intervalos rotan siempre.
+- Son los primeros ejercicios del entrenamiento (sin saltos, core ni movilidad) de la **primera sesión completada de esa zona en el bloque**. La primera los elige como siempre; con la rotación, el bloque siguiente suele traer otros.
+- **Abren la sesión**, en su orden, en el hueco del elegido de su familia o de su patrón. Lo demás rota como antes.
+- Lo que manda por encima no cambia: el material del día, las zonas a cuidar, lo que no gusta y los objetivos medibles (D-035) siguen decidiendo. Un principal que hoy no se puede hacer no entra, y la sesión se completa con la rotación.
+- Cada principal sale en su variante del día (D-008): más accesible en una sesión ligera, más difícil cuando se domina.
+
+### Dónde se ve
+
+En Entrenamiento, bajo «Esta semana»: «Semana 2 de 4 del bloque. Los ejercicios principales se repiten hasta la descarga para medir tu progreso.» En la descarga: «Semana de descarga: cierra el bloque.»
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

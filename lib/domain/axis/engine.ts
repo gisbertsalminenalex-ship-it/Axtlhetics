@@ -10,6 +10,7 @@ import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG, exercisesForFocus, isAvailable } from '../workouts/catalog'
 import { gearToday } from './context'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
+import { blockAnchors } from '../workouts/blocks'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
 import { planSummary, type PhysiquePlan } from '../scanner/physique'
 import { isOpenTarget, targetProgress } from '../workouts/targets'
@@ -273,6 +274,7 @@ function planSession(
   const goal = overrides.focus ? goalForFocus(overrides.focus, plan, context) : plan.goal
   const intensity = overrides.intensity ?? intensityFor(type)
 
+  const catalog = context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG
   const baseMinutes = overrides.minutes ?? facts.availableMinutes
   const minutes =
     type === 'LIGHT_TRAINING'
@@ -300,6 +302,8 @@ function planSession(
       .map((target) => targetProgress(target, context.recentSessions, context.dayKey, context.assessments ?? []))
       .filter(isOpenTarget)
       .map((progress) => progress.target.exerciseId),
+    // Los principales del bloque abren la sesión (D-057).
+    anchorExerciseIds: blockAnchors(context.recentSessions, context.dayKey, focus, catalog),
     // Lo que el escaneo pide (D-041).
     warmupExtras: facts.physique?.warmupExtras ?? [],
     preferUnilateral: facts.physique?.unilateral ?? false,
