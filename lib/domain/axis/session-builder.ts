@@ -235,7 +235,8 @@ export type SessionBuildOptions = {
  * 2. **Movilidad articular**: dos minutos libres (`JOINT_MOBILITY`), más lo que
  *    se prescribe a cada uno: equilibrio si salta y correctivos del escaneo.
  * 3. **Series de aproximación**: 5 repeticiones suaves de los primeros
- *    ejercicios del entreno (`approachSets`).
+ *    ejercicios del entreno (`approachSets`); el primero con carga sube por
+ *    rampa con los pesos del usuario (`rampTo`, D-063).
  *
  * La sesión de movilidad no lleva calentamiento: ya lo es. Desde D-045 tampoco
  * hay vuelta a la calma.
@@ -245,6 +246,15 @@ export const ACTIVATION_EXERCISES: readonly string[] = ['jumping-jacks', 'escala
 /** Cuántos ejercicios del entreno llevan serie de aproximación, y de cuántas repeticiones. */
 export const APPROACH_EXERCISES = 3
 export const APPROACH_REPS = 5
+/**
+ * Rampa del primer ejercicio con carga (D-063): las series de aproximación
+ * suben hacia el peso de trabajo con los pesos del usuario, como en un
+ * gimnasio: ~50 % × 8 y ~75 % × 4.
+ */
+export const RAMP_STEPS: readonly { share: number; reps: number }[] = [
+  { share: 0.5, reps: 8 },
+  { share: 0.75, reps: 4 },
+]
 
 /** Minutos de la activación y de cada serie de aproximación: salen del tiempo disponible. */
 const ACTIVATION_MINUTES = 2
@@ -420,16 +430,46 @@ function approachSets(
   catalog: readonly Exercise[],
   equipment: readonly Equipment[],
   careZones: readonly CareZone[] = [],
+  gear: UserEquipment = LEGACY_EQUIPMENT,
 ): PlannedExercise[] {
   const result: PlannedExercise[] = []
+  let exercises = 0
+  let ramped = false
   for (const planned of main) {
-    if (result.length >= APPROACH_EXERCISES) break
+    if (exercises >= APPROACH_EXERCISES) break
     const exercise = catalog.find((item) => item.id === planned.exerciseId)
     if (!exercise || planned.isTimed || exercise.category === 'pliometria') continue
     const easier =
       !usesLoad(exercise) && exercise.regressionId ? catalog.find((item) => item.id === exercise.regressionId) : undefined
     const used =
       easier && isAvailable(easier, equipment) && !easier.work.isTimed && !loadsCareZone(easier.id, careZones) ? easier : exercise
+    exercises += 1
+
+    // El primero con carga sube por rampa hasta el peso de trabajo (D-063).
+    const ramp = !ramped && usesLoad(used) && planned.suggestedWeightKg !== null
+      ? rampTo(planned.suggestedWeightKg, loadsFor(used, gear))
+      : []
+    if (ramp.length > 0) {
+      ramped = true
+      for (const step of ramp) {
+        result.push({
+          exerciseId: used.id,
+          name: used.name,
+          sets: 1,
+          reps: step.reps,
+          isTimed: false,
+          suggestedWeightKg: step.kg,
+          restSeconds: 0,
+          unilateral: used.unilateral,
+          tempo: null,
+          imageUrl: used.imageUrl,
+          phase: 'calentamiento',
+          warmupPart: 'aproximacion',
+        })
+      }
+      continue
+    }
+
     result.push({
       exerciseId: used.id,
       name: used.name,
@@ -446,6 +486,24 @@ function approachSets(
     })
   }
   return result
+}
+
+/**
+ * Los pesos de la rampa hacia `workKg` con los que tiene el usuario (D-063): a
+ * cada paso, el más cercano de los más ligeros que el de trabajo, siempre
+ * subiendo y sin repetir. Sin pesos más ligeros, ninguno: queda la serie de 5
+ * con el mismo peso, como antes.
+ */
+export function rampTo(workKg: number, loads: readonly number[]): { kg: number; reps: number }[] {
+  const lighter = loads.filter((kg) => kg < workKg)
+  const steps: { kg: number; reps: number }[] = []
+  for (const step of RAMP_STEPS) {
+    const target = workKg * step.share
+    const closest = [...lighter].sort((a, b) => Math.abs(a - target) - Math.abs(b - target) || a - b)[0]
+    if (closest === undefined || steps.some((item) => item.kg >= closest)) continue
+    steps.push({ kg: closest, reps: step.reps })
+  }
+  return steps
 }
 
 export function exerciseCountFor(availableMinutes: number, focus?: SessionFocus): number {
@@ -962,7 +1020,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     const all = [
       ...activation,
       ...mobility,
-      ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment, careZones) : []),
+      ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment, careZones, gear) : []),
       ...exercises,
     ]
     return {

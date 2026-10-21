@@ -2207,6 +2207,16 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ---
 
+## D-063 — Calentamiento por cargas
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: punto 11 de la lista P2. **Amplía** D-045 (series de aproximación).
+
+- El **primer ejercicio con carga** del entrenamiento ya no calienta con una serie de 5 al peso de trabajo: **sube por rampa** con las pesas del usuario (`rampTo`), como en un gimnasio: la más cercana a **~50 % × 8** y la más cercana a **~75 % × 4**, siempre más ligeras que la de trabajo, subiendo y sin repetir peso. Ejemplo: trabajo con 10 kg y pesas de 5, 8, 10 y 12 → 5 kg × 8 y 8 kg × 4.
+- Con un solo peso más ligero, una serie de rampa; **sin ninguno**, la serie de 5 de siempre.
+- El resto de series de aproximación no cambia (5 repeticiones, mismo peso o regresión sin carga). Siguen siendo calentamiento: no cuentan como entrenamiento (D-032).
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
