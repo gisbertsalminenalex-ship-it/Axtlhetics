@@ -13,7 +13,8 @@
  *    ya no hay uno mayor, una variante más exigente.
  */
 
-import type { ExperienceLevel, TrainingGoal } from '../profile/types'
+import type { CareZone, ExperienceLevel, Sex, TrainingGoal } from '../profile/types'
+import { loadsCareZone } from '../workouts/joints'
 import type { DayKey } from '../shared/dates'
 import { clamp } from '../shared/ids'
 import {
@@ -122,13 +123,20 @@ export function baseRepsFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOA
   return Math.max(5, Math.round(exercise.work.reps * GOAL_PARAMS[goal].repFactor))
 }
 
-/** El descanso del catálogo, acotado por el objetivo. Los intervalos no se tocan. */
-export function restFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOAL): number {
+/** Con «mujer» (D-051), los descansos de fuerza son un 15 % más cortos, nunca menos de 45 s. */
+export const FEMALE_REST_FACTOR = 0.85
+export const FEMALE_MIN_REST_SECONDS = 45
+/** Con «mujer» (D-051), el peso de partida del tren superior es el 70 % de la referencia. */
+export const FEMALE_UPPER_START_FACTOR = 0.7
+
+/** El descanso del catálogo, acotado por el objetivo y, en fuerza, ajustado por sexo. Los intervalos no se tocan. */
+export function restFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOAL, sex: Sex | null = null): number {
   if (exercise.category === 'acondicionamiento') return exercise.work.restSeconds
   const { minRest, maxRest } = GOAL_PARAMS[goal]
   let rest = exercise.work.restSeconds
   if (minRest !== null) rest = Math.max(rest, minRest)
   if (maxRest !== null) rest = Math.min(rest, maxRest)
+  if (sex === 'mujer') rest = Math.max(FEMALE_MIN_REST_SECONDS, Math.round(rest * FEMALE_REST_FACTOR))
   return rest
 }
 
@@ -201,8 +209,12 @@ export type SessionBuildOptions = {
   dislikedExerciseIds?: readonly string[]
   /** Correctivos del escaneo (D-041): se añaden al calentamiento de las sesiones de fuerza, como mucho dos. */
   warmupExtras?: readonly string[]
-  /** El escaneo ve diferencia entre lados (D-041): al menos un ejercicio a una mano o una pierna. */
+  /** Con diferencia entre lados, al menos un ejercicio a una mano o una pierna (D-041). */
   preferUnilateral?: boolean
+  /** Zonas a cuidar (D-051): nada que las cargue entra en la sesión. */
+  careZones?: readonly CareZone[]
+  /** Sexo (D-051): ajusta descansos y peso de partida del tren superior. */
+  sex?: Sex | null
 }
 
 // ---------------------------------------------------------------------------
@@ -315,8 +327,11 @@ function jumpExerciseFor(
   target: Difficulty,
   usage: ReadonlyMap<string, ExerciseUsage>,
   disliked: readonly string[] = [],
+  careZones: readonly CareZone[] = [],
 ): Exercise | null {
-  const jumps = catalog.filter((exercise) => exercise.category === 'pliometria' && isAvailable(exercise, equipment))
+  const jumps = catalog.filter(
+    (exercise) => exercise.category === 'pliometria' && isAvailable(exercise, equipment) && !loadsCareZone(exercise.id, careZones),
+  )
   const liked = jumps.filter((exercise) => !disliked.includes(exercise.id))
   const candidates = liked.length > 0 ? liked : jumps
   if (candidates.length === 0) return null
@@ -374,6 +389,7 @@ function approachSets(
   main: readonly PlannedExercise[],
   catalog: readonly Exercise[],
   equipment: readonly Equipment[],
+  careZones: readonly CareZone[] = [],
 ): PlannedExercise[] {
   const result: PlannedExercise[] = []
   for (const planned of main) {
@@ -382,7 +398,8 @@ function approachSets(
     if (!exercise || planned.isTimed || exercise.category === 'pliometria') continue
     const easier =
       !usesLoad(exercise) && exercise.regressionId ? catalog.find((item) => item.id === exercise.regressionId) : undefined
-    const used = easier && isAvailable(easier, equipment) && !easier.work.isTimed ? easier : exercise
+    const used =
+      easier && isAvailable(easier, equipment) && !easier.work.isTimed && !loadsCareZone(easier.id, careZones) ? easier : exercise
     result.push({
       exerciseId: used.id,
       name: used.name,
@@ -491,9 +508,10 @@ export function suggestWorkFor(
     history?: readonly WorkoutSession[]
     deload?: boolean
     gear?: UserEquipment
+    sex?: Sex | null
   },
 ): SuggestedWork {
-  const { intensity, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT } = options
+  const { intensity, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT, sex = null } = options
   const goal = options.goal ?? sessionGoalFrom(options.goals ?? DEFAULT_GOALS)
 
   const maxSets = MAX_SETS_BY_EXPERIENCE[experience] ?? MAX_SETS_BY_EXPERIENCE[DEFAULT_EXPERIENCE]
@@ -506,7 +524,8 @@ export function suggestWorkFor(
   const cap = repCapFor(exercise, goal)
 
   const loads = usesLoad(exercise) ? loadsFor(exercise, gear) : []
-  const baseWeight = startingLoad(exercise, loads, experience)
+  const upperBody = exercise.category === 'empuje' || exercise.category === 'tiron'
+  const baseWeight = startingLoad(exercise, loads, experience, sex === 'mujer' && upperBody ? FEMALE_UPPER_START_FACTOR : 1)
 
   const last = lastPerformanceOf(exercise.id, history)
   if (!last) {
@@ -734,6 +753,8 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     dislikedExerciseIds = [],
     warmupExtras = [],
     preferUnilateral = false,
+    careZones = [],
+    sex = null,
   } = options
 
   const equipment = availableEquipment(gear)
@@ -741,8 +762,9 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const usage = exerciseUsage(history, { catalog: catalog ?? EXERCISE_CATALOG, today })
 
   const forFocus = exercisesForFocus(focus, catalog)
-  // Filtro innegociable: nada que necesite material inexistente.
-  const executable = forFocus.filter((exercise) => isAvailable(exercise, equipment))
+  // Filtros innegociables: nada que necesite material inexistente ni que cargue una zona a cuidar (D-051).
+  const cares = (exercise: { id: string }) => !loadsCareZone(exercise.id, careZones)
+  const executable = forFocus.filter((exercise) => isAvailable(exercise, equipment) && cares(exercise))
   const allowed = exercisesAvoidingGroups(executable, avoidMuscleGroups)
 
   // Si evitar grupos deja la sesión demasiado corta, es mejor una sesión completa
@@ -760,10 +782,14 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const warmsUp = warmsUpFor(focus)
   // Lo que sí se prescribe: el equilibrio de quien salta (D-033) y los correctivos del escaneo (D-041).
   const targetedIds = warmsUp
-    ? [...new Set([...(jumpSport ? [JUMP_SPORT_WARMUP] : []), ...warmupExtras.slice(0, MAX_WARMUP_EXTRAS)])]
+    ? [...new Set([...(jumpSport ? [JUMP_SPORT_WARMUP] : []), ...warmupExtras.slice(0, MAX_WARMUP_EXTRAS)])].filter((id) =>
+        cares({ id }),
+      )
     : []
   const jointSeconds = goals.includes('movilidad') ? JOINT_MOBILITY_GOAL_SECONDS : JOINT_MOBILITY_SECONDS
-  const activation = warmsUp ? phaseExercises(ACTIVATION_EXERCISES, 'calentamiento', phaseCatalog, 'activacion') : []
+  const activation = warmsUp
+    ? phaseExercises(ACTIVATION_EXERCISES.filter((id) => cares({ id })), 'calentamiento', phaseCatalog, 'activacion')
+    : []
   const joint = warmsUp
     ? phaseExercises([JOINT_MOBILITY], 'calentamiento', phaseCatalog, 'movilidad').map((item) => ({ ...item, reps: jointSeconds }))
     : []
@@ -777,7 +803,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   // Con un deporte de salto, o si la sesión es de rendimiento (D-047), un salto abre el entrenamiento y ocupa un hueco (D-033).
   const jump =
     (jumpSport || goal === 'rendimiento_deportivo') && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
-      ? jumpExerciseFor(phaseCatalog, equipment, target, usage, dislikedExerciseIds)
+      ? jumpExerciseFor(phaseCatalog, equipment, target, usage, dislikedExerciseIds, careZones)
       : null
   /** La sesión con `count` ejercicios de entrenamiento (sin contar el salto). */
   const assemble = (count: number): PlannedSession => {
@@ -786,7 +812,11 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       focus,
       count,
       // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
-      (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal }),
+      (exercise) => {
+        const variant = adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal })
+        // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051).
+        return cares(variant) ? variant : exercise
+      },
       target,
       usage,
     )
@@ -801,7 +831,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     const main = jump ? [jump, ...prioritized] : prioritized
 
     const exercises: PlannedExercise[] = main.map((exercise) => {
-      const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear })
+      const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear, sex })
       return {
         exerciseId: exercise.id,
         name: exercise.name,
@@ -809,14 +839,19 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
         reps: work.reps,
         isTimed: exercise.work.isTimed,
         suggestedWeightKg: work.weightKg,
-        restSeconds: restFor(exercise, goal),
+        restSeconds: restFor(exercise, goal, sex),
         unilateral: exercise.unilateral,
         tempo: exercise.work.tempo ?? (exercise.work.isTimed ? null : GOAL_PARAMS[goal].tempo),
         imageUrl: exercise.imageUrl,
       }
     })
 
-    const all = [...activation, ...mobility, ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment) : []), ...exercises]
+    const all = [
+      ...activation,
+      ...mobility,
+      ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment, careZones) : []),
+      ...exercises,
+    ]
     return {
       focus,
       title: titleFor(focus, intensity, goal),

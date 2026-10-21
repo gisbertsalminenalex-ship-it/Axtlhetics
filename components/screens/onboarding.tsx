@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
+import { CareZonesPicker, SexPicker } from '@/components/profile/about-you'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -87,6 +88,7 @@ type StepId =
   | 'duration'
   | 'equipment'
   | 'body'
+  | 'care'
   | 'sports'
   | { kind: 'sport-days'; sportIndex: number }
   | { kind: 'sport-intensity'; sportIndex: number }
@@ -168,6 +170,13 @@ export function OnboardingScreen() {
         id: 'body',
         question: '¿Cuánto mides y cuánto pesas?',
         hint: 'Contexto para AXIS. Puedes cambiarlo cuando quieras.',
+        canContinue: true,
+      },
+      {
+        key: 'care',
+        id: 'care',
+        question: '¿Algo que AXIS deba tener en cuenta?',
+        hint: 'Opcional. El sexo ajusta descansos y pesos de partida; las zonas a cuidar dejan fuera lo que las carga. AXIS no diagnostica nada.',
         canContinue: true,
       },
       {
@@ -409,6 +418,13 @@ export function OnboardingScreen() {
                 max={200}
                 onChange={(weightKg) => patch({ weightKg })}
               />
+            </div>
+          )}
+
+          {step.id === 'care' && (
+            <div className="divide-y divide-border">
+              <SexPicker value={draft.sex} onChange={(sex) => patch({ sex })} />
+              <CareZonesPicker value={draft.careZones} onChange={(careZones) => patch({ careZones })} />
             </div>
           )}
 

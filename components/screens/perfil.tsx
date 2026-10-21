@@ -8,6 +8,7 @@ import { TrainingNotifications } from '@/components/profile/training-notificatio
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { BackupControls } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
+import { CareZonesPicker, SexPicker } from '@/components/profile/about-you'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -129,6 +130,8 @@ export function PerfilScreen({
           typicalSessionMinutes: profile.typicalSessionMinutes,
           // Un perfil anterior a D-046 se enseña con la pesa de 5 kg que se le supone.
           equipment: equipmentOf(profile),
+          sex: profile.sex ?? null,
+          careZones: [...(profile.careZones ?? [])],
         }
       : DEFAULT_DRAFT,
   )
@@ -238,6 +241,8 @@ export function PerfilScreen({
           max={200}
           onChange={(weightKg) => patch({ weightKg })}
         />
+        <SexPicker value={draft.sex} onChange={(sex) => patch({ sex })} />
+        <CareZonesPicker value={draft.careZones} onChange={(careZones) => patch({ careZones })} />
       </div>
 
       <SectionTitle>Tu objetivo</SectionTitle>

@@ -77,6 +77,39 @@ export function normalizeGoals(goals: readonly TrainingGoal[]): TrainingGoal[] {
   return TRAINING_GOAL_ORDER.filter((goal) => goals.includes(goal))
 }
 
+/** Zonas que el usuario quiere cuidar (D-051): AXIS deja fuera lo que las carga. */
+export type CareZone =
+  | 'rodilla'
+  | 'tobillo'
+  | 'cadera'
+  | 'espalda_baja'
+  | 'hombro'
+  | 'codo'
+  | 'muneca'
+  | 'cuello'
+
+export const CARE_ZONE_LABELS: Record<CareZone, string> = {
+  rodilla: 'Rodilla',
+  tobillo: 'Tobillo',
+  cadera: 'Cadera',
+  espalda_baja: 'Espalda baja',
+  hombro: 'Hombro',
+  codo: 'Codo',
+  muneca: 'Muñeca',
+  cuello: 'Cuello',
+}
+
+/** Orden estable para enseñar y para guardar. */
+export const CARE_ZONE_ORDER = Object.keys(CARE_ZONE_LABELS) as CareZone[]
+
+/** Sexo (D-051). Opcional: sin dato, AXIS no supone ninguno. */
+export type Sex = 'hombre' | 'mujer'
+
+export const SEX_LABELS: Record<Sex, string> = {
+  hombre: 'Hombre',
+  mujer: 'Mujer',
+}
+
 export type ExperienceLevel = 'principiante' | 'intermedio' | 'avanzado'
 
 export const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
@@ -176,6 +209,10 @@ export type UserProfile = {
    * que se leen como una pesa de 5 kg (`equipmentOf`).
    */
   equipment?: UserEquipment
+  /** Sexo (D-051). Ausente o `null`: prefiere no decirlo. */
+  sex?: Sex | null
+  /** Zonas a cuidar (D-051). Ausente en los perfiles anteriores. */
+  careZones?: CareZone[]
   createdAt: string
   updatedAt: string
 }
@@ -346,6 +383,10 @@ export function isUserProfile(value: unknown): value is UserProfile {
     return false
   }
   if (value.equipment !== undefined && !isUserEquipment(value.equipment)) return false
+  if (value.sex !== undefined && value.sex !== null && !isOneOf(value.sex, Object.keys(SEX_LABELS) as Sex[])) return false
+  if (value.careZones !== undefined && !isArrayOf(value.careZones, (item): item is CareZone => isOneOf(item, CARE_ZONE_ORDER))) {
+    return false
+  }
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }
 

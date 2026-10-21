@@ -1951,6 +1951,26 @@ Los grupos que carga un deporte **exigente de mañana** se evitan hoy igual que 
 
 ---
 
+## D-051 — Zonas a cuidar y sexo en el perfil
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: **zonas a cuidar** que dejan fuera los ejercicios que las cargan, y el **sexo**, que también cambia los entrenos.
+
+### Zonas a cuidar
+
+- En el perfil (onboarding y Perfil), opcional: **rodilla, tobillo, cadera, espalda baja, hombro, codo, muñeca y cuello**. Son molestias o lesiones que duran; las de un día siguen siendo cosa del chat (D-037).
+- Cada ejercicio del catálogo dice qué articulaciones carga (`lib/domain/workouts/joints.ts`, un test exige que estén todos). Con una zona marcada, **AXIS deja fuera** los ejercicios que la cargan: en el entrenamiento, el salto de quien salta, la activación del calentamiento y los intervalos. Con la rodilla marcada, por ejemplo, las piernas se trabajan con puentes, peso muerto y gemelos.
+- Si una zona deja un foco con menos de 3 ejercicios posibles, AXIS no elige ese foco ni toca intervalos que no se puedan hacer.
+- Se explica en el motivo del día: «Cuido tu rodilla: dejo fuera los ejercicios que la cargan. Si la molestia sigue, que la vea un profesional.» AXIS **no diagnostica** ni pregunta por la lesión. Se quita en Perfil cuando ya está bien.
+- No sale del móvil: no llega a la capa de lenguaje.
+
+### Sexo
+
+- Opcional: **hombre, mujer o prefiero no decirlo**.
+- **Entrenos** (cambios prudentes): con «mujer», los descansos de fuerza son un **15 % más cortos** (mínimo 45 s; los intervalos no cambian) y el **peso de partida del tren superior** es el **70 %** de la referencia. «Hombre» o sin dato, como hasta ahora.
+- **Escáner**: el sexo del perfil sale marcado en su pregunta; se puede cambiar en cada escaneo.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -416,7 +416,11 @@ const WEEKLY_WEIGHT = 1.5
  * los grupos que carga una actividad fija de hoy. Desde D-034, entre focos
  * parecidos gana el que más va por detrás de su objetivo semanal de series.
  */
-export function chooseFocus(facts: AxisFacts): SessionFocus {
+export function chooseFocus(
+  facts: AxisFacts,
+  /** Focos que una zona a cuidar deja sin ejercicios suficientes (D-051). */
+  blocked: readonly SessionFocus[] = [],
+): SessionFocus {
   const avoid = muscleGroupsToAvoid(facts)
 
   const scored = FOCUS_ROTATION.map((focus) => {
@@ -428,7 +432,8 @@ export function chooseFocus(facts: AxisFacts): SessionFocus {
     // Media de lo cumplido de la semana en esos grupos, con techo: pasarse no resta más.
     const weekly =
       groups.reduce((total, group) => total + Math.min(facts.weeklyFulfilment?.[group] ?? 0, 1.5), 0) / groups.length
-    return { focus, penalty: recentOverlap + conflict * 10 + weekly * WEEKLY_WEIGHT }
+    const unreachable = blocked.includes(focus) ? 100 : 0
+    return { focus, penalty: recentOverlap + conflict * 10 + weekly * WEEKLY_WEIGHT + unreachable }
   })
 
   scored.sort((a, b) => a.penalty - b.penalty)

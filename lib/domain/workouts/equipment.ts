@@ -121,9 +121,11 @@ export function startingLoad(
   exercise: Pick<Exercise, 'startLoadKg'>,
   loads: readonly number[],
   experience: ExperienceLevel,
+  /** Ajuste de la referencia; por ejemplo, el del tren superior por sexo (D-051). */
+  factor = 1,
 ): number | null {
   if (loads.length === 0) return null
-  const reference = (exercise.startLoadKg ?? loads[0]) * (START_LOAD_FACTOR[experience] ?? 1)
+  const reference = (exercise.startLoadKg ?? loads[0]) * (START_LOAD_FACTOR[experience] ?? 1) * factor
   const fitting = loads.filter((kg) => kg <= reference)
   return fitting.length > 0 ? fitting[fitting.length - 1] : loads[0]
 }

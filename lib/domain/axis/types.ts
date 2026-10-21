@@ -58,6 +58,8 @@ export type AxisFactorKey =
   | 'body_scan'
   /** Hoy es día fuerte (D-048). */
   | 'hard_day'
+  /** Zonas que el usuario cuida (D-051). */
+  | 'care_zones'
 
 /**
  * `supports` empuja hacia entrenar más, `limits` hacia entrenar menos.

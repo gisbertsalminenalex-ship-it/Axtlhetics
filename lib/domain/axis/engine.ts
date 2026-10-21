@@ -7,7 +7,7 @@
  */
 
 import { createId, nowIso } from '../shared/ids'
-import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { EXERCISE_CATALOG, exercisesForFocus, isAvailable } from '../workouts/catalog'
 import { gearToday } from './context'
 import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
@@ -27,6 +27,10 @@ import {
 } from '../workouts/weekly-plan'
 import type { TrainingGoal } from '../profile/types'
 import { isHardDay } from './hard-day'
+import { CARE_ZONE_LABELS, type CareZone } from '../profile/types'
+import { availableEquipment } from '../workouts/equipment'
+import { loadsCareZone } from '../workouts/joints'
+import { listNames } from '../shared/text'
 import type { PlannedSession, SessionFocus, SessionIntensity } from '../workouts/types'
 import { SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
@@ -65,8 +69,9 @@ export function decide(context: AxisContext): AxisDecision {
   const facts = deriveFacts(context)
   const outcome = evaluateRules(facts)
   const week = weekPlanFor(context)
-  const goal = goalOfTheDay(context, facts, outcome.type, week)
-  const plan: DayPlan = { week, goal }
+  const blocked = blockedFocuses(context)
+  const goal = goalOfTheDay(context, facts, outcome.type, week, blocked)
+  const plan: DayPlan = { week, goal, blocked }
   const deload = isDeloadWeek(context.recentSessions, context.dayKey)
 
   // Día fuerte (D-048): un día normal en el que todo acompaña.
@@ -84,10 +89,13 @@ export function decide(context: AxisContext): AxisDecision {
   const training = isTrainingRecommendation(outcome.type)
   const scanFactor = training && facts.physique ? physiqueFactor(facts.physique) : null
   const weekFactor = training ? weeklyGoalFactor(week, goal) : null
+  const careFactor = training ? careZonesFactor(context.profile?.careZones ?? []) : null
   const [firstRule, ...otherRules] = outcome.factors
   const factors = [
     ...(deload && training ? [deloadFactor()] : []),
     ...(firstRule ? [firstRule] : []),
+    // Lo que se cuida va antes que lo demás: es seguridad (D-051).
+    ...(careFactor ? [careFactor] : []),
     // Por qué hoy se aprieta (D-048), antes que el reparto de la semana.
     ...(hard ? [hardDayFactor()] : []),
     // Qué toca hoy de la semana (D-047), justo después de por qué se entrena así.
@@ -143,17 +151,53 @@ function goalOfTheDay(
   facts: AxisFacts,
   type: AxisRecommendationType,
   week: readonly GoalProgress[],
+  blocked: readonly SessionFocus[],
 ): TrainingGoal {
   const legsBusy = muscleGroupsToAvoid(facts).includes('piernas')
   const resting = !isTrainingRecommendation(type)
+  // Sin intervalos posibles por una zona a cuidar, no toca resistencia (D-051).
+  const noConditioning = blocked.includes('acondicionamiento')
   return goalForToday(week, context.recentSessions, {
     light: type === 'LIGHT_TRAINING' || resting,
-    exclude: legsBusy || resting ? ['resistencia'] : [],
+    exclude: legsBusy || resting || noConditioning ? ['resistencia'] : [],
   })
 }
 
-/** El reparto y el objetivo de hoy, que comparten la propuesta y sus alternativas. */
-type DayPlan = { week: GoalProgress[]; goal: TrainingGoal }
+/** El reparto, el objetivo de hoy y los focos sin ejercicios, que comparten la propuesta y sus alternativas. */
+type DayPlan = { week: GoalProgress[]; goal: TrainingGoal; blocked: SessionFocus[] }
+
+/** Ejercicios mínimos para que un foco tenga sesión. */
+const MIN_FOCUS_EXERCISES = 3
+
+/**
+ * Los focos que, con el material de hoy y sin lo que carga una zona a cuidar,
+ * se quedan con menos de 3 ejercicios (D-051). AXIS no los elige.
+ */
+function blockedFocuses(context: AxisContext): SessionFocus[] {
+  const zones = context.profile?.careZones ?? []
+  if (zones.length === 0) return []
+  const catalog = context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG
+  const equipment = availableEquipment(gearToday(context))
+  const focuses: SessionFocus[] = ['tren_superior', 'tren_inferior', 'cuerpo_completo', 'acondicionamiento']
+  return focuses.filter(
+    (focus) =>
+      exercisesForFocus(focus, catalog).filter((exercise) => isAvailable(exercise, equipment) && !loadsCareZone(exercise.id, zones))
+        .length < MIN_FOCUS_EXERCISES,
+  )
+}
+
+/** «Cuido tu rodilla…» (D-051). Nunca diagnostica. */
+function careZonesFactor(zones: readonly CareZone[]): AxisFactor | null {
+  if (zones.length === 0) return null
+  const names = listNames(zones.map((zone) => CARE_ZONE_LABELS[zone].toLowerCase()))
+  const plural = zones.length > 1
+  return {
+    key: 'care_zones',
+    label: 'Zonas a cuidar',
+    detail: `Cuido tu ${names}: dejo fuera los ejercicios que ${plural ? 'las' : 'la'} cargan. Si la molestia sigue, que ${plural ? 'las' : 'la'} vea un profesional.`,
+    direction: 'limits',
+  }
+}
 
 /**
  * El objetivo de una sesión con un foco elegido: el propio del foco, o, en uno
@@ -225,7 +269,7 @@ function planSession(
   overrides: ProposalOverrides,
 ): PlannedSession {
   // El objetivo decide el tipo de sesión (D-047); la fuerza elige su zona como siempre.
-  const focus = overrides.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts)
+  const focus = overrides.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts, plan.blocked)
   const goal = overrides.focus ? goalForFocus(overrides.focus, plan, context) : plan.goal
   const intensity = overrides.intensity ?? intensityFor(type)
 
@@ -259,6 +303,9 @@ function planSession(
     // Lo que el escaneo pide (D-041).
     warmupExtras: facts.physique?.warmupExtras ?? [],
     preferUnilateral: facts.physique?.unilateral ?? false,
+    // Lo que el usuario cuida y su sexo (D-051).
+    careZones: context.profile?.careZones ?? [],
+    sex: context.profile?.sex ?? null,
     // Lo que no gusta: lo dicho y lo que se salta a menudo (D-037).
     dislikedExerciseIds: [
       ...(context.profile?.dislikedExercises ?? []),
@@ -298,7 +345,7 @@ function buildAlternatives(
 ): AxisProposal[] {
   const alternatives: AxisProposal[] = []
   // El foco de la propuesta, que ya puede no ser de fuerza (D-047); sin sesión, el que tocaría.
-  const primaryFocus = primary.session?.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts)
+  const primaryFocus = primary.session?.focus ?? focusForGoal(plan.goal) ?? chooseFocus(facts, plan.blocked)
 
   if (isTrainingRecommendation(primaryType)) {
     // En un día fuerte, la misma sesión a intensidad normal (D-048).

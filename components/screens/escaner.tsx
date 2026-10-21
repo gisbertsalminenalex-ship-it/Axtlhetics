@@ -55,7 +55,14 @@ const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 export function EscanerScreen({ onClose }: { onClose: () => void }) {
   const { scans, assessments, sessions, profile } = useAxtlhetics()
   const [stepIndex, setStepIndex] = useState(0)
-  const [selfReport, setSelfReport] = useState<ScanSelfReport>({ build: null, strongZones: [], weakZones: [], priority: null })
+  // El sexo del perfil sale marcado; se puede cambiar en cada escaneo (D-051).
+  const [selfReport, setSelfReport] = useState<ScanSelfReport>({
+    build: null,
+    strongZones: [],
+    weakZones: [],
+    priority: null,
+    ...(profile?.sex ? { sex: profile.sex } : {}),
+  })
   const [photos, setPhotos] = useState<Partial<Record<ScanPose, Photo[]>>>({})
   const [analyzing, setAnalyzing] = useState(false)
   const [modelError, setModelError] = useState(false)
