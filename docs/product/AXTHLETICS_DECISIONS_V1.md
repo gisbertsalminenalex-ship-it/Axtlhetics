@@ -1924,6 +1924,8 @@ Sin la recuperación del día, AXIS proponía **siempre** una sesión ligera. Qu
 - Cada toque se guarda al momento, como en Recuperación. Con las tres hay datos suficientes (D-009: el sueño y tres factores), la recuperación se calcula, AXIS vuelve a decidir y la tarjeta desaparece. El estrés y el agua siguen en Recuperación.
 - No bloquea nada: se puede entrenar sin contestar. Mientras está la tarjeta, no se repite la nota de AXIS que pedía registrar la recuperación (D-038).
 
+**Enmienda (2026-10-21): la tarjeta se retira.** Decidido por Alex: «quiero que quites esto». Inicio vuelve a estar como antes de D-049, con la nota de AXIS que pide registrar la recuperación (D-038). La recuperación se registra solo en Recuperación. Lo de «Sin datos» sigue vigente.
+
 ### Sin datos
 
 - **Sesión normal** (intensidad moderada), nunca día fuerte (D-048), con el aviso en el motivo: «No sé cómo llegas hoy: no has registrado tu recuperación. Si estás cansado, dímelo y lo ajusto.»

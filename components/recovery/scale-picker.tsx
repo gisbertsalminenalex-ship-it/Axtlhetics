@@ -3,10 +3,7 @@
 import type { Scale5 } from '@/lib/domain/recovery/types'
 import { cn } from '@/lib/utils'
 
-/**
- * Escala de 1 a 5 en un toque. La comparten Recuperación y «¿Cómo llegas hoy?»
- * en Inicio (D-049).
- */
+/** Escala de 1 a 5 en un toque: energía, fatiga y estrés en Recuperación. */
 export function ScalePicker({
   value,
   labels,
