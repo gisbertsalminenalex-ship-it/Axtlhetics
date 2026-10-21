@@ -25,6 +25,7 @@ import type { AxisProposal } from './types'
 import {
   adaptDifficulty,
   buildSession,
+  estimateMinutes,
   exerciseCountFor,
   hasMastered,
   lastPerformanceOf,
@@ -215,7 +216,33 @@ test('una sesión solo contiene ejercicios del foco, sin repetir y ejecutables c
   }
   assert.equal(session.title, titleFor('tren_superior', 'moderada', 'hipertrofia'))
   assert.equal(session.title, 'Hipertrofia · Tren superior')
-  assert.ok(session.estimatedMinutes >= 20 && session.estimatedMinutes % 5 === 0)
+  // La duración es la real (D-050) y cabe en el tiempo disponible.
+  assert.ok(session.estimatedMinutes > 0 && session.estimatedMinutes <= 60)
+})
+
+test('D-050: la duración sale de series, repeticiones, descansos y cambios', () => {
+  const planned = (sets: number, reps: number, rest: number, extra: Partial<{ isTimed: boolean; unilateral: boolean }> = {}) => ({
+    exerciseId: 'x', name: 'x', sets, reps, isTimed: false, suggestedWeightKg: null, restSeconds: rest, unilateral: false, tempo: null, imageUrl: null, ...extra,
+  })
+  // 3 × 10 a 4 s, 2 descansos de 60 s y 45 s de cambio: 120 + 120 + 45 = 285 s → 5 min.
+  assert.equal(estimateMinutes([planned(3, 10, 60)]), 5)
+  // A un lado y luego al otro, el trabajo se dobla.
+  assert.ok(estimateMinutes([planned(3, 10, 60, { unilateral: true })]) > estimateMinutes([planned(3, 10, 60)]))
+  // Por tiempo, los segundos son los del ejercicio: 4 × 30 s + 3 × 30 s + 45 s ≈ 4 min.
+  assert.equal(estimateMinutes([planned(4, 30, 30, { isTimed: true })]), 4)
+})
+
+test('D-050: con muy poco tiempo la sesión se compacta en vez de pasarse', () => {
+  const session = buildSession({ focus: 'cuerpo_completo', intensity: 'moderada', availableMinutes: 20, goals: ['hipertrofia'], experience: 'intermedio' })
+  assert.ok(session.estimatedMinutes <= 20, `sesión de ${session.estimatedMinutes} min`)
+  assert.ok(session.exercises.filter(isMainExercise).length >= 1)
+})
+
+test('D-050: en el mismo tiempo, la fuerza (descansos largos) lleva menos o los mismos ejercicios que la hipertrofia', () => {
+  const base = { focus: 'tren_superior' as const, intensity: 'moderada' as const, availableMinutes: 50, goals: ['fuerza' as const], experience: 'intermedio' as const }
+  const strength = buildSession({ ...base, goal: 'fuerza' }).exercises.filter(isMainExercise).length
+  const hypertrophy = buildSession({ ...base, goal: 'hipertrofia' }).exercises.filter(isMainExercise).length
+  assert.ok(strength <= hypertrophy)
 })
 
 test('evitar grupos los deja fuera, salvo que la sesión quedara demasiado corta', () => {
@@ -370,8 +397,15 @@ function weeks(
 
 test('sin historial la selección es la de siempre: sin uso registrado, manda la dificultad', () => {
   const session = buildSession({ ...ROTATION, focus: 'tren_superior' })
-  // 45 min menos los 6 del calentamiento y la vuelta a la calma: caben tres (D-032).
-  assert.deepEqual(ids(session), ['flexiones-negativas', 'remo-unilateral', 'press-hombro-unilateral'])
+  // En 45 min, con la duración real (D-050), caben cinco.
+  assert.deepEqual(ids(session), [
+    'flexiones-negativas',
+    'remo-unilateral',
+    'press-hombro-unilateral',
+    'pullover-con-pesa',
+    'extension-triceps-unilateral',
+  ])
+  assert.ok(session.estimatedMinutes <= 45)
 })
 
 test('con el mismo historial sale siempre la misma sesión', () => {
@@ -407,7 +441,7 @@ test('con el tiempo salen todos los ejercicios de dificultad equivalente: ningun
 
 test('en cuerpo completo corto, el core ya no se queda siempre fuera', () => {
   const sessions = weeks('cuerpo_completo', 4, { availableMinutes: 25 })
-  assert.equal(sessions[0].length, 3, 'tres ejercicios para cuatro categorías')
+  assert.ok(sessions[0].length < 4, 'menos ejercicios que categorías')
   const core = sessions.flat().filter((id) => exercise(id).category === 'core')
   assert.ok(core.length > 0, `ninguna de ${sessions.length} sesiones tuvo core`)
 })

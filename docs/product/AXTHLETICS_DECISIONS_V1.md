@@ -1934,6 +1934,23 @@ Sin la recuperación del día, AXIS proponía **siempre** una sesión ligera. Qu
 
 ---
 
+## D-050 — La duración real y las piernas antes de un partido
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: «haz todo lo que falta» de la lista de mejoras; ambos puntos son técnicos y se resuelven así.
+
+### Duración real
+
+- La duración de la sesión **se calcula** (`estimateMinutes`): por cada ejercicio, el trabajo de cada serie (sus segundos, o 4 s por repetición; el doble si es a un lado y luego al otro), los descansos entre series y 45 s de cambio al siguiente. Antes era el tiempo disponible redondeado.
+- **Cuántos ejercicios** caben sale de ahí: se parte de la estimación antigua y se ajusta entre 3 y 6 (6 en intervalos) hasta que la duración cabe en el tiempo disponible. En el mismo tiempo, una sesión de fuerza, con descansos largos, lleva menos ejercicios que una de hipertrofia.
+- **Con muy poco tiempo**, antes que pasarse: hasta 2 ejercicios y, si aún no cabe, 2 series por ejercicio.
+- En la conversación, una sesión es «más larga» o «más corta» solo si hay **5 minutos** de diferencia: un par de minutos de estimación no son otra sesión.
+
+### Piernas antes de un partido
+
+Los grupos que carga un deporte **exigente de mañana** se evitan hoy igual que los de un deporte de hoy: el foco del día no los elige, la sesión no los incluye y los intervalos no tocan. Antes solo se miraba el deporte del mismo día.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

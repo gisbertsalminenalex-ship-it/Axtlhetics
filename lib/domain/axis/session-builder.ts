@@ -45,7 +45,7 @@ import type {
   WarmupPart,
   WorkoutSession,
 } from '../workouts/types'
-import { FOCUS_CATEGORIES, FOCUS_MUSCLE_GROUPS, SESSION_FOCUS_LABELS, usesLoad } from '../workouts/types'
+import { FOCUS_CATEGORIES, FOCUS_MUSCLE_GROUPS, isMainExercise, SESSION_FOCUS_LABELS, usesLoad } from '../workouts/types'
 import { exerciseUsage, lastPerformanceOf, type ExerciseUsage, type LastPerformance } from '../workouts/history'
 
 export const DEFAULT_GOAL: TrainingGoal = 'salud_general'
@@ -779,53 +779,113 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     (jumpSport || goal === 'rendimiento_deportivo') && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
       ? jumpExerciseFor(phaseCatalog, equipment, target, usage, dislikedExerciseIds)
       : null
-  const count = exerciseCountFor(availableMinutes - phaseMinutes, focus) - (jump ? 1 : 0)
+  /** La sesión con `count` ejercicios de entrenamiento (sin contar el salto). */
+  const assemble = (count: number): PlannedSession => {
+    const selected = selectExercises(
+      pool,
+      focus,
+      count,
+      // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
+      (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal }),
+      target,
+      usage,
+    )
 
-  const selected = selectExercises(
-    pool,
-    focus,
-    count,
-    // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
-    (exercise) => adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal }),
-    target,
-    usage,
-  )
+    // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
+    // Un objetivo lo pidió el usuario: entra aunque el ejercicio esté entre los que no gustan.
+    const withGoals = withPriority(selected, usable, priorityExerciseIds)
+    // Con diferencia entre lados, al menos un ejercicio a una mano o una pierna (D-041).
+    const prioritized = preferUnilateral && !conditioning ? withUnilateral(withGoals, pool, priorityExerciseIds) : withGoals
 
-  // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
-  // Un objetivo lo pidió el usuario: entra aunque el ejercicio esté entre los que no gustan.
-  const withGoals = withPriority(selected, usable, priorityExerciseIds)
-  // Con diferencia entre lados, al menos un ejercicio a una mano o una pierna (D-041).
-  const prioritized = preferUnilateral && !conditioning ? withUnilateral(withGoals, pool, priorityExerciseIds) : withGoals
+    // El salto va primero: con las piernas frescas sale mejor y con menos riesgo (D-033).
+    const main = jump ? [jump, ...prioritized] : prioritized
 
-  // El salto va primero: con las piernas frescas sale mejor y con menos riesgo (D-033).
-  const main = jump ? [jump, ...prioritized] : prioritized
+    const exercises: PlannedExercise[] = main.map((exercise) => {
+      const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear })
+      return {
+        exerciseId: exercise.id,
+        name: exercise.name,
+        sets: work.sets,
+        reps: work.reps,
+        isTimed: exercise.work.isTimed,
+        suggestedWeightKg: work.weightKg,
+        restSeconds: restFor(exercise, goal),
+        unilateral: exercise.unilateral,
+        tempo: exercise.work.tempo ?? (exercise.work.isTimed ? null : GOAL_PARAMS[goal].tempo),
+        imageUrl: exercise.imageUrl,
+      }
+    })
 
-  const exercises: PlannedExercise[] = main.map((exercise) => {
-    const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear })
+    const all = [...activation, ...mobility, ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment) : []), ...exercises]
     return {
-      exerciseId: exercise.id,
-      name: exercise.name,
-      sets: work.sets,
-      reps: work.reps,
-      isTimed: exercise.work.isTimed,
-      suggestedWeightKg: work.weightKg,
-      restSeconds: restFor(exercise, goal),
-      unilateral: exercise.unilateral,
-      tempo: exercise.work.tempo ?? (exercise.work.isTimed ? null : GOAL_PARAMS[goal].tempo),
-      imageUrl: exercise.imageUrl,
+      focus,
+      title: titleFor(focus, intensity, goal),
+      intensity,
+      // Lo que de verdad dura: series, repeticiones o segundos, descansos y cambios (D-050).
+      estimatedMinutes: estimateMinutes(all),
+      muscleGroups: dedupeGroups(main, focus),
+      exercises: all,
+      ...(deload ? { deload: true } : {}),
+      goal,
     }
-  })
-
-  return {
-    focus,
-    title: titleFor(focus, intensity, goal),
-    intensity,
-    estimatedMinutes: Math.max(20, Math.round(availableMinutes / 5) * 5),
-    muscleGroups: dedupeGroups(main, focus),
-    exercises: [...activation, ...mobility, ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment) : []), ...exercises],
-    ...(deload ? { deload: true } : {}),
-    goal,
   }
+
+  /*
+   * Cuántos ejercicios caben (D-050): se parte de la estimación por minutos y se
+   * ajusta hasta que la duración real cabe en el tiempo disponible, entre el
+   * mínimo y el máximo. Una sesión de fuerza con descansos largos lleva menos
+   * ejercicios que una de hipertrofia en el mismo tiempo.
+   */
+  const extra = jump ? 1 : 0
+  const minCount = Math.max(1, MIN_EXERCISES - extra)
+  const maxCount = (conditioning ? MAX_CONDITIONING_EXERCISES : MAX_EXERCISES) - extra
+  let count = Math.min(maxCount, Math.max(minCount, exerciseCountFor(availableMinutes - phaseMinutes, focus) - extra))
+  let session = assemble(count)
+  while (session.estimatedMinutes > availableMinutes && count > minCount) {
+    count -= 1
+    session = assemble(count)
+  }
+  while (count < maxCount) {
+    const bigger = assemble(count + 1)
+    if (bigger.estimatedMinutes > availableMinutes) break
+    count += 1
+    session = bigger
+  }
+
+  // Con muy poco tiempo, antes que pasarse: dos ejercicios y, si aún no cabe, dos series (D-050).
+  const floor = Math.max(1, MIN_EXERCISES_WHEN_SHORT - extra)
+  while (session.estimatedMinutes > availableMinutes && count > floor) {
+    count -= 1
+    session = assemble(count)
+  }
+  if (session.estimatedMinutes > availableMinutes) {
+    const compact = session.exercises.map((item) => (isMainExercise(item) ? { ...item, sets: Math.min(item.sets, MIN_SETS) } : item))
+    session = { ...session, exercises: compact, estimatedMinutes: estimateMinutes(compact) }
+  }
+  return session
+}
+
+/** Con muy poco tiempo, una sesión puede quedarse en dos ejercicios (D-050). */
+const MIN_EXERCISES_WHEN_SHORT = 2
+
+/** Segundos que se asume que dura una repetición, con su bajada y su subida. */
+export const SECONDS_PER_REP = 4
+/** Cambio de un ejercicio al siguiente: colocarse, coger la pesa, leer el siguiente. */
+export const TRANSITION_SECONDS = 45
+
+/**
+ * La duración real de la sesión, en minutos (D-050): por cada ejercicio, el
+ * trabajo de cada serie (segundos, o repeticiones × 4 s; el doble si es a un
+ * lado y luego al otro), los descansos entre series y el cambio al siguiente.
+ */
+export function estimateMinutes(exercises: readonly PlannedExercise[]): number {
+  let seconds = 0
+  for (const item of exercises) {
+    const perSide = item.isTimed ? item.reps : item.reps * SECONDS_PER_REP
+    const work = perSide * (item.unilateral ? 2 : 1)
+    seconds += item.sets * work + Math.max(0, item.sets - 1) * item.restSeconds + TRANSITION_SECONDS
+  }
+  return Math.max(1, Math.round(seconds / 60))
 }
 
 /**

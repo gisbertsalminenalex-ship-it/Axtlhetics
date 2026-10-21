@@ -332,12 +332,19 @@ function alternativeWithFocus(
   return alternatives.find((a) => a.focus === focus) ?? null
 }
 
+/**
+ * Diferencia mínima para llamar a una sesión más corta o más larga (D-050): la
+ * duración es una estimación, y un par de minutos no son otra sesión.
+ */
+const MEANINGFUL_MINUTES = 5
+
 function shortestAlternative(
   alternatives: readonly BriefingAlternative[],
   currentMinutes: number | null,
 ): BriefingAlternative | null {
   const timed = alternatives.filter(
-    (a) => a.estimatedMinutes !== null && (currentMinutes === null || a.estimatedMinutes < currentMinutes),
+    (a) =>
+      a.estimatedMinutes !== null && (currentMinutes === null || a.estimatedMinutes <= currentMinutes - MEANINGFUL_MINUTES),
   )
   if (timed.length === 0) return null
   return timed.reduce((best, a) => (a.estimatedMinutes! < best.estimatedMinutes! ? a : best))
@@ -354,7 +361,9 @@ function longestAlternative(
   if (currentMinutes === null) return null
   const longer = alternatives.filter(
     (a) =>
-      isTrainingRecommendation(a.type) && a.estimatedMinutes !== null && a.estimatedMinutes > currentMinutes,
+      isTrainingRecommendation(a.type) &&
+      a.estimatedMinutes !== null &&
+      a.estimatedMinutes >= currentMinutes + MEANINGFUL_MINUTES,
   )
   if (longer.length === 0) return null
   return longer.reduce((best, a) => (a.estimatedMinutes! > best.estimatedMinutes! ? a : best))

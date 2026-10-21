@@ -165,6 +165,13 @@ test('con un deporte hoy o mañana no hay día fuerte', () => {
   assert.equal(day({ activities: [activity({ weekday: 1, intensity: 'baja' })] }).decision.primary.session?.intensity, 'alta')
 })
 
+test('D-050: el día antes de un partido exigente que carga piernas, la sesión no las carga', () => {
+  const { decision } = day({ activities: [activity({ weekday: 1, intensity: 'alta', loadsMuscleGroups: ['piernas', 'gluteos'] })] })
+  const session = decision.primary.session
+  assert.ok(session, 'se entrena, más suave')
+  assert.ok(!session!.muscleGroups.includes('piernas'), `carga ${session!.muscleGroups.join(', ')}`)
+})
+
 // ---------------------------------------------------------------------------
 // La semana a la vista
 // ---------------------------------------------------------------------------

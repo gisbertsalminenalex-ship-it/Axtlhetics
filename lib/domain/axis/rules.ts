@@ -435,19 +435,24 @@ export function chooseFocus(facts: AxisFacts): SessionFocus {
   return scored[0].focus
 }
 
-/** Grupos que conviene no cargar hoy por una actividad con horario fijo. */
+/**
+ * Grupos que conviene no cargar hoy: los de una actividad de hoy que aún no ha
+ * terminado y, desde D-050, los de un deporte exigente de mañana, para no
+ * llegar al partido con las piernas cargadas.
+ */
 export function muscleGroupsToAvoid(facts: AxisFacts): MuscleGroup[] {
-  const finished = facts.minutesUntilActivity !== null && facts.minutesUntilActivity < 0
-  if (finished) return []
-
-  // Se suman los grupos de todas las actividades de hoy que carguen de verdad.
   const groups = new Set<MuscleGroup>()
-  for (const activity of facts.todayActivities) {
-    if (activity.intensity === 'baja') continue
-    for (const group of activity.loadsMuscleGroups.filter(isMuscleGroup)) {
-      groups.add(group)
-    }
+  const add = (activity: { loadsMuscleGroups: readonly string[] }) => {
+    for (const group of activity.loadsMuscleGroups.filter(isMuscleGroup)) groups.add(group)
   }
+
+  // Las de hoy que carguen de verdad, mientras no hayan terminado.
+  const finished = facts.minutesUntilActivity !== null && facts.minutesUntilActivity < 0
+  if (!finished) {
+    for (const activity of facts.todayActivities) if (activity.intensity !== 'baja') add(activity)
+  }
+  // Las de mañana, solo si son exigentes.
+  for (const activity of facts.tomorrowActivities) if (activity.intensity === 'alta') add(activity)
   return [...groups]
 }
 

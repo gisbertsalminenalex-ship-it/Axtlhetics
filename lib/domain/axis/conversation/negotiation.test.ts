@@ -786,7 +786,8 @@ test('sin alternativa más larga preparada, compromiso honesto: no inventa ejerc
   const briefing = briefingWith()
   const current = briefing.proposal!.session!.estimatedMinutes
   assert.ok(
-    briefing.proposal!.alternatives.every((a) => a.estimatedMinutes === null || a.estimatedMinutes <= current),
+    // Más larga es al menos 5 minutos más (D-050): un par de minutos de estimación no son otra sesión.
+    briefing.proposal!.alternatives.every((a) => a.estimatedMinutes === null || a.estimatedMinutes < current + 5),
     'el motor no prepara hoy nada más largo',
   )
 
