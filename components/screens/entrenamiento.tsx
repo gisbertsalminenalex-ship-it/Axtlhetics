@@ -7,6 +7,7 @@ import { AssessmentEntry } from '@/components/assessment/assessment-entry'
 import { ScanEntry } from '@/components/scanner/scan-entry'
 import { EvaluationCard } from '@/components/profile/evaluation-card'
 import { WeeklyReviewSection } from '@/components/weekly-review'
+import { BlockReviewSection } from '@/components/block-review'
 import { AxisMark } from '@/components/axis-mark'
 import { WeekPlan } from '@/components/week-plan'
 import { WeeklyVolume } from '@/components/weekly-volume'
@@ -229,6 +230,9 @@ export function EntrenamientoScreen({
 
       {/* La revisión de la semana pasada (D-059). */}
       <WeeklyReviewSection review={weeklyReview} />
+
+      {/* El cierre del bloque (D-062). */}
+      <BlockReviewSection />
 
       {/* Tu progreso (D-036): dentro de Entrenamiento, sin pestaña propia (D-040). */}
       <ProgressSection />

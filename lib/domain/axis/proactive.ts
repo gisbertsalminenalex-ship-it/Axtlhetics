@@ -91,9 +91,13 @@ export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
     isDeloadWeek(sessions, dayKey) &&
     !sessions.some((session) => session.dayKey >= monday && session.dayKey < dayKey && session.status === 'completed')
   if (deloadStartsToday) {
+    // El cierre del bloque (D-062): con la descarga se llega fresco al test.
+    const testedThisBlock = (input.assessments ?? []).some(
+      (assessment) => assessment.status === 'completed' && assessment.dayKey >= addDays(monday, -28),
+    )
     return {
       kind: 'deload',
-      text: 'Esta semana es de descarga: una serie menos por ejercicio y sin subir. Llevas cuatro semanas seguidas; ahora toca asimilarlas.',
+      text: `Esta semana es de descarga: una serie menos por ejercicio y sin subir. Llevas cuatro semanas seguidas; ahora toca asimilarlas.${testedThisBlock ? '' : ' Es buen momento para repetir el test de evolución y cerrar el bloque.'}`,
     }
   }
 

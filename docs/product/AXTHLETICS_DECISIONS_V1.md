@@ -2189,6 +2189,24 @@ Se mantiene D-023: **nunca déficit ni cifras**. Ven la orientación sin número
 
 ---
 
+## D-062 — El cierre del bloque
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: punto 10 de la lista P2. **Amplía** D-057, D-021 y D-038.
+
+### Qué hace un entrenador al acabar un bloque
+
+Repetir el test, comparar, explicar y empezar el siguiente. En AXTHLETICS (`lib/domain/workouts/block-review.ts`):
+
+- **Cuándo**: durante la **semana de descarga** que cierra el bloque («Cierre del bloque») y la **primera semana del siguiente** («Tu bloque anterior»), si el bloque tuvo al menos 3 semanas.
+- **Tus principales**: lo que avanzó cada ejercicio principal del bloque (D-057) de su primera a su última sesión: el **1RM estimado** con carga (D-056), la mejor serie sin ella.
+- **El test de evolución** (D-021): si se hizo en el bloque (o en la primera semana del siguiente), sus pruebas comparadas con el anterior; si no, la invitación a repetirlo: con la descarga se llega fresco y la comparación es justa. El test sigue iniciándolo el usuario y con sus reglas de disponibilidad.
+- **El siguiente**: se dice que el bloque nuevo elige principales nuevos en la primera sesión de cada zona (la rotación de D-020 deja para después los más usados).
+- La nota del **primer día de descarga** (D-038) añade la invitación al test si no se hizo en las últimas 4 semanas.
+
+Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
