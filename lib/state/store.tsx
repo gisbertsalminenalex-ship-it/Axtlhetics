@@ -106,6 +106,7 @@ import type { AxisFallbackNotice, AxisMessage, AxisSuggestion } from '../domain/
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { bestSetOf } from '../domain/workouts/targets'
 import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
+import { weeklyReview as reviewWeek, type WeeklyReview } from '../domain/axis/weekly-review'
 import { EXERCISE_CATALOG, findExercise } from '../domain/workouts/catalog'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
@@ -114,8 +115,8 @@ import type { RepsInReserve, WorkoutSession } from '../domain/workouts/types'
 /** Cuántas sesiones carga la aplicación. Suficiente para historial y para AXIS. */
 const SESSION_HISTORY_LIMIT = 200
 
-/** Cuántos días de recuperación se leen: hoy más los anteriores que mira AXIS (D-049). */
-const RECENT_RECOVERY_DAYS = 4
+/** Cuántos días de recuperación se leen: los que mira AXIS (D-049) y los de la semana que se revisa (D-059). */
+const RECENT_RECOVERY_DAYS = 14
 
 /** Inserta o reemplaza una sesión manteniendo el orden del historial. */
 function withSession(list: WorkoutSession[], session: WorkoutSession): WorkoutSession[] {
@@ -196,6 +197,8 @@ type AxtlheticsStore = {
   addTargets(drafts: readonly { exerciseId: string; target: number; deadline: DayKey; startValue: number }[]): Promise<void>
   /** Lo que AXIS dice sin que se lo pregunten (D-038), o `null` si no hay nada. */
   axisNote: ProactiveNote | null
+  /** La revisión de la semana pasada (D-059), o `null` si no se entrenó. */
+  weeklyReview: WeeklyReview | null
   /** Apunta o quita un ejercicio que no gusta (D-037). */
   setExerciseDisliked(exerciseId: string, disliked: boolean): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
@@ -588,11 +591,21 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     )
   }, [axisContext, decision, proposal, sessions, memory.override, memory.reportedLoads, memory.movedTo, yesterdayMemory])
 
+  // La revisión de la semana pasada (D-059).
+  const weeklyReview = useMemo(
+    () =>
+      status === 'ready'
+        ? reviewWeek({ today, profile, sessions, recovery: recentRecovery, catalog: EXERCISE_CATALOG })
+        : null,
+    [status, today, profile, sessions, recentRecovery],
+  )
+
   // AXIS habla primero (D-038): una nota, la más importante, con lo que la app ya sabe.
   const axisNote = useMemo(
     () =>
       status === 'ready'
         ? proactiveNote({
+            review: weeklyReview,
             dayKey: today,
             profile,
             sessions,
@@ -602,7 +615,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             assessments: assessments.assessments,
           })
         : null,
-    [status, today, profile, sessions, yesterdayMemory, recoveryScore.status, assessments.assessments],
+    [status, today, profile, sessions, yesterdayMemory, recoveryScore.status, assessments.assessments, weeklyReview],
   )
 
   const axisSuggestions = useMemo(
@@ -1366,6 +1379,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       addTargets,
       setExerciseDisliked,
       axisNote,
+      weeklyReview,
       removeTarget,
       addActivity,
       updateActivity,
@@ -1434,6 +1448,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       addTargets,
       setExerciseDisliked,
       axisNote,
+      weeklyReview,
       removeTarget,
       addActivity,
       updateActivity,

@@ -2116,6 +2116,30 @@ Las respuestas no salen del dispositivo. El texto del factor, como el de las zon
 
 ---
 
+## D-059 — La revisión de la semana
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: punto 6 de la lista P1. **Amplía** D-038 (el resumen del lunes).
+
+### Qué repasa (`lib/domain/axis/weekly-review.ts`)
+
+De la semana natural anterior, solo si se entrenó:
+
+- **Sesiones hechas de las previstas** (los días disponibles del perfil).
+- **Lo que mejoró**, hasta 3 ejercicios, frente a su última vez antes de esa semana: el **1RM estimado** con carga (D-056), la mejor serie sin ella. Solo lo que subió.
+- **Sueño medio** y **recuperación media** de los días registrados. Para eso se leen los últimos 14 días de recuperación (antes 4).
+- **Lo que AXIS hace con esta semana**, solo lo que el motor de verdad hará: la semana del bloque o la descarga (D-057, D-031), la zona más atrasada a la que da prioridad (D-034), si faltaron sesiones (con la invitación a cambiar los días del perfil, que reparten la semana, D-047) y si se durmió menos de 7 h de media.
+
+### Dónde se ve
+
+- En Entrenamiento, **«La semana pasada»**, después de «Esta semana»: sin tarjeta, una línea de datos, «Mejoraste» y «Esta semana» con la marca de AXIS.
+- El lunes, la nota de AXIS (D-038) es su resumen: «La semana pasada: 2 de 3 sesiones. Mejoraste en flexiones y remo unilateral con pesa. Tienes la revisión completa en Entrenamiento.»
+
+### Fuera de D-059
+
+El peso corporal y las medidas por semana (punto P2), y que la revisión cambie el plan por sí sola: anuncia lo que el motor ya hace.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

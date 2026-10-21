@@ -6,6 +6,7 @@ import { ChevronRight, Clock, Dumbbell } from 'lucide-react'
 import { AssessmentEntry } from '@/components/assessment/assessment-entry'
 import { ScanEntry } from '@/components/scanner/scan-entry'
 import { EvaluationCard } from '@/components/profile/evaluation-card'
+import { WeeklyReviewSection } from '@/components/weekly-review'
 import { AxisMark } from '@/components/axis-mark'
 import { WeekPlan } from '@/components/week-plan'
 import { WeeklyVolume } from '@/components/weekly-volume'
@@ -39,7 +40,7 @@ export function EntrenamientoScreen({
   /** Abre el perfil, para contestar la evaluación inicial (D-058). */
   onOpenPerfil: () => void
 }) {
-  const { proposal, openChangeConversation, sessions, weekView, chooseNormalVersion, today, movedToTomorrow, profile } =
+  const { proposal, openChangeConversation, sessions, weekView, chooseNormalVersion, today, movedToTomorrow, profile, weeklyReview } =
     useAxtlhetics()
 
   const trains = proposal ? isTrainingRecommendation(proposal.type) : false
@@ -225,6 +226,9 @@ export function EntrenamientoScreen({
       <p className="mt-1 text-[13px] text-muted-foreground">{describeBlock(currentBlock(sessions, today))}</p>
       <WeekPlan key={today} days={weekView} className="mt-3" />
       <WeeklyVolume volumes={volumes} className="mt-6" />
+
+      {/* La revisión de la semana pasada (D-059). */}
+      <WeeklyReviewSection review={weeklyReview} />
 
       {/* Tu progreso (D-036): dentro de Entrenamiento, sin pestaña propia (D-040). */}
       <ProgressSection />

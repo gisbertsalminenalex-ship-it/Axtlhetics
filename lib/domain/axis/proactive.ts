@@ -10,7 +10,8 @@
  *
  * 0. Una respuesta de salud con «sí» sin visto bueno del médico (D-058).
  * 1. Una molestia contada ayer: cómo va.
- * 2. El lunes, la semana pasada: sesiones, series y la zona más atrasada.
+ * 2. El lunes, la semana pasada: el resumen de su revisión (D-059) o, sin
+ *    ella, sesiones, series y la zona más atrasada.
  * 3. El primer día de una semana de descarga (D-031): avisarla.
  * 4. Un objetivo medible (D-035) que va por detrás.
  * 5. La recuperación de hoy sin registrar.
@@ -19,6 +20,7 @@
 import type { Assessment } from '../assessment/types'
 import type { UserProfile } from '../profile/types'
 import { needsMedicalClearance } from '../profile/screening'
+import { reviewHeadline, type WeeklyReview } from './weekly-review'
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import { findExercise } from '../workouts/catalog'
 import { isDeloadWeek } from '../workouts/deload'
@@ -42,6 +44,8 @@ export type ProactiveInput = {
   recoveryRegistered: boolean
   /** Los tests de evolución: sus marcas cuentan para los objetivos (D-040). */
   assessments?: readonly Assessment[]
+  /** La revisión de la semana pasada (D-059): el lunes, su resumen es la nota. */
+  review?: WeeklyReview | null
 }
 
 export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
@@ -63,6 +67,9 @@ export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
   }
 
   const monday = startOfWeek(dayKey)
+  if (dayKey === monday && input.review) {
+    return { kind: 'weekly_summary', text: reviewHeadline(input.review) }
+  }
   if (dayKey === monday) {
     const lastMonday = addDays(monday, -7)
     const lastWeek = sessions.filter(
