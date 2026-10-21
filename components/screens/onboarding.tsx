@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { CareZonesPicker, SexPicker } from '@/components/profile/about-you'
+import { BackgroundPicker, HealthQuestions, NO_HEALTH_FLAGS } from '@/components/profile/screening'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -52,6 +53,8 @@ const DEFAULT_DRAFT: UserProfileDraft = {
   availableWeekdays: [0, 2, 4],
   typicalSessionMinutes: 45,
   equipment: NO_EQUIPMENT,
+  // La evaluación inicial (D-058): la salud parte de todo «no»; la historia se elige.
+  health: NO_HEALTH_FLAGS,
 }
 
 type SportDraft = {
@@ -84,11 +87,13 @@ type StepId =
   | 'age'
   | 'goals'
   | 'experience'
+  | 'background'
   | 'weekdays'
   | 'duration'
   | 'equipment'
   | 'body'
   | 'care'
+  | 'health'
   | 'sports'
   | { kind: 'sport-days'; sportIndex: number }
   | { kind: 'sport-intensity'; sportIndex: number }
@@ -145,6 +150,13 @@ export function OnboardingScreen() {
         canContinue: true,
       },
       {
+        key: 'background',
+        id: 'background',
+        question: '¿Cuánto llevas entrenando?',
+        hint: 'Si empiezas o vuelves tras un parón, las primeras sesiones van con margen para asentar la técnica.',
+        canContinue: draft.background !== undefined,
+      },
+      {
         key: 'weekdays',
         id: 'weekdays',
         question: '¿Qué días puedes entrenar?',
@@ -180,6 +192,13 @@ export function OnboardingScreen() {
         canContinue: true,
       },
       {
+        key: 'health',
+        id: 'health',
+        question: 'Antes de empezar, tu salud',
+        hint: 'Las preguntas que haría un entrenador. No salen de este dispositivo.',
+        canContinue: true,
+      },
+      {
         key: 'sports',
         id: 'sports',
         question: '¿Practicas algún deporte?',
@@ -205,7 +224,7 @@ export function OnboardingScreen() {
     ])
 
     return [...base, ...perSport]
-  }, [draft.name, draft.goals, draft.availableWeekdays, sports])
+  }, [draft.name, draft.goals, draft.availableWeekdays, draft.background, sports])
 
   const safeIndex = Math.min(index, steps.length - 1)
   const step = steps[safeIndex]
@@ -370,6 +389,14 @@ export function OnboardingScreen() {
               value={draft.experience}
               onChange={(experience) => patch({ experience })}
             />
+          )}
+
+          {step.id === 'background' && (
+            <BackgroundPicker value={draft.background} onChange={(background) => patch({ background })} />
+          )}
+
+          {step.id === 'health' && (
+            <HealthQuestions value={draft.health} onChange={(health) => patch({ health })} />
           )}
 
           {step.id === 'weekdays' && (

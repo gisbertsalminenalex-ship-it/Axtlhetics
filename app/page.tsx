@@ -150,6 +150,7 @@ export default function Page() {
                       onOpenAxis={() => setAxisOpen(true)}
                       onOpenTest={() => setTestOpen(true)}
                       onOpenScan={() => setScanOpen(true)}
+                      onOpenPerfil={() => setPerfilOpen(true)}
                     />
                   )}
                   {tab === 'recuperacion' && <RecuperacionScreen />}

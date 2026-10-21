@@ -2091,6 +2091,31 @@ En Entrenamiento, bajo «Esta semana»: «Semana 2 de 4 del bloque. Los ejercici
 
 ---
 
+## D-058 — Evaluación inicial: salud, historia, línea base y medidas
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: punto 5 de la lista P1. **Amplía** D-007, D-021 y D-023.
+
+### Lo que pregunta un entrenador antes de empezar (`lib/domain/profile/screening.ts`)
+
+- **Salud**: las siete preguntas generales del **PAR-Q+** (corazón o tensión, dolor en el pecho, mareos o pérdida de conocimiento, otra enfermedad crónica, medicación, huesos o articulaciones, ejercicio solo con supervisión), sí o no, en el onboarding («Antes de empezar, tu salud») y en Perfil («Tu salud»). Se guarda `UserProfile.health`: las preguntas con «sí» y si un médico ya dio el **visto bueno**, que se marca en Perfil. Una respuesta nueva con «sí» pide un visto bueno nuevo.
+- **Historia**: cuánto lleva entrenando (nunca · menos de 6 meses · 6 meses a 2 años · más de 2 años) y, si ha entrenado, si entrena ahora o lo dejó hace menos o más de 3 meses. `UserProfile.background`, en el onboarding (obligatoria) y en Perfil.
+
+### Qué cambia en AXIS
+
+- **Un «sí» sin visto bueno**: no hay días fuertes (D-048), un factor `health_check` lo explica en el motivo y la nota de AXIS (D-038) lo recuerda la primera, cada día, hasta que se marque el visto bueno. **AXIS no diagnostica ni bloquea el entrenamiento.**
+- **Quien nunca ha entrenado o vuelve tras más de 3 meses**: sus primeras **6 sesiones completadas** son ligeras (más accesibles, una serie menos y 3 o más en reserva, D-055), sin días fuertes, con el factor `ramp_up`: «primero la técnica, luego la carga». El usuario sigue pudiendo pedir otra cosa (D-030).
+- Sin contestar, no se supone nada: los perfiles anteriores se comportan como antes.
+
+### La evaluación, paso a paso
+
+En Entrenamiento, **«Tu evaluación inicial»** muestra los cuatro pasos hasta que están todos: salud, historia, **test de evolución** (la línea base de fuerza y resistencia, D-021) y **escaneo corporal** (medidas y fotos de partida, D-023). Salud e historia se contestan desde la tarjeta («Contestar salud e historia» abre el perfil); el test y el escaneo tienen su entrada justo debajo. La fuerza de cada ejercicio se sigue estimando desde las primeras sesiones (D-056).
+
+### Privacidad
+
+Las respuestas no salen del dispositivo. El texto del factor, como el de las zonas a cuidar (D-051), puede viajar en el briefing a la capa de lenguaje: dice que hay que consultar con el médico, **nunca qué pregunta se contestó con «sí»**.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

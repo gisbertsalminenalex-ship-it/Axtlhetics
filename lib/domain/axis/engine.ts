@@ -28,6 +28,7 @@ import {
 } from '../workouts/weekly-plan'
 import type { TrainingGoal } from '../profile/types'
 import { isHardDay } from './hard-day'
+import { isRampUp, needsMedicalClearance, RAMP_UP_SESSIONS } from '../profile/screening'
 import { CARE_ZONE_LABELS, type CareZone } from '../profile/types'
 import { availableEquipment } from '../workouts/equipment'
 import { loadsCareZone } from '../workouts/joints'
@@ -75,8 +76,12 @@ export function decide(context: AxisContext): AxisDecision {
   const plan: DayPlan = { week, goal, blocked }
   const deload = isDeloadWeek(context.recentSessions, context.dayKey)
 
+  // La evaluación inicial (D-058): sin visto bueno del médico, o al empezar, no se aprieta.
+  const clearance = needsMedicalClearance(context.profile)
+  const rampUp = isRampUp(context.profile, context.recentSessions)
+
   // Día fuerte (D-048): un día normal en el que todo acompaña.
-  const hard = isHardDay({
+  const hard = !clearance && !rampUp && isHardDay({
     facts,
     rule: outcome.rule,
     goal,
@@ -91,12 +96,14 @@ export function decide(context: AxisContext): AxisDecision {
   const scanFactor = training && facts.physique ? physiqueFactor(facts.physique) : null
   const weekFactor = training ? weeklyGoalFactor(week, goal) : null
   const careFactor = training ? careZonesFactor(context.profile?.careZones ?? []) : null
+  const screeningFactor = training ? (clearance ? healthFactor() : rampUp ? rampUpFactor() : null) : null
   const [firstRule, ...otherRules] = outcome.factors
   const factors = [
     ...(deload && training ? [deloadFactor()] : []),
     ...(firstRule ? [firstRule] : []),
     // Lo que se cuida va antes que lo demás: es seguridad (D-051).
     ...(careFactor ? [careFactor] : []),
+    ...(screeningFactor ? [screeningFactor] : []),
     // Por qué hoy se aprieta (D-048), antes que el reparto de la semana.
     ...(hard ? [hardDayFactor()] : []),
     // Qué toca hoy de la semana (D-047), justo después de por qué se entrena así.
@@ -114,11 +121,32 @@ export function decide(context: AxisContext): AxisDecision {
     factors,
     'Recomendada',
     outcome.rule,
-    hard ? { intensity: 'alta' } : {},
+    // Quien empieza o vuelve: una sesión normal se hace con margen, ligera (D-058).
+    hard ? { intensity: 'alta' } : rampUp && outcome.type === 'TRAINING' ? { intensity: 'ligera' } : {},
   )
   const alternatives = buildAlternatives(context, facts, plan, outcome.type, primary)
 
   return { primary, alternatives }
+}
+
+/** Una respuesta de salud con «sí» (D-058). Nunca diagnostica. */
+function healthFactor(): AxisFactor {
+  return {
+    key: 'health_check',
+    label: 'Visto bueno médico',
+    detail: 'Marcaste algo en las preguntas de salud: consulta con tu médico antes de apretar. Hasta que me digas que te ha dado el visto bueno, no te propongo días fuertes.',
+    direction: 'limits',
+  }
+}
+
+/** Las primeras sesiones de quien empieza o vuelve (D-058). */
+function rampUpFactor(): AxisFactor {
+  return {
+    key: 'ramp_up',
+    label: 'Empiezas con margen',
+    detail: `En tus primeras ${RAMP_UP_SESSIONS} sesiones dejamos 3 o más repeticiones en reserva: primero la técnica, luego la carga.`,
+    direction: 'limits',
+  }
 }
 
 function hardDayFactor(): AxisFactor {

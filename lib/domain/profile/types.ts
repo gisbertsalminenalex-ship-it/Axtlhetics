@@ -9,6 +9,7 @@
 
 import { weekdayOfKey, type DayKey, type Weekday } from '../shared/dates'
 import { isUserEquipment, type UserEquipment } from '../workouts/equipment'
+import { isHealthScreen, isTrainingBackground, type HealthScreen, type TrainingBackground } from './screening'
 import {
   isArrayOf,
   isDayKey,
@@ -213,6 +214,10 @@ export type UserProfile = {
   sex?: Sex | null
   /** Zonas a cuidar (D-051). Ausente en los perfiles anteriores. */
   careZones?: CareZone[]
+  /** Las preguntas de salud de la evaluación inicial (D-058). Ausente si no se contestaron. */
+  health?: HealthScreen
+  /** Cuánto ha entrenado y si lo hace ahora (D-058). Ausente si no se contestó. */
+  background?: TrainingBackground
   createdAt: string
   updatedAt: string
 }
@@ -387,6 +392,8 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (value.careZones !== undefined && !isArrayOf(value.careZones, (item): item is CareZone => isOneOf(item, CARE_ZONE_ORDER))) {
     return false
   }
+  if (value.health !== undefined && !isHealthScreen(value.health)) return false
+  if (value.background !== undefined && !isTrainingBackground(value.background)) return false
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }
 

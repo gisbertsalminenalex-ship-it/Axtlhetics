@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { ChevronRight, Clock, Dumbbell } from 'lucide-react'
 import { AssessmentEntry } from '@/components/assessment/assessment-entry'
 import { ScanEntry } from '@/components/scanner/scan-entry'
+import { EvaluationCard } from '@/components/profile/evaluation-card'
 import { AxisMark } from '@/components/axis-mark'
 import { WeekPlan } from '@/components/week-plan'
 import { WeeklyVolume } from '@/components/weekly-volume'
@@ -25,6 +26,7 @@ export function EntrenamientoScreen({
   onOpenAxis,
   onOpenTest,
   onOpenScan,
+  onOpenPerfil,
 }: {
   onStart: () => void
   onGoRecuperacion: () => void
@@ -34,6 +36,8 @@ export function EntrenamientoScreen({
   onOpenTest: () => void
   /** Abre el escáner corporal (D-023). */
   onOpenScan: () => void
+  /** Abre el perfil, para contestar la evaluación inicial (D-058). */
+  onOpenPerfil: () => void
 }) {
   const { proposal, openChangeConversation, sessions, weekView, chooseNormalVersion, today, movedToTomorrow, profile } =
     useAxtlhetics()
@@ -177,6 +181,8 @@ export function EntrenamientoScreen({
       )}
 
       {/* Test de evolución (D-021): secundario, después de la sesión de hoy y sus ejercicios. */}
+      {/* La evaluación inicial (D-058): hasta que estén sus cuatro pasos. */}
+      <EvaluationCard onOpenPerfil={onOpenPerfil} />
       <AssessmentEntry onOpen={onOpenTest} />
       {/* Escáner corporal (D-023): junto al test, con el mismo ritmo mensual. */}
       <ScanEntry onOpen={onOpenScan} />

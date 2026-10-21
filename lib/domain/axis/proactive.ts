@@ -8,6 +8,7 @@
  *
  * Por orden:
  *
+ * 0. Una respuesta de salud con «sí» sin visto bueno del médico (D-058).
  * 1. Una molestia contada ayer: cómo va.
  * 2. El lunes, la semana pasada: sesiones, series y la zona más atrasada.
  * 3. El primer día de una semana de descarga (D-031): avisarla.
@@ -17,6 +18,7 @@
 
 import type { Assessment } from '../assessment/types'
 import type { UserProfile } from '../profile/types'
+import { needsMedicalClearance } from '../profile/screening'
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import { findExercise } from '../workouts/catalog'
 import { isDeloadWeek } from '../workouts/deload'
@@ -25,7 +27,7 @@ import { MUSCLE_GROUP_LABELS, type Exercise, type WorkoutSession } from '../work
 import { laggingGroup, weeklyVolume } from '../workouts/weekly-volume'
 import { weeklySetTotals } from '../workouts/progress'
 
-export type ProactiveKind = 'discomfort' | 'weekly_summary' | 'deload' | 'goal_behind' | 'register_recovery'
+export type ProactiveKind = 'health_check' | 'discomfort' | 'weekly_summary' | 'deload' | 'goal_behind' | 'register_recovery'
 
 export type ProactiveNote = { kind: ProactiveKind; text: string }
 
@@ -44,6 +46,13 @@ export type ProactiveInput = {
 
 export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
   const { dayKey, profile, sessions, catalog } = input
+
+  if (needsMedicalClearance(profile)) {
+    return {
+      kind: 'health_check',
+      text: 'Contestaste que sí a una pregunta de salud. Antes de apretar, que te vea un médico; cuando te dé el visto bueno, márcalo en tu perfil.',
+    }
+  }
 
   const zone = input.discomfortsYesterday[0]
   if (zone) {

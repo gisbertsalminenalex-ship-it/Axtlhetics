@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { BackupControls } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { CareZonesPicker, SexPicker } from '@/components/profile/about-you'
+import { BackgroundPicker, HealthQuestions, NO_HEALTH_FLAGS } from '@/components/profile/screening'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -132,6 +133,9 @@ export function PerfilScreen({
           equipment: equipmentOf(profile),
           sex: profile.sex ?? null,
           careZones: [...(profile.careZones ?? [])],
+          // La evaluación inicial (D-058): sin contestar sigue sin contestar hasta que se toque.
+          ...(profile.health ? { health: { ...profile.health, flags: [...profile.health.flags] } } : {}),
+          ...(profile.background ? { background: { ...profile.background } } : {}),
         }
       : DEFAULT_DRAFT,
   )
@@ -168,6 +172,8 @@ export function PerfilScreen({
     await saveProfile({
       ...draft,
       name: draft.name.trim(),
+      // Las preguntas de salud se ven contestadas con «no» de partida: guardar las da por contestadas (D-058).
+      health: draft.health ?? NO_HEALTH_FLAGS,
     })
     setSaving(false)
     onClose?.()
@@ -261,7 +267,11 @@ export function PerfilScreen({
           value={draft.experience}
           onChange={(experience) => patch({ experience })}
         />
+        <BackgroundPicker value={draft.background} onChange={(background) => patch({ background })} />
       </div>
+
+      <SectionTitle>Tu salud</SectionTitle>
+      <HealthQuestions value={draft.health} onChange={(health) => patch({ health })} showClearance />
 
       <SectionTitle>Tu disponibilidad</SectionTitle>
       <div className="mt-1 divide-y divide-border">

@@ -153,7 +153,7 @@ export function MultiChoiceGroup<T extends string>({
   )
 }
 
-/** Grupo de opciones excluyentes en forma de chips. */
+/** Grupo de opciones excluyentes en forma de chips. `null`: aún sin elegir. */
 export function ChoiceGroup<T extends string>({
   label,
   options,
@@ -162,7 +162,7 @@ export function ChoiceGroup<T extends string>({
 }: {
   label: string
   options: { value: T; label: string }[]
-  value: T
+  value: T | null
   onChange: (next: T) => void
 }) {
   return (

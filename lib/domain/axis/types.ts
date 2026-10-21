@@ -60,6 +60,10 @@ export type AxisFactorKey =
   | 'hard_day'
   /** Zonas que el usuario cuida (D-051). */
   | 'care_zones'
+  /** Una respuesta de salud con «sí» sin visto bueno del médico (D-058). */
+  | 'health_check'
+  /** Las primeras sesiones de quien empieza o vuelve tras un parón (D-058). */
+  | 'ramp_up'
 
 /**
  * `supports` empuja hacia entrenar más, `limits` hacia entrenar menos.
