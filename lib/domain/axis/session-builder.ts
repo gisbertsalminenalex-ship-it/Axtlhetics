@@ -15,6 +15,7 @@
 
 import type { CareZone, ExperienceLevel, Sex, TrainingGoal } from '../profile/types'
 import { loadsCareZone } from '../workouts/joints'
+import { laggingSubgroups, subgroupsOf, type Subgroup } from '../workouts/subgroups'
 import type { DayKey } from '../shared/dates'
 import { clamp } from '../shared/ids'
 import {
@@ -623,6 +624,7 @@ function rotationOrder(
   target: Difficulty,
   adapt: (exercise: Exercise) => Exercise,
   usage: ReadonlyMap<string, ExerciseUsage>,
+  lagging: readonly Subgroup[] = [],
 ): Exercise[] {
   const keyed = candidates.map((exercise, index) => {
     const distance = Math.abs(exercise.difficulty - target)
@@ -630,6 +632,8 @@ function rotationOrder(
     return {
       exercise,
       outOfBand: distance > ROTATION_DIFFICULTY_BAND ? 1 : 0,
+      // La parte que va por detrás de su pareja esta semana, antes (D-053).
+      balance: subgroupsOf(exercise.id).some((subgroup) => lagging.includes(subgroup)) ? 0 : 1,
       lastUse: used?.lastUse ?? NEVER_USED,
       uses: used?.uses ?? 0,
       distance,
@@ -639,6 +643,7 @@ function rotationOrder(
   keyed.sort(
     (a, b) =>
       a.outOfBand - b.outOfBand ||
+      a.balance - b.balance ||
       compareDays(a.lastUse, b.lastUse) ||
       a.uses - b.uses ||
       a.distance - b.distance ||
@@ -671,13 +676,14 @@ function selectExercises(
   adapt: (exercise: Exercise) => Exercise,
   target: Difficulty,
   usage: ReadonlyMap<string, ExerciseUsage>,
+  lagging: readonly Subgroup[] = [],
 ): Exercise[] {
   const byCategory = new Map<ExerciseCategory, Exercise[]>()
   const categoryLastUse = new Map<ExerciseCategory, DayKey>()
 
   for (const category of FOCUS_CATEGORIES[focus]) {
     const candidates = pool.filter((exercise) => exercise.category === category)
-    byCategory.set(category, rotationOrder(candidates, target, adapt, usage))
+    byCategory.set(category, rotationOrder(candidates, target, adapt, usage, lagging))
 
     let latest = NEVER_USED
     for (const exercise of candidates) {
@@ -762,6 +768,8 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const equipment = availableEquipment(gear)
   // Cuándo se usó por última vez cada ejercicio: lo que ordena la rotación (D-020).
   const usage = exerciseUsage(history, { catalog: catalog ?? EXERCISE_CATALOG, today })
+  // Lo que va por detrás de su pareja esta semana: cuádriceps o isquios, bíceps o tríceps (D-053).
+  const lagging = today ? laggingSubgroups(history, today, catalog ?? EXERCISE_CATALOG) : []
 
   const forFocus = exercisesForFocus(focus, catalog)
   // Filtros innegociables: nada que necesite material inexistente ni que cargue una zona a cuidar (D-051).
@@ -821,6 +829,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       },
       target,
       usage,
+      lagging,
     )
 
     // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).

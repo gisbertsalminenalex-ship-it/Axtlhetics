@@ -1994,6 +1994,23 @@ El paso de la progresión salía del esfuerzo de **toda la sesión**: si un ejer
 
 ---
 
+## D-053 — Subgrupos para equilibrar piernas y brazos
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: **solo para equilibrar**. Los siete grupos de siempre (D-034) no cambian y no se migra nada.
+
+### El problema
+
+«Piernas» juntaba cuádriceps, isquios y gemelos, y «brazos», bíceps y tríceps. Una semana podía ser todo sentadillas y zancadas, sin nada de la parte de atrás, y AXIS no lo veía.
+
+### Qué cambia
+
+- Cada ejercicio que trabaja piernas o brazos dice además **qué parte** (`lib/domain/workouts/subgroups.ts`): **cuádriceps, isquiotibiales, gemelos, bíceps o tríceps**. Un test exige que estén todos.
+- Se cuentan las series de la semana por subgrupo, como las de los grupos (D-034).
+- Al elegir los ejercicios de una categoría, entre los de dificultad parecida **van antes los que trabajan la parte que va por detrás** de su pareja (cuádriceps frente a isquios, bíceps frente a tríceps) cuando la diferencia es de **2 series o más**. Después sigue la rotación de siempre (D-020).
+- No hay pantallas nuevas: el equilibrio se nota en qué ejercicios salen.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
