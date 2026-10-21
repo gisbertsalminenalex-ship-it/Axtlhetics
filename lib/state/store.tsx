@@ -107,10 +107,12 @@ import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { bestSetOf } from '../domain/workouts/targets'
 import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
 import { weeklyReview as reviewWeek, type WeeklyReview } from '../domain/axis/weekly-review'
+import { withAdjustment, type NutritionGoal } from '../domain/nutrition/targets'
 import {
   emptyMeasurement,
   sortMeasurements,
   withPerimeters,
+  withProtein,
   withWeight,
   type BodyMeasurement,
   type PerimeterKey,
@@ -213,6 +215,12 @@ type AxtlheticsStore = {
   saveWeight(weightKg: number): Promise<void>
   /** Apunta los perímetros de hoy (en cm). */
   savePerimeters(perimeters: Partial<Record<PerimeterKey, number>>): Promise<void>
+  /** Apunta si hoy llegó a su proteína (D-061). */
+  saveProteinCheck(reached: boolean): Promise<void>
+  /** Elige el objetivo de alimentación (D-061). Empieza sin ajustes. */
+  setNutritionGoal(goal: NutritionGoal): Promise<void>
+  /** Acepta el ajuste de calorías que propone AXIS (D-061). */
+  applyNutritionAdjustment(deltaKcal: number): Promise<void>
   /** Apunta o quita un ejercicio que no gusta (D-037). */
   setExerciseDisliked(exerciseId: string, disliked: boolean): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
@@ -670,6 +678,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         // El formulario no edita los objetivos (D-035) ni lo que no gusta (D-037): se conservan.
         ...(profile?.targets ? { targets: profile.targets } : {}),
         ...(profile?.dislikedExercises ? { dislikedExercises: profile.dislikedExercises } : {}),
+        // Ni la alimentación (D-061), que tiene sus propias acciones.
+        ...(profile?.nutrition ? { nutrition: profile.nutrition } : {}),
         id: PRIMARY_PROFILE_ID,
         createdAt: profile?.createdAt ?? timestamp,
         updatedAt: timestamp,
@@ -682,7 +692,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setError('No se pudo guardar tu perfil en este dispositivo.')
       }
     },
-    [profile?.createdAt, profile?.targets, profile?.dislikedExercises],
+    [profile?.createdAt, profile?.targets, profile?.dislikedExercises, profile?.nutrition],
   )
 
   /**
@@ -702,6 +712,25 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       }
     },
     [profile],
+  )
+
+  // Alimentación (D-061): el objetivo se elige aquí y los ajustes solo se aceptan, nunca se aplican solos.
+  const setNutritionGoal = useCallback(
+    (goal: NutritionGoal) =>
+      updateProfile(
+        (current) => ({ ...current, nutrition: { goal, adjustmentKcal: 0, since: today } }),
+        'No se pudo guardar tu objetivo de alimentación en este dispositivo.',
+      ),
+    [updateProfile, today],
+  )
+
+  const applyNutritionAdjustment = useCallback(
+    (deltaKcal: number) =>
+      updateProfile(
+        (current) => (current.nutrition ? { ...current, nutrition: withAdjustment(current.nutrition, deltaKcal, today) } : current),
+        'No se pudo guardar el ajuste en este dispositivo.',
+      ),
+    [updateProfile, today],
   )
 
   const saveTargets = useCallback(
@@ -1350,6 +1379,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [updateTodayMeasurement],
   )
 
+  const saveProteinCheck = useCallback(
+    (reached: boolean) => updateTodayMeasurement((current) => withProtein(current, reached, nowIso())),
+    [updateTodayMeasurement],
+  )
+
   const importBackup = useCallback(async (contents: BackupContents) => {
     try {
       await getRepositories().backup.replaceAll(contents)
@@ -1434,6 +1468,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       measurements,
       saveWeight,
       savePerimeters,
+      saveProteinCheck,
+      setNutritionGoal,
+      applyNutritionAdjustment,
       removeTarget,
       addActivity,
       updateActivity,
@@ -1506,6 +1543,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       measurements,
       saveWeight,
       savePerimeters,
+      saveProteinCheck,
+      setNutritionGoal,
+      applyNutritionAdjustment,
       removeTarget,
       addActivity,
       updateActivity,

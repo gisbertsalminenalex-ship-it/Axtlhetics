@@ -44,6 +44,8 @@ export type WeeklyReview = {
   averageRecovery: number | null
   /** El peso medio de la semana y su cambio frente a la anterior con pesos (D-060). `null` sin pesos. */
   weight: { averageKg: number; changeKg: number | null } | null
+  /** Días que llegó a su proteína de los que contestó (D-061). `null` sin respuestas. */
+  protein: { yes: number; answered: number } | null
   /** Lo que AXIS hace con la semana que viene, frase a frase. */
   next: string[]
 }
@@ -88,6 +90,7 @@ export function weeklyReview(input: {
     averageSleepHours: sleep.length > 0 ? Math.round((sleep.reduce((a, b) => a + b, 0) / sleep.length) * 10) / 10 : null,
     averageRecovery: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
     weight: weightOf(input.measurements ?? [], weekStart),
+    protein: proteinOf((input.measurements ?? []).filter((record) => inWeek(record.dayKey))),
     next: [],
   }
   review.next = nextWeek(review, { today, sessions, catalog, experience: profile?.experience ?? 'intermedio' })
@@ -173,10 +176,20 @@ function nextWeek(
     )
   }
 
+  if (review.protein && review.protein.answered >= 3 && review.protein.yes * 2 < review.protein.answered) {
+    lines.push(`Llegaste a tu proteína ${review.protein.yes} de ${review.protein.answered} días: es lo más fácil de mejorar para notar los entrenos.`)
+  }
+
   if (review.averageSleepHours !== null && review.averageSleepHours < SHORT_SLEEP_HOURS) {
     lines.push(`Dormiste ${formatHours(review.averageSleepHours)} de media: es lo que más te frena. Si registras tu recuperación, ajusto cada día.`)
   }
   return lines
+}
+
+function proteinOf(records: readonly BodyMeasurement[]): WeeklyReview['protein'] {
+  const answered = records.filter((record) => typeof record.protein === 'boolean')
+  if (answered.length === 0) return null
+  return { yes: answered.filter((record) => record.protein === true).length, answered: answered.length }
 }
 
 /** La media de la semana revisada y el cambio frente a la semana con pesos anterior. */

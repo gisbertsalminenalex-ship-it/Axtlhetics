@@ -22,6 +22,7 @@ import {
   sleepReferenceForAge,
 } from '@/lib/domain/recovery/scales'
 import { useAxtlhetics } from '@/lib/state/store'
+import { NutritionSection } from '@/components/nutrition-section'
 import { cn } from '@/lib/utils'
 
 type ScaleFactorKey = Extract<RecoveryFactorKey, 'energy' | 'muscleFatigue' | 'stress'>
@@ -200,6 +201,9 @@ export function RecuperacionScreen() {
           </p>
         </li>
       </ul>
+
+      {/* Alimentación (D-061). */}
+      <NutritionSection />
     </div>
   )
 }

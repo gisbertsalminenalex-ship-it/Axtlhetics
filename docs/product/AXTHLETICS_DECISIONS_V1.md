@@ -2161,6 +2161,34 @@ La revisión de la semana (D-059) añade el **peso medio** de la semana y su cam
 
 ---
 
+## D-061 — Alimentación con cifras
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: punto 9 de la lista P2. **Amplía** la guía de alimentación del escáner (D-023, enmienda del 2026-10-14), cuyas reglas para menores se mantienen.
+
+### El objetivo
+
+En Recuperación, sección **«Alimentación»**: «¿Qué buscas con lo que comes?» — **perder grasa, mantener mi peso o ganar músculo**. Se guarda en `UserProfile.nutrition` con los ajustes aceptados y el día del último cambio. Sin elegir, no se muestra ninguna cifra.
+
+### Las cifras (`lib/domain/nutrition/targets.ts`)
+
+- **Calorías**: gasto en reposo por **Mifflin-St Jeor** (sin sexo, el punto medio entre las dos fórmulas) × un factor de actividad por los días que entrena (1,375 hasta 2 días, 1,5 hasta 4, 1,65 con 5 o más). Perder grasa: −15 % (máx. −500 kcal); ganar músculo: +10 % (máx. +300 kcal). **Nunca por debajo del gasto en reposo.** Redondeado a 50.
+- **Proteína**: 2,0–2,2 g/kg para perder grasa, 1,6–2,0 g/kg en los otros dos, con el último peso registrado (D-060), repartida en 3 o 4 comidas.
+- Siempre con «Es una guía general: no sustituye a un profesional de la nutrición».
+
+### El ajuste
+
+Con **3 semanas con peso** desde el último cambio, AXIS mira la tendencia (D-060) frente a lo buscado: perder entre un 0,5 y un 1 % del peso a la semana, mantener ±0,25 %, ganar entre un 0,1 y un 0,5 %. Si se sale, **propone** ±150 kcal explicando por qué («Tu peso cambia −0,2 kg por semana y buscamos entre −0,8 kg y −0,4 kg: baja 150 kcal al día»), con un botón **«Aplicar ajuste»**. Nunca se aplica solo. Como mucho ±500 kcal en total.
+
+### Cada día
+
+«¿Hoy llegaste a tu proteína?», sí o no, guardado con el registro del día (D-060). La revisión de la semana (D-059) cuenta los días y, si fue menos de la mitad, lo dice.
+
+### Menores de 18 años
+
+Se mantiene D-023: **nunca déficit ni cifras**. Ven la orientación sin números («A tu edad no hace falta comer menos…»), la pregunta es «¿Hoy comiste proteína en cada comida?» y no hay ajustes.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -10,6 +10,7 @@
 import { weekdayOfKey, type DayKey, type Weekday } from '../shared/dates'
 import { isUserEquipment, type UserEquipment } from '../workouts/equipment'
 import { isHealthScreen, isTrainingBackground, type HealthScreen, type TrainingBackground } from './screening'
+import { isNutritionPlan, type NutritionPlan } from '../nutrition/targets'
 import {
   isArrayOf,
   isDayKey,
@@ -218,6 +219,8 @@ export type UserProfile = {
   health?: HealthScreen
   /** Cuánto ha entrenado y si lo hace ahora (D-058). Ausente si no se contestó. */
   background?: TrainingBackground
+  /** El objetivo de alimentación y los ajustes aceptados (D-061). Ausente si no se eligió. */
+  nutrition?: NutritionPlan
   createdAt: string
   updatedAt: string
 }
@@ -394,6 +397,7 @@ export function isUserProfile(value: unknown): value is UserProfile {
   }
   if (value.health !== undefined && !isHealthScreen(value.health)) return false
   if (value.background !== undefined && !isTrainingBackground(value.background)) return false
+  if (value.nutrition !== undefined && !isNutritionPlan(value.nutrition)) return false
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }
 

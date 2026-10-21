@@ -38,6 +38,8 @@ export type BodyMeasurement = {
   weightKg: number | null
   /** Perímetros en cm. Ausente o `null`: ese día no se midió. */
   perimeters: Partial<Record<PerimeterKey, number | null>>
+  /** Si ese día llegó a su proteína (D-061). Ausente o `null`: no contestó. */
+  protein?: boolean | null
   updatedAt: string
 }
 
@@ -64,6 +66,11 @@ export function withPerimeters(
   updatedAt: string,
 ): BodyMeasurement {
   return { ...current, perimeters: { ...current.perimeters, ...perimeters }, updatedAt }
+}
+
+/** El registro del día con la respuesta de proteína (D-061). */
+export function withProtein(current: BodyMeasurement, protein: boolean, updatedAt: string): BodyMeasurement {
+  return { ...current, protein, updatedAt }
 }
 
 /** Del más antiguo al más reciente. */
@@ -170,6 +177,7 @@ export function isBodyMeasurement(value: unknown): value is BodyMeasurement {
   if (!isRecord(value) || !isDayKey(value.dayKey) || typeof value.updatedAt !== 'string') return false
   if (!isNullableNumber(value.weightKg)) return false
   if (value.weightKg !== null && (value.weightKg < WEIGHT_LIMITS.min || value.weightKg > WEIGHT_LIMITS.max)) return false
+  if (value.protein !== undefined && value.protein !== null && typeof value.protein !== 'boolean') return false
   if (!isRecord(value.perimeters)) return false
   const perimeters = value.perimeters
   if (Object.keys(perimeters).some((key) => !(PERIMETER_ORDER as string[]).includes(key))) return false

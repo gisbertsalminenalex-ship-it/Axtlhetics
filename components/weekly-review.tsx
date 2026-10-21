@@ -16,6 +16,7 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
     review.averageSleepHours !== null ? `dormiste ${review.averageSleepHours.toLocaleString('es-ES')} h de media` : null,
     review.averageRecovery !== null ? `recuperación media ${review.averageRecovery}/100` : null,
     review.weight ? `peso medio ${formatKg(review.weight.averageKg)} kg${review.weight.changeKg ? ` (${review.weight.changeKg > 0 ? '+' : '−'}${formatKg(Math.abs(review.weight.changeKg))})` : ''}` : null,
+    review.protein ? `proteína ${review.protein.yes} de ${review.protein.answered} días` : null,
   ].filter(Boolean)
 
   return (
