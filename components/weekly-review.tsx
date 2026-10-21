@@ -2,6 +2,7 @@
 
 import { AxisMark } from '@/components/axis-mark'
 import { describeImprovement, type WeeklyReview } from '@/lib/domain/axis/weekly-review'
+import { formatKg } from '@/lib/domain/workouts/history'
 
 /**
  * La revisión de la semana pasada (D-059), en Entrenamiento: lo hecho, lo que
@@ -14,6 +15,7 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
   const rest = [
     review.averageSleepHours !== null ? `dormiste ${review.averageSleepHours.toLocaleString('es-ES')} h de media` : null,
     review.averageRecovery !== null ? `recuperación media ${review.averageRecovery}/100` : null,
+    review.weight ? `peso medio ${formatKg(review.weight.averageKg)} kg${review.weight.changeKg ? ` (${review.weight.changeKg > 0 ? '+' : '−'}${formatKg(Math.abs(review.weight.changeKg))})` : ''}` : null,
   ].filter(Boolean)
 
   return (

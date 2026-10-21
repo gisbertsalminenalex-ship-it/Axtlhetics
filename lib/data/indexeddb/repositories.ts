@@ -14,10 +14,12 @@ import { PRIMARY_PROFILE_ID } from '../../domain/profile/types'
 import type { RecoveryInputs } from '../../domain/recovery/types'
 import type { DayKey } from '../../domain/shared/dates'
 import type { WorkoutSession } from '../../domain/workouts/types'
+import { isBodyMeasurement, sortMeasurements } from '../../domain/body/measurements'
 import type {
   ActiveWorkoutRepository,
   AssessmentRepository,
   ScanRepository,
+  MeasurementRepository,
   BackupRepository,
   ActivityRepository,
   AxisMemoryRepository,
@@ -202,6 +204,18 @@ const scanRepository: ScanRepository = {
   },
 }
 
+const measurementRepository: MeasurementRepository = {
+  async list() {
+    const stored = await read<unknown[]>(STORES.measurements, (store) => store.getAll())
+    return sortMeasurements(stored.filter(isBodyMeasurement))
+  },
+  async save(measurement) {
+    await write(STORES.measurements, (store) => {
+      store.put(measurement)
+    })
+  },
+}
+
 /**
  * Copia de seguridad: leer todo y sustituirlo todo.
  *
@@ -211,7 +225,7 @@ const scanRepository: ScanRepository = {
  */
 const backupRepository: BackupRepository = {
   async readAll() {
-    const [profile, activities, recovery, sessions, axisMemory, assessments, scans] = await Promise.all([
+    const [profile, activities, recovery, sessions, axisMemory, assessments, scans, measurements] = await Promise.all([
       profileRepository.get(),
       activityRepository.list(),
       read<RecoveryInputs[]>(STORES.recovery, (store) => store.getAll()),
@@ -219,6 +233,7 @@ const backupRepository: BackupRepository = {
       read<unknown[]>(STORES.axisMemory, (store) => store.getAll()),
       assessmentRepository.list(),
       scanRepository.list(),
+      measurementRepository.list(),
     ])
 
     return {
@@ -232,6 +247,7 @@ const backupRepository: BackupRepository = {
       assessments: assessments.filter((assessment) => assessment.status !== 'in_progress'),
       // Los escaneos viajan sin miniaturas: las fotos no salen del dispositivo (P-016).
       scans: scans.map(withoutThumbnails),
+      measurements,
     }
   },
 
@@ -245,6 +261,7 @@ const backupRepository: BackupRepository = {
       STORES.activeWorkout,
       STORES.assessments,
       STORES.scans,
+      STORES.measurements,
     ] as const
 
     await writeAcross(stores, (get) => {
@@ -259,6 +276,8 @@ const backupRepository: BackupRepository = {
       for (const assessment of contents.assessments) get(STORES.assessments).put(assessment)
       // Importar reemplaza: una copia sin escaneos deja el dispositivo sin escaneos.
       for (const scan of contents.scans) get(STORES.scans).put(withoutThumbnails(scan))
+      // Importar reemplaza: una copia sin medidas deja el dispositivo sin medidas.
+      for (const measurement of contents.measurements) get(STORES.measurements).put(measurement)
       /*
        * La sesión en curso no viaja en la copia y tampoco sobrevive a una: lo
        * que hubiera a medias pertenecía a los datos que se acaban de sustituir.
@@ -277,6 +296,7 @@ export function createIndexedDbRepositories(): Repositories {
     activeWorkout: activeWorkoutRepository,
     assessments: assessmentRepository,
     scans: scanRepository,
+    measurements: measurementRepository,
     backup: backupRepository,
   }
 }

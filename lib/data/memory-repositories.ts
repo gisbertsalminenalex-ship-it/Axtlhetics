@@ -14,6 +14,7 @@ import type { AxisDayMemory } from '../domain/axis/memory'
 import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
 import type { WorkoutSession } from '../domain/workouts/types'
+import { sortMeasurements, type BodyMeasurement } from '../domain/body/measurements'
 import type { Repositories, StoredActiveWorkout } from './repositories'
 
 export function createMemoryRepositories(): Repositories {
@@ -25,6 +26,7 @@ export function createMemoryRepositories(): Repositories {
   let activeWorkout: StoredActiveWorkout | null = null
   const assessments = new Map<string, Assessment>()
   const scans = new Map<string, ScanRecord>()
+  const measurements = new Map<DayKey, BodyMeasurement>()
 
   return {
     profile: {
@@ -130,6 +132,14 @@ export function createMemoryRepositories(): Repositories {
         scans.delete(id)
       },
     },
+    measurements: {
+      async list() {
+        return sortMeasurements([...measurements.values()])
+      },
+      async save(measurement) {
+        measurements.set(measurement.dayKey, measurement)
+      },
+    },
     backup: {
       async readAll() {
         return {
@@ -141,6 +151,7 @@ export function createMemoryRepositories(): Repositories {
           // Como la sesión en curso, un test a medias no viaja: es de ese día.
           assessments: [...assessments.values()].filter((item) => item.status !== 'in_progress'),
           scans: [...scans.values()].map(withoutThumbnails),
+          measurements: sortMeasurements([...measurements.values()]),
         }
       },
       async replaceAll(contents) {
@@ -150,6 +161,7 @@ export function createMemoryRepositories(): Repositories {
         axisMemory.clear()
         assessments.clear()
         scans.clear()
+        measurements.clear()
 
         profile = contents.profile
         for (const activity of contents.activities) activities.set(activity.id, activity)
@@ -158,6 +170,7 @@ export function createMemoryRepositories(): Repositories {
         for (const memory of contents.axisMemory) axisMemory.set(memory.dayKey, memory)
         for (const assessment of contents.assessments) assessments.set(assessment.id, assessment)
         for (const scan of contents.scans) scans.set(scan.id, withoutThumbnails(scan))
+        for (const measurement of contents.measurements) measurements.set(measurement.dayKey, measurement)
         activeWorkout = null
       },
     },

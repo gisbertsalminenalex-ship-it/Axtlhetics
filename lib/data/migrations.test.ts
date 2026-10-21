@@ -37,8 +37,8 @@ function legacyProfile(goal: string | null = 'fuerza'): StoredProfile {
   return goal === null ? base : { ...base, goal }
 }
 
-test('la versión del esquema es la que añade los escaneos corporales (D-023)', () => {
-  assert.equal(DB_VERSION, 9)
+test('la versión del esquema es la que añade el peso y las medidas (D-060)', () => {
+  assert.equal(DB_VERSION, 10)
 })
 
 // ---------------------------------------------------------------------------

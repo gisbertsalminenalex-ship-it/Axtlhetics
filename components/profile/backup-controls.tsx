@@ -68,8 +68,8 @@ export function BackupControls() {
 
       <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
         El archivo incluye tus entrenamientos, tu recuperación, tus tests de
-        evolución, los resultados de tus escaneos (sin fotos) y tus conversaciones
-        con AXIS. Es para ti, no para compartir.
+        evolución, los resultados de tus escaneos (sin fotos), tu peso y tus medidas,
+        y tus conversaciones con AXIS. Es para ti, no para compartir.
       </p>
     </div>
   )
@@ -310,6 +310,10 @@ function describe(counts: BackupCounts): string {
   // Escaneos corporales (D-023). Las copias anteriores a schema 3 no traen ninguno.
   if (counts.scans > 0) {
     parts.push(counts.scans === 1 ? '1 escaneo corporal' : `${counts.scans} escaneos corporales`)
+  }
+  // Peso y medidas (D-060). Las copias anteriores a schema 4 no traen ninguno.
+  if (counts.measurements > 0) {
+    parts.push(counts.measurements === 1 ? '1 día de peso y medidas' : `${counts.measurements} días de peso y medidas`)
   }
   if (counts.profile) parts.push('tu perfil')
 

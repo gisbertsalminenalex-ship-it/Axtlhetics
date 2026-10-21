@@ -85,6 +85,7 @@ function fullContents(): BackupContents {
     axisMemory: [emptyDayMemory('2026-09-22', NOW)],
     assessments: [completed('2026-09-20')],
     scans: [],
+    measurements: [],
   }
 }
 
@@ -130,6 +131,7 @@ test('una copia sin absolutamente nada se reconoce como vacía', () => {
     axisMemory: [],
     assessments: [],
     scans: [],
+    measurements: [],
   }
   assert.equal(isEmptyBackup(countsOf(empty)), true)
   assert.equal(isEmptyBackup(countsOf(fullContents())), false)
@@ -155,6 +157,7 @@ test('lo exportado se vuelve a leer igual', () => {
     axisMemory: 1,
     assessments: 1,
     scans: 0,
+    measurements: 0,
   })
 })
 
@@ -340,9 +343,25 @@ function schemaOneFile(): Record<string, unknown> {
   return { ...file, schema: 1 }
 }
 
-test('las copias nuevas son de schema 3', () => {
-  assert.equal(BACKUP_SCHEMA, 3)
-  assert.equal(buildBackup(fullContents(), { exportedAt: NOW, appSchema: 9 }).schema, 3)
+test('las copias nuevas son de schema 4', () => {
+  assert.equal(BACKUP_SCHEMA, 4)
+  assert.equal(buildBackup(fullContents(), { exportedAt: NOW, appSchema: 10 }).schema, 4)
+})
+
+test('el peso y las medidas viajan en la copia; una copia anterior se lee sin ellas (D-060)', () => {
+  const measurement = { dayKey: '2026-10-20', weightKg: 70.5, perimeters: { cintura: 80 }, updatedAt: NOW }
+  const result = parseBackup(roundTrip({ ...fullContents(), measurements: [measurement, { ...measurement, dayKey: 'mal', weightKg: 3 }] }))
+  assert.ok(result.ok)
+  if (result.ok) {
+    assert.deepEqual(result.contents.measurements, [measurement])
+    assert.equal(result.counts.measurements, 1)
+    assert.equal(result.discarded, 1)
+  }
+  const old = roundTrip(fullContents()) as { schema: number; data: Record<string, unknown> }
+  delete old.data.measurements
+  const legacy = parseBackup({ ...old, schema: 3 })
+  assert.ok(legacy.ok)
+  if (legacy.ok) assert.deepEqual(legacy.contents.measurements, [])
 })
 
 test('una copia de schema 1 se sigue importando entera, sin tests', () => {
@@ -384,12 +403,13 @@ test('una copia con solo tests de evolución no cuenta como vacía', () => {
     axisMemory: [],
     assessments: [completed('2026-09-20')],
     scans: [],
+    measurements: [],
   }
   assert.equal(isEmptyBackup(countsOf(onlyTests)), false)
 })
 
-test('una copia de schema 4 no se interpreta a medias', () => {
-  const result = parseBackup({ ...(roundTrip(fullContents()) as object), schema: 4 })
+test('una copia de schema 5 no se interpreta a medias', () => {
+  const result = parseBackup({ ...(roundTrip(fullContents()) as object), schema: 5 })
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.reason, 'version_desconocida')
 })

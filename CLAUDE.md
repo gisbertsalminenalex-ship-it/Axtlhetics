@@ -118,7 +118,7 @@ Claude should surface problems and propose improvements rather than silently cha
 - Tailwind CSS
 - shadcn/ui
 - Lucide React
-- IndexedDB for local persistence in Core v0.1 (schema v9, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
+- IndexedDB for local persistence in Core v0.1 (schema v10, with migrations in `lib/data/indexeddb/db.ts` and `lib/data/migrations.ts`)
 - Vercel for web hosting/deployment (D-014) — the page is prerendered as static HTML and served as an installable PWA with offline support; no static export (`output: 'export'`), because the route below needs a server
 - A single Next.js route handler as the only server-side piece: `app/api/axis-ai/route.ts` (Node.js runtime, `maxDuration = 10`), the AXIS language layer, deployed by Vercel as a function
 - AXIS language providers behind that route (D-016), both OpenAI-compatible REST via `fetch`, no SDK, free plans: **Cloudflare Workers AI** as primary (`@cf/google/gemma-4-26b-a4b-it`, `lib/ai/providers/cloudflare.ts`) and **Groq** as fallback (`openai/gpt-oss-120b`, `lib/ai/providers/groq.ts`), chained in `lib/ai/provider-chain.ts`
@@ -162,7 +162,7 @@ Core v0.1 is local-first.
 
 The application must work without an account and without a backend.
 
-IndexedDB is the current persistence layer, at schema **v9**. Stores: `profile`, `activities`, `recovery`, `sessions`, `axisMemory`, `activeWorkout`, `assessments` (D-021 evolution tests, kept apart from `sessions` on purpose), `scans` (D-023 body scans: measurements, self-report and result; the only place where their photo thumbnails live). Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser. The v8 and v9 migrations are forward-only. Backups are schema 3 (they carry the evolution tests and the scan results, **never the scan photos**, P-016) and schema-1/2 files still import.
+IndexedDB is the current persistence layer, at schema **v10**. Stores: `profile`, `activities`, `recovery`, `sessions`, `axisMemory`, `activeWorkout`, `assessments` (D-021 evolution tests, kept apart from `sessions` on purpose), `scans` (D-023 body scans: measurements, self-report and result; the only place where their photo thumbnails live), `measurements` (D-060 weight and tape measurements, one record per day). Raising the version means adding a migration block that never loses data; migrations are pure functions and are tested without a browser. The v8, v9 and v10 migrations are forward-only. Backups are schema 4 (they carry the evolution tests, the scan results — **never the scan photos**, P-016 — and the measurements) and schema-1/2/3 files still import.
 
 What persists locally today: the profile and calendar activities, daily recovery inputs, completed and abandoned workout sessions, the workout in progress (a single row, resumed on the next start) and the AXIS memory, one record per day (`AxisDayMemory`): the confirmed session choice, the activities cancelled today, the loads the user reported, the conversation thread with the state of its action proposals, and where the conversation was (last intent, change mode, last change request), plus the D-022 reorganization of the day (minutes the user said they have, whether today's training moved to tomorrow, and what the last applied action changed, for undo). Records of previous days are kept; the only thing read from yesterday is its `movedTo` (D-022 amendment to D-011).
 
@@ -187,7 +187,7 @@ Claude Design is the preferred tool for the generative/visual design phase. Clau
 Current project phase: **FUNCTIONAL CORE v0.1**. The visual prototype was reviewed and approved (D-006) and the application is now real and deployed:
 
 - PWA on Vercel, installable and usable offline.
-- Local persistence in IndexedDB v9 through repositories.
+- Local persistence in IndexedDB v10 through repositories.
 - Body scanner (D-023): guided on-device scan next to the evolution test; MediaPipe pose model served from the app (`scripts/prepare-mediapipe.mjs`); photos never leave the device and never reach the language layer; since D-041 the engine uses the scan to prioritise zones, add correctives and ask for unilateral work, always explained (P-017 revoked).
 - Recovery Score (D-002, D-009) and Training Load (D-008) computed from real data.
 - AXIS deterministic engine deciding the day, with explained recommendations.
@@ -368,6 +368,8 @@ Training blocks (D-057, `lib/domain/workouts/blocks.ts`): `currentBlock` derives
 Initial evaluation (D-058, `lib/domain/profile/screening.ts`): `UserProfile.health` (the 7 PAR-Q+ questions answered «sí» + `cleared`) and `UserProfile.background` (history + status), asked in onboarding and Perfil (`components/profile/screening.tsx`). `needsMedicalClearance` → no hard day, a `health_check` factor and the first proactive note; `isRampUp` (never trained or stopped > 3 months, < 6 completed sessions) → the primary TRAINING is `ligera` with a `ramp_up` factor. Unanswered assumes nothing. Entrenamiento shows «Tu evaluación inicial» (`evaluationSteps`: salud, historia, test, escaneo) until all four are done.
 
 Weekly review (D-059, `lib/domain/axis/weekly-review.ts`): `weeklyReview` (store-computed, `null` without sessions last week) gives sessions vs available days, up to 3 improvements against the last time before that week (estimated 1RM or best set), average sleep and recovery (the store now reads 14 days of recovery) and `next` lines that only announce what the engine does (block/deload, lagging group, missed sessions, short sleep). Entrenamiento shows «La semana pasada» (`components/weekly-review.tsx`); on Monday the D-038 note is `reviewHeadline`.
+
+Weight and measurements (D-060, `lib/domain/body/measurements.ts`): one `BodyMeasurement` per day (weight and tape perimeters: cintura, cadera, pecho, brazo, muslo) in the `measurements` store; the store exposes `measurements`, `saveWeight`, `savePerimeters`. «Tu progreso» ends with «Tu cuerpo» (`components/progress/body-section.tsx`): today's weight, the weekly average chart (`weeklyWeights`, `weeklyWeightChange`) and tape measurements every 14 days (`perimetersDue`). `currentWeight` (last logged, else the profile's) is the weight to work with. The weekly review carries the week's average weight.
 
 Work timer (D-054): a timed entry shows «Empezar · N s» (`startWork`), stored as `ActiveWorkout.work` (a rest-like window plus `exerciseIndex`, validated on load). `workState` gives remaining/elapsed/finished; at zero the screen vibrates and calls `finishWork` (`completeWork`: registers the planned seconds, or the elapsed ones on «Terminar ya», then the usual rest); `cancelWork` records nothing. Skipping, completing or undoing clears it. The countdown is the shared `components/workout/countdown-ring.tsx`, also used by `RestTimer`.
 

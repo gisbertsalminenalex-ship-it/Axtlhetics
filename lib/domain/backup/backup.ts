@@ -25,6 +25,7 @@ import { isRecoveryInputs, type RecoveryInputs } from '../recovery/types'
 import { isScanRecord, withoutThumbnails, type ScanRecord } from '../scanner/types'
 import { isRecord } from '../shared/guards'
 import { isWorkoutSession, type WorkoutSession } from '../workouts/types'
+import { isBodyMeasurement, type BodyMeasurement } from '../body/measurements'
 
 /**
  * Marca del archivo. Sirve para distinguir «esto no es una copia de AXTHLETICS»
@@ -45,8 +46,10 @@ export const BACKUP_KIND = 'axtlhetics.backup'
  *   leyendo: simplemente no trae tests.
  * - **3** (D-023): además, los escaneos corporales, **sin fotos** (`P-016`). Las
  *   copias de schema 1 y 2 se siguen leyendo: no traen escaneos.
+ * - **4** (D-060): además, el peso y las medidas. Las copias anteriores se
+ *   siguen leyendo: no traen medidas.
  */
-export const BACKUP_SCHEMA = 3
+export const BACKUP_SCHEMA = 4
 
 export type BackupContents = {
   profile: UserProfile | null
@@ -58,6 +61,8 @@ export type BackupContents = {
   assessments: Assessment[]
   /** Escaneos corporales (D-023), sin miniaturas. Vacío en las copias de schema 1 y 2. */
   scans: ScanRecord[]
+  /** Peso y medidas (D-060). Vacío en las copias de schema 1 a 3. */
+  measurements: BodyMeasurement[]
 }
 
 export type AxtlheticsBackup = {
@@ -79,6 +84,7 @@ export type BackupCounts = {
   axisMemory: number
   assessments: number
   scans: number
+  measurements: number
 }
 
 export function countsOf(contents: BackupContents): BackupCounts {
@@ -90,6 +96,7 @@ export function countsOf(contents: BackupContents): BackupCounts {
     axisMemory: contents.axisMemory.length,
     assessments: contents.assessments.length,
     scans: contents.scans.length,
+    measurements: contents.measurements.length,
   }
 }
 
@@ -102,7 +109,8 @@ export function isEmptyBackup(counts: BackupCounts): boolean {
     counts.sessions === 0 &&
     counts.axisMemory === 0 &&
     counts.assessments === 0 &&
-    counts.scans === 0
+    counts.scans === 0 &&
+    counts.measurements === 0
   )
 }
 
@@ -202,6 +210,8 @@ export function parseBackup(value: unknown): BackupParseResult {
   const assessments = keepValid(data.assessments, isAssessment)
   // Una copia anterior a schema 3 no tiene `scans`. Si un archivo trae fotos, no se importan (P-016).
   const scans = keepValid(data.scans, isScanRecord)
+  // Una copia anterior a schema 4 no tiene `measurements`.
+  const measurements = keepValid(data.measurements, isBodyMeasurement)
 
   const contents: BackupContents = {
     profile,
@@ -211,6 +221,7 @@ export function parseBackup(value: unknown): BackupParseResult {
     axisMemory: axisMemory.items,
     assessments: assessments.items,
     scans: scans.items.map(withoutThumbnails),
+    measurements: measurements.items,
   }
 
   const counts = countsOf(contents)
@@ -228,6 +239,7 @@ export function parseBackup(value: unknown): BackupParseResult {
       sessions.discarded +
       axisMemory.discarded +
       assessments.discarded +
-      scans.discarded,
+      scans.discarded +
+      measurements.discarded,
   }
 }

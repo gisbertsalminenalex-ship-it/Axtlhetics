@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties } from 'react'
 import { StrengthChart } from '@/components/progress/strength-chart'
+import { BodySection } from '@/components/progress/body-section'
 import { TargetRecommendations } from '@/components/assessment/target-recommendations'
 import { isFirstCompletedTest } from '@/lib/domain/assessment/targets'
 import { formatShortDate } from '@/lib/domain/shared/dates'
@@ -110,6 +111,9 @@ export function ProgressSection() {
       {/* Series por semana */}
       <p className="mt-7 text-[13px] font-medium text-muted-foreground">Series por semana</p>
       <WeekBars weeks={weeks} />
+
+      {/* Peso y medidas (D-060). */}
+      <BodySection />
     </>
   )
 }

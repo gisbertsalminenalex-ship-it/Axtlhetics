@@ -2140,6 +2140,27 @@ El peso corporal y las medidas por semana (punto P2), y que la revisión cambie 
 
 ---
 
+## D-060 — Peso y medidas
+
+**Fecha:** 2026-10-21 · **Estado:** aprobada e implementada · Decidido por Alex: puntos 7 y 8 de la lista P2. **Amplía** D-036 («Tu progreso») y D-059.
+
+### Qué se guarda (`lib/domain/body/measurements.ts`)
+
+- **Un registro por día**: el peso y, cuando se mide con cinta, los perímetros de **cintura, cadera, pecho, brazo y muslo**, cada uno con dónde medirlo para que dos medidas sean comparables.
+- Almacén nuevo `measurements` en IndexedDB **v10** (solo crea, hacia delante). La copia de seguridad pasa a **schema 4** y las anteriores se siguen leyendo, sin medidas.
+- El peso del perfil queda como el de partida; el peso con el que se trabaja es el **último registrado** (`currentWeight`).
+
+### Dónde se ve
+
+Al final de «Tu progreso», **«Tu cuerpo»**:
+
+- **Peso de hoy**, con un botón para guardarlo y la recomendación de pesarse por la mañana. Cuenta la **media de la semana**, no el día: gráfica «Peso medio por semana» (8 semanas) y el **cambio por semana** en las últimas 4.
+- **Medidas** con cinta **cada 14 días**: «Toca medir» cuando corresponde; las últimas con su cambio desde la primera.
+
+La revisión de la semana (D-059) añade el **peso medio** de la semana y su cambio frente a la anterior.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

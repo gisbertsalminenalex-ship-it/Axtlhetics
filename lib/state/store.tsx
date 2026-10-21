@@ -107,6 +107,14 @@ import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { bestSetOf } from '../domain/workouts/targets'
 import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
 import { weeklyReview as reviewWeek, type WeeklyReview } from '../domain/axis/weekly-review'
+import {
+  emptyMeasurement,
+  sortMeasurements,
+  withPerimeters,
+  withWeight,
+  type BodyMeasurement,
+  type PerimeterKey,
+} from '../domain/body/measurements'
 import { EXERCISE_CATALOG, findExercise } from '../domain/workouts/catalog'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
@@ -199,6 +207,12 @@ type AxtlheticsStore = {
   axisNote: ProactiveNote | null
   /** La revisión de la semana pasada (D-059), o `null` si no se entrenó. */
   weeklyReview: WeeklyReview | null
+  /** Peso y medidas (D-060), del día más antiguo al más reciente. */
+  measurements: BodyMeasurement[]
+  /** Apunta el peso de hoy. */
+  saveWeight(weightKg: number): Promise<void>
+  /** Apunta los perímetros de hoy (en cm). */
+  savePerimeters(perimeters: Partial<Record<PerimeterKey, number>>): Promise<void>
   /** Apunta o quita un ejercicio que no gusta (D-037). */
   setExerciseDisliked(exerciseId: string, disliked: boolean): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
@@ -316,6 +330,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   )
   /** La recuperación de días anteriores: sin la de hoy, decide si el día es normal o ligero (D-049). */
   const [recentRecovery, setRecentRecovery] = useState<RecoveryInputs[]>([])
+  const [measurements, setMeasurements] = useState<BodyMeasurement[]>([])
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
 
   /**
@@ -397,6 +412,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           storedWorkout,
           storedYesterday,
           storedRecent,
+          storedMeasurements,
         ] = await Promise.all([
           repositories.profile.get(),
           repositories.activities.list(),
@@ -408,6 +424,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           repositories.axisMemory.getByDay(addDays(dayKey, -1)),
           // Los últimos días registrados (D-049); AXIS mira ayer y anteayer.
           repositories.recovery.recent(RECENT_RECOVERY_DAYS),
+          // Peso y medidas (D-060): pocos registros, se leen todos.
+          repositories.measurements.list(),
         ])
 
         if (cancelled) return
@@ -447,6 +465,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setActivities(storedActivities)
         setRecoveryInputs(storedRecovery ?? emptyRecoveryInputs(dayKey, nowIso()))
         setRecentRecovery(storedRecent.filter((inputs) => inputs.dayKey < dayKey))
+        setMeasurements(storedMeasurements)
         setSessions(sessionsToShow)
         /*
          * Lo que AXIS recuerda de hoy: la sesión elegida, lo que hoy no ocurre,
@@ -595,9 +614,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const weeklyReview = useMemo(
     () =>
       status === 'ready'
-        ? reviewWeek({ today, profile, sessions, recovery: recentRecovery, catalog: EXERCISE_CATALOG })
+        ? reviewWeek({ today, profile, sessions, recovery: recentRecovery, catalog: EXERCISE_CATALOG, measurements })
         : null,
-    [status, today, profile, sessions, recentRecovery],
+    [status, today, profile, sessions, recentRecovery, measurements],
   )
 
   // AXIS habla primero (D-038): una nota, la más importante, con lo que la app ya sabe.
@@ -1301,6 +1320,36 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
    * disco, así que el arranque normal lo lee y lo deja todo coherente por el
    * mismo camino de siempre.
    */
+  /**
+   * Cambia el registro de peso y medidas de hoy (D-060). Primero la pantalla,
+   * luego el disco; si guardar falla, se dice.
+   */
+  const updateTodayMeasurement = useCallback(
+    async (change: (current: BodyMeasurement) => BodyMeasurement) => {
+      const timestamp = nowIso()
+      const current = measurements.find((record) => record.dayKey === today) ?? emptyMeasurement(today, timestamp)
+      const next = change(current)
+      setMeasurements((list) => sortMeasurements([...list.filter((record) => record.dayKey !== today), next]))
+      try {
+        await getRepositories().measurements.save(next)
+      } catch {
+        setError('No se pudieron guardar tus medidas en este dispositivo.')
+      }
+    },
+    [measurements, today],
+  )
+
+  const saveWeight = useCallback(
+    (weightKg: number) => updateTodayMeasurement((current) => withWeight(current, weightKg, nowIso())),
+    [updateTodayMeasurement],
+  )
+
+  const savePerimeters = useCallback(
+    (perimeters: Partial<Record<PerimeterKey, number>>) =>
+      updateTodayMeasurement((current) => withPerimeters(current, perimeters, nowIso())),
+    [updateTodayMeasurement],
+  )
+
   const importBackup = useCallback(async (contents: BackupContents) => {
     try {
       await getRepositories().backup.replaceAll(contents)
@@ -1339,6 +1388,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     setActivities([])
     setSessions([])
     setRecoveryInputs(emptyRecoveryInputs(dayKey, nowIso()))
+    setRecentRecovery([])
+    setMeasurements([])
     // La base ya no existe: se vacía la memoria sin volver a escribir en ella.
     // El guardado no se dispara porque la app deja de estar `ready`.
     commitMemory(() => emptyDayMemory(dayKey))
@@ -1380,6 +1431,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       setExerciseDisliked,
       axisNote,
       weeklyReview,
+      measurements,
+      saveWeight,
+      savePerimeters,
       removeTarget,
       addActivity,
       updateActivity,
@@ -1449,6 +1503,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       setExerciseDisliked,
       axisNote,
       weeklyReview,
+      measurements,
+      saveWeight,
+      savePerimeters,
       removeTarget,
       addActivity,
       updateActivity,

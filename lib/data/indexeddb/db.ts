@@ -24,7 +24,7 @@ export const DB_NAME = 'axtlhetics'
  * anteriores intactos: `onupgradeneeded` los ejecuta en orden para quien venga de
  * una versión antigua.
  */
-export const DB_VERSION = 9
+export const DB_VERSION = 10
 
 export const STORES = {
   profile: 'profile',
@@ -37,6 +37,8 @@ export const STORES = {
   assessments: 'assessments',
   /** Escáneres corporales (D-023). Las miniaturas solo viven aquí. */
   scans: 'scans',
+  /** Peso y medidas (D-060), un registro por día. */
+  measurements: 'measurements',
 } as const
 
 /**
@@ -196,6 +198,14 @@ function migrate(
    */
   if (oldVersion < 9) {
     db.createObjectStore(STORES.scans, { keyPath: 'id' })
+  }
+
+  /*
+   * v10: peso y medidas (D-060), un registro por día. Solo crea: no toca ningún
+   * registro existente. Solo hacia delante: no hay vuelta a la v9.
+   */
+  if (oldVersion < 10) {
+    db.createObjectStore(STORES.measurements, { keyPath: 'dayKey' })
   }
 }
 

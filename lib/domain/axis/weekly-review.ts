@@ -10,6 +10,7 @@
 
 import type { UserProfile } from '../profile/types'
 import { computeRecoveryScore } from '../recovery/score'
+import { weeklyWeights, type BodyMeasurement } from '../body/measurements'
 import type { RecoveryInputs } from '../recovery/types'
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import { listNames } from '../shared/text'
@@ -41,6 +42,8 @@ export type WeeklyReview = {
   /** Media de la semana, o `null` sin días registrados. */
   averageSleepHours: number | null
   averageRecovery: number | null
+  /** El peso medio de la semana y su cambio frente a la anterior con pesos (D-060). `null` sin pesos. */
+  weight: { averageKg: number; changeKg: number | null } | null
   /** Lo que AXIS hace con la semana que viene, frase a frase. */
   next: string[]
 }
@@ -61,6 +64,8 @@ export function weeklyReview(input: {
   sessions: readonly WorkoutSession[]
   recovery: readonly RecoveryInputs[]
   catalog: readonly Exercise[]
+  /** Peso y medidas (D-060). */
+  measurements?: readonly BodyMeasurement[]
 }): WeeklyReview | null {
   const { today, profile, sessions, recovery, catalog } = input
   const monday = startOfWeek(today)
@@ -82,6 +87,7 @@ export function weeklyReview(input: {
     improvements: improvementsOf(done, sessions.filter((session) => session.status === 'completed' && session.dayKey < weekStart)),
     averageSleepHours: sleep.length > 0 ? Math.round((sleep.reduce((a, b) => a + b, 0) / sleep.length) * 10) / 10 : null,
     averageRecovery: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
+    weight: weightOf(input.measurements ?? [], weekStart),
     next: [],
   }
   review.next = nextWeek(review, { today, sessions, catalog, experience: profile?.experience ?? 'intermedio' })
@@ -171,6 +177,15 @@ function nextWeek(
     lines.push(`Dormiste ${formatHours(review.averageSleepHours)} de media: es lo que más te frena. Si registras tu recuperación, ajusto cada día.`)
   }
   return lines
+}
+
+/** La media de la semana revisada y el cambio frente a la semana con pesos anterior. */
+function weightOf(measurements: readonly BodyMeasurement[], weekStart: DayKey): WeeklyReview['weight'] {
+  const weeks = weeklyWeights(measurements, addDays(weekStart, 6), 5)
+  const week = weeks.find((item) => item.weekStart === weekStart)
+  if (!week) return null
+  const before = weeks.filter((item) => item.weekStart < weekStart).pop()
+  return { averageKg: week.averageKg, changeKg: before ? Math.round((week.averageKg - before.averageKg) * 10) / 10 : null }
 }
 
 /** Una mejora en una línea: «Remo unilateral: 1RM estimado 12 → 13 kg». */

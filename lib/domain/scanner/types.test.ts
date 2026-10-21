@@ -25,7 +25,7 @@ function scan(dayKey: string, patch: Partial<ScanRecord> = {}): ScanRecord {
   }
 }
 
-const empty: BackupContents = { profile: null, activities: [], recovery: [], sessions: [], axisMemory: [], assessments: [], scans: [] }
+const empty: BackupContents = { profile: null, activities: [], recovery: [], sessions: [], axisMemory: [], assessments: [], scans: [], measurements: [] }
 
 test('un escaneo bien formado se acepta; uno raro, no', () => {
   assert.equal(isScanRecord(scan('2026-10-08')), true)

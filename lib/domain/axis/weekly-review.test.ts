@@ -89,6 +89,15 @@ test('el sueño y la recuperación de la semana; poco sueño se dice', () => {
   assert.ok(result.next.some((line) => line.startsWith('Dormiste 6,3 h de media')))
 })
 
+test('el peso medio de la semana y su cambio frente a la anterior (D-060)', () => {
+  const at = '2026-10-19T08:00:00.000Z'
+  const weigh = (dayKey: string, weightKg: number) => ({ dayKey, weightKg, perimeters: {}, updatedAt: at })
+  const measurements = [weigh('2026-10-06', 71), weigh('2026-10-13', 70.4), weigh('2026-10-15', 70.2)]
+  const result = weeklyReview({ today: TODAY, profile: PROFILE as UserProfile, sessions: HISTORY, recovery: [], catalog: EXERCISE_CATALOG, measurements })!
+  assert.deepEqual(result.weight, { averageKg: 70.3, changeKg: -0.7 })
+  assert.equal(review()!.weight, null)
+})
+
 test('lo que AXIS hará: el bloque, la sesión que faltó', () => {
   const result = review()!
   assert.match(result.next[0], /^Semana 3 del bloque/)

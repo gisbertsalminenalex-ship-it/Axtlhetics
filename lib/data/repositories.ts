@@ -15,6 +15,7 @@ import type { RecoveryInputs } from '../domain/recovery/types'
 import type { DayKey } from '../domain/shared/dates'
 import type { ActiveWorkout } from '../domain/workouts/active-workout'
 import type { WorkoutSession } from '../domain/workouts/types'
+import type { BodyMeasurement } from '../domain/body/measurements'
 
 export type UserProfileRepository = {
   get(): Promise<UserProfile | null>
@@ -102,6 +103,13 @@ export type ScanRepository = {
   remove(id: string): Promise<void>
 }
 
+/** Peso y medidas (D-060), un registro por día. */
+export type MeasurementRepository = {
+  /** Todos los registros válidos, del más antiguo al más reciente. */
+  list(): Promise<BodyMeasurement[]>
+  save(measurement: BodyMeasurement): Promise<void>
+}
+
 export type Repositories = {
   profile: UserProfileRepository
   activities: ActivityRepository
@@ -111,6 +119,7 @@ export type Repositories = {
   activeWorkout: ActiveWorkoutRepository
   assessments: AssessmentRepository
   scans: ScanRepository
+  measurements: MeasurementRepository
   backup: BackupRepository
 }
 
