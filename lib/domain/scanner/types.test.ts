@@ -17,7 +17,7 @@ function scan(dayKey: string, patch: Partial<ScanRecord> = {}): ScanRecord {
     dayKey,
     createdAt: `${dayKey}T18:00:00.000Z`,
     protocolVersion: 1,
-    selfReport: { build: 'media', strongZones: ['brazos'], weakZones: ['espalda'], priority: 'musculo' },
+    selfReport: { priority: 'musculo' },
     measurements: { front: [{ shoulderTiltDeg: { value: 1.2 }, shoulderToWaist: { value: null, reason: 'no_silhouette' } }] },
     result: { index: 81, scores: { symmetry: 90, postureMobility: 75, proportion: null } },
     thumbnails: { front: THUMB },
@@ -32,7 +32,9 @@ test('un escaneo bien formado se acepta; uno raro, no', () => {
   assert.equal(isScanRecord({ ...scan('2026-10-08'), dayKey: 'ayer' }), false)
   assert.equal(isScanRecord({ ...scan('2026-10-08'), measurements: { espalda: [] } }), false, 'pose desconocida')
   assert.equal(isScanRecord({ ...scan('2026-10-08'), result: { index: 140, scores: {} } }), false, 'índice fuera de 0–100')
-  assert.equal(isScanRecord({ ...scan('2026-10-08'), selfReport: { build: 'gorda', strongZones: [], weakZones: [], priority: null } }), false)
+  assert.equal(isScanRecord({ ...scan('2026-10-08'), selfReport: { priority: 'adelgazar' } }), false, 'prioridad desconocida')
+  // Un escaneo anterior a D-068 trae la complexión y las zonas que se preguntaban: sigue valiendo.
+  assert.equal(isScanRecord({ ...scan('2026-10-08'), selfReport: { build: 'media', strongZones: ['brazos'], weakZones: ['espalda'], priority: null } }), true)
   assert.equal(isScanRecord({ ...scan('2026-10-08'), thumbnails: { front: 'https://otro.sitio/foto.jpg' } }), false, 'solo miniaturas locales')
 })
 
@@ -93,7 +95,7 @@ test('cuándo toca el escáner: el primero, a los 28 días, o todavía no', () =
 
 test('el sexo para la fórmula y la grasa estimada se guardan; los escaneos anteriores, sin ellos, siguen valiendo', () => {
   const withFat = scan('2026-10-14', {
-    selfReport: { build: 'media', strongZones: [], weakZones: [], priority: 'musculo', sex: 'hombre' },
+    selfReport: { priority: 'musculo', sex: 'hombre' },
     result: { index: 70, scores: {}, bodyFatPct: 16.4 },
   })
   assert.equal(isScanRecord(withFat), true)

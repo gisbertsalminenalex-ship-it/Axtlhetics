@@ -15,15 +15,17 @@
  *   claramente por fuera, a medio camino entre «bien» y «mal», para no
  *   reaccionar al ruido de una foto.
  *
- * Y lo que el usuario dijo de sí mismo (zonas que ve más flojas), que sigue
- * contando como suyo. Nada de esto es un diagnóstico, y nunca se habla de grasa.
+ * Desde D-068 las zonas ya no se preguntan: salen de las fotos
+ * (`diagnosis.ts`). Nada de esto es un diagnóstico médico, y nunca se habla de
+ * grasa.
  */
 
 import type { DayKey } from '../shared/dates'
 import { daysBetween } from '../shared/dates'
 import { listNames } from '../shared/text'
 import { MUSCLE_GROUP_LABELS, type MuscleGroup } from '../workouts/types'
-import { PHYSIQUE_REFERENCE, POSTURE_SCALES, SYMMETRY_SCALES, type Scale } from './scales'
+import { detectAsymmetries, zoneReadings } from './diagnosis'
+import { clearly, POSTURE_SCALES } from './scales'
 import { stableValue, type PoseShots, type ScanZone } from './summary'
 import type { ScanRecord } from './types'
 
@@ -57,11 +59,6 @@ const ZONE_GROUPS: Record<ScanZone, MuscleGroup[]> = {
   core: ['core'],
 }
 
-/** A medio camino entre «bien» y «mal»: lo que queda claramente fuera. */
-function clearly(scale: Scale): number {
-  return (scale.good + scale.poor) / 2
-}
-
 /** El escaneo más reciente que todavía guía las sesiones, o \`null\`. */
 export function latestScan(scans: readonly ScanRecord[], today: DayKey): ScanRecord | null {
   const recent = scans.filter((scan) => {
@@ -72,7 +69,7 @@ export function latestScan(scans: readonly ScanRecord[], today: DayKey): ScanRec
   return recent.reduce((latest, scan) => (scan.dayKey > latest.dayKey ? scan : latest))
 }
 
-/** Basta con lo que se mide y lo que el usuario dijo: sirve antes de guardar el escaneo. */
+/** Basta con lo que se mide y el sexo de la fórmula: sirve antes de guardar el escaneo. */
 export type PhysiqueInput = Pick<ScanRecord, 'dayKey' | 'measurements' | 'selfReport'>
 
 export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
@@ -82,35 +79,17 @@ export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
   const extras: string[] = []
   const findings: string[] = []
 
-  // --- Las fotos, frente a un físico equilibrado ----------------------------
-  const sex = scan.selfReport.sex ?? 'sin_dato'
-  const v = value('front', 'shoulderToWaist')
-  const vTarget = PHYSIQUE_REFERENCE.shoulderToWaist[sex]
-  if (v !== null && v < vTarget) {
-    priority.add('hombros')
-    priority.add('espalda')
-    findings.push(`En tus fotos, la «V» de hombros a cintura (${decimal(v)}) queda por debajo de un físico equilibrado (${decimal(vTarget)}): doy prioridad a hombros y espalda.`)
-  }
-
-  const arm = value('front', 'upperArmMean')
-  const thigh = value('front', 'thighMean')
-  if (arm !== null && thigh !== null && thigh > 0) {
-    const ratio = arm / thigh
-    if (ratio < PHYSIQUE_REFERENCE.armToThigh.min) {
-      priority.add('brazos')
-      findings.push('En tus fotos, los brazos se ven por detrás de las piernas: les doy prioridad.')
-    } else if (ratio > PHYSIQUE_REFERENCE.armToThigh.max) {
-      priority.add('piernas')
-      priority.add('gluteos')
-      findings.push('En tus fotos, las piernas se ven por detrás de los brazos: les doy prioridad.')
-    }
-  }
-
-  // --- Lo que el usuario dijo de sí mismo ------------------------------------
-  const weak = scan.selfReport.weakZones
-  if (weak.length > 0) {
-    for (const zone of weak) for (const group of ZONE_GROUPS[zone]) priority.add(group)
-    findings.push(`Me dijiste que te ves con menos ${listNames([...weak])}: también ${weak.length === 1 ? 'le' : 'les'} doy prioridad.`)
+  // --- Las fotos, frente a un físico equilibrado (D-068: ya no se pregunta) ---
+  for (const reading of zoneReadings(value, scan.selfReport.sex)) {
+    if (reading.weak.length === 0) continue
+    for (const zone of reading.weak) for (const group of ZONE_GROUPS[zone]) priority.add(group)
+    findings.push(
+      reading.source === 'shoulderToWaist'
+        ? `En tus fotos, la «V» de hombros a cintura (${decimal(reading.value)}) queda por debajo de un físico equilibrado (${decimal(reading.reference)}): doy prioridad a hombros y espalda.`
+        : reading.weak.includes('brazos')
+          ? 'En tus fotos, los brazos se ven por detrás de las piernas: les doy prioridad.'
+          : 'En tus fotos, las piernas se ven por detrás de los brazos: les doy prioridad.',
+    )
   }
 
   // --- Postura y movilidad -----------------------------------------------------
@@ -138,13 +117,7 @@ export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
   }
 
   // --- Simetría ----------------------------------------------------------------
-  const shoulders = value('front', 'shoulderTiltDeg')
-  const hips = value('front', 'hipTiltDeg')
-  const arms = value('arms_up', 'armsDiffDeg')
-  const unilateral =
-    (shoulders !== null && Math.abs(shoulders) > clearly(SYMMETRY_SCALES.shoulderTiltDeg)) ||
-    (hips !== null && Math.abs(hips) > clearly(SYMMETRY_SCALES.hipTiltDeg)) ||
-    (arms !== null && Math.abs(arms) > clearly(SYMMETRY_SCALES.armsDiffDeg))
+  const unilateral = detectAsymmetries(value).length > 0
   if (unilateral) findings.push('Hay diferencia entre un lado y otro: cada sesión lleva al menos un ejercicio a una mano o una pierna.')
 
   return {

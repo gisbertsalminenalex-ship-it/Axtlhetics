@@ -2,7 +2,8 @@
 
 import { CircularMetric } from '@/components/circular-metric'
 import type { ScanComparison } from '@/lib/domain/scanner/compare'
-import type { ScanSummary } from '@/lib/domain/scanner/summary'
+import type { ScanDiagnosis } from '@/lib/domain/scanner/diagnosis'
+import { buildText, SCAN_ZONE_LABELS, type ScanSummary } from '@/lib/domain/scanner/summary'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { AxisMark } from '@/components/axis-mark'
 
@@ -36,6 +37,8 @@ export function ScanSummaryView({
         </p>
       </div>
       <p className="mt-4 text-[15.5px] leading-relaxed text-pretty">{summary.overview}</p>
+
+      <DiagnosisBlock diagnosis={summary.diagnosis} />
 
       {comparison && <ComparisonBlock comparison={comparison} />}
 
@@ -127,7 +130,49 @@ export function ScanSummaryView({
   )
 }
 
-const TREND_MARK: Record<ScanComparison['changes'][number]['trend'], string> = {
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/**
+ * Lo que antes se preguntaba, deducido de las fotos (D-068): complexión, zonas
+ * que destacan y áreas a priorizar. Lo que no se pudo deducir se dice, no se
+ * rellena.
+ */
+function DiagnosisBlock({ diagnosis }: { diagnosis: ScanDiagnosis }) {
+  const priorities = [...diagnosis.weakZones.map((zone) => capital(SCAN_ZONE_LABELS[zone])), ...diagnosis.asymmetries]
+  const rows: { label: string; value: string }[] = [
+    {
+      label: 'Complexión detectada',
+      value: diagnosis.build ? capital(buildText(diagnosis.build)) : 'Me faltan datos: tu altura y tu peso en el perfil, o las fotos de frente y de perfil',
+    },
+    {
+      label: 'Puntos fuertes musculares',
+      value: diagnosis.strongZones.length
+        ? diagnosis.strongZones.map((zone) => capital(SCAN_ZONE_LABELS[zone])).join(' · ')
+        : 'Ninguna zona destaca claramente sobre el resto',
+    },
+    {
+      label: 'Áreas a priorizar',
+      value: priorities.length ? priorities.join(' · ') : 'Ninguna zona va claramente por detrás',
+    },
+  ]
+  return (
+    <>
+      <dl className="mt-6 divide-y divide-border border-y border-border">
+        {rows.map((row) => (
+          <div key={row.label} className="py-3">
+            <dt className="text-[12.5px] font-semibold text-muted-foreground">{row.label}</dt>
+            <dd className="mt-0.5 text-[15px] leading-snug text-pretty">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground text-pretty">
+        Deducido de la forma en tus fotos y de tu perfil. Orientativo, no es una medida médica.
+      </p>
+    </>
+  )
+}
+
+const TREND_MARK:Record<ScanComparison['changes'][number]['trend'], string> = {
   better: '↑',
   worse: '↓',
   changed: '·',

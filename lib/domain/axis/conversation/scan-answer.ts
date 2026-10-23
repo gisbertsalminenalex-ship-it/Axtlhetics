@@ -52,7 +52,7 @@ export function answerScan(briefing: AxisBriefing): AxisAnswer {
   const scan = briefing.scan
   if (!scan) {
     return {
-      text: 'Todavía no tienes ningún escaneo corporal. Lo encuentras en Entrenamiento, junto al test de evolución: son cuatro preguntas y cinco fotos que se analizan en tu móvil, sin salir de él.',
+      text: 'Todavía no tienes ningún escaneo corporal. Lo encuentras en Entrenamiento, junto al test de evolución: son dos preguntas y cinco fotos que se analizan en tu móvil, sin salir de él.',
       intent: 'scan',
       unknown: true,
     }

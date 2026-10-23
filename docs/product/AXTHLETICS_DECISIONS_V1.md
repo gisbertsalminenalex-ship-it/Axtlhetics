@@ -2280,6 +2280,21 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ---
 
+## D-068 — El escáner deduce la complexión y las zonas
+
+**Fecha:** 2026-10-23 · **Estado:** aprobada e implementada · Decidido por Alex: eliminar del escáner «¿Cómo es tu complexión?» y «¿Dónde te ves con más músculo y con menos?», y que la complexión y la distribución muscular se calculen a partir del análisis de las fotos. **Revoca** de la enmienda de D-023 del 2026-10-08 («cómo se ve el usuario») la complexión y las zonas preguntadas, y su «nunca se deduce de la foto»; **amplía** D-041.
+
+- **Preguntas que quedan**: el sexo de la fórmula (sale marcado del perfil, D-051) y la prioridad. Edad, altura y peso salen del perfil. Después, directamente las fotos. `ScanSelfReport` queda en `{ priority, sex? }`; los escaneos guardados antes traen aún `build`, `strongZones` y `weakZones`: se siguen aceptando y se ignoran.
+- **Diagnóstico automático** (`lib/domain/scanner/diagnosis.ts`, `diagnoseScan`), dentro del resumen (`ScanSummary.diagnosis`), recalculado cada vez como el resto del resumen:
+  - **Complexión detectada**: ectomorfa, mesomorfa o endomorfa con la escala 1–7 de Heath-Carter (`BUILD_SCALE`). Ectomorfia con la fórmula de Heath-Carter (altura / ∛peso del perfil); endomorfia aproximada con el % de grasa (el dato registrado o el estimado); mesomorfia aproximada con la «V» hombros/cintura frente a `PHYSIQUE_REFERENCE`. Gana el componente más alto; si el segundo queda a menos de 0,75, «con tendencia…». Con menos de dos componentes, no se rellena.
+  - **Puntos fuertes musculares**: zonas por encima de `PHYSIQUE_REFERENCE` en más de un 5 % (`STRONG_ZONE_MARGIN`): la «V» (hombros y espalda) o el equilibrio brazo/muslo.
+  - **Áreas a priorizar**: zonas por debajo de la referencia (las mismas que ya priorizaba D-041) y las asimetrías claras (hombros, caderas, brazos arriba).
+- **El motor** (D-041) prioriza solo las zonas detectadas; ya no hay «me dijiste que te ves con menos…». AXIS (`BriefingScan.strongZones/weakZones`) lee las detectadas, y siguen sin salir hacia la capa de lenguaje.
+- **Resultado**: el bloque de los tres campos va debajo del resumen de entrada, al terminar el escaneo y en el historial, con «Orientativo, no es una medida médica». Composición corporal dice la complexión y con qué se estimó; desarrollo muscular dice las zonas «en tus fotos» y el historial las confirma o matiza.
+- Es la forma en la foto, nunca un diagnóstico médico. Los cortes de endo y meso son **provisionales hasta P-015**.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

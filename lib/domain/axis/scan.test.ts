@@ -8,7 +8,6 @@ import test from 'node:test'
 
 import type { UserProfile } from '../profile/types'
 import type { RecoveryInputs } from '../recovery/types'
-import type { ScanZone } from '../scanner/summary'
 import type { ScanRecord } from '../scanner/types'
 import type { WorkoutSession } from '../workouts/types'
 import { proposeAction } from './action-engine'
@@ -46,15 +45,22 @@ function session(dayKey: string, focus: WorkoutSession['focus'], muscleGroups: W
   }
 }
 
-function scan(weakZones: ScanZone[]): ScanRecord {
+/** Desde D-068 las zonas flojas salen de la foto: una «V» corta deja atrás hombros y espalda; brazos tan anchos como el muslo, las piernas. */
+const BEHIND = {
+  espalda: { shoulderToWaist: { value: 1.2 } },
+  piernas: { upperArmMean: { value: 0.45 }, thighMean: { value: 0.45 } },
+} as const
+
+function scan(behind: keyof typeof BEHIND): ScanRecord {
+  const zones = BEHIND[behind]
   return {
     id: 'scan-1',
     dayKey: SCAN_DAY,
     createdAt: `${SCAN_DAY}T18:00:00.000Z`,
     protocolVersion: 1,
-    selfReport: { build: 'media', strongZones: [], weakZones, priority: 'musculo' },
+    selfReport: { priority: 'musculo' },
     measurements: {
-      front: [{ shoulderTiltDeg: { value: 0.5 }, hipTiltDeg: { value: 0.4 } }, { shoulderTiltDeg: { value: 0.7 }, hipTiltDeg: { value: 0.5 } }],
+      front: [{ shoulderTiltDeg: { value: 0.5 }, hipTiltDeg: { value: 0.4 }, ...zones }, { shoulderTiltDeg: { value: 0.7 }, hipTiltDeg: { value: 0.5 }, ...zones }],
       side: [{ headForwardPct: { value: 18 } }, { headForwardPct: { value: 19 } }],
     },
     result: { index: 74, scores: { symmetry: 100, postureMobility: 13 } },
@@ -77,7 +83,7 @@ test('sin escaneo: lo dice y explica dónde está, sin inventar nada', () => {
 })
 
 test('con escaneo: la conclusión del resumen, las opciones y «tú decides»', () => {
-  const { briefing } = setup([scan(['espalda'])])
+  const { briefing } = setup([scan('espalda')])
   assert.ok(briefing.scan)
   const answer = answerFromBriefing('¿Qué dice mi escaneo?', briefing)
   assert.equal(answer.intent, 'scan')
@@ -87,15 +93,15 @@ test('con escaneo: la conclusión del resumen, las opciones y «tú decides»', 
 })
 
 test('si hoy ya se trabaja la zona floja, la opción es seguir con la sesión de hoy y no se propone cambio', () => {
-  const { briefing } = setup([scan(['espalda'])])
+  const { briefing } = setup([scan('espalda')])
   assert.equal(briefing.proposal?.session?.focus, 'tren_superior', 'el motor propone tren superior tras piernas')
   const answer = answerFromBriefing('¿y mi escaneo?', briefing)
-  assert.match(answer.text, /seguir con la sesión de hoy, que ya trabaja espalda/)
+  assert.match(answer.text, /seguir con la sesión de hoy, que ya trabaja hombros y espalda/)
   assert.equal(answer.proposedTarget ?? null, null)
 })
 
 test('si hoy no se trabaja, propone una alternativa ya preparada por el motor, que el usuario confirma', () => {
-  const { briefing, day } = setup([scan(['piernas'])])
+  const { briefing, day } = setup([scan('piernas')])
   const answer = answerFromBriefing('¿Qué opciones me da mi escaneo?', briefing)
   if (answer.proposedTarget) {
     // La alternativa existe en la decisión de hoy: se convierte en una acción con botón.
@@ -111,13 +117,13 @@ test('si hoy no se trabaja, propone una alternativa ya preparada por el motor, q
 })
 
 test('un seguimiento como «¿qué opciones tengo?» sigue hablando del escaneo', () => {
-  const { briefing } = setup([scan(['espalda'])])
+  const { briefing } = setup([scan('espalda')])
   const answer = answerFromBriefing('¿qué opciones tengo?', briefing, { lastIntent: 'scan', changeMode: false, lastChangeRequest: null })
   assert.equal(answer.intent, 'scan')
 })
 
 test('el escaneo nunca sale hacia la capa de lenguaje: ni la clave ni sus datos', async () => {
-  const { briefing } = setup([scan(['espalda'])])
+  const { briefing } = setup([scan('espalda')])
   const sent = toAiBriefing(briefing)
   assert.equal('scan' in sent, false)
   assert.doesNotMatch(JSON.stringify(sent), /data:image|2026-09-03|weakZones|espalda.*musculo/)
@@ -134,7 +140,7 @@ test('el escaneo nunca sale hacia la capa de lenguaje: ni la clave ni sus datos'
 })
 
 test('las preguntas sobre el escaneo nunca llegan al proveedor', async () => {
-  const { briefing } = setup([scan(['espalda'])])
+  const { briefing } = setup([scan('espalda')])
   const requests: AxisAiTransportRequest[] = []
   const transport: AxisAiTransport = { isConfigured: () => true, async send(request) { requests.push(request); return { text: 'No debería llamarse.' } } }
   const conversation = createAxisConversation({ transport })
@@ -147,7 +153,7 @@ test('las preguntas sobre el escaneo nunca llegan al proveedor', async () => {
 
 test('D-041: el motor usa el escaneo: no cambia si se entrena, sí cómo, y lo explica', () => {
   const without = setup([]).decision
-  const withScan = setup([scan(['piernas', 'pecho'])]).decision
+  const withScan = setup([scan('piernas')]).decision
 
   // Si se entrena hoy lo siguen decidiendo la recuperación y el calendario.
   assert.equal(withScan.primary.type, without.primary.type)
@@ -158,26 +164,26 @@ test('D-041: el motor usa el escaneo: no cambia si se entrena, sí cómo, y lo e
   // …y lo dice, entre los factores del día.
   const factor = withScan.primary.factors.find((item) => item.key === 'body_scan')
   assert.ok(factor)
-  assert.match(factor!.detail, /^Por tu escaneo, priorizo .*piernas.*pecho|^Por tu escaneo, priorizo .*pecho.*piernas/)
+  assert.match(factor!.detail, /^Por tu escaneo, priorizo piernas y glúteos/)
   assert.ok(!without.primary.factors.some((item) => item.key === 'body_scan'))
 })
 
 test('D-041: AXIS cuenta lo que el escaneo ya cambia en las sesiones', () => {
-  const { briefing } = setup([scan(['piernas'])])
+  const { briefing } = setup([scan('piernas')])
   const answer = answerFromBriefing('¿qué tal mi escaneo?', briefing)
   assert.match(answer.text, /Con tu escaneo ya ajusto tus sesiones: priorizo piernas y glúteos y añado movilidad al calentamiento. El detalle, en el resumen del escaneo./)
 })
 
 test('con dos escaneos, AXIS cuenta qué ha cambiado desde el anterior (y sigue sin salir nada)', () => {
   const older: ScanRecord = {
-    ...scan(['espalda']),
+    ...scan('espalda'),
     id: 'scan-0',
     dayKey: '2026-08-01',
     createdAt: '2026-08-01T18:00:00.000Z',
     measurements: { side: [{ headForwardPct: { value: 30 } }, { headForwardPct: { value: 31 } }] },
     result: { index: 60, scores: {} },
   }
-  const { briefing } = setup([scan(['espalda']), older])
+  const { briefing } = setup([scan('espalda'), older])
   assert.ok(briefing.scan?.comparison)
   const answer = answerFromBriefing('¿Qué dice mi escaneo?', briefing)
   assert.match(answer.text, /desde tu escaneo del sábado 1 de agosto/)

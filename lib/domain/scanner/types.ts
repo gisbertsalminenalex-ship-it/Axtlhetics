@@ -14,7 +14,7 @@ import { addDays, daysBetween, type DayKey } from '../shared/dates'
 import { isRecord } from '../shared/guards'
 import { SCAN_SEXES, type ScanSex } from './body-fat'
 import type { Measurements, ScanPose } from './measure'
-import type { CategoryKey, ScanBuild, ScanPriority, ScanSelfReport, ScanZone } from './summary'
+import type { CategoryKey, ScanPriority, ScanSelfReport } from './summary'
 
 export const SCAN_PROTOCOL_VERSION = 1
 
@@ -39,22 +39,17 @@ export type ScanRecord = {
   thumbnails?: Partial<Record<ScanPose, string>>
 }
 
-const BUILDS: readonly ScanBuild[] = ['delgada', 'media', 'ancha']
 const PRIORITIES: readonly ScanPriority[] = ['musculo', 'definir', 'fuerza', 'equilibrio']
-const ZONES: readonly ScanZone[] = ['pecho', 'espalda', 'hombros', 'brazos', 'piernas', 'core']
 const REASONS = ['not_visible', 'out_of_frame', 'no_silhouette']
 
-function isZoneList(value: unknown): value is ScanZone[] {
-  return Array.isArray(value) && value.every((z) => ZONES.includes(z as ScanZone))
-}
-
+/**
+ * Las respuestas antes de las fotos. Los escaneos anteriores a D-068 traen
+ * además `build`, `strongZones` y `weakZones`: no se comprueban y se ignoran.
+ */
 export function isSelfReport(value: unknown): value is ScanSelfReport {
   if (!isRecord(value)) return false
   return (
-    (value.build === null || BUILDS.includes(value.build as ScanBuild)) &&
     (value.priority === null || PRIORITIES.includes(value.priority as ScanPriority)) &&
-    isZoneList(value.strongZones) &&
-    isZoneList(value.weakZones) &&
     (value.sex === undefined || value.sex === null || SCAN_SEXES.includes(value.sex as ScanSex))
   )
 }

@@ -2,7 +2,7 @@
 
 /**
  * El escáner corporal (D-023): un flujo dentro de Entrenamiento, como el test de
- * evolución. Introducción → cómo te ves (una pregunta por paso, como el
+ * evolución. Introducción → sexo y prioridad (una pregunta por paso, como el
  * onboarding) → una pose por paso → resumen → guardar.
  *
  * Las fotos se analizan en el dispositivo y solo se guardan miniaturas, en el
@@ -15,16 +15,7 @@ import { analyzePhoto, preloadPoseModel, type AnalyzedPhoto } from '@/components
 import { ScanSummaryView } from '@/components/scanner/scan-summary-view'
 import type { Measurements, ScanPose } from '@/lib/domain/scanner/measure'
 import { SCAN_PHOTO_TIPS, SCAN_POSE_GUIDE } from '@/lib/domain/scanner/protocol'
-import {
-  SCAN_PRIORITY_LABELS,
-  SCAN_ZONE_LABELS,
-  SCAN_ZONES,
-  summarizeScan,
-  type ScanBuild,
-  type ScanPriority,
-  type ScanSelfReport,
-  type ScanZone,
-} from '@/lib/domain/scanner/summary'
+import { SCAN_PRIORITY_LABELS, summarizeScan, type ScanPriority, type ScanSelfReport } from '@/lib/domain/scanner/summary'
 import type { ScanSex } from '@/lib/domain/scanner/body-fat'
 import { compareScans } from '@/lib/domain/scanner/compare'
 import { createScanRecord } from '@/lib/domain/scanner/types'
@@ -34,16 +25,11 @@ import { useAxtlhetics } from '@/lib/state/store'
 import { physiquePlan } from '@/lib/domain/scanner/physique'
 import { cn } from '@/lib/utils'
 
-type Step = 'intro' | 'build' | 'sex' | 'strong' | 'weak' | 'priority' | ScanPose | 'summary'
-const STEPS: readonly Step[] = ['intro', 'build', 'sex', 'strong', 'weak', 'priority', ...SCAN_POSE_GUIDE.map((g) => g.pose), 'summary']
+// La complexión y las zonas ya no se preguntan: salen de las fotos (D-068).
+type Step = 'intro' | 'sex' | 'priority' | ScanPose | 'summary'
+const STEPS: readonly Step[] = ['intro', 'sex', 'priority', ...SCAN_POSE_GUIDE.map((g) => g.pose), 'summary']
 
 type Photo = { id: string; result: AnalyzedPhoto }
-
-const BUILDS: { id: ScanBuild; label: string }[] = [
-  { id: 'delgada', label: 'Más bien delgada' },
-  { id: 'media', label: 'Media' },
-  { id: 'ancha', label: 'Más bien ancha' },
-]
 
 const SEXES: { id: ScanSex; label: string }[] = [
   { id: 'hombre', label: 'Hombre' },
@@ -57,9 +43,6 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
   const [stepIndex, setStepIndex] = useState(0)
   // El sexo del perfil sale marcado; se puede cambiar en cada escaneo (D-051).
   const [selfReport, setSelfReport] = useState<ScanSelfReport>({
-    build: null,
-    strongZones: [],
-    weakZones: [],
     priority: null,
     ...(profile?.sex ? { sex: profile.sex } : {}),
   })
@@ -75,7 +58,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 
   // El modelo pesa unos megas: se empieza a cargar mientras se responden las preguntas.
   useEffect(() => {
-    if (step === 'build') preloadPoseModel()
+    if (step === 'sex') preloadPoseModel()
   }, [step])
 
   // Cada paso empieza arriba: el contenedor de scroll es compartido.
@@ -168,16 +151,6 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 
       {step === 'intro' && <Intro onStart={next} lastScanDay={scans.scans[0]?.dayKey ?? null} />}
 
-      {step === 'build' && (
-        <Question title="¿Cómo describirías tu complexión?" hint="Lo que la foto no puede medir, me lo cuentas tú." onNext={next}>
-          {BUILDS.map((b) => (
-            <Chip key={b.id} selected={selfReport.build === b.id} onClick={() => setSelfReport((s) => ({ ...s, build: s.build === b.id ? null : b.id }))}>
-              {b.label}
-            </Chip>
-          ))}
-        </Question>
-      )}
-
       {step === 'sex' && (
         <Question
           title="¿Qué fórmula uso para estimar tu grasa?"
@@ -189,33 +162,6 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
               {option.label}
             </Chip>
           ))}
-        </Question>
-      )}
-
-      {(step === 'strong' || step === 'weak') && (
-        <Question
-          title={step === 'strong' ? '¿Dónde te ves con más músculo?' : '¿Dónde te ves con menos?'}
-          hint="Puedes marcar varias, o ninguna."
-          onNext={next}
-        >
-          {SCAN_ZONES.map((zone) => {
-            const key = step === 'strong' ? 'strongZones' : 'weakZones'
-            const other = step === 'strong' ? 'weakZones' : 'strongZones'
-            const selected = selfReport[key].includes(zone)
-            const disabled = selfReport[other].includes(zone)
-            return (
-              <Chip
-                key={zone}
-                selected={selected}
-                disabled={disabled}
-                onClick={() =>
-                  setSelfReport((s) => ({ ...s, [key]: selected ? s[key].filter((z: ScanZone) => z !== zone) : [...s[key], zone] }))
-                }
-              >
-                {capital(SCAN_ZONE_LABELS[zone])}
-              </Chip>
-            )
-          })}
         </Question>
       )}
 
@@ -274,10 +220,10 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
   return (
     <>
       <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Escáner corporal</h1>
-      <p className="mt-1.5 text-[15px] text-muted-foreground">5 preguntas y 5 fotos, más 1 opcional · 5–10 min</p>
+      <p className="mt-1.5 text-[15px] text-muted-foreground">2 preguntas y 5 fotos, más 1 opcional · 5 min</p>
       <p className="mt-4 text-[15px] leading-relaxed text-pretty">
         Mido tu simetría, tus proporciones, tu postura y tu movilidad, y lo combino con tu fuerza y tu entrenamiento.
-        Te digo tus puntos fuertes, qué te hará avanzar más y qué opciones tienes.
+        De las fotos deduzco tu complexión, las zonas que destacan y las que conviene priorizar.
       </p>
       <p className="mt-4 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
         Las fotos se analizan en tu móvil y no salen de él. Solo se guarda una miniatura de cada pose, también en tu móvil,

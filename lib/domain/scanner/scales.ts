@@ -199,3 +199,38 @@ export const PHYSIQUE_REFERENCE = {
   shoulderToWaist: { hombre: 1.4, mujer: 1.25, sin_dato: 1.32 },
   armToThigh: { min: 0.62, max: 0.92 },
 } as const
+
+/** A medio camino entre «bien» y «mal»: lo que queda claramente fuera, sin reaccionar al ruido de una foto. */
+export function clearly(scale: Scale): number {
+  return (scale.good + scale.poor) / 2
+}
+
+/**
+ * Zonas que destacan en la foto (D-068): una zona es punto fuerte cuando supera
+ * la referencia de `PHYSIQUE_REFERENCE` en más de este margen relativo. Por
+ * debajo de la referencia, va por detrás (como en D-041).
+ */
+export const STRONG_ZONE_MARGIN = 0.05
+
+/**
+ * Complexión detectada (D-068), en la escala 1–7 de Heath-Carter.
+ *
+ * - **Ectomorfia**: la fórmula de Heath-Carter con el índice altura/peso
+ *   (altura en cm entre la raíz cúbica del peso en kg), del perfil.
+ * - **Endomorfia**: Heath-Carter usa pliegues cutáneos; aquí se aproxima con el
+ *   % de grasa, de `fatPct.low` (1) a `fatPct.high` (7) en línea recta.
+ * - **Mesomorfia**: Heath-Carter usa diámetros óseos y perímetros; aquí se
+ *   aproxima con la «V» hombros/cintura: la referencia vale `mesoAtReference` y
+ *   cada `mesoStep` por encima o por debajo suma o resta un punto.
+ *
+ * La complexión es el componente más alto; si el segundo queda a menos de
+ * `closeRating`, se dice como tendencia. Hacen falta al menos dos componentes.
+ * Las aproximaciones de endo y meso son **provisionales hasta P-015**.
+ */
+export const BUILD_SCALE = {
+  ecto: { upper: 40.75, lower: 38.25 },
+  fatPct: { hombre: { low: 8, high: 30 }, mujer: { low: 15, high: 40 }, sin_dato: { low: 11, high: 35 } },
+  mesoAtReference: 4,
+  mesoStep: 0.08,
+  closeRating: 0.75,
+} as const

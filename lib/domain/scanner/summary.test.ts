@@ -147,39 +147,58 @@ test('composición corporal: sin lo necesario para estimarla, se dice qué falta
   assert.match(withData.text, /14,5 %/)
 })
 
-test('cómo te ves: dicho como tuyo, y los datos lo confirman o lo matizan', () => {
+/** Tres fotos idénticas: medidas estables sin el pequeño ruido de `three`. */
+const steady = (values: Record<string, number>) => [1, 2, 3].map(() => m(values))
+
+test('D-068: las zonas salen de la foto, y el historial lo confirma o lo matiza', () => {
   const sessions = ['2026-09-20', '2026-09-23', '2026-09-26', '2026-09-29'].map((d) => session(d, ['pecho', 'hombros', 'brazos']))
   const s = summarizeScan({
-    shots: balanced(),
+    // «V» corta: hombros y espalda por detrás. Brazo tan ancho como el muslo: destacan los brazos, las piernas por detrás.
+    shots: { ...balanced(), front: steady({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, shoulderToWaist: 1.2, upperArmMean: 0.45, thighMean: 0.45 }) },
     sessions,
     today: '2026-10-07',
-    selfReport: { build: 'delgada', strongZones: ['brazos'], weakZones: ['espalda', 'pecho'], priority: 'musculo' },
+    selfReport: { priority: 'musculo' },
   })
+  assert.deepEqual(s.diagnosis.strongZones, ['brazos'])
+  assert.deepEqual(s.diagnosis.weakZones, ['hombros', 'espalda', 'piernas'])
   const dev = s.categories.find((c) => c.key === 'muscleDevelopment')!
-  assert.match(dev.text, /Te ves con más músculo en brazos\./)
+  assert.match(dev.text, /En tus fotos destacan brazos frente a un físico equilibrado\./)
   // La espalda es lo menos entrenado: el historial lo confirma.
-  assert.match(dev.text, /Te ves con menos espalda y tu historial lo confirma/)
-  // El pecho se entrena a menudo: el consejo es subir la carga.
-  assert.match(dev.text, /Te ves con menos pecho aunque la entrenas a menudo/)
-  assert.ok(s.improvements.includes('Quieres más músculo en espalda y pecho'))
+  assert.match(dev.text, /En tus fotos, tu espalda va por detrás y tu historial lo confirma/)
+  // Los hombros se entrenan a menudo: el consejo es subir la carga.
+  assert.match(dev.text, /En tus fotos, tus hombros van por detrás aunque los entrenas a menudo/)
+  assert.match(dev.text, /En tus fotos, tus piernas van por detrás del resto\./)
+  assert.ok(s.improvements.includes('Más desarrollo en hombros, espalda y piernas'))
   const priority = s.actions[0]
-  assert.match(priority.text, /^Dar prioridad a espalda y pecho: ya les subo las series de la semana/)
+  assert.match(priority.text, /^Dar prioridad a hombros, espalda y piernas: ya les subo las series de la semana/)
   for (const id of priority.exerciseIds) assert.ok(findExercise(id), id)
 })
 
-test('solo con respuestas y sin datos: se dice que todavía no está confirmado', () => {
-  const dev = summarizeScan({ shots: balanced(), selfReport: { build: null, strongZones: [], weakZones: ['piernas'], priority: null } })
-    .categories.find((c) => c.key === 'muscleDevelopment')!
-  assert.match(dev.text, /^Te ves con menos piernas\./)
-  assert.match(dev.text, /Todavía no tengo tus tests ni tus sesiones para confirmarlo/)
+test('D-068: sin zonas claras en la foto, no se inventan zonas ni pasos', () => {
+  const s = summarizeScan({ shots: balanced(), selfReport: { priority: null } })
+  assert.deepEqual(s.diagnosis.strongZones, [])
+  assert.deepEqual(s.diagnosis.weakZones, [])
+  assert.doesNotMatch(allText(s), /destacan|va por detrás|van por detrás|Dar prioridad a/)
 })
 
-test('composición: tu complexión y tu prioridad, con un plan de entrenamiento', () => {
-  const text = summarizeScan({ shots: balanced(), selfReport: { build: 'delgada', strongZones: [], weakZones: [], priority: 'musculo' } })
-    .categories.find((c) => c.key === 'composition')!.text
-  assert.match(text, /Describes tu complexión como más bien delgada\./)
-  assert.match(text, /Tu prioridad es ganar músculo\. Con una complexión delgada, lo que más te hará ganar músculo es progresar en carga/)
-  assert.doesNotMatch(text, /[!¡]|kilos|adelgaz/i)
+test('D-068: la complexión se deduce de la altura, el peso y la «V», y guía el plan de la prioridad', () => {
+  const s = summarizeScan({
+    shots: { ...balanced(), front: steady({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, shoulderToWaist: 1.35 }) },
+    selfReport: { priority: 'musculo' },
+    body: { heightCm: 178, age: 25, weightKg: 55 },
+  })
+  assert.equal(s.diagnosis.build?.type, 'ectomorfa')
+  const composition = s.categories.find((c) => c.key === 'composition')!
+  assert.match(composition.text, /Por tus proporciones, tu complexión es ectomorfa: la estimo con tu altura y tu peso y la «V» de hombros a cintura de tus fotos\./)
+  assert.match(composition.text, /Tu prioridad es ganar músculo\. Con una complexión ectomorfa, lo que más te hará ganar músculo es progresar en carga/)
+  assert.ok(composition.details.some((d) => /^Complexión \(escala Heath-Carter\): meso 4,4 · ecto 5,7$/.test(d)), composition.details.join(' | '))
+  assert.doesNotMatch(composition.text, /[!¡]|kilos|adelgaz/i)
+})
+
+test('D-068: sin altura ni peso ni grasa, la complexión no se rellena', () => {
+  const s = summarizeScan({ shots: balanced(), selfReport: { priority: 'musculo' } })
+  assert.equal(s.diagnosis.build, null)
+  assert.doesNotMatch(allText(s), /complexión es/)
 })
 
 /** Fotos de frente y de perfil de una persona de 178 cm: cuello 12 × 12 cm y cintura 30 × 24 cm. */
@@ -196,7 +215,7 @@ function withFatSpans(): PoseShots {
 test('grasa estimada: con sexo, altura y las dos fotos, se da con su margen, su método y sus límites', () => {
   const s = summarizeScan({
     shots: withFatSpans(),
-    selfReport: { build: null, strongZones: [], weakZones: [], priority: null, sex: 'hombre' },
+    selfReport: { priority: null, sex: 'hombre' },
     body: { heightCm: 178, age: 30 },
   })
   assert.ok(s.bodyFat, 'hay estimación')
@@ -211,7 +230,7 @@ test('grasa estimada: con sexo, altura y las dos fotos, se da con su margen, su 
 })
 
 test('grasa estimada: sin altura o sin la foto de perfil, no se estima y se dice qué falta', () => {
-  const self = { build: null, strongZones: [], weakZones: [], priority: null, sex: 'hombre' } as const
+  const self = { priority: null, sex: 'hombre' } as const
   const noHeight = summarizeScan({ shots: withFatSpans(), selfReport: self })
   assert.equal(noHeight.bodyFat, null)
   assert.match(noHeight.categories.find((c) => c.key === 'composition')!.text, /necesito tu altura/)
@@ -372,7 +391,7 @@ test('tres pasos: primero la prioridad del usuario, después lo que más le fren
   shots.squat_front = three({ kneeAnkleRatio: 0.7, leftKneeInPct: 35, rightKneeInPct: 4 })
   const s = summarizeScan({
     shots,
-    selfReport: { build: 'delgada', strongZones: [], weakZones: [], priority: 'musculo', sex: 'hombre' },
+    selfReport: { priority: 'musculo', sex: 'hombre' },
     body: { heightCm: 178, age: 25, weightKg: 70 },
   })
   assert.equal(s.actions.length, 3)
@@ -384,20 +403,20 @@ test('tres pasos: primero la prioridad del usuario, después lo que más le fren
   assert.match(s.overview, /ganar músculo, que es tu prioridad, y trabajar lo que más te frena: en la sentadilla, la rodilla izquierda se va hacia dentro./)
 })
 
-test('con zonas marcadas, el primer paso son esas zonas', () => {
+test('con zonas por detrás en la foto, el primer paso son esas zonas (D-068)', () => {
   const s = summarizeScan({
-    shots: balanced(),
-    selfReport: { build: null, strongZones: [], weakZones: ['espalda', 'hombros'], priority: 'musculo' },
+    shots: { ...balanced(), front: steady({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, shoulderToWaist: 1.2 }) },
+    selfReport: { priority: 'musculo' },
     body: { heightCm: 178, age: 25, weightKg: 70 },
   })
-  assert.match(s.actions[0].text, /^Dar prioridad a espalda y hombros/)
-  assert.match(s.overview, /ganar músculo en espalda y hombros, que es lo que quieres priorizar/)
+  assert.match(s.actions[0].text, /^Dar prioridad a hombros y espalda/)
+  assert.match(s.overview, /dar prioridad a hombros y espalda, que es lo que menos destaca en tus fotos/)
 })
 
 test('un menor recibe guía de alimentación sin déficit ni cifras', () => {
   const s = summarizeScan({
     shots: balanced(),
-    selfReport: { build: null, strongZones: [], weakZones: [], priority: 'definir', sex: 'hombre' },
+    selfReport: { priority: 'definir', sex: 'hombre' },
     body: { heightCm: 170, age: 15, weightKg: 60 },
   })
   const food = s.actions.find((a) => a.text.startsWith('Alimentación'))!

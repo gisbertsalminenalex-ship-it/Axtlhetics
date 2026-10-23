@@ -19,7 +19,7 @@ function previous(shots: PoseShots, index: number | null = 70): ScanRecord {
     dayKey: '2026-09-10',
     createdAt: '2026-09-10T18:00:00.000Z',
     protocolVersion: 1,
-    selfReport: { build: null, strongZones: [], weakZones: [], priority: null },
+    selfReport: { priority: null },
     measurements: shots as ScanRecord['measurements'],
     result: { index, scores: { symmetry: 80, postureMobility: 60, proportion: null } },
   }

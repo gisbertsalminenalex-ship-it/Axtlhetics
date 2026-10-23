@@ -24,6 +24,7 @@ import { EXPERIENCE_LABELS, type ExperienceLevel } from '../profile/types'
 import { daysBetween, type DayKey } from '../shared/dates'
 import { MUSCLE_GROUP_LABELS, type MuscleGroup, type WorkoutSession } from '../workouts/types'
 import { estimateBodyFat, type BodyFatEstimate, type BodyFatMissing, type ScanSex } from './body-fat'
+import { diagnoseScan, SOMATOTYPE_LABELS, type BuildEstimate, type ScanDiagnosis } from './diagnosis'
 import type { Measurements, ScanPose } from './measure'
 import { nutritionGuide } from './nutrition'
 import {
@@ -68,6 +69,8 @@ export type ScanSummary = {
   photoNotes: string[]
   /** El % de grasa estimado (enmienda del 2026-10-14), si se pudo estimar. */
   bodyFat: BodyFatEstimate | null
+  /** Complexión, zonas que destacan, zonas a priorizar y asimetrías, deducidas de las fotos (D-068). */
+  diagnosis: ScanDiagnosis
 }
 
 /** Zonas por las que se pregunta: las que un adolescente reconoce al mirarse. */
@@ -82,7 +85,6 @@ export const SCAN_ZONE_LABELS: Record<ScanZone, string> = {
   core: 'core',
 }
 
-export type ScanBuild = 'delgada' | 'media' | 'ancha'
 export type ScanPriority = 'musculo' | 'definir' | 'fuerza' | 'equilibrio'
 export const SCAN_PRIORITY_LABELS: Record<ScanPriority, string> = {
   musculo: 'ganar músculo',
@@ -92,13 +94,12 @@ export const SCAN_PRIORITY_LABELS: Record<ScanPriority, string> = {
 }
 
 /**
- * Lo que el usuario dice de sí mismo (D-023, enmienda de autoevaluación). Cubre
- * lo que la foto no puede medir. Se presenta siempre como suyo, nunca como medido.
+ * Lo que el usuario responde antes de las fotos (D-023). Desde D-068 la
+ * complexión y las zonas ya no se preguntan: las deduce `diagnosis.ts`. Los
+ * escaneos anteriores pueden traer aún `build`, `strongZones` y `weakZones`:
+ * se ignoran.
  */
 export type ScanSelfReport = {
-  build: ScanBuild | null
-  strongZones: readonly ScanZone[]
-  weakZones: readonly ScanZone[]
   priority: ScanPriority | null
   /** Solo para elegir la fórmula de la grasa estimada. Ausente en los escaneos anteriores. */
   sex?: ScanSex | null
@@ -118,6 +119,9 @@ export type ScanInput = {
   /** Día de referencia para el historial de entrenamiento. */
   today?: DayKey
 }
+
+const PLURAL_ZONES: readonly ScanZone[] = ['hombros', 'brazos', 'piernas']
+const ZONE_PRONOUN: Record<ScanZone, string> = { pecho: 'lo', espalda: 'la', hombros: 'los', brazos: 'los', piernas: 'las', core: 'lo' }
 
 /** Ejercicios del catálogo para dar prioridad a una zona. */
 const ZONE_EXERCISES: Record<ScanZone, string[]> = {
@@ -385,21 +389,22 @@ const MAIN_GROUPS: readonly MuscleGroup[] = ['pecho', 'espalda', 'hombros', 'bra
 
 type Development = { category: ScanCategory; strengths: string[]; improvements: string[]; actions: ScanAction[] }
 
-function muscleDevelopment(input: ScanInput): Development {
+function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Development {
   const done = completedAssessments(input.assessments ?? [])
   const sessions = (input.sessions ?? []).filter((s) => s.status === 'completed')
   const today = input.today ?? sessions.map((s) => s.dayKey).sort().at(-1) ?? null
   const recent = today ? sessions.filter((s) => { const age = daysBetween(s.dayKey, today); return age >= 0 && age < TRAINING_WINDOW_DAYS }) : []
   const base: ScanCategory = { key: 'muscleDevelopment', title: 'Desarrollo muscular', score: null, inIndex: false, text: '', details: [] }
 
-  const self = input.selfReport
-  const hasSelf = !!self && (self.strongZones.length > 0 || self.weakZones.length > 0)
+  const { strongZones, weakZones } = diagnosis
   const hasZones =
+    strongZones.length > 0 ||
+    weakZones.length > 0 ||
     ZONES_MEASURED.some((z) => z.keys.some((key) => stableValue(input.shots, 'front', key) !== null)) ||
     CORE_ARMS_KEYS.some(([pose, key]) => stableValue(input.shots, pose, key) !== null)
   let strengthUp: string[] = []
 
-  if (done.length === 0 && recent.length === 0 && !hasSelf && !hasZones) {
+  if (done.length === 0 && recent.length === 0 && !hasZones) {
     return {
       category: {
         ...base,
@@ -462,36 +467,33 @@ function muscleDevelopment(input: ScanInput): Development {
     else parts.push(`Con ${one(perWeek)} sesiones por semana, la constancia es lo que más te hará crecer ahora.`)
   }
 
-  // Cómo se ve el usuario: lo dice él; los datos lo confirman o lo matizan.
-  if (self && hasSelf) {
-    if (self.strongZones.length) {
-      const zones = list(self.strongZones.map((z) => SCAN_ZONE_LABELS[z]))
-      parts.push(`Te ves con más músculo en ${zones}.`)
-      strengths.push(`Te ves con más músculo en ${zones}`)
-    }
-    if (self.weakZones.length) {
-      for (const zone of self.weakZones) {
-        const trained = counts.get(zone) ?? 0
-        const median = ordered[Math.floor(ordered.length / 2)]?.n ?? 0
-        if (leastTrained === zone) {
-          parts.push(`Te ves con menos ${SCAN_ZONE_LABELS[zone]} y tu historial lo confirma: es lo que menos has entrenado, y ahí está tu mayor margen.`)
-        } else if (recent.length && trained > 0 && trained >= median) {
-          parts.push(`Te ves con menos ${SCAN_ZONE_LABELS[zone]} aunque la entrenas a menudo: ahí lo que más ayuda es ir subiendo la carga, no solo repetir.`)
-        } else {
-          parts.push(`Te ves con menos ${SCAN_ZONE_LABELS[zone]}.`)
-        }
+  // Lo que destaca y lo que va por detrás en tus fotos (D-068); el historial lo confirma o lo matiza.
+  if (strongZones.length) {
+    const zones = list(strongZones.map((z) => SCAN_ZONE_LABELS[z]))
+    parts.push(`En tus fotos destacan ${zones} frente a un físico equilibrado.`)
+    strengths.push(`En tus fotos destacan ${zones}`)
+  }
+  if (weakZones.length) {
+    for (const zone of weakZones) {
+      const trained = counts.get(zone) ?? 0
+      const median = ordered[Math.floor(ordered.length / 2)]?.n ?? 0
+      const plural = PLURAL_ZONES.includes(zone)
+      const behind = `En tus fotos, ${plural ? 'tus' : 'tu'} ${SCAN_ZONE_LABELS[zone]} ${plural ? 'van' : 'va'} por detrás`
+      if (leastTrained === zone) {
+        parts.push(`${behind} y tu historial lo confirma: es lo que menos has entrenado, y ahí está tu mayor margen.`)
+      } else if (recent.length && trained > 0 && trained >= median) {
+        parts.push(`${behind} aunque ${ZONE_PRONOUN[zone]} entrenas a menudo: ahí lo que más ayuda es ir subiendo la carga, no solo repetir.`)
+      } else {
+        parts.push(`${behind} del resto.`)
       }
-      const zones = list(self.weakZones.map((z) => SCAN_ZONE_LABELS[z]))
-      improvements.push(`Quieres más músculo en ${zones}`)
-      actions.unshift({
-        // Desde D-041 la prioridad la pone el motor: más series a la semana en esas zonas.
-        text: `Dar prioridad a ${zones}: ya ${self.weakZones.length === 1 ? 'le' : 'les'} subo las series de la semana y ${self.weakZones.length === 1 ? 'la' : 'las'} elijo antes en tus sesiones.`,
-        exerciseIds: Array.from(new Set(self.weakZones.flatMap((z) => ZONE_EXERCISES[z]))).slice(0, 4),
-      })
     }
-    if (done.length === 0 && recent.length === 0) {
-      parts.push('Todavía no tengo tus tests ni tus sesiones para confirmarlo: con ellos te diré si los datos coinciden con cómo te ves.')
-    }
+    const zones = list(weakZones.map((z) => SCAN_ZONE_LABELS[z]))
+    improvements.push(`Más desarrollo en ${zones}`)
+    actions.unshift({
+      // Desde D-041 la prioridad la pone el motor: más series a la semana en esas zonas.
+      text: `Dar prioridad a ${zones}: ya ${weakZones.length === 1 ? 'le' : 'les'} subo las series de la semana y ${weakZones.length === 1 ? 'la' : 'las'} elijo antes en tus sesiones.`,
+      exerciseIds: Array.from(new Set(weakZones.flatMap((z) => ZONE_EXERCISES[z]))).slice(0, 4),
+    })
   }
 
   const zones = zoneDevelopment(input.shots, input.previous ?? null, strengthUp, done.length >= 2)
@@ -702,7 +704,16 @@ export function summarizeScan(input: ScanInput): ScanSummary {
 
   const sym = symmetryFindings(shots, notes)
   const pm = postureFindings(shots, notes)
-  const development = muscleDevelopment(input)
+  const read = (pose: ScanPose, key: string) => combine(shots, pose, key, notes)
+  const fat = estimateBodyFat(read, input.selfReport?.sex, input.body?.heightCm)
+  // Lo que antes se preguntaba, deducido de las fotos y del perfil (D-068).
+  const diagnosis = diagnoseScan({
+    read,
+    sex: input.selfReport?.sex,
+    body: input.body ?? null,
+    bodyFatPct: input.bodyFatPct ?? (fat.ok ? fat.estimate.pct : null),
+  })
+  const development = muscleDevelopment(input, diagnosis)
 
   const v = combine(shots, 'front', 'shoulderToWaist', notes)
   const legs = combine(shots, 'front', 'legToTorso', notes)
@@ -717,7 +728,7 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     inIndex: true,
     text:
       v !== null || legs !== null || waist !== null
-        ? `${v !== null ? `La relación entre la anchura de tus hombros y tu cintura es ${one(v)}. ` : ''}${waist !== null ? `En la foto, tu cintura mide un ${pct(waist)} de la anchura de tu cadera. ` : ''}La espalda y los hombros son lo que más cambia estas relaciones al entrenar, así que las iremos siguiendo escaneo a escaneo. Cuando me digas qué zonas quieres desarrollar, también te diré cómo vas respecto a tu objetivo.`
+        ? `${v !== null ? `La relación entre la anchura de tus hombros y tu cintura es ${one(v)}. ` : ''}${waist !== null ? `En la foto, tu cintura mide un ${pct(waist)} de la anchura de tu cadera. ` : ''}La espalda y los hombros son lo que más cambia estas relaciones al entrenar, así que las iremos siguiendo escaneo a escaneo.`
         : 'Necesito una foto de frente con los brazos algo separados del cuerpo para medir tus proporciones.',
     details: [
       ...(v !== null ? [`Hombros / cintura: ${one(v)}`] : []),
@@ -726,19 +737,21 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     ],
   }
 
-  const fat = estimateBodyFat((pose, key) => combine(shots, pose, key, notes), input.selfReport?.sex, input.body?.heightCm)
   const composition: ScanCategory = {
     key: 'composition',
     title: 'Composición corporal',
     score: null,
     inIndex: false,
-    text: compositionText(input.selfReport ?? null, input.bodyFatPct ?? null, fat),
-    details: fat.ok
-      ? [
-          `Grasa estimada: ${one(fat.estimate.pct)} % (±${fat.estimate.marginPct} %)`,
-          `Perímetros estimados: cuello ${Math.round(fat.estimate.neckCm)} cm, cintura ${Math.round(fat.estimate.waistCm)} cm${fat.estimate.hipCm !== null ? `, cadera ${Math.round(fat.estimate.hipCm)} cm` : ''}`,
-        ]
-      : [],
+    text: compositionText(input.selfReport ?? null, input.bodyFatPct ?? null, fat, diagnosis.build),
+    details: [
+      ...(fat.ok
+        ? [
+            `Grasa estimada: ${one(fat.estimate.pct)} % (±${fat.estimate.marginPct} %)`,
+            `Perímetros estimados: cuello ${Math.round(fat.estimate.neckCm)} cm, cintura ${Math.round(fat.estimate.waistCm)} cm${fat.estimate.hipCm !== null ? `, cadera ${Math.round(fat.estimate.hipCm)} cm` : ''}`,
+          ]
+        : []),
+      ...(diagnosis.build ? [`Complexión (escala Heath-Carter): ${buildRatings(diagnosis.build)}`] : []),
+    ],
   }
 
   const symmetry: ScanCategory = {
@@ -780,7 +793,7 @@ export function summarizeScan(input: ScanInput): ScanSummary {
   // Tres pasos: lo que el usuario quiere priorizar, lo que más le frena y, si hay
   // prioridad, la alimentación.
   const priority = input.selfReport?.priority ?? null
-  const hasZonePriority = (input.selfReport?.weakZones.length ?? 0) > 0
+  const hasZonePriority = diagnosis.weakZones.length > 0
   const training: ScanAction[] = []
   for (const action of [
     ...(priority && !hasZonePriority ? [PRIORITY_ACTIONS[priority]] : []),
@@ -801,20 +814,36 @@ export function summarizeScan(input: ScanInput): ScanSummary {
 
   return {
     index,
-    overview: overviewText(index, strong, weak, input.selfReport ?? null, fat.ok ? fat.estimate : null),
+    overview: overviewText(index, strong, weak, input.selfReport ?? null, diagnosis, fat.ok ? fat.estimate : null),
     categories,
     strengths,
     improvements,
     actions,
     photoNotes: Array.from(notes),
     bodyFat: fat.ok ? fat.estimate : null,
+    diagnosis,
   }
 }
 
-const BUILD_TEXT: Record<ScanBuild, string> = {
-  delgada: 'más bien delgada',
-  media: 'media',
-  ancha: 'más bien ancha',
+/** «Mesomorfa con tendencia ectomorfa», en minúscula para ir dentro de una frase. */
+export function buildText(build: BuildEstimate): string {
+  const main = SOMATOTYPE_LABELS[build.type].toLowerCase()
+  return build.leaning ? `${main} con tendencia ${SOMATOTYPE_LABELS[build.leaning].toLowerCase()}` : main
+}
+
+function buildRatings(build: BuildEstimate): string {
+  const short = { endomorfa: 'endo', mesomorfa: 'meso', ectomorfa: 'ecto' } as const
+  return (['endomorfa', 'mesomorfa', 'ectomorfa'] as const)
+    .filter((k) => build.ratings[k] !== undefined)
+    .map((k) => `${short[k]} ${one(build.ratings[k]!)}`)
+    .join(' · ')
+}
+
+/** Qué componentes faltaron, para decir con qué se estimó. */
+const BUILD_SOURCES: Record<keyof BuildEstimate['ratings'], string> = {
+  ectomorfa: 'tu altura y tu peso',
+  endomorfa: 'tu grasa estimada',
+  mesomorfa: 'la «V» de hombros a cintura de tus fotos',
 }
 
 /**
@@ -827,6 +856,7 @@ function compositionText(
   self: ScanSelfReport | null,
   bodyFatPct: number | null,
   fat: { ok: true; estimate: BodyFatEstimate } | { ok: false; missing: BodyFatMissing },
+  build: BuildEstimate | null,
 ): string {
   const parts: string[] = []
   if (fat.ok) {
@@ -840,13 +870,16 @@ function compositionText(
     parts.push(BODY_FAT_MISSING[fat.missing])
   }
   if (typeof bodyFatPct === 'number') parts.push(`Tu dato registrado es ${one(bodyFatPct)} % de grasa corporal.`)
-  if (self?.build) parts.push(`Describes tu complexión como ${BUILD_TEXT[self.build]}.`)
+  if (build) {
+    const sources = (Object.keys(build.ratings) as (keyof BuildEstimate['ratings'])[]).map((k) => BUILD_SOURCES[k])
+    parts.push(`Por tus proporciones, tu complexión es ${buildText(build)}: la estimo con ${list(sources)}. Es una orientación para tu entrenamiento, no una etiqueta fija.`)
+  }
   if (self?.priority) {
     const priority = SCAN_PRIORITY_LABELS[self.priority]
     const plan: Record<ScanPriority, string> = {
       musculo:
-        self.build === 'delgada'
-          ? 'Con una complexión delgada, lo que más te hará ganar músculo es progresar en carga semana a semana con ejercicios grandes y ser constante: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.'
+        build?.type === 'ectomorfa'
+          ? 'Con una complexión ectomorfa, lo que más te hará ganar músculo es progresar en carga semana a semana con ejercicios grandes y ser constante: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.'
           : 'Para ganar músculo, lo que más cuenta es progresar en carga y entrenar cada zona con frecuencia: AXIS irá subiendo la exigencia cuando tu recuperación lo permita.',
       definir: 'Para que se note más el músculo, lo que cuenta es mantener un volumen de trabajo alto y constante mientras ganas músculo.',
       fuerza: 'Para ganar fuerza, lo que más cuenta es ir subiendo la carga con pocas repeticiones bien hechas y descansar lo suficiente entre series.',
@@ -907,6 +940,7 @@ function overviewText(
   strong: Finding[],
   weak: Finding[],
   self: ScanSelfReport | null,
+  diagnosis: ScanDiagnosis,
   bodyFat: BodyFatEstimate | null,
 ): string {
   if (index === null) return 'Me faltan fotos para darte un resultado completo: necesito de frente, de perfil, la sentadilla y los brazos arriba.'
@@ -918,8 +952,8 @@ function overviewText(
         : `Tienes mucho margen para avanzar: ${index}/100 en equilibrio corporal, y eso significa que notarás los cambios pronto si entrenas con constancia.`,
   ]
   if (strong.length) parts.push(`Lo mejor: ${lowerFirst(list(strong.slice(0, 2).map((f, i) => (i === 0 ? f.strength : lowerFirst(f.strength)))))}.`)
-  const goal = self?.weakZones.length
-    ? `ganar músculo en ${list(self.weakZones.map((z) => SCAN_ZONE_LABELS[z]))}, que es lo que quieres priorizar`
+  const goal = diagnosis.weakZones.length
+    ? `dar prioridad a ${list(diagnosis.weakZones.map((z) => SCAN_ZONE_LABELS[z]))}, que es lo que menos destaca en tus fotos`
     : self?.priority
       ? `${SCAN_PRIORITY_LABELS[self.priority]}, que es tu prioridad`
       : null

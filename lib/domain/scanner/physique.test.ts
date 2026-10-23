@@ -18,7 +18,7 @@ function input(measurements: PhysiqueInput['measurements'], partial: Partial<Phy
   return {
     dayKey: '2026-10-10',
     measurements,
-    selfReport: { build: 'media', strongZones: [], weakZones: [], priority: null, sex: 'hombre', ...partial },
+    selfReport: { priority: null, sex: 'hombre', ...partial },
   }
 }
 
@@ -37,12 +37,12 @@ test('D-041: brazos frente a muslo: por debajo, brazos; por encima, piernas', ()
   assert.deepEqual(physiquePlan(input(shots({ front: { upperArmMean: 0.33, thighMean: 0.45 } }))).priorityGroups, [])
 })
 
-test('D-041: lo que el usuario dijo también prioriza, y se dice que lo dijo él', () => {
-  const plan = physiquePlan(input(shots({}), { weakZones: ['espalda'] }))
-  assert.deepEqual(plan.priorityGroups, ['espalda'])
-  assert.match(plan.findings[0], /^Me dijiste que te ves con menos espalda: también le doy prioridad.$/)
-  const two = physiquePlan(input(shots({}), { weakZones: ['pecho', 'brazos'] }))
-  assert.match(two.findings[0], /^Me dijiste que te ves con menos pecho y brazos: también les doy prioridad.$/)
+test('D-068: las zonas que un escaneo antiguo guardó como respuesta ya no priorizan nada', () => {
+  // Antes de D-068 el usuario marcaba sus zonas flojas; esos campos siguen en disco y se ignoran.
+  const legacy = { ...input(shots({})), selfReport: { priority: null, build: 'media', strongZones: [], weakZones: ['espalda'] } } as unknown as PhysiqueInput
+  const plan = physiquePlan(legacy)
+  assert.deepEqual(plan.priorityGroups, [])
+  assert.deepEqual(plan.findings, [])
 })
 
 test('D-041: postura, movilidad y simetría claras piden correctivos y trabajo unilateral; el ruido no', () => {
