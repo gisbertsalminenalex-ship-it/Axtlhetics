@@ -134,7 +134,7 @@ function healthFactor(): AxisFactor {
   return {
     key: 'health_check',
     label: 'Visto bueno médico',
-    detail: 'Marcaste algo en las preguntas de salud: consulta con tu médico antes de apretar. Hasta que me digas que te ha dado el visto bueno, no te propongo días fuertes.',
+    detail: 'Por lo que me contaste de tu salud, consulta con tu médico antes de apretar. Hasta que me digas que te ha dado el visto bueno, no te propongo días fuertes.',
     direction: 'limits',
   }
 }

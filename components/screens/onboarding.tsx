@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
-import { CareZonesPicker, SexPicker } from '@/components/profile/about-you'
-import { BackgroundPicker, HealthQuestions, NO_HEALTH_FLAGS } from '@/components/profile/screening'
+import { SexPicker } from '@/components/profile/about-you'
+import { BackgroundPicker, HealthNote } from '@/components/profile/screening'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -53,8 +53,7 @@ const DEFAULT_DRAFT: UserProfileDraft = {
   availableWeekdays: [0, 2, 4],
   typicalSessionMinutes: 45,
   equipment: NO_EQUIPMENT,
-  // La evaluación inicial (D-058): la salud parte de todo «no»; la historia se elige.
-  health: NO_HEALTH_FLAGS,
+  // La evaluación inicial (D-058): la salud y la historia se eligen; ninguna parte contestada.
 }
 
 type SportDraft = {
@@ -107,13 +106,15 @@ type Step = {
 }
 
 export function OnboardingScreen() {
-  const { saveProfile, addActivity } = useAxtlhetics()
+  const { saveProfile, addActivity, readHealthNote } = useAxtlhetics()
 
   const [draft, setDraft] = useState<UserProfileDraft>(DEFAULT_DRAFT)
   const [sports, setSports] = useState<SportDraft[]>([])
   const [sportName, setSportName] = useState('')
   const [index, setIndex] = useState(0)
   const [saving, setSaving] = useState(false)
+  // Una nota de salud escrita y aún sin leer no deja avanzar (D-064).
+  const [healthPending, setHealthPending] = useState(false)
 
   /**
    * Los pasos se recalculan a partir de los deportes añadidos: añadir uno inserta
@@ -187,16 +188,16 @@ export function OnboardingScreen() {
       {
         key: 'care',
         id: 'care',
-        question: '¿Algo que AXIS deba tener en cuenta?',
-        hint: 'Opcional. El sexo ajusta descansos y pesos de partida; las zonas a cuidar dejan fuera lo que las carga. AXIS no diagnostica nada.',
+        question: '¿Hombre o mujer?',
+        hint: 'Opcional. Ajusta los descansos y los pesos de partida.',
         canContinue: true,
       },
       {
         key: 'health',
         id: 'health',
         question: 'Antes de empezar, tu salud',
-        hint: 'Las preguntas que haría un entrenador. No salen de este dispositivo.',
-        canContinue: true,
+        hint: 'Lo que un entrenador querría saber. AXIS no diagnostica nada: lo tiene en cuenta al elegir tus ejercicios.',
+        canContinue: draft.health !== undefined && !healthPending,
       },
       {
         key: 'sports',
@@ -224,7 +225,7 @@ export function OnboardingScreen() {
     ])
 
     return [...base, ...perSport]
-  }, [draft.name, draft.goals, draft.availableWeekdays, draft.background, sports])
+  }, [draft.name, draft.goals, draft.availableWeekdays, draft.background, draft.health, healthPending, sports])
 
   const safeIndex = Math.min(index, steps.length - 1)
   const step = steps[safeIndex]
@@ -396,7 +397,14 @@ export function OnboardingScreen() {
           )}
 
           {step.id === 'health' && (
-            <HealthQuestions value={draft.health} onChange={(health) => patch({ health })} />
+            <HealthNote
+              value={draft.health}
+              onChange={(health) => patch({ health })}
+              // En el onboarding las zonas solo salen de la nota: la última lectura manda.
+              onZones={(careZones) => patch({ careZones })}
+              onPendingChange={setHealthPending}
+              read={readHealthNote}
+            />
           )}
 
           {step.id === 'weekdays' && (
@@ -451,7 +459,6 @@ export function OnboardingScreen() {
           {step.id === 'care' && (
             <div className="divide-y divide-border">
               <SexPicker value={draft.sex} onChange={(sex) => patch({ sex })} />
-              <CareZonesPicker value={draft.careZones} onChange={(careZones) => patch({ careZones })} />
             </div>
           )}
 

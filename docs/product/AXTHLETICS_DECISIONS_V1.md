@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-21.
+**Última actualización:** 2026-10-23.
 
 ## Qué es este documento
 
@@ -2214,6 +2214,20 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 - El **primer ejercicio con carga** del entrenamiento ya no calienta con una serie de 5 al peso de trabajo: **sube por rampa** con las pesas del usuario (`rampTo`), como en un gimnasio: la más cercana a **~50 % × 8** y la más cercana a **~75 % × 4**, siempre más ligeras que la de trabajo, subiendo y sin repetir peso. Ejemplo: trabajo con 10 kg y pesas de 5, 8, 10 y 12 → 5 kg × 8 y 8 kg × 4.
 - Con un solo peso más ligero, una serie de rampa; **sin ninguno**, la serie de 5 de siempre.
 - El resto de series de aproximación no cambia (5 repeticiones, mismo peso o regresión sin carga). Siguen siendo calentamiento: no cuentan como entrenamiento (D-032).
+
+---
+
+## D-064 — La salud, con tus palabras
+
+**Fecha:** 2026-10-23 · **Estado:** aprobada e implementada · Decidido por Alex: «que solo haya 2 opciones: no tengo ningún problema de salud, o un sitio para escribir sus problemas que AXTHLETICS procese para tenerlo en cuenta». Leído con el modelo de IA y sin el selector de zonas en el onboarding, elegidos por Alex. **Sustituye** las siete preguntas de sí/no de D-058 y **amplía** la privacidad de D-016.
+
+- **Dos opciones**: «No tengo ningún problema de salud» o «Tengo algo que contar», con un campo de texto (máx. 600 caracteres). En el onboarding hay que elegir una; ya no parte de todo «no».
+- **AXIS lo lee** con «Que AXIS lo lea» (`lib/domain/profile/health-note.ts`): el modelo **clasifica, no decide**. Devuelve zonas a cuidar (D-051) y señales, que son las siete situaciones del PAR-Q+ de D-058 (corazón o tensión, dolor en el pecho, mareos, enfermedad crónica, medicación, lesión de huesos/articulaciones, supervisión). Solo se aceptan identificadores conocidos. Lo negado o lo que le pasa a otra persona no cuenta.
+- **Qué cambia**: las zonas sacan los ejercicios que las cargan. Una señal pide el visto bueno del médico y, hasta entonces, no hay días fuertes, igual que antes. Debajo se enseña lo entendido («Cuidaré tu rodilla…»). Una nota escrita y sin leer no deja avanzar ni guardar.
+- **Sin modelo** (sin red, ruta caída o respuesta inválida): la nota se lee en el dispositivo con una lista de palabras y se avisa de que es una lectura sencilla.
+- **Onboarding**: el selector de zonas sale del paso de sexo («¿Hombre o mujer?»). Las zonas salen de la nota. **Perfil**: conserva el selector, y lo leído se suma a lo marcado.
+- **Privacidad** (amplía D-016): la nota sale del dispositivo por la misma ruta `/api/axis-ai`, sin nombre ni briefing. No se guarda en ningún servidor y solo quedan las líneas de metadatos. En el dispositivo se guardan la nota (`HealthScreen.note`) y las señales. La nota nunca entra en el briefing de la conversación.
+- Los perfiles anteriores con respuestas «sí» se enseñan como «Tengo algo que contar» con sus señales. No hay migración.
 
 ---
 

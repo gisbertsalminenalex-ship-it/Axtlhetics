@@ -54,7 +54,7 @@ export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
   if (needsMedicalClearance(profile)) {
     return {
       kind: 'health_check',
-      text: 'Contestaste que sí a una pregunta de salud. Antes de apretar, que te vea un médico; cuando te dé el visto bueno, márcalo en tu perfil.',
+      text: 'Por lo que me contaste de tu salud, antes de apretar que te vea un médico; cuando te dé el visto bueno, márcalo en tu perfil.',
     }
   }
 

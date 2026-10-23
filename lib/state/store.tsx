@@ -61,6 +61,7 @@ import {
   type UserProfileDraft,
 } from '../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
+import { createHealthNoteReader, type HealthReading } from '../domain/profile/health-note'
 import { computeRecoveryScore } from '../domain/recovery/score'
 import type { RecoveryInputs, RecoveryScore } from '../domain/recovery/types'
 import { emptyRecoveryInputs, HYDRATION_GLASS_COUNT } from '../domain/recovery/types'
@@ -154,6 +155,9 @@ const AXIS_AI_ENDPOINT = '/api/axis-ai'
  */
 const conversation = createAxisConversation({ aiEndpoint: AXIS_AI_ENDPOINT })
 
+/** La nota de salud (D-064): la lee el modelo por la misma ruta y, si falla, el dispositivo. */
+const readHealthNote = createHealthNoteReader(AXIS_AI_ENDPOINT)
+
 export type AxisChatStatus = 'idle' | 'thinking' | 'error'
 
 export type AppStatus = 'loading' | 'onboarding' | 'ready'
@@ -200,6 +204,8 @@ type AxtlheticsStore = {
   historyStats(range: HistoryRange): HistoryStats
 
   saveProfile(draft: UserProfileDraft): Promise<void>
+  /** Lee lo que el usuario escribió sobre su salud (D-064). No guarda nada: lo aplica el formulario. */
+  readHealthNote(note: string): Promise<HealthReading>
   /** Añade un objetivo medible (D-035). Su punto de partida es la mejor serie de hoy. */
   addTarget(draft: { exerciseId: string; target: number; deadline: DayKey }): Promise<void>
   removeTarget(id: string): Promise<void>
@@ -1460,6 +1466,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       chooseNormalVersion,
       historyStats,
       saveProfile,
+      readHealthNote,
       addTarget,
       addTargets,
       setExerciseDisliked,

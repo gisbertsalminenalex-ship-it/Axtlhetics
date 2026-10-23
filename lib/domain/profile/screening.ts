@@ -2,9 +2,11 @@
  * Evaluación inicial (D-058): las preguntas de salud y la historia de
  * entrenamiento que un entrenador hace antes de la primera sesión.
  *
- * Las preguntas de salud son las siete del PAR-Q+ general. AXIS no diagnostica
- * nada: un «sí» solo pide que lo vea un médico y, mientras tanto, AXIS no
- * aprieta (sin días fuertes). La historia de entrenamiento decide si las
+ * La salud se cuenta con palabras (D-064): «no tengo ningún problema» o lo que
+ * el usuario escriba, que AXIS lee (`health-note.ts`) y convierte en señales
+ * —las siete situaciones del PAR-Q+ general— y en zonas a cuidar. AXIS no
+ * diagnostica nada: una señal solo pide que lo vea un médico y, mientras tanto,
+ * AXIS no aprieta (sin días fuertes). La historia de entrenamiento decide si las
  * primeras sesiones empiezan con margen.
  */
 
@@ -20,23 +22,29 @@ export type HealthQuestion =
   | 'huesos_articulaciones'
   | 'supervision'
 
+/** Cómo se nombra cada señal al contarle al usuario lo que AXIS ha entendido. */
 export const HEALTH_QUESTION_LABELS: Record<HealthQuestion, string> = {
-  corazon: '¿Te ha dicho un médico que tienes un problema de corazón o de tensión arterial?',
-  dolor_pecho: '¿Notas dolor en el pecho en reposo, en tu día a día o al hacer ejercicio?',
-  mareos: '¿Has perdido el equilibrio por un mareo, o el conocimiento, en los últimos 12 meses?',
-  enfermedad_cronica: '¿Te han diagnosticado otra enfermedad crónica?',
-  medicacion: '¿Tomas medicación para una enfermedad crónica?',
-  huesos_articulaciones: '¿Tienes un problema de huesos, articulaciones o músculos que pueda empeorar con el ejercicio?',
-  supervision: '¿Te ha dicho un médico que solo hagas ejercicio con supervisión?',
+  corazon: 'corazón o tensión arterial',
+  dolor_pecho: 'dolor en el pecho',
+  mareos: 'mareos o pérdidas de conocimiento',
+  enfermedad_cronica: 'una enfermedad crónica',
+  medicacion: 'medicación',
+  huesos_articulaciones: 'una lesión de huesos, articulaciones o músculos',
+  supervision: 'ejercicio con supervisión',
 }
 
 export const HEALTH_QUESTION_ORDER = Object.keys(HEALTH_QUESTION_LABELS) as HealthQuestion[]
 
+/** Lo más largo que se acepta como nota de salud. */
+export const MAX_HEALTH_NOTE_LENGTH = 600
+
 export type HealthScreen = {
-  /** Las preguntas contestadas con «sí». Vacío: todas «no». */
+  /** Las señales que AXIS leyó (antes de D-064, las preguntas contestadas con «sí»). Vacío: ninguna. */
   flags: HealthQuestion[]
   /** El usuario dice que un médico le ha dado el visto bueno. */
   cleared: boolean
+  /** Lo que el usuario escribió (D-064). Ausente: «no tengo ningún problema», o un perfil anterior. */
+  note?: string
 }
 
 export type TrainingHistory = 'nunca' | 'menos_6_meses' | 'hasta_2_anos' | 'mas_2_anos'
@@ -89,7 +97,8 @@ export function isHealthScreen(value: unknown): value is HealthScreen {
   return (
     isRecord(value) &&
     isArrayOf(value.flags, (item): item is HealthQuestion => isOneOf(item, HEALTH_QUESTION_ORDER)) &&
-    typeof value.cleared === 'boolean'
+    typeof value.cleared === 'boolean' &&
+    (value.note === undefined || (typeof value.note === 'string' && value.note.length <= MAX_HEALTH_NOTE_LENGTH))
   )
 }
 
@@ -121,7 +130,7 @@ export function evaluationSteps(input: {
 }): EvaluationStep[] {
   const { profile, completedTests, scans } = input
   return [
-    { key: 'salud', label: 'Salud', detail: 'Siete preguntas antes de apretar.', done: profile?.health !== undefined },
+    { key: 'salud', label: 'Salud', detail: 'Lo que AXIS debe saber antes de apretar.', done: profile?.health !== undefined },
     { key: 'historia', label: 'Historia', detail: 'Cuánto llevas y si vienes de un parón.', done: profile?.background !== undefined },
     { key: 'test', label: 'Test de evolución', detail: 'Tu punto de partida de fuerza y resistencia.', done: completedTests > 0 },
     { key: 'escaneo', label: 'Escaneo corporal', detail: 'Tus medidas y fotos de partida.', done: scans > 0 },

@@ -9,7 +9,8 @@ import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { BackupControls } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { CareZonesPicker, SexPicker } from '@/components/profile/about-you'
-import { BackgroundPicker, HealthQuestions, NO_HEALTH_FLAGS } from '@/components/profile/screening'
+import { BackgroundPicker, HealthNote, NO_HEALTH_FLAGS } from '@/components/profile/screening'
+import { mergeZones } from '@/lib/domain/profile/health-note'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -115,7 +116,7 @@ export function PerfilScreen({
   mode: 'onboarding' | 'edit'
   onClose?: () => void
 }) {
-  const { profile, activities, today, saveProfile, addActivity, updateActivity, removeActivity } =
+  const { profile, activities, today, saveProfile, readHealthNote, addActivity, updateActivity, removeActivity } =
     useAxtlhetics()
 
   const [draft, setDraft] = useState<UserProfileDraft>(() =>
@@ -140,12 +141,15 @@ export function PerfilScreen({
       : DEFAULT_DRAFT,
   )
   const [saving, setSaving] = useState(false)
+  // Una nota de salud escrita y aún sin leer no se guarda (D-064).
+  const [healthPending, setHealthPending] = useState(false)
 
   const isOnboarding = mode === 'onboarding'
   const canSave =
     draft.name.trim().length > 0 &&
     draft.availableWeekdays.length > 0 &&
-    isGoalSelectionValid(draft.goals)
+    isGoalSelectionValid(draft.goals) &&
+    !healthPending
 
   const patch = (changes: Partial<UserProfileDraft>) =>
     setDraft((current) => ({ ...current, ...changes }))
@@ -172,7 +176,7 @@ export function PerfilScreen({
     await saveProfile({
       ...draft,
       name: draft.name.trim(),
-      // Las preguntas de salud se ven contestadas con «no» de partida: guardar las da por contestadas (D-058).
+      // Sin tocar la salud, guardar la da por contestada: ningún problema (D-058, D-064).
       health: draft.health ?? NO_HEALTH_FLAGS,
     })
     setSaving(false)
@@ -271,7 +275,15 @@ export function PerfilScreen({
       </div>
 
       <SectionTitle>Tu salud</SectionTitle>
-      <HealthQuestions value={draft.health} onChange={(health) => patch({ health })} showClearance />
+      <HealthNote
+        value={draft.health}
+        onChange={(health) => patch({ health })}
+        // En Perfil las zonas también se eligen a mano: lo leído se suma, no las sustituye.
+        onZones={(zones) => setDraft((current) => ({ ...current, careZones: mergeZones(current.careZones ?? [], zones) }))}
+        onPendingChange={setHealthPending}
+        read={readHealthNote}
+        showClearance
+      />
 
       <SectionTitle>Tu disponibilidad</SectionTitle>
       <div className="mt-1 divide-y divide-border">
