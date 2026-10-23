@@ -10,7 +10,8 @@
  */
 
 import { addDays, daysBetween, startOfWeek, type DayKey } from '../shared/dates'
-import { isDayKey, isNullableNumber, isRecord } from '../shared/guards'
+import { isArrayOf, isDayKey, isNullableNumber, isRecord } from '../shared/guards'
+import { isMealEntry, type MealEntry } from '../nutrition/intake'
 
 export type PerimeterKey = 'cintura' | 'cadera' | 'pecho' | 'brazo' | 'muslo'
 
@@ -40,6 +41,8 @@ export type BodyMeasurement = {
   perimeters: Partial<Record<PerimeterKey, number | null>>
   /** Si ese día llegó a su proteína (D-061). Ausente o `null`: no contestó. */
   protein?: boolean | null
+  /** Las comidas apuntadas ese día (D-066). Ausente: ninguna. */
+  meals?: MealEntry[]
   updatedAt: string
 }
 
@@ -73,6 +76,16 @@ export function withProtein(current: BodyMeasurement, protein: boolean, updatedA
   return { ...current, protein, updatedAt }
 }
 
+
+/** El registro del día con una comida más (D-066). */
+export function withMeal(current: BodyMeasurement, meal: MealEntry, updatedAt: string): BodyMeasurement {
+  return { ...current, meals: [...(current.meals ?? []), meal], updatedAt }
+}
+
+/** El registro del día sin esa comida (D-066). */
+export function withoutMeal(current: BodyMeasurement, mealId: string, updatedAt: string): BodyMeasurement {
+  return { ...current, meals: (current.meals ?? []).filter((meal) => meal.id !== mealId), updatedAt }
+}
 /** Del más antiguo al más reciente. */
 export function sortMeasurements(records: readonly BodyMeasurement[]): BodyMeasurement[] {
   return [...records].sort((a, b) => a.dayKey.localeCompare(b.dayKey))
@@ -178,6 +191,7 @@ export function isBodyMeasurement(value: unknown): value is BodyMeasurement {
   if (!isNullableNumber(value.weightKg)) return false
   if (value.weightKg !== null && (value.weightKg < WEIGHT_LIMITS.min || value.weightKg > WEIGHT_LIMITS.max)) return false
   if (value.protein !== undefined && value.protein !== null && typeof value.protein !== 'boolean') return false
+  if (value.meals !== undefined && !isArrayOf(value.meals, isMealEntry)) return false
   if (!isRecord(value.perimeters)) return false
   const perimeters = value.perimeters
   if (Object.keys(perimeters).some((key) => !(PERIMETER_ORDER as string[]).includes(key))) return false

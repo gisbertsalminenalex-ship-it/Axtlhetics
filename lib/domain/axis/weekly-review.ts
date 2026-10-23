@@ -11,6 +11,8 @@
 import type { UserProfile } from '../profile/types'
 import { computeRecoveryScore } from '../recovery/score'
 import { weeklyWeights, type BodyMeasurement } from '../body/measurements'
+import { averageIntake, proteinReached } from '../nutrition/intake'
+import { ADHERENCE_GAP_KCAL } from '../nutrition/targets'
 import type { RecoveryInputs } from '../recovery/types'
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import { listNames } from '../shared/text'
@@ -44,8 +46,10 @@ export type WeeklyReview = {
   averageRecovery: number | null
   /** El peso medio de la semana y su cambio frente a la anterior con pesos (D-060). `null` sin pesos. */
   weight: { averageKg: number; changeKg: number | null } | null
-  /** Días que llegó a su proteína de los que contestó (D-061). `null` sin respuestas. */
+  /** Días que llegó a su proteína (D-061; con comidas apuntadas, por los gramos, D-066). `null` sin datos. */
   protein: { yes: number; answered: number } | null
+  /** Lo comido de media en los días completos apuntados y el objetivo de hoy (D-066). `null` sin días completos. */
+  intake: { averageKcal: number; averageProteinG: number; days: number; targetKcal: number | null } | null
   /** Lo que AXIS hace con la semana que viene, frase a frase. */
   next: string[]
 }
@@ -55,6 +59,11 @@ export const MAX_IMPROVEMENTS = 3
 
 /** Por debajo de esto, la semana se durmió poco (horas). */
 export const SHORT_SLEEP_HOURS = 7
+
+/** Días completos apuntados para que la revisión hable de lo comido (D-066). */
+export const INTAKE_DAYS_FOR_REVIEW = 3
+
+const roundTo50 = (value: number) => Math.round(value / 50) * 50
 
 /**
  * La revisión de la semana anterior a `today`, o `null` si en ella no se
@@ -68,6 +77,8 @@ export function weeklyReview(input: {
   catalog: readonly Exercise[]
   /** Peso y medidas (D-060). */
   measurements?: readonly BodyMeasurement[]
+  /** Las cifras de alimentación de hoy (D-061, D-066): con ellas, los gramos dicen si llegó a la proteína. */
+  nutrition?: { kcal: number; proteinLow: number } | null
 }): WeeklyReview | null {
   const { today, profile, sessions, recovery, catalog } = input
   const monday = startOfWeek(today)
@@ -90,7 +101,8 @@ export function weeklyReview(input: {
     averageSleepHours: sleep.length > 0 ? Math.round((sleep.reduce((a, b) => a + b, 0) / sleep.length) * 10) / 10 : null,
     averageRecovery: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
     weight: weightOf(input.measurements ?? [], weekStart),
-    protein: proteinOf((input.measurements ?? []).filter((record) => inWeek(record.dayKey))),
+    protein: proteinOf((input.measurements ?? []).filter((record) => inWeek(record.dayKey)), input.nutrition?.proteinLow ?? null),
+    intake: intakeOf(input.measurements ?? [], weekStart, input.nutrition?.kcal ?? null),
     next: [],
   }
   review.next = nextWeek(review, { today, sessions, catalog, experience: profile?.experience ?? 'intermedio' })
@@ -176,6 +188,15 @@ function nextWeek(
     )
   }
 
+  // Lo comido, si se apuntaron días suficientes y se aleja del objetivo (D-066).
+  const intake = review.intake
+  if (intake && intake.targetKcal !== null && intake.days >= INTAKE_DAYS_FOR_REVIEW && Math.abs(intake.averageKcal - intake.targetKcal) > ADHERENCE_GAP_KCAL) {
+    const more = intake.averageKcal > intake.targetKcal
+    lines.push(
+      `Comiste de media unas ${roundTo50(intake.averageKcal).toLocaleString('es-ES')} kcal, ${more ? 'más' : 'menos'} que tu objetivo de ${intake.targetKcal.toLocaleString('es-ES')}: acércate a él esta semana.`,
+    )
+  }
+
   if (review.protein && review.protein.answered >= 3 && review.protein.yes * 2 < review.protein.answered) {
     lines.push(`Llegaste a tu proteína ${review.protein.yes} de ${review.protein.answered} días: es lo más fácil de mejorar para notar los entrenos.`)
   }
@@ -186,10 +207,18 @@ function nextWeek(
   return lines
 }
 
-function proteinOf(records: readonly BodyMeasurement[]): WeeklyReview['protein'] {
-  const answered = records.filter((record) => typeof record.protein === 'boolean')
-  if (answered.length === 0) return null
-  return { yes: answered.filter((record) => record.protein === true).length, answered: answered.length }
+function intakeOf(measurements: readonly BodyMeasurement[], weekStart: DayKey, targetKcal: number | null): WeeklyReview['intake'] {
+  const average = averageIntake(measurements, weekStart, addDays(weekStart, 6))
+  return average ? { ...average, targetKcal } : null
+}
+
+function proteinOf(records: readonly BodyMeasurement[], proteinLow: number | null): WeeklyReview['protein'] {
+  // Con comidas apuntadas lo dicen los gramos; sin ellas, la respuesta del día (D-066).
+  const answers = records
+    .map((record) => proteinReached(record, proteinLow))
+    .filter((answer): answer is boolean => answer !== null)
+  if (answers.length === 0) return null
+  return { yes: answers.filter(Boolean).length, answered: answers.length }
 }
 
 /** La media de la semana revisada y el cambio frente a la semana con pesos anterior. */

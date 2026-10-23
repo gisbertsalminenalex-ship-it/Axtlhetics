@@ -98,6 +98,30 @@ test('el peso medio de la semana y su cambio frente a la anterior (D-060)', () =
   assert.equal(review()!.weight, null)
 })
 
+test('lo comido: la proteína por los gramos y la media frente al objetivo (D-066)', () => {
+  const at = '2026-10-19T08:00:00.000Z'
+  const ate = (dayKey: string, kcal: number, proteinG: number) => ({
+    dayKey,
+    weightKg: null,
+    perimeters: {},
+    meals: [{ id: dayKey, slot: 'cena' as const, kcal, proteinG, carbsG: 0, fatG: 0, createdAt: at }],
+    updatedAt: at,
+  })
+  const measurements = [ate('2026-10-12', 1800, 150), ate('2026-10-13', 1700, 100), ate('2026-10-14', 1900, 90)]
+  const result = weeklyReview({
+    today: TODAY,
+    profile: PROFILE as UserProfile,
+    sessions: HISTORY,
+    recovery: [],
+    catalog: EXERCISE_CATALOG,
+    measurements,
+    nutrition: { kcal: 2500, proteinLow: 130 },
+  })!
+  assert.deepEqual(result.protein, { yes: 1, answered: 3 })
+  assert.deepEqual(result.intake, { averageKcal: 1800, averageProteinG: 113, days: 3, targetKcal: 2500 })
+  assert.ok(result.next.some((line) => line.startsWith('Comiste de media unas 1800 kcal, menos que tu objetivo de 2500')))
+})
+
 test('lo que AXIS hará: el bloque, la sesión que faltó', () => {
   const result = review()!
   assert.match(result.next[0], /^Semana 3 del bloque/)

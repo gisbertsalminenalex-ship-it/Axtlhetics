@@ -2243,6 +2243,21 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ---
 
+## D-066 — La comida apuntada
+
+**Fecha:** 2026-10-23 · **Estado:** aprobada e implementada · Decidido por Alex: «en Recuperación, una opción de Comida donde rellenar calorías, proteínas, carbohidratos y grasa, para que AXTHLETICS lo tenga en cuenta». Por comidas que se suman, con las cuatro consecuencias en AXIS e igual para todo el mundo, elegido por Alex. **Amplía** D-061 y D-060, y **cambia** D-023 para la alimentación.
+
+- **Dónde**: en «Alimentación», al final de Recuperación. «Lo que llevas hoy» enseña calorías, proteína, carbohidratos y grasa frente al objetivo, con barras. Debajo van las comidas del día (desayuno, comida, merienda, cena, picoteo), cada una con su botón de quitar, y «Añadir comida». Sin calorías escritas, salen de los macros (4/4/9). Se guardan en el registro del día (`BodyMeasurement.meals`), así que la copia de seguridad ya las lleva y no hace falta migración (`lib/domain/nutrition/intake.ts`, `components/food-log.tsx`).
+- **Objetivos de carbohidratos y grasa**: grasa del 25–30 % de las calorías; carbohidratos, lo que queda (`NutritionTargets.fatGrams`, `carbsGrams`).
+- **La proteína se contesta sola**: con comidas apuntadas, los gramos dicen si se llegó, y un día a medias que aún no llega no es un «no». Sin comidas sigue la pregunta.
+- **Día completo**: la cena o al menos tres comidas. Solo los días completos cuentan para medias y avisos, para que un registro a medias no engañe.
+- **Revisión semanal**: la media de kcal de los días completos. Con 3 o más días a más de 250 kcal del objetivo, se dice.
+- **Ajuste de calorías**: con 7 o más días completos desde el último ajuste, si lo comido se aleja más de 250 kcal del objetivo en la dirección que explica el peso, AXIS no cambia el objetivo: dice que primero hay que acercarse a él (`kind: 'adherence'`).
+- **El entreno** (regla `low_intake`, factor `low_intake`): si ayer fue un día completo por debajo del 70 % de las calorías objetivo, hoy toca sesión ligera, y se explica («Ayer apuntaste unas 1500 kcal, muy por debajo de tus 2650…»). Va después de la carga alta y no manda descansar.
+- **Menores de 18** (cambia D-023 para la alimentación): ven y apuntan lo mismo, con cifras. La única diferencia es que su objetivo **nunca baja de lo que gastan**: sin déficit y sin ajustes a la baja. Esa protección se mantiene por decisión de ingeniería: se avisó a Alex y la puede quitar.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

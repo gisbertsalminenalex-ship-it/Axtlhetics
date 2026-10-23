@@ -112,11 +112,15 @@ import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { bestSetOf } from '../domain/workouts/targets'
 import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
 import { weeklyReview as reviewWeek, type WeeklyReview } from '../domain/axis/weekly-review'
-import { withAdjustment, type NutritionGoal } from '../domain/nutrition/targets'
+import { nutritionTargets as computeNutritionTargets, withAdjustment, type NutritionGoal, type NutritionTargets } from '../domain/nutrition/targets'
+import { lowIntakeYesterday, type MealEntry } from '../domain/nutrition/intake'
+import { currentWeight } from '../domain/body/measurements'
 import {
   emptyMeasurement,
   sortMeasurements,
   withPerimeters,
+  withMeal,
+  withoutMeal,
   withProtein,
   withWeight,
   type BodyMeasurement,
@@ -227,6 +231,12 @@ type AxtlheticsStore = {
   savePerimeters(perimeters: Partial<Record<PerimeterKey, number>>): Promise<void>
   /** Apunta si hoy llegó a su proteína (D-061). */
   saveProteinCheck(reached: boolean): Promise<void>
+  /** Las cifras de alimentación de hoy (D-061, D-066), o `null` sin objetivo elegido. */
+  nutritionTargets: NutritionTargets | null
+  /** Apunta una comida de hoy (D-066). */
+  addMeal(meal: Omit<MealEntry, 'id' | 'createdAt'>): Promise<void>
+  /** Quita una comida de hoy (D-066). */
+  removeMeal(mealId: string): Promise<void>
   /** Elige el objetivo de alimentación (D-061). Empieza sin ajustes. */
   setNutritionGoal(goal: NutritionGoal): Promise<void>
   /** Acepta el ajuste de calorías que propone AXIS (D-061). */
@@ -554,6 +564,22 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
    * se construyera por separado en cada sitio, dos de ellos podrían acabar
    * mirando estados distintos del mismo día.
    */
+  // Las cifras de alimentación de hoy (D-061, D-066): las usan la sección, la revisión y el motor.
+  const nutritionTargets = useMemo<NutritionTargets | null>(
+    () =>
+      profile?.nutrition
+        ? computeNutritionTargets({
+            plan: profile.nutrition,
+            age: profile.age,
+            weightKg: currentWeight(measurements, profile.weightKg),
+            heightCm: profile.heightCm,
+            sex: profile.sex ?? null,
+            trainingDays: profile.availableWeekdays.length,
+          })
+        : null,
+    [profile, measurements],
+  )
+
   const axisContext = useMemo(() => {
     if (status !== 'ready') return null
     return buildAxisContext({
@@ -567,6 +593,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       movedFromYesterday,
       withoutEquipmentToday: memory.withoutEquipment ?? false,
       recentRecovery,
+      // Si ayer se comió muy poco, hoy más suave (D-066).
+      lowIntakeYesterday: lowIntakeYesterday(measurements, today, nutritionTargets),
       // Modelos del dominio, ya validados por el repositorio: AXIS no ve el almacén.
       assessments: assessments.assessments,
       scans: scans.scans,
@@ -583,6 +611,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     movedFromYesterday,
     memory.withoutEquipment,
     recentRecovery,
+    measurements,
+    today,
+    nutritionTargets,
     assessments.assessments,
     scans.scans,
   ])
@@ -636,9 +667,17 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const weeklyReview = useMemo(
     () =>
       status === 'ready'
-        ? reviewWeek({ today, profile, sessions, recovery: recentRecovery, catalog: EXERCISE_CATALOG, measurements })
+        ? reviewWeek({
+            today,
+            profile,
+            sessions,
+            recovery: recentRecovery,
+            catalog: EXERCISE_CATALOG,
+            measurements,
+            nutrition: nutritionTargets ? { kcal: nutritionTargets.kcal, proteinLow: nutritionTargets.proteinGrams[0] } : null,
+          })
         : null,
-    [status, today, profile, sessions, recentRecovery, measurements],
+    [status, today, profile, sessions, recentRecovery, measurements, nutritionTargets],
   )
 
   // AXIS habla primero (D-038): una nota, la más importante, con lo que la app ya sabe.
@@ -1440,6 +1479,17 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [updateTodayMeasurement],
   )
 
+  const addMeal = useCallback(
+    (meal: Omit<MealEntry, 'id' | 'createdAt'>) =>
+      updateTodayMeasurement((current) => withMeal(current, { ...meal, id: createId(), createdAt: nowIso() }, nowIso())),
+    [updateTodayMeasurement],
+  )
+
+  const removeMeal = useCallback(
+    (mealId: string) => updateTodayMeasurement((current) => withoutMeal(current, mealId, nowIso())),
+    [updateTodayMeasurement],
+  )
+
   const importBackup = useCallback(async (contents: BackupContents) => {
     try {
       await getRepositories().backup.replaceAll(contents)
@@ -1526,6 +1576,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       saveWeight,
       savePerimeters,
       saveProteinCheck,
+      nutritionTargets,
+      addMeal,
+      removeMeal,
       setNutritionGoal,
       applyNutritionAdjustment,
       removeTarget,
@@ -1603,6 +1656,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       saveWeight,
       savePerimeters,
       saveProteinCheck,
+      nutritionTargets,
+      addMeal,
+      removeMeal,
       setNutritionGoal,
       applyNutritionAdjustment,
       removeTarget,

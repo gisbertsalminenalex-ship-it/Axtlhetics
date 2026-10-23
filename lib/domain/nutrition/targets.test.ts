@@ -1,5 +1,5 @@
 /**
- * Alimentación con cifras (D-061).
+ * Alimentación con cifras (D-061) y lo que se come (D-066).
  */
 
 import assert from 'node:assert/strict'
@@ -32,11 +32,7 @@ test('Mifflin-St Jeor y el factor por días de entreno', () => {
 })
 
 test('calorías y proteína según el objetivo; el ajuste suma', () => {
-  const at = (goal: NutritionPlan['goal'], adjustment = 0) => {
-    const result = nutritionTargets({ ...ADULT, plan: plan(goal, adjustment) })
-    assert.equal(result.kind, 'adult')
-    return result.kind === 'adult' ? result : null
-  }
+  const at = (goal: NutritionPlan['goal'], adjustment = 0) => nutritionTargets({ ...ADULT, plan: plan(goal, adjustment) })
   // Mantenimiento: 1780 × 1,5 = 2670 → 2650.
   assert.equal(at('mantener')!.kcal, 2650)
   assert.equal(at('mantener')!.maintenanceKcal, 2650)
@@ -51,15 +47,37 @@ test('calorías y proteína según el objetivo; el ajuste suma', () => {
 
 test('nunca por debajo del gasto en reposo', () => {
   const result = nutritionTargets({ ...ADULT, trainingDays: 1, plan: plan('perder_grasa', -500) })
-  assert.ok(result.kind === 'adult' && result.kcal >= 1780 - 25)
+  assert.ok(result.kcal >= 1780 - 25)
 })
 
-test('menores de 18: sin cifras ni déficit (D-023)', () => {
-  const result = nutritionTargets({ ...ADULT, age: 16, plan: plan('perder_grasa') })
-  assert.equal(result.kind, 'minor')
-  assert.doesNotMatch(result.text, /\d/)
-  assert.match(result.text, /no hace falta comer menos/)
-  assert.equal(proposeAdjustment({ plan: plan('perder_grasa'), age: 16, weightKg: 60, weeks: [] }), null)
+test('grasa entre el 25 y el 30 % de las calorías; carbohidratos, el resto (D-066)', () => {
+  const result = nutritionTargets({ ...ADULT, plan: plan('mantener') })
+  // 2650 × 0,25 / 9 = 73,6 → 75; × 0,30 / 9 = 88,3 → 90.
+  assert.deepEqual(result.fatGrams, [75, 90])
+  // (2650 − 160 × 4 − 90 × 9) / 4 = 300; (2650 − 130 × 4 − 75 × 9) / 4 = 363,75 → 365.
+  assert.deepEqual(result.carbsGrams, [300, 365])
+})
+
+test('menores de 18: las mismas cifras, nunca déficit (D-023, D-066)', () => {
+  const result = nutritionTargets({ ...ADULT, age: 16, plan: plan('perder_grasa', -500) })
+  assert.equal(result.minor, true)
+  assert.ok(result.kcal >= result.maintenanceKcal - 25)
+  assert.match(result.text, /no se come menos/)
+  // Un ajuste a la baja nunca; al alza, sí.
+  assert.equal(proposeAdjustment({ plan: plan('mantener'), age: 16, weightKg: 80, weeks: weeks(78.8, 79.4, 80, 80.6) }), null)
+  assert.equal(proposeAdjustment({ plan: plan('ganar_musculo'), age: 16, weightKg: 80, weeks: weeks(80, 80, 80, 80) })?.deltaKcal, 150)
+})
+
+test('si lo que se come explica el peso, no se cambia el objetivo: se dice (D-066)', () => {
+  const lose = plan('perder_grasa')
+  const slow = { plan: lose, age: 30, weightKg: 80, weeks: weeks(80.6, 80.4, 80.2, 80), targetKcal: 2250 }
+  const over = proposeAdjustment({ ...slow, intake: { averageKcal: 2700, days: 10 } })
+  assert.equal(over?.kind, 'adherence')
+  assert.equal(over?.deltaKcal, 0)
+  assert.match(over!.reason, /comes de media unas 2700 kcal, más que tu objetivo de 2250/)
+  // Pocos días apuntados, o cerca del objetivo: el ajuste de siempre.
+  assert.equal(proposeAdjustment({ ...slow, intake: { averageKcal: 2700, days: 4 } })?.deltaKcal, -150)
+  assert.equal(proposeAdjustment({ ...slow, intake: { averageKcal: 2350, days: 10 } })?.kind, 'adjust')
 })
 
 function weeks(...averages: number[]): WeekWeight[] {

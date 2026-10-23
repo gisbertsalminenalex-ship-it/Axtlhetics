@@ -119,6 +119,7 @@ export function deriveFacts(context: AxisContext): AxisFacts {
     recoveryValue,
     recoveryKnown: recoveryValue !== null,
     recentLowRecovery,
+    lowIntakeYesterday: context.lowIntakeYesterday ?? null,
     fatigueLevel: recoveryInputs?.muscleFatigue ?? null,
     energyLevel: recoveryInputs?.energy ?? null,
     stressLevel: recoveryInputs?.stress ?? null,

@@ -17,6 +17,7 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
     review.averageRecovery !== null ? `recuperación media ${review.averageRecovery}/100` : null,
     review.weight ? `peso medio ${formatKg(review.weight.averageKg)} kg${review.weight.changeKg ? ` (${review.weight.changeKg > 0 ? '+' : '−'}${formatKg(Math.abs(review.weight.changeKg))})` : ''}` : null,
     review.protein ? `proteína ${review.protein.yes} de ${review.protein.answered} días` : null,
+    review.intake ? `${Math.round(review.intake.averageKcal / 50) * 50} kcal de media` : null,
   ].filter(Boolean)
 
   return (

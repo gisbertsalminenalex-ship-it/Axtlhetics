@@ -258,6 +258,31 @@ const highTrainingLoad: Rule = {
 }
 
 /**
+ * Ayer se comió muy poco (D-066): un día completo apuntado por debajo del 70 %
+ * de las calorías objetivo. Sin energía no se rinde ni se recupera: hoy, una
+ * sesión más suave. No manda descansar.
+ */
+const lowIntake: Rule = {
+  id: 'low_intake',
+  evaluate(facts) {
+    const intake = facts.lowIntakeYesterday
+    if (!intake) return null
+    return {
+      type: 'LIGHT_TRAINING',
+      rule: 'low_intake',
+      factors: [
+        {
+          key: 'low_intake',
+          label: 'Comiste poco ayer',
+          detail: `Ayer apuntaste unas ${intake.kcal.toLocaleString('es-ES')} kcal, muy por debajo de tus ${intake.targetKcal.toLocaleString('es-ES')}: hoy, una sesión más suave, y come bien antes de entrenar.`,
+          direction: 'limits',
+        },
+      ],
+    }
+  },
+}
+
+/**
  * Sin la recuperación de hoy (D-049): una sesión normal, avisando, salvo que
  * los días anteriores fueran malos, mañana haya un deporte exigente o la carga
  * esté alta; entonces, ligera como antes. Nunca día fuerte: eso exige datos.
@@ -383,6 +408,7 @@ export const AXIS_RULES: readonly Rule[] = [
   demandingActivityTomorrow,
   notEnoughTime,
   highTrainingLoad,
+  lowIntake,
   unknownRecovery,
   moderateRecovery,
   goodRecovery,

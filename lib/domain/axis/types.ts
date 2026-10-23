@@ -52,6 +52,8 @@ export type AxisFactorKey =
   | 'progression'
   /** Semana de descarga tras varias semanas cargadas (D-031). */
   | 'deload_week'
+  /** Ayer se comió muy por debajo del objetivo (D-066). */
+  | 'low_intake'
   /** Carga de los últimos 7 días alta (D-034). */
   | 'training_load'
   /** Lo que el escaneo corporal pide a las sesiones (D-041). */
@@ -153,6 +155,8 @@ export type AxisContext = {
   withoutEquipmentToday?: boolean
   /** La recuperación registrada de días anteriores a hoy (D-049). */
   recentRecovery?: readonly RecoveryInputs[]
+  /** Ayer, un día completo por debajo del 70 % de las calorías objetivo (D-066). */
+  lowIntakeYesterday?: { kcal: number; targetKcal: number } | null
   /**
    * Los tests de evolución guardados (D-021): modelos del dominio, nunca filas del
    * almacén. AXIS solo deriva de ellos si hoy hubo test y si el siguiente está
@@ -186,6 +190,8 @@ export type AxisFacts = {
    * (D-049). Sin la de hoy, decide si el día es normal o ligero.
    */
   recentLowRecovery: boolean
+  /** Lo que se comió ayer si fue muy poco (D-066). */
+  lowIntakeYesterday: { kcal: number; targetKcal: number } | null
   fatigueLevel: number | null
   energyLevel: number | null
   stressLevel: number | null
