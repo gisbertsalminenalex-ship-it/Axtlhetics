@@ -321,6 +321,8 @@ export function metTarget(exercise: PerformedExercise): boolean {
 export type SessionModificationKind =
   | 'proposal_changed'
   | 'exercise_skipped'
+  /** El usuario cambió el nivel de un ejercicio a mitad de sesión (D-065). */
+  | 'exercise_changed'
   | 'session_shortened'
   | 'session_abandoned'
 

@@ -207,6 +207,11 @@ export type UserProfile = {
    */
   dislikedExercises?: string[]
   /**
+   * El nivel elegido en cada familia de ejercicios (D-065): `familia → id`. AXIS
+   * parte de esa variante y sube cuando se domina. Ausente en los perfiles anteriores.
+   */
+  exerciseLevels?: Record<string, string>
+  /**
    * El material con el que entrena (D-046). Ausente en los perfiles anteriores,
    * que se leen como una pesa de 5 kg (`equipmentOf`).
    */
@@ -388,6 +393,12 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (!isArrayOf(value.availableWeekdays, isWeekday)) return false
   if (value.targets !== undefined && !isArrayOf(value.targets, isGoalTarget)) return false
   if (value.dislikedExercises !== undefined && !isArrayOf(value.dislikedExercises, (item): item is string => typeof item === 'string')) {
+    return false
+  }
+  if (
+    value.exerciseLevels !== undefined &&
+    !(isRecord(value.exerciseLevels) && Object.values(value.exerciseLevels).every((id) => typeof id === 'string'))
+  ) {
     return false
   }
   if (value.equipment !== undefined && !isUserEquipment(value.equipment)) return false

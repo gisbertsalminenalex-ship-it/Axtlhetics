@@ -15,6 +15,7 @@
 
 import type { CareZone, ExperienceLevel, Sex, TrainingGoal } from '../profile/types'
 import { loadsCareZone } from '../workouts/joints'
+import { chosenLevel } from '../workouts/levels'
 import { laggingSubgroups, subgroupsOf, type Subgroup } from '../workouts/subgroups'
 import type { DayKey } from '../shared/dates'
 import { clamp } from '../shared/ids'
@@ -214,6 +215,8 @@ export type SessionBuildOptions = {
    * de la sesión mientras queden suficientes alternativas.
    */
   dislikedExerciseIds?: readonly string[]
+  /** El nivel elegido por el usuario en cada familia (D-065): la variante de partida. */
+  exerciseLevels?: Readonly<Record<string, string>>
   /** Correctivos del escaneo (D-041): se añaden al calentamiento de las sesiones de fuerza, como mucho dos. */
   warmupExtras?: readonly string[]
   /** Con diferencia entre lados, al menos un ejercicio a una mano o una pierna (D-041). */
@@ -921,6 +924,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     priorityExerciseIds = [],
     anchorExerciseIds = [],
     dislikedExerciseIds = [],
+    exerciseLevels = {},
     warmupExtras = [],
     preferUnilateral = false,
     careZones = [],
@@ -980,6 +984,18 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   /** La sesión con `count` ejercicios de entrenamiento (sin contar el salto). */
   // En descarga no se pasa a una variante más difícil: sin historial no hay «dominado».
   const adapt = (exercise: Exercise) => {
+    // El nivel que eligió el usuario manda sobre la dificultad objetivo (D-065): se parte de él
+    // y se sube por la cadena de variantes mientras se domine, como con cualquier otro.
+    const chosen = chosenLevel(exercise, exerciseLevels, { catalog, equipment, careZones })
+    if (chosen) {
+      let level = chosen
+      while (!deload && hasMastered(level, history, gear, goal)) {
+        const harder = variantOf(level, 'harder', catalog, equipment)
+        if (harder === level || !cares(harder)) break
+        level = harder
+      }
+      return level
+    }
     const variant = adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal })
     // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051).
     return cares(variant) ? variant : exercise

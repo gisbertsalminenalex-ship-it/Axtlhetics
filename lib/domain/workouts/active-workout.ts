@@ -33,7 +33,7 @@ import type {
   WarmupPart,
 } from './types'
 import { isExercisePhase, isMainExercise, isRepsInReserve, isWarmupPart, usesLoad, volumeOfSession } from './types'
-import type { RepsInReserve } from './types'
+import type { Exercise, RepsInReserve } from './types'
 import { findExercise } from './catalog'
 import { nextSetAfter, targetReserveFor } from './strength'
 
@@ -363,6 +363,55 @@ export function completeWork(workout: ActiveWorkout, now: Date = new Date()): Ac
 /** Para el cronómetro sin registrar nada. */
 export function cancelWork(workout: ActiveWorkout): ActiveWorkout {
   return workout.work ? { ...workout, work: null } : workout
+}
+
+/** `true` si el ejercicio en curso admite cambiar de nivel: entrenamiento y aún sin series (D-065). */
+export function canChangeLevel(workout: ActiveWorkout): boolean {
+  const entry = currentEntry(workout)
+  return entry !== null && !entry.phase && entry.sets.length === 0 && !workout.work
+}
+
+/**
+ * Cambia el ejercicio en curso por otra variante de su familia (D-065), con
+ * su propio trabajo. Las series y el descanso del objetivo se conservan de la
+ * propuesta salvo lo que dependa del ejercicio. Queda constancia en la sesión.
+ */
+export function changeExercise(
+  workout: ActiveWorkout,
+  replacement: {
+    exercise: Pick<Exercise, 'id' | 'name' | 'imageUrl' | 'unilateral' | 'work'>
+    sets: number
+    reps: number
+    weightKg: number | null
+    /** Los pesos del usuario para el ejercicio nuevo (D-055). */
+    loads: number[]
+  },
+): ActiveWorkout {
+  const entry = currentEntry(workout)
+  if (!entry || !canChangeLevel(workout) || entry.exerciseId === replacement.exercise.id) return workout
+
+  const { exercise } = replacement
+  const updated = replaceEntry(workout, workout.exerciseIndex, (current) => {
+    const { loads: _loads, reserve: _reserve, ...rest } = current
+    return {
+      ...rest,
+      exerciseId: exercise.id,
+      name: exercise.name,
+      imageUrl: exercise.imageUrl,
+      isTimed: exercise.work.isTimed,
+      unilateral: exercise.unilateral,
+      targetSets: replacement.sets,
+      targetReps: replacement.reps,
+      reps: replacement.reps,
+      weightKg: replacement.weightKg,
+      ...withLoads(replacement.weightKg === null ? [] : replacement.loads),
+    }
+  })
+
+  return {
+    ...updated,
+    modifications: [...workout.modifications, { kind: 'exercise_changed', detail: `${entry.name} → ${exercise.name}.` }],
+  }
 }
 
 /** Pasa al siguiente ejercicio dejando constancia de que se saltó. */

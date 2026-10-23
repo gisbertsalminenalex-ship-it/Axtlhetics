@@ -2231,6 +2231,18 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ---
 
+## D-065 — El nivel de cada ejercicio lo puedes cambiar
+
+**Fecha:** 2026-10-23 · **Estado:** aprobada e implementada · Decidido por Alex: «que salga el nivel que AXTHLETICS ha recomendado, pero puedas cambiar de nivel: si salen flexiones inclinadas, poner flexiones con rodilla». Todas las familias del catálogo, y AXIS recuerda el nivel, elegidos por Alex. **Amplía** D-020 (familias y variantes) y D-046 (progresión).
+
+- **En el entreno en curso**, debajo del ejercicio, la fila **«Nivel»** muestra las variantes de su familia (D-020.1), de la más accesible a la más exigente. Viene marcada la que propuso AXIS y solo salen las que se pueden hacer con el material de hoy y sin cargar una zona a cuidar (D-051). Sirve para las 16 familias: flexiones, sentadillas, dominadas, zancadas, remo, plancha… (`lib/domain/workouts/levels.ts`, `components/workout/level-picker.tsx`).
+- **Se cambia antes de la primera serie** de ese ejercicio y nunca en el calentamiento. La variante nueva llega con el trabajo que AXIS le pondría hoy (`suggestWorkFor`), sus instrucciones y sus pesos. La sesión guarda `exercise_changed` («Flexiones inclinadas → Flexiones con rodillas.»), y lo hecho queda con el ejercicio nuevo.
+- **AXIS lo recuerda**: `UserProfile.exerciseLevels` guarda `familia → ejercicio`. En las siguientes sesiones esa variante **sustituye a la dificultad objetivo** como punto de partida. Desde ahí AXIS **sube por la cadena de variantes mientras se domine** (`hasMastered`; nunca en descarga), como con cualquier otro ejercicio. Una elección que hoy no se puede hacer (material, zona a cuidar) se ignora.
+- Se debe a que el usuario lo eligió a propósito, así que entra aunque esté entre los que no gustan (D-037).
+- Las series de aproximación ya calculadas no se rehacen al cambiar.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

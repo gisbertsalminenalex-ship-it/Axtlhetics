@@ -28,6 +28,7 @@ import {
   type RestState,
 } from '@/lib/domain/workouts/active-workout'
 import { findExercise } from '@/lib/domain/workouts/catalog'
+import { LevelPicker } from '@/components/workout/level-picker'
 import { formatKg, formatSets, lastPerformedExercise } from '@/lib/domain/workouts/history'
 import { phaseLabel, REPS_IN_RESERVE_LABELS, REPS_IN_RESERVE_ORDER, type RepsInReserve } from '@/lib/domain/workouts/types'
 import { formatDuration } from '@/lib/domain/shared/dates'
@@ -44,6 +45,8 @@ export function EntrenamientoActivo() {
     completeSet,
     undoLastSet,
     skipExercise,
+    levelOptions,
+    changeExerciseLevel,
     skipRest,
     extendRest,
     setReserve,
@@ -253,6 +256,13 @@ export function EntrenamientoActivo() {
               )
             )}
           </div>
+
+          <LevelPicker
+            options={levelOptions}
+            currentId={entry.exerciseId}
+            recommendedId={activeWorkout.plan.exercises[activeWorkout.exerciseIndex]?.exerciseId ?? null}
+            onChange={(exerciseId) => void changeExerciseLevel(exerciseId)}
+          />
 
           {/* Carga y repeticiones. Sin pesa no hay kilos que poner: solo repeticiones o segundos. */}
           <div className={cn('mt-6 grid gap-3', takesWeight(entry) ? 'grid-cols-2' : 'grid-cols-1')}>

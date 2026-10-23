@@ -48,7 +48,9 @@ import {
 } from '../domain/axis/actions'
 import { projectWeek, type WeekDayView } from '../domain/axis/week-view'
 import { buildAxisContext, gearToday } from '../domain/axis/context'
-import { loadsFor } from '../domain/workouts/equipment'
+import { availableEquipment, equipmentOf, loadsFor } from '../domain/workouts/equipment'
+import { levelOptions } from '../domain/workouts/levels'
+import { suggestWorkFor } from '../domain/axis/session-builder'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
 import { computeHistoryStats, weeklyActivityFor, type HistoryRange, type HistoryStats } from '../domain/history/stats'
@@ -79,6 +81,8 @@ import {
   markProposalChanged,
   reconcileStoredWorkout,
   setReserve as setReserveIn,
+  canChangeLevel,
+  changeExercise as changeExerciseIn,
   skipExercise as skipExerciseIn,
   skipRest as skipRestIn,
   startWork as startWorkIn,
@@ -121,7 +125,7 @@ import {
 import { EXERCISE_CATALOG, findExercise } from '../domain/workouts/catalog'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
-import type { RepsInReserve, WorkoutSession } from '../domain/workouts/types'
+import type { Exercise, RepsInReserve, WorkoutSession } from '../domain/workouts/types'
 
 /** Cuántas sesiones carga la aplicación. Suficiente para historial y para AXIS. */
 const SESSION_HISTORY_LIMIT = 200
@@ -311,6 +315,10 @@ type AxtlheticsStore = {
   /** Deshace la última serie registrada (D-019). */
   undoLastSet(): void
   skipExercise(): void
+  /** Las variantes a las que se puede cambiar el ejercicio en curso (D-065); vacío si no hay o ya no se puede. */
+  levelOptions: Exercise[]
+  /** Cambia el ejercicio en curso a otra variante de su familia y recuerda el nivel (D-065). */
+  changeExerciseLevel(exerciseId: string): Promise<void>
   /** Termina el descanso ahora (D-019). */
   skipRest(): void
   /** Añade 15 s al descanso en curso (D-019). */
@@ -684,6 +692,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         // El formulario no edita los objetivos (D-035) ni lo que no gusta (D-037): se conservan.
         ...(profile?.targets ? { targets: profile.targets } : {}),
         ...(profile?.dislikedExercises ? { dislikedExercises: profile.dislikedExercises } : {}),
+        ...(profile?.exerciseLevels ? { exerciseLevels: profile.exerciseLevels } : {}),
         // Ni la alimentación (D-061), que tiene sus propias acciones.
         ...(profile?.nutrition ? { nutrition: profile.nutrition } : {}),
         id: PRIMARY_PROFILE_ID,
@@ -698,7 +707,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setError('No se pudo guardar tu perfil en este dispositivo.')
       }
     },
-    [profile?.createdAt, profile?.targets, profile?.dislikedExercises, profile?.nutrition],
+    [profile?.createdAt, profile?.targets, profile?.dislikedExercises, profile?.exerciseLevels, profile?.nutrition],
   )
 
   /**
@@ -1001,6 +1010,47 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const skipExercise = useCallback(
     () => updateActiveWorkout(skipExerciseIn),
     [updateActiveWorkout],
+  )
+
+  /** El material de hoy: el del perfil, salvo que hoy se entrene sin él (D-046). */
+  const gearNow = useMemo(() => (axisContext ? gearToday(axisContext) : equipmentOf(profile)), [axisContext, profile])
+
+  const currentLevelOptions = useMemo(() => {
+    const entry = activeWorkout ? activeWorkout.entries[activeWorkout.exerciseIndex] : undefined
+    const exercise = entry ? findExercise(entry.exerciseId) : null
+    if (!activeWorkout || !exercise || !canChangeLevel(activeWorkout)) return []
+    return levelOptions(exercise, { equipment: availableEquipment(gearNow), careZones: profile?.careZones ?? [] })
+  }, [activeWorkout, gearNow, profile?.careZones])
+
+  /**
+   * Cambia el nivel del ejercicio en curso (D-065): la variante nueva con el
+   * trabajo que AXIS le pondría hoy, y el nivel queda guardado para su familia.
+   */
+  const changeExerciseLevel = useCallback(
+    async (exerciseId: string) => {
+      const current = workoutRef.current
+      const exercise = findExercise(exerciseId)
+      if (!current || !exercise || !profile || !canChangeLevel(current)) return
+      const work = suggestWorkFor(exercise, {
+        intensity: current.plan.intensity,
+        goal: current.plan.goal,
+        experience: profile.experience,
+        history: sessions,
+        deload: current.plan.deload ?? false,
+        gear: gearNow,
+        sex: profile.sex ?? null,
+      })
+      replaceActiveWorkout(
+        changeExerciseIn(current, { exercise, sets: work.sets, reps: work.reps, weightKg: work.weightKg, loads: loadsFor(exercise, gearNow) }),
+      )
+      const family = exercise.family
+      if (!family) return
+      await updateProfile(
+        (stored) => ({ ...stored, exerciseLevels: { ...(stored.exerciseLevels ?? {}), [family]: exercise.id } }),
+        'No se pudo guardar el nivel en este dispositivo.',
+      )
+    },
+    [profile, sessions, gearNow, replaceActiveWorkout, updateProfile],
   )
 
   const skipRest = useCallback(
@@ -1512,6 +1562,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       completeSet,
       undoLastSet,
       skipExercise,
+      levelOptions: currentLevelOptions,
+      changeExerciseLevel,
       skipRest,
       extendRest,
       setReserve,
@@ -1587,6 +1639,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       completeSet,
       undoLastSet,
       skipExercise,
+      currentLevelOptions,
+      changeExerciseLevel,
       skipRest,
       extendRest,
       setReserve,
