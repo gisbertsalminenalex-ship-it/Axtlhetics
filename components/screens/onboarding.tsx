@@ -6,6 +6,9 @@ import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { SexPicker } from '@/components/profile/about-you'
 import { BackgroundPicker, HealthNote } from '@/components/profile/screening'
+import { BaselinePicker, startingTape } from '@/components/profile/baseline'
+import { goalMeasures, needsBaseline } from '@/lib/domain/body/goal-measures'
+import type { PerimeterKey } from '@/lib/domain/body/measurements'
 import {
   ChoiceGroup,
   FieldLabel,
@@ -91,6 +94,7 @@ type StepId =
   | 'duration'
   | 'equipment'
   | 'body'
+  | 'baseline'
   | 'care'
   | 'health'
   | 'sports'
@@ -106,7 +110,7 @@ type Step = {
 }
 
 export function OnboardingScreen() {
-  const { saveProfile, addActivity, readHealthNote } = useAxtlhetics()
+  const { saveProfile, saveBaseline, addActivity, readHealthNote } = useAxtlhetics()
 
   const [draft, setDraft] = useState<UserProfileDraft>(DEFAULT_DRAFT)
   const [sports, setSports] = useState<SportDraft[]>([])
@@ -115,6 +119,9 @@ export function OnboardingScreen() {
   const [saving, setSaving] = useState(false)
   // Una nota de salud escrita y aún sin leer no deja avanzar (D-064).
   const [healthPending, setHealthPending] = useState(false)
+  // El punto de partida (D-067): `undefined` sin elegir, `null` si se mide luego.
+  const [tape, setTape] = useState<Partial<Record<PerimeterKey, number>> | null | undefined>(undefined)
+  const measures = useMemo(() => goalMeasures(draft.goals), [draft.goals])
 
   /**
    * Los pasos se recalculan a partir de los deportes añadidos: añadir uno inserta
@@ -185,6 +192,18 @@ export function OnboardingScreen() {
         hint: 'Contexto para AXIS. Puedes cambiarlo cuando quieras.',
         canContinue: true,
       },
+      // El punto de partida de lo que piden los objetivos (D-067), si piden algo.
+      ...(needsBaseline(measures)
+        ? [
+            {
+              key: 'baseline',
+              id: 'baseline' as const,
+              question: 'Tu punto de partida',
+              hint: 'Lo que vas a querer comparar. Cada mes te pediré repetirlo para ver cuánto has cambiado.',
+              canContinue: measures.perimeters.length === 0 || tape !== undefined,
+            },
+          ]
+        : []),
       {
         key: 'care',
         id: 'care',
@@ -225,7 +244,7 @@ export function OnboardingScreen() {
     ])
 
     return [...base, ...perSport]
-  }, [draft.name, draft.goals, draft.availableWeekdays, draft.background, draft.health, healthPending, sports])
+  }, [draft.name, draft.goals, draft.availableWeekdays, draft.background, draft.health, healthPending, measures, tape, sports])
 
   const safeIndex = Math.min(index, steps.length - 1)
   const step = steps[safeIndex]
@@ -282,6 +301,12 @@ export function OnboardingScreen() {
 
     setSaving(true)
     await saveProfile({ ...draft, name: draft.name.trim() })
+    // El punto de partida (D-067): el peso que se puso y, si se midió, la cinta.
+    if (measures.weight || tape) {
+      const taped = { ...startingTape(measures), ...tape }
+      const perimeters = tape ? Object.fromEntries(measures.perimeters.map((key) => [key, taped[key]])) : {}
+      await saveBaseline(measures.weight ? draft.weightKg : null, perimeters)
+    }
 
     // Cada par (deporte × día) es una actividad del calendario. Sin hora: en el
     // onboarding se pregunta qué días y cuánto carga, no a qué hora.
@@ -454,6 +479,10 @@ export function OnboardingScreen() {
                 onChange={(weightKg) => patch({ weightKg })}
               />
             </div>
+          )}
+
+          {step.id === 'baseline' && (
+            <BaselinePicker measures={measures} weightKg={draft.weightKg} tape={tape} onTape={setTape} />
           )}
 
           {step.id === 'care' && (

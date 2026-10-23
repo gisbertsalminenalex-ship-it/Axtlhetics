@@ -20,6 +20,8 @@
 import type { Assessment } from '../assessment/types'
 import type { UserProfile } from '../profile/types'
 import { needsMedicalClearance } from '../profile/screening'
+import { monthlyCheckDue, monthlyCheckText } from '../body/goal-measures'
+import type { BodyMeasurement } from '../body/measurements'
 import { reviewHeadline, type WeeklyReview } from './weekly-review'
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import { findExercise } from '../workouts/catalog'
@@ -29,7 +31,14 @@ import { MUSCLE_GROUP_LABELS, type Exercise, type WorkoutSession } from '../work
 import { laggingGroup, weeklyVolume } from '../workouts/weekly-volume'
 import { weeklySetTotals } from '../workouts/progress'
 
-export type ProactiveKind = 'health_check' | 'discomfort' | 'weekly_summary' | 'deload' | 'goal_behind' | 'register_recovery'
+export type ProactiveKind =
+  | 'health_check'
+  | 'discomfort'
+  | 'weekly_summary'
+  | 'deload'
+  | 'monthly_check'
+  | 'goal_behind'
+  | 'register_recovery'
 
 export type ProactiveNote = { kind: ProactiveKind; text: string }
 
@@ -46,6 +55,8 @@ export type ProactiveInput = {
   assessments?: readonly Assessment[]
   /** La revisión de la semana pasada (D-059): el lunes, su resumen es la nota. */
   review?: WeeklyReview | null
+  /** Peso y medidas (D-060): con ellos, la revisión del mes (D-067). */
+  measurements?: readonly BodyMeasurement[]
 }
 
 export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
@@ -98,6 +109,22 @@ export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
     return {
       kind: 'deload',
       text: `Esta semana es de descarga: una serie menos por ejercicio y sin subir. Llevas cuatro semanas seguidas; ahora toca asimilarlas.${testedThisBlock ? '' : ' Es buen momento para repetir el test de evolución y cerrar el bloque.'}`,
+    }
+  }
+
+  // La revisión del mes (D-067): lo que piden los objetivos, cada 28 días.
+  if (profile) {
+    const check = monthlyCheckDue({
+      goals: profile.goals,
+      records: input.measurements ?? [],
+      assessments: input.assessments ?? [],
+      today: dayKey,
+    })
+    if (check) {
+      const firstTime =
+        (input.measurements ?? []).every((record) => Object.keys(record.perimeters).length === 0) &&
+        !(input.assessments ?? []).some((assessment) => assessment.status === 'completed')
+      return { kind: 'monthly_check', text: monthlyCheckText(check, firstTime) }
     }
   }
 

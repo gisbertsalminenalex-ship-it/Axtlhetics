@@ -66,8 +66,8 @@ test('los perímetros: lo último de cada zona, el cambio y cuándo toca medir',
   const records = [tape('2026-10-01', 82), weighIn('2026-10-10', 70), tape('2026-10-15', 80.5)]
   assert.deepEqual(latestPerimeters(records).cintura, { dayKey: '2026-10-15', cm: 80.5 })
   assert.deepEqual(perimeterChanges(records).cintura, { from: 82, to: 80.5 })
-  assert.equal(perimetersDue(records, '2026-10-28'), false)
-  assert.equal(perimetersDue(records, '2026-10-29'), true)
+  assert.equal(perimetersDue(records, '2026-11-11'), false)
+  assert.equal(perimetersDue(records, '2026-11-12'), true)
   assert.equal(perimetersDue([weighIn('2026-10-10', 70)], TODAY), true, 'nunca se midió')
 })
 

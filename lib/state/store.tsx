@@ -229,6 +229,8 @@ type AxtlheticsStore = {
   saveWeight(weightKg: number): Promise<void>
   /** Apunta los perímetros de hoy (en cm). */
   savePerimeters(perimeters: Partial<Record<PerimeterKey, number>>): Promise<void>
+  /** El punto de partida del onboarding (D-067): el peso y los perímetros, en un solo registro. */
+  saveBaseline(weightKg: number | null, perimeters: Partial<Record<PerimeterKey, number>>): Promise<void>
   /** Apunta si hoy llegó a su proteína (D-061). */
   saveProteinCheck(reached: boolean): Promise<void>
   /** Las cifras de alimentación de hoy (D-061, D-066), o `null` sin objetivo elegido. */
@@ -693,9 +695,10 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             discomfortsYesterday: (yesterdayMemory?.discomforts ?? []).map((item) => item.zone),
             recoveryRegistered: recoveryScore.status === 'ok',
             assessments: assessments.assessments,
+            measurements,
           })
         : null,
-    [status, today, profile, sessions, yesterdayMemory, recoveryScore.status, assessments.assessments, weeklyReview],
+    [status, today, profile, sessions, yesterdayMemory, recoveryScore.status, assessments.assessments, weeklyReview, measurements],
   )
 
   const axisSuggestions = useMemo(
@@ -1474,6 +1477,15 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     [updateTodayMeasurement],
   )
 
+  const saveBaseline = useCallback(
+    (weightKg: number | null, perimeters: Partial<Record<PerimeterKey, number>>) =>
+      updateTodayMeasurement((current) => {
+        const withTape = withPerimeters(current, perimeters, nowIso())
+        return weightKg === null ? withTape : withWeight(withTape, weightKg, nowIso())
+      }),
+    [updateTodayMeasurement],
+  )
+
   const saveProteinCheck = useCallback(
     (reached: boolean) => updateTodayMeasurement((current) => withProtein(current, reached, nowIso())),
     [updateTodayMeasurement],
@@ -1575,6 +1587,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       measurements,
       saveWeight,
       savePerimeters,
+      saveBaseline,
       saveProteinCheck,
       nutritionTargets,
       addMeal,
@@ -1655,6 +1668,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       measurements,
       saveWeight,
       savePerimeters,
+      saveBaseline,
       saveProteinCheck,
       nutritionTargets,
       addMeal,

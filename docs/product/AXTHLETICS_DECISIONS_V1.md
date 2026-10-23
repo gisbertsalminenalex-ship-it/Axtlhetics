@@ -2258,6 +2258,28 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ---
 
+## D-067 — El punto de partida y la revisión del mes
+
+**Fecha:** 2026-10-23 · **Estado:** aprobada e implementada · Decidido por Alex: «que dependiendo de los objetivos que marques, AXTHLETICS te pida unas medidas para ver la comparación en el futuro, y que cada mes te pida repetirlas». Las medidas por objetivo y la revisión mensual todo junto, elegidas por Alex. **Amplía** D-060 (cambia su cinta de 14 a 28 días), D-021 y D-038.
+
+- **Qué pide cada objetivo de entreno** (`lib/domain/body/goal-measures.ts`, `goalMeasures`). Con varios objetivos se juntan, sin repetir:
+  - **Ganar masa muscular**: peso, pecho, brazo y muslo.
+  - **Salud general**: peso y cintura.
+  - **Fuerza, resistencia, rendimiento deportivo**: el test de evolución (D-021).
+  - **Movilidad, técnica**: nada.
+- **Onboarding**: después de «¿Cuánto mides y cuánto pesas?», si los objetivos piden algo, llega el paso **«Tu punto de partida»** (`components/profile/baseline.tsx`):
+  - El peso de partida es el que se acaba de poner.
+  - Para los perímetros hay que elegir **«Medir ahora»** (con dónde medir cada uno) o **«Lo mido luego»**, para no guardar como medida un valor que no se midió.
+  - El test no se hace aquí: se anuncia en «Tu evaluación inicial».
+  - Se guarda en un solo registro del día (`saveBaseline`).
+- **Cada 28 días**, el mismo intervalo que el test, toca la **revisión del mes** (`monthlyCheckDue`): los perímetros del objetivo con el peso, y el test si toca.
+  - AXIS lo dice con una nota (D-038, tipo `monthly_check`) después de la descarga y antes de los objetivos medibles: «Toca tu revisión del mes: pésate y mide pecho, brazo y muslo…».
+  - Si nunca se midió, la nota dice «Falta tu punto de partida…».
+  - La cinta de D-060 pasa de 14 a **28 días**.
+- **La comparación**: en «Tu cuerpo», **«Tu evolución»** muestra cada medida del objetivo del primer día a hoy, con lo cambiado desde el principio y en el último mes (`goalEvolution`; el mes anterior es la última medida al menos 21 días antes de la actual). El test de evolución se sigue comparando en su resumen y en el cierre del bloque (D-062).
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -11,6 +11,7 @@ import {
   PERIMETER_LABELS,
   PERIMETER_LIMITS,
   PERIMETER_ORDER,
+  PERIMETER_START,
   perimeterChanges,
   perimetersDue,
   WEIGHT_LIMITS,
@@ -18,18 +19,18 @@ import {
   weeklyWeights,
   type PerimeterKey,
 } from '@/lib/domain/body/measurements'
+import { goalEvolution, type MeasureEvolution } from '@/lib/domain/body/goal-measures'
 import { formatShortDate } from '@/lib/domain/shared/dates'
 import { useAxtlhetics } from '@/lib/state/store'
 
-/** Valores de partida de la cinta cuando aún no hay ninguna medida: el centro de un rango común. */
-const PERIMETER_START: Record<PerimeterKey, number> = { cintura: 80, cadera: 95, pecho: 95, brazo: 30, muslo: 55 }
-
 /**
  * Tu cuerpo (D-060), dentro de «Tu progreso»: el peso de hoy, la media de cada
- * semana y las medidas con cinta cada dos semanas.
+ * semana, la evolución de lo que piden tus objetivos (D-067) y las medidas con
+ * cinta, una vez al mes.
  */
 export function BodySection() {
   const { profile, measurements, today, saveWeight, savePerimeters } = useAxtlhetics()
+  const evolution = goalEvolution(profile?.goals ?? [], measurements)
   const todayRecord = measurements.find((record) => record.dayKey === today) ?? null
   const [weight, setWeight] = useState(() => todayRecord?.weightKg ?? currentWeight(measurements, profile?.weightKg ?? 70))
   const latest = latestPerimeters(measurements)
@@ -90,7 +91,18 @@ export function BodySection() {
         </>
       )}
 
-      {/* Medidas con cinta, cada dos semanas. */}
+      {evolution.length > 0 && (
+        <>
+          <p className="mt-6 text-[13px] font-medium">Tu evolución</p>
+          <ul className="mt-2 divide-y divide-border">
+            {evolution.map((item) => (
+              <EvolutionRow key={item.key} item={item} />
+            ))}
+          </ul>
+        </>
+      )}
+
+      {/* Medidas con cinta, una vez al mes (D-067). */}
       <div className="mt-6 flex items-baseline justify-between gap-3">
         <span className="text-[13px] font-medium">Medidas</span>
         <span className="text-[12px] text-muted-foreground">
@@ -169,5 +181,29 @@ export function BodySection() {
         </button>
       )}
     </>
+  )
+}
+
+const number = (value: number) => (Math.round(value * 10) / 10).toLocaleString('es-ES')
+const signed = (value: number) => {
+  const rounded = Math.round(value * 10) / 10
+  return rounded === 0 ? '=' : `${rounded > 0 ? '+' : '−'}${Math.abs(rounded).toLocaleString('es-ES')}`
+}
+
+/** Una medida de tus objetivos: del primer día a hoy, y cuánto en el último mes (D-067). */
+function EvolutionRow({ item }: { item: MeasureEvolution }) {
+  return (
+    <li className="py-2.5">
+      <div className="flex items-baseline justify-between gap-3 text-[14px]">
+        <span>{item.label}</span>
+        <span className="tabular-nums">
+          {number(item.first.value)} → <span className="font-semibold">{number(item.latest.value)}</span> {item.unit}
+        </span>
+      </div>
+      <p className="mt-0.5 text-right text-[12.5px] tabular-nums text-muted-foreground">
+        {signed(item.latest.value - item.first.value)} desde el principio
+        {item.previous ? ` · ${signed(item.latest.value - item.previous.value)} en el último mes` : ''}
+      </p>
+    </li>
   )
 }

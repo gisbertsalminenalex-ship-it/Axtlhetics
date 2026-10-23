@@ -50,8 +50,11 @@ export type BodyMeasurement = {
 export const WEIGHT_LIMITS = { min: 25, max: 250 } as const
 export const PERIMETER_LIMITS = { min: 10, max: 250 } as const
 
-/** Cada cuántos días toca volver a medir con cinta. */
-export const PERIMETER_INTERVAL_DAYS = 14
+/** Cada cuántos días toca volver a medir con cinta: una vez al mes, con la revisión (D-067). */
+export const PERIMETER_INTERVAL_DAYS = 28
+
+/** Dónde empieza la cinta cuando aún no hay ninguna medida: el centro de un rango común. */
+export const PERIMETER_START: Record<PerimeterKey, number> = { cintura: 80, cadera: 95, pecho: 95, brazo: 30, muslo: 55 }
 
 export function emptyMeasurement(dayKey: DayKey, updatedAt: string): BodyMeasurement {
   return { dayKey, weightKg: null, perimeters: {}, updatedAt }
@@ -166,7 +169,7 @@ export function perimeterChanges(records: readonly BodyMeasurement[]): Partial<R
   return result
 }
 
-/** `true` si toca medir con cinta: nunca se hizo o la última fue hace 14 días o más. */
+/** `true` si toca medir con cinta: nunca se hizo o la última fue hace 28 días o más (D-067). */
 export function perimetersDue(records: readonly BodyMeasurement[], today: DayKey): boolean {
   const last = sortMeasurements(records)
     .reverse()

@@ -47,6 +47,14 @@ const PROFILE: UserProfile = {
   updatedAt: '2026-09-01T09:00:00.000Z',
 }
 
+/** Medido hace unos días: la revisión del mes (D-067) no toca. */
+const TAPED = (dayKey: string) => ({
+  dayKey,
+  weightKg: 68,
+  perimeters: { brazo: 30, pecho: 92, muslo: 52 },
+  updatedAt: `${dayKey}T08:00:00.000Z`,
+})
+
 function input(partial: Partial<ProactiveInput> = {}): ProactiveInput {
   return {
     dayKey: WEDNESDAY,
@@ -55,6 +63,7 @@ function input(partial: Partial<ProactiveInput> = {}): ProactiveInput {
     catalog: EXERCISE_CATALOG,
     discomfortsYesterday: [],
     recoveryRegistered: true,
+    measurements: [TAPED(addDays(WEDNESDAY, -5))],
     ...partial,
   }
 }
@@ -89,4 +98,24 @@ test('D-038: el primer día de una semana de descarga se avisa; el resto de la s
   assert.equal(proactiveNote(input({ dayKey: WEDNESDAY, sessions: loaded }))?.kind, 'deload')
   const trainedThisWeek = [...loaded, session(MONDAY)]
   assert.notEqual(proactiveNote(input({ dayKey: WEDNESDAY, sessions: trainedThisWeek }))?.kind, 'deload')
+})
+
+test('D-067: la revisión del mes pide lo que tocan los objetivos, cada 28 días', () => {
+  // Masa muscular sin medidas nunca: falta el punto de partida.
+  const first = proactiveNote(input({ measurements: [] }))
+  assert.equal(first?.kind, 'monthly_check')
+  assert.equal(first?.text, 'Falta tu punto de partida: pésate y mide pecho, brazo y muslo. Así cada mes verás cuánto has cambiado.')
+
+  // Medido hace 28 días: toca la revisión.
+  const month = proactiveNote(input({ measurements: [TAPED(addDays(WEDNESDAY, -28))] }))
+  assert.equal(month?.kind, 'monthly_check')
+  assert.match(month!.text, /^Toca tu revisión del mes: pésate y mide pecho, brazo y muslo/)
+  assert.equal(proactiveNote(input({ measurements: [TAPED(addDays(WEDNESDAY, -27))] })), null)
+
+  // Fuerza: el test de evolución.
+  const strength = proactiveNote(input({ profile: { ...PROFILE, goals: ['fuerza'] }, measurements: [] }))
+  assert.equal(strength?.text, 'Falta tu punto de partida: haz el test de evolución. Así cada mes verás cuánto has cambiado.')
+
+  // Movilidad o técnica no piden nada.
+  assert.equal(proactiveNote(input({ profile: { ...PROFILE, goals: ['movilidad', 'tecnica'] }, measurements: [] })), null)
 })
