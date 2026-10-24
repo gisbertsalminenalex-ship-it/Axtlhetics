@@ -2311,7 +2311,7 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ## D-070 — La IA es la voz de AXIS
 
-**Fecha:** 2026-10-24 · **Estado:** aprobada e implementada (bloques 1 y 2 de 3) · Decidido por Alex: «no me gusta como contesta… quiero que funcione como Mentax»: suena robótico, no se acuerda, no entiende y la longitud no encaja. Eligió «la IA como voz» y que la IA vea resúmenes del escáner y del test, nunca fotos. **Matiza** D-016, D-027, D-028, D-030 y D-042: el motor sigue decidiendo; lo que cambia es quién habla.
+**Fecha:** 2026-10-24 · **Estado:** aprobada e implementada (bloques 1, 2 y 3) · Decidido por Alex: «no me gusta como contesta… quiero que funcione como Mentax»: suena robótico, no se acuerda, no entiende y la longitud no encaja. Eligió «la IA como voz» y que la IA vea resúmenes del escáner y del test, nunca fotos. **Matiza** D-016, D-027, D-028, D-030 y D-042: el motor sigue decidiendo; lo que cambia es quién habla.
 
 - **El motor fija el fondo, la IA escribe.** `domain.text` ya no es un texto que reescribir: su veredicto, el cambio propuesto y las cifras son obligatorios, y la IA contesta con sus palabras a lo que se ha preguntado (`aiSystemPrompt`). La acción sigue pasando por `reconcileTarget`, `validateAction` y el botón de confirmar.
 - **Contesta casi todo**: a lo de D-027/D-030/D-042 se suman lo que toca hoy, ayer, el partido de mañana, el deporte de hoy, lo ya cambiado, acortar y las preferencias. Lo médico y lo ajeno siguen en el determinista; el test y el escáner, hasta el bloque 2.
@@ -2334,7 +2334,12 @@ La IA no guarda nada; la app le manda con cada pregunta `briefing.memory` (`lib/
 
 Sus cifras y frases respaldan lo que dice la IA en la puerta de seguridad. Con ellas, las preguntas sobre el **test** y el **escáner** pasan a la IA (revoca para ellas «nada del escaneo sale del dispositivo» en su forma de resumen, por decisión de Alex). Lo médico y lo ajeno siguen en el determinista.
 
-Pendiente: bloque 3 (protección contra instrucciones en el texto del usuario, respuesta de crisis con 024/112 y límite de uso).
+### Bloque 3: protección
+
+- **Contra trucos**: lo del usuario (la pregunta, sus mensajes de hoy y la memoria) es dato, no orden. El prompt lo dice (`DATA_RULE`) y los mensajes anteriores del usuario viajan dentro de un JSON `{"question"}`, nunca como texto suelto.
+- **Riesgo para la vida** (`conversation/crisis.ts`): si habla de hacerse daño o de no querer vivir, antes que nada y **sin pasar por la IA**, siempre el mismo texto revisado: que lo hable con alguien, el **024** (gratis, a cualquier hora) y el **112** si está en peligro, y un adulto de confianza. Lista de frases concretas: no salta con «me muero de agujetas» ni «esta rutina me mata».
+- **Temas serios** (tristeza que dura, ansiedad, problemas en casa o en clase, no comer): la IA contesta con cuidado, sin diagnosticar, y anima a hablarlo con un adulto de confianza o un profesional (`SERIOUS_RULE`).
+- **Límite de uso** (`lib/ai/rate-limit.ts`): **40 peticiones cada 10 minutos por persona**, en la ruta, con el Redis de los avisos (D-044). La persona es un resumen de su IP, que no se guarda. Pasado el límite, la ruta responde `RATE_LIMITED` (429) y contesta el determinista. Sin Redis o si Redis falla, se deja pasar; el firewall de Vercel (`RATE_LIMIT`) sigue por delante.
 
 ---
 

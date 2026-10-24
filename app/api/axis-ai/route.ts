@@ -33,6 +33,8 @@ import {
   type AxisAiErrorCode,
 } from '../../../lib/ai/provider-contract'
 import type { ProviderEnv } from '../../../lib/ai/providers/types'
+import { clientKeyOf, createRateLimiter } from '../../../lib/ai/rate-limit'
+import { storeConfigFromEnv } from '../../../lib/push/store'
 
 /**
  * Configuración del route handler (Vercel Functions, runtime Node.js).
@@ -60,6 +62,18 @@ function providerEnv(): ProviderEnv {
   }
 }
 
+/** El límite de uso, con el Redis de los avisos de entreno (D-044) si está configurado. */
+function rateLimiter() {
+  return createRateLimiter(
+    storeConfigFromEnv({
+      KV_REST_API_URL: process.env.KV_REST_API_URL,
+      KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN,
+      UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+      UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    }),
+  )
+}
+
 /** El host donde está sirviendo la ruta. Una petición del mismo sitio siempre cuadra con él. */
 function hostOfRequest(request: Request): string | null {
   try {
@@ -83,7 +97,8 @@ export async function POST(request: Request): Promise<Response> {
    *
    * No es autenticación —`Origin` se puede escribir a mano— sino la defensa que
    * corta lo fácil. Contra lo demás está el límite de tasa del firewall de
-   * Vercel, que se configura en el panel del proyecto (ver `RATE_LIMIT`).
+   * Vercel, que se configura en el panel del proyecto (ver `RATE_LIMIT`), y el
+   * límite por persona de `lib/ai/rate-limit.ts` (D-070), más abajo.
    */
   const trusted = trustedOriginsFromEnv(process.env, hostOfRequest(request))
   if (!checkRequestOrigin(request.headers, trusted).ok) {
@@ -93,6 +108,12 @@ export async function POST(request: Request): Promise<Response> {
   const env = providerEnv()
   if (!PROVIDER_CHAIN.some((provider) => provider.configured(env))) {
     return fail('AI_NOT_CONFIGURED', 503)
+  }
+
+  // 40 peticiones cada 10 minutos por persona (D-070): pasado el límite, responde el determinista.
+  const clientKey = clientKeyOf(request.headers)
+  if (clientKey && !(await rateLimiter()(clientKey))) {
+    return fail('RATE_LIMITED', 429)
   }
 
   const raw = await request.text()

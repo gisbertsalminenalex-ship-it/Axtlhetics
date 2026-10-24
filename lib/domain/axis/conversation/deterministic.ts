@@ -35,6 +35,7 @@ import {
 import { matchName } from '../actions'
 import { answerAssessment, asksAboutAssessment } from './assessment-answer'
 import { answerScan, asksAboutScan } from './scan-answer'
+import { CRISIS_TEXT, detectCrisis } from './crisis'
 import { answerSocial, detectSocial } from './social'
 import { understandMessage } from './understand'
 import { detectDiscomfortZone, detectPreference, type ExercisePreference } from './preferences'
@@ -88,6 +89,9 @@ export function answerFromBriefing(
   briefing: AxisBriefing,
   memory?: AxisConversationMemory,
 ): AxisAnswer {
+  // Riesgo para la vida (D-070): antes que nada, siempre la misma respuesta cuidada. Como lo médico, nunca pasa por la IA.
+  if (detectCrisis(message)) return { text: CRISIS_TEXT, intent: 'medical', unknown: false }
+
   /*
    * Charla (D-042): un «hola» o un «gracias» se contestan como tal, también
    * con «Cambiar entrenamiento» abierto. Ahí un «vale» o un «venga» sí pueden

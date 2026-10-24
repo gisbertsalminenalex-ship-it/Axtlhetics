@@ -74,6 +74,8 @@ export type AxisAiErrorCode =
   | 'AI_BAD_RESPONSE'
   /** La petición no viene de la propia aplicación. */
   | 'FORBIDDEN'
+  /** Demasiadas peticiones de la misma persona (D-070): 40 cada 10 minutos. */
+  | 'RATE_LIMITED'
 
 export type AxisAiProxyError = { ok: false; code: AxisAiErrorCode }
 export type AxisAiProxySuccess = { ok: true; text: string; action: unknown; followUps: string[] }
@@ -154,10 +156,10 @@ export function buildUserPayload(request: ProxyRequest): string {
  * la personalidad como sistema y el briefing con la pregunta como usuario.
  */
 export function buildChatMessages(request: ProxyRequest): { role: string; content: string }[] {
-  // Lo hablado hoy va como conversación (D-042, D-070); las respuestas de AXIS, en el mismo JSON que se le pide.
+  // Lo hablado hoy va como conversación (D-042, D-070). Lo del usuario, siempre dentro de un JSON como dato, nunca como texto suelto que pueda leerse como orden (D-070, bloque 3); las respuestas de AXIS, en el mismo JSON que se le pide.
   const history = (request.history ?? []).map((turn) =>
     turn.role === 'user'
-      ? { role: 'user', content: turn.text }
+      ? { role: 'user', content: JSON.stringify({ question: turn.text }) }
       : { role: 'assistant', content: JSON.stringify({ message: turn.text, followUps: [], action: null }) },
   )
   return [
