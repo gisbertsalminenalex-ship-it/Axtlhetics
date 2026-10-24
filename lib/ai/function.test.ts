@@ -237,7 +237,7 @@ test('llama a Groq con el modelo, la credencial en cabecera y el formato de chat
     async (captured) => {
       const { status, body } = await call({ method: 'POST', body: validBody() })
       assert.equal(status, 200)
-      assert.deepEqual(body, { text: 'Hoy toca tren superior.', action: null })
+      assert.deepEqual(body, { text: 'Hoy toca tren superior.', action: null, followUps: [] })
 
       assert.equal(captured.length, 1)
       const [request] = captured
@@ -348,7 +348,7 @@ test('con Cloudflare configurado responde Cloudflare y el contrato no cambia', a
       async (captured) => {
         const { status, body } = await call({ method: 'POST', body: validBody() })
         assert.equal(status, 200)
-        assert.deepEqual(body, { text: 'Hoy toca tren superior.', action: null })
+        assert.deepEqual(body, { text: 'Hoy toca tren superior.', action: null, followUps: [] })
         assert.equal(captured.length, 1)
         assert.match(captured[0].url, /^https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/[0-9a-f]{32}\/ai\/v1\/chat\/completions$/)
         assert.equal(new Headers(captured[0].init.headers).get('authorization'), 'Bearer cf-token-de-prueba')
@@ -371,7 +371,7 @@ test('si Cloudflare falla responde Groq, y el navegador no sabe cuál contestó'
       async (captured) => {
         const { status, body } = await call({ method: 'POST', body: validBody() })
         assert.equal(status, 200)
-        assert.deepEqual(body, { text: 'Respondo yo.', action: null })
+        assert.deepEqual(body, { text: 'Respondo yo.', action: null, followUps: [] })
         assert.equal(captured.length, 2)
         assert.equal(captured[1].url, GROQ_ENDPOINT)
         assert.doesNotMatch(JSON.stringify(body), /cloudflare|groq|neurons/i)

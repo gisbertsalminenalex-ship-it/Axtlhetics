@@ -30,6 +30,7 @@ import {
   DATA_ANSWER_INTENTS,
   lengthLimitsFor,
   LONG_ANSWER_INTENTS,
+  tidyModelText,
   type ModelTextRejection,
 } from '../safety'
 import type { AxisAiReinterpretRequest } from './reinterpret'
@@ -56,26 +57,38 @@ export { AXIS_SYSTEM_PROMPT }
 export function aiSystemPrompt(intent?: AxisIntent): string {
   const length = intent ? lengthLimitsFor(intent) : AXIS_PERSONALITY.limits
   const long = intent !== undefined && LONG_ANSWER_INTENTS.includes(intent)
+  const data = intent !== undefined && DATA_ANSWER_INTENTS.includes(intent)
   return [
     AXIS_SYSTEM_PROMPT,
     '',
-    'CÓMO RESPONDER.',
-    'Recibes un JSON con `briefing` (los datos reales del usuario), `question` (lo que ha escrito) y `domain` (lo que el motor determinista ya ha concluido).',
-    '`domain.text` es la respuesta correcta en cuanto al fondo. Tu trabajo es decirla mejor: más natural, más clara, sin perder ni un dato y sin añadir ninguno.',
-    'Conserva todas las cifras de `domain.text` escritas con dígitos, tal cual (no «siete horas», sino «7 h»). Si falta una, tu respuesta se descarta.',
-    'No contradigas `domain`. Si el motor ha dicho que no, tú dices que no.',
-    'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text` o en `briefing`. Que un dato no aparezca no significa que no haya ocurrido: di que no está registrado, nunca lo conviertas en un hecho.',
+    'CÓMO RESPONDES (D-070: tú eres la voz de AXIS).',
+    'Recibes un JSON con `question` (lo que acaba de escribir el usuario), `briefing` (sus datos reales) y `domain` (lo que el motor de AXIS ha concluido con esos datos). Los mensajes anteriores son la conversación de hoy.',
+    'El fondo de `domain.text` es obligatorio: el veredicto, el cambio que se propone y las cifras. La forma es tuya. No lo copies ni lo parafrasees frase a frase: contesta a lo que el usuario ha preguntado de verdad, con tus palabras, como un entrenador personal que le conoce.',
+    'No contradigas `domain`. Si el motor ha dicho que no, tú dices que no, con el motivo.',
+    ...(data
+      ? ['Aquí la respuesta son cifras: conserva todas las de `domain.text` escritas con dígitos (no «siete horas», sino «7 h»). Si falta una, tu respuesta se descarta.']
+      : ['Si das una cifra, que sea de `domain.text` o de `briefing`, escrita con dígitos. Nunca una que no esté.']),
+    'Usa el contexto para que se note que le conoces: sus objetivos, cómo va su semana, su última sesión, lo que te ha dicho hoy.',
+    'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text`, en `briefing` o en la conversación. Que un dato no aparezca no significa que no haya ocurrido: di que no está registrado, nunca lo conviertas en un hecho.',
+    long
+      ? 'Aquí se espera una respuesta de entrenador, desarrollada: empieza por la conclusión, explica el porqué con sus datos, di qué cambia en concreto y termina con un consejo práctico para hoy. Sin relleno ni frases genéricas.'
+      : 'Si la pregunta es sencilla, contesta corto y al grano.',
     `Responde en ${length.targetSentences}. Nunca más de ${length.maxSentences}.`,
-    ...(long
-      ? [
-          'Aquí se espera una respuesta de entrenador, desarrollada: empieza por el veredicto de `domain.text`, explica el porqué con los datos de `briefing` (recuperación, carga, sesiones recientes, objetivos), di qué cambia en concreto y termina con un consejo práctico para hoy. Usa solo los datos que sí están; no hables de lo que no tienes registrado si `domain.text` no lo menciona. Sin relleno ni frases genéricas.',
-        ]
-      : []),
+    FOLLOW_UPS_RULE,
+    NAME_RULE,
     'Devuelve SOLO un objeto JSON con esta forma:',
-    '{"message": "tu respuesta", "action": null}',
+    '{"message": "tu respuesta", "followUps": ["pregunta 1", "pregunta 2"], "action": null}',
     'Si `domain.proposedTarget` no es null y la conversación va de cambiar el entrenamiento, copia ese mismo objeto en `action.target` y pon `action.type` a "change_training". No propongas un destino distinto del que te da el dominio: se descartaría.',
   ].join('\n')
 }
+
+/** Las preguntas de seguimiento (D-070): lo que el usuario podría preguntarte a continuación. */
+const FOLLOW_UPS_RULE =
+  'En `followUps` propón 2 preguntas cortas (como mucho 6 palabras) que el usuario podría hacerte a continuación, escritas como las escribiría él («¿Y si mañana no puedo?»). Que sigan el hilo de lo que acabáis de hablar y que AXIS sepa responder: su sesión, su recuperación, su semana, sus objetivos, un ejercicio o un cambio. Sin cifras.'
+
+/** El nombre nunca sale del dispositivo: el modelo escribe {nombre} y se sustituye en el móvil (D-042). */
+const NAME_RULE =
+  'Para dirigirte a él por su nombre escribe exactamente {nombre}; se sustituye en el dispositivo. Úsalo poco, como en una conversación real, y nunca escribas otro nombre.'
 
 /**
  * La charla (D-042): aquí el modelo sí escribe con libertad. No hay veredicto
@@ -96,11 +109,12 @@ export function chatSystemPrompt(): string {
     'Si saluda, saluda y pregúntale algo sencillo: cómo está o cómo llega hoy. No le preguntes cuánto ha dormido: eso se registra en Recuperación.',
     'Si habla de algo ajeno a AXTHLETICS (deberes, noticias, política, código), no lo resuelvas: una frase amable y vuelve a lo suyo. Nunca digas que algo «no es un dato registrado»: estás charlando, no informando.',
     'Si `domain.text` no está vacío, es algo que tu respuesta tiene que incluir, con tus palabras.',
-    'Para dirigirte a él por su nombre escribe exactamente {nombre}; se sustituye en el dispositivo. Úsalo poco, como en una conversación real, y nunca escribas otro nombre.',
+    NAME_RULE,
     'No afirmes nada del usuario que no esté en `briefing` o en la conversación. Sin cifras, sin emojis y sin signos de exclamación. No empieces por «Genial», «Perfecto», «Claro» ni «Por supuesto».',
     'Responde en 1–2 frases, como en un chat.',
+    FOLLOW_UPS_RULE,
     'Devuelve SOLO un objeto JSON con esta forma:',
-    '{"message": "tu respuesta", "action": null}',
+    '{"message": "tu respuesta", "followUps": ["pregunta 1", "pregunta 2"], "action": null}',
   ].join('\n')
 }
 
@@ -112,6 +126,14 @@ export function chatSystemPrompt(): string {
 export function tidyChatText(text: string, name: string | null): string {
   const named = name ? text.replace(/\{nombre\}/g, name) : text.replace(/,?\s*\{nombre\}/g, '')
   return named.replace(/¡/g, '').replace(/!+/g, '.').replace(/\.{2,}/g, '.').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Lo que vuelve del modelo, listo para la puerta (D-070): el nombre en su sitio
+ * y la forma arreglada (`tidyModelText`) en vez de descartada.
+ */
+export function tidyVoiceText(text: string, intent: AxisIntent, name: string | null): string {
+  return tidyModelText(tidyChatText(text, name), intent)
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +220,8 @@ export type AxisAiAction = {
 export type AxisAiResponse = {
   text: string
   action?: AxisAiAction | null
+  /** Lo que el usuario podría preguntar después (D-070), ya revisado en el servidor. */
+  followUps?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -229,6 +253,14 @@ export const AI_WORTHY_INTENTS: readonly AxisIntent[] = [
   'exercise',
   // La charla (D-042): un saludo de plantilla es justo lo que suena a máquina.
   'social',
+  // Desde D-070 la IA es la voz de AXIS: también lo que toca hoy, los cambios ya hechos y lo que le cuentas.
+  'today',
+  'missed_yesterday',
+  'match_tomorrow',
+  'sport_today',
+  'changed',
+  'shorten',
+  'preference',
 ]
 
 export function benefitsFromAi(intent: AxisIntent): boolean {
@@ -256,7 +288,10 @@ export function parseAiResponse(payload: unknown): AxisAiResponse {
     throw new Error('El servicio de AXIS devolvió una respuesta vacía.')
   }
 
-  return { text, action: parseAiAction(raw.action) }
+  const followUps = Array.isArray(raw.followUps)
+    ? raw.followUps.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).slice(0, 2)
+    : []
+  return { text, action: parseAiAction(raw.action), followUps }
 }
 
 /** Una acción mal formada no se intenta arreglar: se descarta. */
@@ -443,7 +478,8 @@ export function createAiConversation(
           intent: domain.intent,
           proposedTarget: domain.proposedTarget ?? null,
         },
-        ...(chat ? { history: chatHistory(memory?.recent ?? [], question, name) } : {}),
+        // La conversación de hoy viaja siempre (D-070): sin ella cada respuesta empieza de cero.
+        history: chatHistory(memory?.recent ?? [], question, name),
       })
 
       /*
@@ -471,18 +507,24 @@ export function createAiConversation(
       // El nombre, como en una conversación real: no en dos respuestas seguidas.
       const lastAxis = [...(memory?.recent ?? [])].reverse().find((turn) => turn.role === 'axis')
       const useName = !(name && lastAxis?.text.includes(name))
-      const tidied = chat ? tidyChatText(response.text, useName ? name : null) : response.text.trim()
+      // La forma se arregla en vez de descartar la respuesta (D-070); el fondo lo comprueba la puerta.
+      const tidied = tidyVoiceText(response.text, domain.intent, useName ? name : null)
       // Con «Cambiar entrenamiento» abierto, la invitación no se pierde aunque el modelo la olvide.
       const invite = chat && domain.text.includes(CHANGE_INVITATION) && !/cambi/i.test(tidied)
       const text = invite ? `${tidied} ${CHANGE_INVITATION}` : tidied
-      // En la charla, lo que el usuario ha dicho también respalda lo que se le contesta: «estás aburrido» lo dijo él.
-      const said = chat ? [question, ...(memory?.recent ?? []).filter((turn) => turn.role === 'user').map((turn) => turn.text)].join(' ') : ''
-      const check = checkModelText(text, chat ? { ...domain, text: `${domain.text} ${said}` } : domain, { briefing: sentBriefing })
+      /*
+       * Lo que el usuario ha dicho también respalda lo que se le contesta: «estás
+       * aburrido» lo dijo él. En una respuesta de datos no se suma, porque ahí
+       * todas las cifras de `domain.text` tienen que conservarse (D-027).
+       */
+      const said = [question, ...(memory?.recent ?? []).filter((turn) => turn.role === 'user').map((turn) => turn.text)].join(' ')
+      const backed = DATA_ANSWER_INTENTS.includes(domain.intent) ? domain : { ...domain, text: `${domain.text} ${said}` }
+      const check = checkModelText(text, backed, { briefing: sentBriefing })
       if (!check.ok) {
         throw new AxisAiRejection(check.reason, check.detail)
       }
 
-      return { ...domain, text, proposedTarget: reconciliation.target }
+      return { ...domain, text, proposedTarget: reconciliation.target, followUps: response.followUps ?? [] }
     },
   }
 }

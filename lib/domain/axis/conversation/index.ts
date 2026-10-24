@@ -10,9 +10,9 @@
  * 1. **La conversación nunca se queda muerta.** Si no hay IA configurada, o falla,
  *    o tarda demasiado, responde el determinista. Nunca se le enseña un error al
  *    usuario como respuesta.
- * 2. **No se llama al modelo por costumbre.** Solo en las preguntas de
- *    `AI_WORTHY_INTENTS`: explicaciones y, desde D-027, respuestas de datos. Lo
- *    médico, lo ajeno, el test y el escáner se quedan siempre en el determinista.
+ * 2. **La IA es la voz de AXIS** (D-070): contesta casi todo, en
+ *    `AI_WORTHY_INTENTS`, con el fondo que fija el motor. Lo médico y lo ajeno
+ *    se quedan siempre en el determinista.
  *    Y, desde D-028, en lo que el determinista no entiende: ahí el modelo no
  *    redacta, reescribe el mensaje para que el determinista lo responda.
  */
@@ -136,19 +136,32 @@ export function createAxisConversation(
     if (text.trim() === REINTERPRET_NONE) return chatInstead(question, briefing, memory, fallback)
 
     const rewritten = readReinterpretation(question, text)
-    if (rewritten === null) return fallback(true, 'invalid_reinterpretation')
+    // Una reescritura que no vale tampoco acaba en «no he entendido»: se charla (D-070).
+    if (rewritten === null) return chatInstead(question, briefing, memory, fallback)
 
     const answer = answerFromBriefing(rewritten, briefing, memory)
     if (answer.intent === 'unknown') return chatInstead(question, briefing, memory, fallback)
 
-    return {
-      ...presentReinterpreted(answer, rewritten),
-      engineId: ai.id,
-      usedFallback: false,
-      modelDisagreed: false,
-      rejectedReason: null,
-      reinterpretedAs: rewritten,
+    const presented = presentReinterpreted(answer, rewritten)
+    const reinterpreted = { engineId: ai.id, usedFallback: false, modelDisagreed: false, rejectedReason: null, reinterpretedAs: rewritten }
+
+    /*
+     * Desde D-070 la voz de AXIS contesta al mensaje original con el fondo de la
+     * frase reescrita: el usuario lee una respuesta a lo que escribió, no a la
+     * traducción. De una reinterpretación no se aprende nada (D-028), así que el
+     * dominio va sin actividades canceladas ni cargas contadas. Lo médico y lo
+     * ajeno se quedan en el determinista.
+     */
+    if (benefitsFromAi(answer.intent)) {
+      const { cancelledActivities: _cancelled, reportedLoad: _load, ...domain } = answer
+      try {
+        const voiced = await createAiConversation(transport, () => domain).answer(question, briefing, memory)
+        return { ...voiced, ...reinterpreted }
+      } catch {
+        // Si la voz falla, la respuesta del motor a la frase reescrita, diciendo cómo se entendió.
+      }
     }
+    return { ...presented, ...reinterpreted }
   }
 
   async function chatInstead(
@@ -195,7 +208,9 @@ export function createAxisConversation(
     const negotiated = local.intent === 'change' && intent === 'unknown'
     // La charla se reconoce antes que cualquier intención (D-042): `intent` no la ve.
     const social = local.intent === 'social'
-    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated || social) && !noData
+    // Las preferencias (D-037), como la charla, se reconocen antes que `intent`.
+    const preference = local.intent === 'preference'
+    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated || social || preference) && !noData
 
     if (!worthIt || !(await ai.isAvailable())) {
       return {

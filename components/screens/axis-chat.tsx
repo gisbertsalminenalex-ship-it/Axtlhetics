@@ -31,6 +31,8 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
 
   const thinking = axisStatus === 'thinking'
   const isEmpty = axisMessages.length === 0
+  const lastMessage = axisMessages[axisMessages.length - 1]
+  const lastFollowUps = lastMessage?.role === 'axis' && !lastMessage.action ? (lastMessage.followUps ?? []) : []
 
   // Al llegar un mensaje, la conversación se desplaza a lo último escrito.
   useEffect(() => {
@@ -143,6 +145,22 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           ))}
+
+          {/* Lo que podría preguntar a continuación (D-070): solo bajo la última respuesta de AXIS. */}
+          {!thinking && lastFollowUps.length > 0 && (
+            <div className="ax-enter flex flex-wrap gap-2">
+              {lastFollowUps.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  onClick={() => void send(question)}
+                  className="ax-press min-h-11 rounded-full border border-border bg-background px-4 text-left text-[13.5px] font-medium"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          )}
 
           {thinking && <ThinkingBubble />}
 

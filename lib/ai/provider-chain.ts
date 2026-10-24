@@ -69,7 +69,7 @@ export type AttemptLog = {
 }
 
 export type ChainResult =
-  | { ok: true; provider: ProviderId; message: string; action: unknown }
+  | { ok: true; provider: ProviderId; message: string; action: unknown; followUps: string[] }
   | { ok: false; code: 'AI_NOT_CONFIGURED' | 'AI_UNAVAILABLE' | 'AI_BAD_RESPONSE' }
 
 export type ChainOptions = {
@@ -106,7 +106,7 @@ function isTimeoutError(cause: unknown): boolean {
 }
 
 type Attempt =
-  | { ok: true; message: string; action: unknown; log: AttemptLog }
+  | { ok: true; message: string; action: unknown; followUps: string[]; log: AttemptLog }
   | { ok: false; log: AttemptLog }
 
 async function attempt(
@@ -174,7 +174,7 @@ async function attempt(
   if (!parsed) return fail('bad_format')
 
   log.durationMs = Math.max(0, now() - started)
-  return { ok: true, message: parsed.message, action: parsed.action, log }
+  return { ok: true, message: parsed.message, action: parsed.action, followUps: parsed.followUps, log }
 }
 
 /**
@@ -214,7 +214,7 @@ export async function askWithFallback(
     log(result.log)
 
     if (result.ok) {
-      return { ok: true, provider: provider.id, message: result.message, action: result.action }
+      return { ok: true, provider: provider.id, message: result.message, action: result.action, followUps: result.followUps }
     }
     last = result.log.outcome
     if (last === 'aborted') break

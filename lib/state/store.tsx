@@ -1231,6 +1231,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
            */
           action: day ? proposeAction(day, result) : null,
           ...(result.modelDisagreed ? { modelDisagreed: true } : {}),
+          // Lo que podría preguntar después, propuesto por la IA (D-070).
+          ...(result.followUps?.length ? { followUps: result.followUps } : {}),
         }
 
         /*

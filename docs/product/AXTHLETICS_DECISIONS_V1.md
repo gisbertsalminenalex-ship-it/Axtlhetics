@@ -2309,6 +2309,23 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ---
 
+## D-070 — La IA es la voz de AXIS
+
+**Fecha:** 2026-10-24 · **Estado:** aprobada e implementada (bloque 1 de 3) · Decidido por Alex: «no me gusta como contesta… quiero que funcione como Mentax»: suena robótico, no se acuerda, no entiende y la longitud no encaja. Eligió «la IA como voz» y que la IA vea resúmenes del escáner y del test, nunca fotos. **Matiza** D-016, D-027, D-028, D-030 y D-042: el motor sigue decidiendo; lo que cambia es quién habla.
+
+- **El motor fija el fondo, la IA escribe.** `domain.text` ya no es un texto que reescribir: su veredicto, el cambio propuesto y las cifras son obligatorios, y la IA contesta con sus palabras a lo que se ha preguntado (`aiSystemPrompt`). La acción sigue pasando por `reconcileTarget`, `validateAction` y el botón de confirmar.
+- **Contesta casi todo**: a lo de D-027/D-030/D-042 se suman lo que toca hoy, ayer, el partido de mañana, el deporte de hoy, lo ya cambiado, acortar y las preferencias. Lo médico y lo ajeno siguen en el determinista; el test y el escáner, hasta el bloque 2.
+- **Memoria del día en todas las preguntas**: los últimos 8 mensajes de hoy viajan siempre, con el nombre como `{nombre}`.
+- **Respuesta con forma fija**: `{message, followUps, action}`. Las **preguntas de seguimiento** (como mucho 2, de 70 caracteres) se revisan en el servidor (`readFollowUps`) y salen como botones bajo la última respuesta de AXIS (si no propone una acción). Se guardan con el mensaje.
+- **La forma se arregla, no se descarta** (`tidyModelText`): se quitan emojis, exclamaciones y el cumplido de apertura, y se recorta a las frases y caracteres de su intención. El fondo sigue en la puerta: veredicto, propuesta, cifras inventadas u omitidas, afirmaciones sin respaldo (lo que dijo el usuario hoy también respalda, salvo en respuestas de datos) y lenguaje médico.
+- **«No entiende»**: lo que el modelo reescribe (D-028) lo contesta la voz de AXIS al mensaje original con el fondo de la frase reescrita (dos llamadas); si falla, el determinista con «Te he entendido como…». Una reescritura que no vale ya no acaba en «no he entendido»: se charla.
+- **Personalidad**: entrenador personal cercano y cálido, en español de España, que no juzga; habla de alimentación y peso solo con las cifras de la app, nunca de estética ni dietas restrictivas, y con menores nunca de comer menos.
+- **Temperatura**: 0,55 al contestar (`VOICE_TEMPERATURE`), 0,8 en la charla y la base del proveedor al reescribir.
+
+Pendiente: bloque 2 (memoria de días anteriores, objetivos, alimentación y resúmenes del escáner y el test) y bloque 3 (protección contra instrucciones en el texto del usuario, respuesta de crisis con 024/112 y límite de uso).
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -118,7 +118,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   return new Response(
-    JSON.stringify({ text: result.message, action: result.action }),
+    JSON.stringify({ text: result.message, action: result.action, followUps: result.followUps }),
     { status: 200, headers: PROXY_HEADERS },
   )
 }

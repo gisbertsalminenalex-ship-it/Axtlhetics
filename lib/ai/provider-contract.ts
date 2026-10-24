@@ -20,8 +20,40 @@ export const MAX_REQUEST_BYTES = 64 * 1024
  */
 export const CHAT_TEMPERATURE = 0.8
 
+/**
+ * Temperatura de la voz de AXIS (D-070): la IA contesta con sus palabras, así
+ * que algo más de variedad que al redactar; el fondo lo siguen fijando el motor
+ * y la puerta de seguridad. La reescritura de un mensaje no entendido (D-028,
+ * intención `unknown`) usa la base del proveedor.
+ */
+export const VOICE_TEMPERATURE = 0.55
+
 export function temperatureFor(request: ProxyRequest, base: number): number {
-  return request.domain.intent === 'social' ? CHAT_TEMPERATURE : base
+  if (request.domain.intent === 'social') return CHAT_TEMPERATURE
+  return request.domain.intent === 'unknown' ? base : VOICE_TEMPERATURE
+}
+
+/** Preguntas de seguimiento (D-070): como mucho dos, cortas y de una línea. */
+export const MAX_FOLLOW_UPS = 2
+export const MAX_FOLLOW_UP_CHARACTERS = 70
+
+/**
+ * Las preguntas de seguimiento que propone el modelo, revisadas: solo textos de
+ * una línea, recortados, sin repetir y como mucho `MAX_FOLLOW_UPS`. Lo que no
+ * encaja se descarta, no se arregla.
+ */
+export function readFollowUps(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const out: string[] = []
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const text = item.replace(/\s+/g, ' ').trim()
+    if (text.length < 3 || text.length > MAX_FOLLOW_UP_CHARACTERS || /[\n{}<>]/.test(item)) continue
+    if (out.some((existing) => existing.toLowerCase() === text.toLowerCase())) continue
+    out.push(text)
+    if (out.length === MAX_FOLLOW_UPS) break
+  }
+  return out
 }
 
 /**
@@ -44,7 +76,7 @@ export type AxisAiErrorCode =
   | 'FORBIDDEN'
 
 export type AxisAiProxyError = { ok: false; code: AxisAiErrorCode }
-export type AxisAiProxySuccess = { ok: true; text: string; action: unknown }
+export type AxisAiProxySuccess = { ok: true; text: string; action: unknown; followUps: string[] }
 export type AxisAiProxyResult = AxisAiProxySuccess | AxisAiProxyError
 
 /** Lo mínimo que la función necesita recibir para poder pedir una redacción. */
@@ -53,7 +85,7 @@ export type ProxyRequest = {
   question: string
   briefing: unknown
   domain: { text: string; intent: string; proposedTarget: unknown }
-  /** La conversación reciente, solo en la charla (D-042). */
+  /** La conversación reciente de hoy (D-042; desde D-070, en todas las preguntas). */
   history?: { role: 'user' | 'axis'; text: string }[]
 }
 
@@ -122,11 +154,11 @@ export function buildUserPayload(request: ProxyRequest): string {
  * la personalidad como sistema y el briefing con la pregunta como usuario.
  */
 export function buildChatMessages(request: ProxyRequest): { role: string; content: string }[] {
-  // En la charla, lo hablado antes va como conversación; las respuestas de AXIS, en el mismo JSON que se le pide.
+  // Lo hablado hoy va como conversación (D-042, D-070); las respuestas de AXIS, en el mismo JSON que se le pide.
   const history = (request.history ?? []).map((turn) =>
     turn.role === 'user'
       ? { role: 'user', content: turn.text }
-      : { role: 'assistant', content: JSON.stringify({ message: turn.text, action: null }) },
+      : { role: 'assistant', content: JSON.stringify({ message: turn.text, followUps: [], action: null }) },
   )
   return [
     { role: 'system', content: request.system },
@@ -202,7 +234,7 @@ export function readChatCompletion(payload: unknown): ChatCompletionReply {
  * código o con texto alrededor. Se intenta rescatar; si no se puede, se falla en
  * vez de inventar.
  */
-export function parseModelText(modelText: string): { message: string; action: unknown } | null {
+export function parseModelText(modelText: string): { message: string; action: unknown; followUps: string[] } | null {
   const trimmed = modelText.trim()
   if (trimmed.length === 0) return null
 
@@ -222,7 +254,7 @@ export function parseModelText(modelText: string): { message: string; action: un
   const message = typeof raw.message === 'string' ? raw.message.trim() : ''
   if (message.length === 0) return null
 
-  return { message, action: raw.action ?? null }
+  return { message, action: raw.action ?? null, followUps: readFollowUps(raw.followUps) }
 }
 
 /** Rescata el primer objeto JSON del texto, aunque venga dentro de ```json. */

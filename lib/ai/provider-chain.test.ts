@@ -77,7 +77,7 @@ test('la cadena es Cloudflare primero y Groq después', () => {
 
 test('si Cloudflare responde bien, no se llama a Groq', async () => {
   const { result, calls } = await run({ cloudflare: chat(GOOD) })
-  assert.deepEqual(result, { ok: true, provider: 'cloudflare', message: 'Hoy no tocan piernas: tienes baloncesto.', action: null })
+  assert.deepEqual(result, { ok: true, provider: 'cloudflare', message: 'Hoy no tocan piernas: tienes baloncesto.', action: null, followUps: [] })
   assert.deepEqual(providersCalled(calls), ['cloudflare'])
 })
 

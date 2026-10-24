@@ -24,6 +24,7 @@ import {
   parseAiResponse,
   reconcileTarget,
   toAiBriefing,
+  type AxisAiRequest,
   type AxisAiTransportRequest,
   type AxisAiTransport,
 } from './ai'
@@ -105,7 +106,7 @@ function setup(inputs: RecoveryInputs = recovery()) {
 const CHANGE_MODE = { lastIntent: 'change' as const, changeMode: true }
 
 /** Un transporte que devuelve lo que se le diga y recuerda lo que recibió. */
-function fakeTransport(reply: (request: AxisAiTransportRequest) => { text: string; action?: unknown }) {
+function fakeTransport(reply: (request: AxisAiTransportRequest) => { text: string; action?: unknown; followUps?: string[] }) {
   const requests: AxisAiTransportRequest[] = []
   const transport: AxisAiTransport = {
     isConfigured: () => true,
@@ -263,17 +264,10 @@ test('un texto inválido del modelo no se enseña: responde el determinista', as
   const { briefing } = setup()
   const local = answerFromBriefing('¿Por qué me propones esto hoy?', briefing)
 
+  // La forma se arregla (D-070, test siguiente); lo que no se enseña es lo vacío y lo médico.
   const cases: { text: string; reason: string }[] = [
     { text: '   ', reason: 'empty' },
-    { text: 'Claro, te lo explico: tu recuperación está bien.', reason: 'forbidden_opener' },
-    { text: 'Tu recuperación está bien 💪', reason: 'emoji' },
-    { text: '¡Vamos! Tu recuperación está bien.', reason: 'exclamation' },
     { text: 'Parece una lesión leve, con antiinflamatorios se pasa.', reason: 'medical_language' },
-    {
-      // Una explicación admite 7 frases (D-030); 8 ya es demasiado.
-      text: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete. Frase ocho.',
-      reason: 'too_long',
-    },
   ]
 
   for (const item of cases) {
@@ -285,6 +279,27 @@ test('un texto inválido del modelo no se enseña: responde el determinista', as
     assert.equal(result.rejectedReason, item.reason)
     assert.equal(result.text, local.text)
     assert.equal(result.modelDisagreed, false, 'un texto malo no es un desacuerdo sobre la acción')
+  }
+})
+
+test('D-070: la forma se arregla en vez de descartar la respuesta: cumplido, emojis, exclamaciones y longitud', async () => {
+  const { briefing } = setup()
+  const cases: { text: string; shown: string }[] = [
+    { text: 'Claro, te lo explico: tu recuperación está bien.', shown: 'Te lo explico: tu recuperación está bien.' },
+    { text: 'Tu recuperación está bien 💪', shown: 'Tu recuperación está bien' },
+    { text: '¡Vamos! Tu recuperación está bien.', shown: 'Vamos. Tu recuperación está bien.' },
+    {
+      // Una explicación admite 7 frases (D-030): la octava se quita.
+      text: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete. Frase ocho.',
+      shown: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete.',
+    },
+  ]
+  for (const item of cases) {
+    const { transport } = fakeTransport(() => ({ text: item.text, followUps: ['¿Y mañana?'] }))
+    const result = await createAxisConversation({ transport }).ask('¿Por qué me propones esto hoy?', briefing)
+    assert.equal(result.usedFallback, false, item.text)
+    assert.equal(result.text, item.shown)
+    assert.deepEqual(result.followUps, ['¿Y mañana?'])
   }
 })
 
@@ -432,12 +447,14 @@ test('parseAiResponse exige texto y descarta acciones mal formadas sin remendarl
   assert.throws(() => parseAiResponse('texto'))
   assert.throws(() => parseAiResponse({ text: '   ' }))
 
-  assert.deepEqual(parseAiResponse({ text: ' Hola. ' }), { text: 'Hola.', action: null })
-  assert.deepEqual(parseAiResponse({ text: 'Hola.', action: 'cambia' }), { text: 'Hola.', action: null })
+  assert.deepEqual(parseAiResponse({ text: ' Hola. ' }), { text: 'Hola.', action: null, followUps: [] })
+  assert.deepEqual(parseAiResponse({ text: 'Hola.', action: 'cambia' }), { text: 'Hola.', action: null, followUps: [] })
   assert.deepEqual(
     parseAiResponse({ text: 'Hola.', action: { type: 'change_training', target: { type: 'REST', focus: null } } }),
-    { text: 'Hola.', action: { type: 'change_training', target: { type: 'REST', focus: null } } },
+    { text: 'Hola.', action: { type: 'change_training', target: { type: 'REST', focus: null } }, followUps: [] },
   )
+  // Las preguntas de seguimiento (D-070): solo textos, como mucho dos.
+  assert.deepEqual(parseAiResponse({ text: 'Hola.', followUps: ['¿Y mañana?', 3, '', '¿Por qué?', '¿Y si llueve?'] }).followUps, ['¿Y mañana?', '¿Por qué?'])
 })
 
 test('parseAiAction solo admite la única acción que existe, con un destino bien formado', () => {
@@ -538,4 +555,22 @@ test('la petición al proveedor lleva el veredicto del dominio y el briefing sin
   assert.ok(request.domain.text.length > 0)
   assert.equal('name' in (request.briefing.profile ?? {}), false)
   assert.ok(request.system.includes(AXIS_PERSONALITY.identity[0]))
+})
+
+test('D-070: la conversación de hoy viaja con cualquier pregunta, sin el nombre del usuario', async () => {
+  const { briefing } = setup()
+  const { transport, requests } = fakeTransport(() => ({ text: 'Porque ayer cargaste piernas.' }))
+  const name = briefing.profile?.name ?? 'Alex'
+  await createAxisConversation({ transport }).ask('¿Por qué me propones esto hoy?', briefing, {
+    lastIntent: null,
+    recent: [
+      { role: 'user', text: 'Ayer jugué al fútbol' },
+      { role: 'axis', text: `Lo tengo en cuenta, ${name}.` },
+    ],
+  })
+  const request = requests[0] as AxisAiRequest
+  assert.deepEqual(request.history, [
+    { role: 'user', text: 'Ayer jugué al fútbol' },
+    { role: 'axis', text: 'Lo tengo en cuenta, {nombre}.' },
+  ])
 })

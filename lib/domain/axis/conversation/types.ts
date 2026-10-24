@@ -70,6 +70,8 @@ export type AxisMessage = {
    * para que un modelo que discrepa deje rastro.
    */
   modelDisagreed?: boolean
+  /** Las preguntas de seguimiento de esta respuesta (D-070): botones bajo el último mensaje. */
+  followUps?: string[]
 }
 
 /**
@@ -91,6 +93,8 @@ export type AxisVerdict =
 export type AxisAnswer = {
   text: string
   intent: AxisIntent
+  /** Preguntas que el usuario podría hacer a continuación, propuestas por la IA (D-070). */
+  followUps?: string[]
   /** `true` si la respuesta es «no tengo ese dato». */
   unknown: boolean
   /**

@@ -6,7 +6,7 @@ import test from 'node:test'
  * respuesta. Sin red: la cadena y la ruta se prueban aparte.
  */
 
-import { buildUserPayload, parseProxyRequest } from '../provider-contract'
+import { buildUserPayload, parseProxyRequest, VOICE_TEMPERATURE } from '../provider-contract'
 import {
   CLOUDFLARE_DEFAULT_MODEL,
   CLOUDFLARE_MAX_COMPLETION_TOKENS,
@@ -59,7 +59,9 @@ test('Cloudflare pide Gemma sin razonamiento, con temperatura baja, salida acota
 
   assert.equal(CLOUDFLARE_DEFAULT_MODEL, '@cf/google/gemma-4-26b-a4b-it')
   assert.equal(sent.model, CLOUDFLARE_DEFAULT_MODEL)
-  assert.equal(sent.temperature, CLOUDFLARE_TEMPERATURE)
+  // La voz de AXIS (D-070) algo más suelta que al redactar; la base del proveedor queda para reescribir (D-028).
+  assert.equal(sent.temperature, VOICE_TEMPERATURE)
+  assert.equal(body(cloudflareProvider.request({ ...request, domain: { ...request.domain, intent: 'unknown' } }, { CF_ACCOUNT_ID: ACCOUNT, CF_API_TOKEN: 't' }).init).temperature, CLOUDFLARE_TEMPERATURE)
   assert.equal(CLOUDFLARE_TEMPERATURE, 0.3)
   assert.equal(sent.max_completion_tokens, CLOUDFLARE_MAX_COMPLETION_TOKENS)
   // Siete frases de respuesta larga (D-030) caben; un techo, para acotar el consumo.
@@ -98,7 +100,7 @@ test('Groq mantiene su petición: endpoint, clave en cabecera, JSON y razonamien
   assert.equal(GROQ_ENDPOINT, 'https://api.groq.com/openai/v1/chat/completions')
   assert.equal(init.headers.Authorization, 'Bearer clave')
   assert.equal(sent.model, GROQ_DEFAULT_MODEL)
-  assert.equal(sent.temperature, 0.4)
+  assert.equal(sent.temperature, VOICE_TEMPERATURE)
   assert.equal(sent.max_completion_tokens, GROQ_MAX_COMPLETION_TOKENS)
   assert.deepEqual(sent.response_format, { type: 'json_object' })
   assert.equal(sent.reasoning_effort, 'low', 'los gpt-oss razonan: se pide el mínimo')

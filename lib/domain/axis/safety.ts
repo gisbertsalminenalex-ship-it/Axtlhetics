@@ -449,6 +449,44 @@ export function findUnsupportedClaim(
   return null
 }
 
+const EMOJI_ALL = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu
+
+/**
+ * La forma, arreglada en vez de descartada (D-070), como hace un editor: sin
+ * emojis, sin exclamaciones, sin el cumplido de apertura y recortada a las
+ * frases y caracteres de su intención. El fondo no se toca: eso lo sigue
+ * comprobando `checkModelText`, que se aplica después.
+ */
+export function tidyModelText(text: string, intent: AxisIntent, personality: AxisPersonality = AXIS_PERSONALITY): string {
+  let out = text
+    .replace(EMOJI_ALL, '')
+    .replace(/¡/g, '')
+    .replace(/!+/g, '.')
+    .replace(/\.{2,}/g, '.')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .trim()
+
+  // «Claro, …», «Perfecto. …»: el cumplido se va y la respuesta empieza por lo que importa.
+  const opener = personality.forbiddenOpeners.find((phrase) => normalize(out).startsWith(phrase))
+  if (opener) {
+    const cut = out.slice(opener.length).search(/[,.:;]/)
+    if (cut !== -1 && cut <= 20) {
+      const rest = out.slice(opener.length + cut + 1).trim()
+      if (rest.length > 0) out = rest.charAt(0).toUpperCase() + rest.slice(1)
+    }
+  }
+
+  // Las frases que sobran se quitan por el final; los decimales («2.5 kg») no parten frases.
+  const { maxSentences, maxCharacters } = lengthLimitsFor(intent, personality)
+  let sentences = out.split(/(?<=[.?…])\s+/).filter((s) => s.length > 0)
+  if (sentences.length > maxSentences) sentences = sentences.slice(0, maxSentences)
+  while (sentences.length > 1 && sentences.join(' ').length > maxCharacters) sentences = sentences.slice(0, -1)
+  out = sentences.join(' ')
+  if (out.length > maxCharacters) out = `${out.slice(0, out.lastIndexOf(' ', maxCharacters - 1))}…`
+  return out
+}
+
 export type ModelTextCheckOptions = {
   /**
    * El briefing que recibió el modelo. Sin él, las cifras solo pueden venir de
