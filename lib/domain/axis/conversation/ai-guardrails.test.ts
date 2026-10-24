@@ -511,18 +511,18 @@ test('el test de evolución no sale hacia el proveedor (D-021)', async () => {
   assert.doesNotMatch(JSON.stringify(requests[0]), new RegExp(PAST_TEST_DAY))
 })
 
-test('las preguntas sobre el test de evolución nunca llegan al proveedor (D-021)', async () => {
+test('D-070: las preguntas sobre el test de evolución las contesta la IA, sin el bloque del test en el briefing', async () => {
   const { briefing } = setup()
-  const { transport, requests } = fakeTransport(() => ({ text: 'No debería llamarse.' }))
+  const { transport, requests } = fakeTransport(() => ({ text: 'Te cuento cómo va el test.' }))
   const conversation = createAxisConversation({ transport })
 
-  for (const memory of [undefined, CHANGE_MODE]) {
-    for (const question of ['¿por qué no puedo hacer el test?', '¿cuándo me toca el test de evolución?', '¿cómo funciona el test?']) {
-      const result = await conversation.ask(question, briefing, memory)
-      assert.equal(result.intent, 'assessment', question)
-    }
+  for (const question of ['¿por qué no puedo hacer el test?', '¿cuándo me toca el test de evolución?', '¿cómo funciona el test?']) {
+    const result = await conversation.ask(question, briefing)
+    assert.equal(result.intent, 'assessment', question)
   }
-  assert.equal(requests.length, 0)
+  assert.ok(requests.length > 0)
+  // Lo que sabe del test viaja como resumen en `memory` (bloque 2) o en la respuesta del motor; el bloque entero, no.
+  for (const request of requests) assert.equal('assessment' in request.briefing, false)
 })
 
 test('el prompt del proveedor se genera desde la personalidad y añade solo el formato', () => {
@@ -573,4 +573,28 @@ test('D-070: la conversación de hoy viaja con cualquier pregunta, sin el nombre
     { role: 'user', text: 'Ayer jugué al fútbol' },
     { role: 'axis', text: 'Lo tengo en cuenta, {nombre}.' },
   ])
+})
+
+test('D-070 (bloque 2): la memoria viaja con el briefing y sus cifras respaldan lo que dice la IA', async () => {
+  const { briefing } = setup()
+  const text = 'Hoy llevas 30 g de proteína y tu objetivo empieza en 110 g.'
+  const aiMemory = {
+    recentDays: [],
+    recentSessions: [],
+    goals: [],
+    learned: { dislikedExercises: [], careZones: [] },
+    nutrition: { todayKcal: 500, todayProteinG: 30, meals: 1, targetKcal: 2600, targetProteinG: [110, 140] as [number, number] },
+    weekReview: null,
+    scan: null,
+    test: null,
+  }
+
+  const { transport, requests } = fakeTransport(() => ({ text }))
+  const withMemory = await createAxisConversation({ transport }).ask('¿Por qué me propones esto hoy?', briefing, { lastIntent: null, aiMemory })
+  assert.equal(withMemory.usedFallback, false)
+  assert.equal(withMemory.text, text)
+  assert.deepEqual((requests[0] as AxisAiRequest).briefing.memory, aiMemory)
+
+  const without = await createAxisConversation({ transport: fakeTransport(() => ({ text })).transport }).ask('¿Por qué me propones esto hoy?', briefing)
+  assert.equal(without.rejectedReason, 'invented_number', 'sin memoria, esas cifras no tienen respaldo')
 })

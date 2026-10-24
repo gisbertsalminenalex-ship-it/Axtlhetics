@@ -33,6 +33,7 @@ import {
   tidyModelText,
   type ModelTextRejection,
 } from '../safety'
+import type { AxisAiMemory } from './memory-pack'
 import type { AxisAiReinterpretRequest } from './reinterpret'
 import { CHANGE_INVITATION } from './social'
 import type { AxisAnswer, AxisConversationEngine, AxisIntent } from './types'
@@ -74,6 +75,7 @@ export function aiSystemPrompt(intent?: AxisIntent): string {
       ? 'Aquí se espera una respuesta de entrenador, desarrollada: empieza por la conclusión, explica el porqué con sus datos, di qué cambia en concreto y termina con un consejo práctico para hoy. Sin relleno ni frases genéricas.'
       : 'Si la pregunta es sencilla, contesta corto y al grano.',
     `Responde en ${length.targetSentences}. Nunca más de ${length.maxSentences}.`,
+    MEMORY_RULE,
     FOLLOW_UPS_RULE,
     NAME_RULE,
     'Devuelve SOLO un objeto JSON con esta forma:',
@@ -87,6 +89,10 @@ const FOLLOW_UPS_RULE =
   'En `followUps` propón 2 preguntas cortas (como mucho 6 palabras) que el usuario podría hacerte a continuación, escritas como las escribiría él («¿Y si mañana no puedo?»). Que sigan el hilo de lo que acabáis de hablar y que AXIS sepa responder: su sesión, su recuperación, su semana, sus objetivos, un ejercicio o un cambio. Sin cifras.'
 
 /** El nombre nunca sale del dispositivo: el modelo escribe {nombre} y se sustituye en el móvil (D-042). */
+/** Lo que recuerda (D-070, bloque 2): viaja en `briefing.memory`. */
+const MEMORY_RULE =
+  'En `briefing.memory` tienes lo que recuerdas de él: lo que te dijo otros días (`recentDays`, con su fecha), sus últimas sesiones, sus objetivos, lo que has aprendido (ejercicios que no le gustan, zonas que cuidar), su alimentación de hoy, la revisión de la semana y los resúmenes de su escaneo y su test. Úsalo con naturalidad cuando venga a cuento («el martes me dijiste que…»), sin recitarlo ni inventar lo que no está.'
+
 const NAME_RULE =
   'Para dirigirte a él por su nombre escribe exactamente {nombre}; se sustituye en el dispositivo. Úsalo poco, como en una conversación real, y nunca escribas otro nombre.'
 
@@ -112,6 +118,7 @@ export function chatSystemPrompt(): string {
     NAME_RULE,
     'No afirmes nada del usuario que no esté en `briefing` o en la conversación. Sin cifras, sin emojis y sin signos de exclamación. No empieces por «Genial», «Perfecto», «Claro» ni «Por supuesto».',
     'Responde en 1–2 frases, como en un chat.',
+    MEMORY_RULE,
     FOLLOW_UPS_RULE,
     'Devuelve SOLO un objeto JSON con esta forma:',
     '{"message": "tu respuesta", "followUps": ["pregunta 1", "pregunta 2"], "action": null}',
@@ -161,6 +168,12 @@ export function tidyVoiceText(text: string, intent: AxisIntent, name: string | n
  */
 export type AxisAiBriefing = Omit<AxisBriefing, 'profile' | 'assessment' | 'scan' | 'equipment'> & {
   profile: Omit<NonNullable<AxisBriefing['profile']>, 'name'> | null
+  /**
+   * La memoria de días anteriores y del resto de la app (D-070, bloque 2): sus
+   * cifras y frases respaldan lo que la IA dice. Del escáner y del test, solo
+   * resúmenes en texto; nunca fotos, medidas en bruto ni el nombre.
+   */
+  memory?: AxisAiMemory
 }
 
 export function toAiBriefing(briefing: AxisBriefing): AxisAiBriefing {
@@ -261,6 +274,9 @@ export const AI_WORTHY_INTENTS: readonly AxisIntent[] = [
   'changed',
   'shorten',
   'preference',
+  // Con los resúmenes en la memoria (D-070, bloque 2), el test y el escáner también; nunca fotos.
+  'assessment',
+  'scan',
 ]
 
 export function benefitsFromAi(intent: AxisIntent): boolean {
@@ -464,7 +480,7 @@ export function createAiConversation(
     },
     async answer(question, briefing, memory): Promise<AxisAnswer> {
       const domain = resolveDomain(question, briefing, memory)
-      const sentBriefing = toAiBriefing(briefing)
+      const sentBriefing = memory?.aiMemory ? { ...toAiBriefing(briefing), memory: memory.aiMemory } : toAiBriefing(briefing)
 
       const chat = domain.intent === 'social'
       const name = briefing.profile?.name?.trim() || null

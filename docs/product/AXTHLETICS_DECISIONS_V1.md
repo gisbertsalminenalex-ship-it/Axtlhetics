@@ -2311,7 +2311,7 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ## D-070 — La IA es la voz de AXIS
 
-**Fecha:** 2026-10-24 · **Estado:** aprobada e implementada (bloque 1 de 3) · Decidido por Alex: «no me gusta como contesta… quiero que funcione como Mentax»: suena robótico, no se acuerda, no entiende y la longitud no encaja. Eligió «la IA como voz» y que la IA vea resúmenes del escáner y del test, nunca fotos. **Matiza** D-016, D-027, D-028, D-030 y D-042: el motor sigue decidiendo; lo que cambia es quién habla.
+**Fecha:** 2026-10-24 · **Estado:** aprobada e implementada (bloques 1 y 2 de 3) · Decidido por Alex: «no me gusta como contesta… quiero que funcione como Mentax»: suena robótico, no se acuerda, no entiende y la longitud no encaja. Eligió «la IA como voz» y que la IA vea resúmenes del escáner y del test, nunca fotos. **Matiza** D-016, D-027, D-028, D-030 y D-042: el motor sigue decidiendo; lo que cambia es quién habla.
 
 - **El motor fija el fondo, la IA escribe.** `domain.text` ya no es un texto que reescribir: su veredicto, el cambio propuesto y las cifras son obligatorios, y la IA contesta con sus palabras a lo que se ha preguntado (`aiSystemPrompt`). La acción sigue pasando por `reconcileTarget`, `validateAction` y el botón de confirmar.
 - **Contesta casi todo**: a lo de D-027/D-030/D-042 se suman lo que toca hoy, ayer, el partido de mañana, el deporte de hoy, lo ya cambiado, acortar y las preferencias. Lo médico y lo ajeno siguen en el determinista; el test y el escáner, hasta el bloque 2.
@@ -2322,7 +2322,19 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 - **Personalidad**: entrenador personal cercano y cálido, en español de España, que no juzga; habla de alimentación y peso solo con las cifras de la app, nunca de estética ni dietas restrictivas, y con menores nunca de comer menos.
 - **Temperatura**: 0,55 al contestar (`VOICE_TEMPERATURE`), 0,8 en la charla y la base del proveedor al reescribir.
 
-Pendiente: bloque 2 (memoria de días anteriores, objetivos, alimentación y resúmenes del escáner y el test) y bloque 3 (protección contra instrucciones en el texto del usuario, respuesta de crisis con 024/112 y límite de uso).
+### Bloque 2: la memoria, como Mentax
+
+La IA no guarda nada; la app le manda con cada pregunta `briefing.memory` (`lib/domain/axis/conversation/memory-pack.ts`, `buildAiMemory`), construido en el móvil:
+
+- **Días anteriores** (hasta 6, sin hoy): las 3 últimas frases del usuario de cada día (160 caracteres, con el nombre como `{nombre}`), las molestias y las cargas que contó. El store carga esos días al arrancar.
+- **Últimas sesiones** (6, de los últimos 14 días): día, título, minutos y esfuerzo.
+- **Objetivos** y **lo aprendido**: ejercicios que no le gustan y zonas que cuidar.
+- **Alimentación de hoy** frente a su objetivo, y la **revisión de la semana** (D-059).
+- **Resúmenes del escáner** (fecha, conclusión, zonas fuertes y flojas, áreas de mejora y lo que cambia en las sesiones) **y del test** (cuántos, el último, si sube cada prueba). Nunca fotos, medidas en bruto, miniaturas ni el bloque entero.
+
+Sus cifras y frases respaldan lo que dice la IA en la puerta de seguridad. Con ellas, las preguntas sobre el **test** y el **escáner** pasan a la IA (revoca para ellas «nada del escaneo sale del dispositivo» en su forma de resumen, por decisión de Alex). Lo médico y lo ajeno siguen en el determinista.
+
+Pendiente: bloque 3 (protección contra instrucciones en el texto del usuario, respuesta de crisis con 024/112 y límite de uso).
 
 ---
 

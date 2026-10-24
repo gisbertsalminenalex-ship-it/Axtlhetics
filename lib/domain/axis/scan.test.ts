@@ -139,16 +139,20 @@ test('el escaneo nunca sale hacia la capa de lenguaje: ni la clave ni sus datos'
   }
 })
 
-test('las preguntas sobre el escaneo nunca llegan al proveedor', async () => {
+test('D-070: las preguntas sobre el escaneo las contesta la IA con el resumen, nunca con fotos ni medidas', async () => {
   const { briefing } = setup([scan('espalda')])
   const requests: AxisAiTransportRequest[] = []
-  const transport: AxisAiTransport = { isConfigured: () => true, async send(request) { requests.push(request); return { text: 'No debería llamarse.' } } }
+  const transport: AxisAiTransport = { isConfigured: () => true, async send(request) { requests.push(request); return { text: 'Tu escaneo dice que la espalda va por detrás.' } } }
   const conversation = createAxisConversation({ transport })
   for (const question of ['¿Qué dice mi escaneo?', '¿cómo está mi simetría?', '¿qué tal mi físico?']) {
     const result = await conversation.ask(question, briefing)
     assert.equal(result.intent, 'scan', question)
   }
-  assert.equal(requests.length, 0)
+  assert.equal(requests.length, 3)
+  for (const request of requests) {
+    assert.equal('scan' in request.briefing, false, 'el bloque del escaneo no viaja; su resumen va en la respuesta del motor y en `memory`')
+    assert.doesNotMatch(JSON.stringify(request), /data:image|shoulderToWaist|measurements|thumbnails/)
+  }
 })
 
 test('D-041: el motor usa el escaneo: no cambia si se entrena, sí cómo, y lo explica', () => {

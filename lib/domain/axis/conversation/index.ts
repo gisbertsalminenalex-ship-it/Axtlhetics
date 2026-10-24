@@ -210,7 +210,9 @@ export function createAxisConversation(
     const social = local.intent === 'social'
     // Las preferencias (D-037), como la charla, se reconocen antes que `intent`.
     const preference = local.intent === 'preference'
-    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated || social || preference) && !noData
+    // El escáner se reconoce antes que `intent` (D-023); desde D-070 va a la IA con su resumen.
+    const scan = local.intent === 'scan'
+    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated || social || preference || scan) && !noData
 
     if (!worthIt || !(await ai.isAvailable())) {
       return {

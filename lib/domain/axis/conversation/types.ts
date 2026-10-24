@@ -9,6 +9,7 @@
 import type { AxisActionEffect, AxisActionProposal, AxisActionTarget } from '../actions'
 import type { AxisBriefing } from '../briefing'
 import type { ReportedLoad } from '../memory'
+import type { AxisAiMemory } from './memory-pack'
 
 /** Lo que el usuario puede preguntar hoy. Cada intención se responde con datos reales. */
 export type AxisIntent =
@@ -179,6 +180,11 @@ export type AxisConversationMemory = {
   turn?: number
   /** Los últimos mensajes de hoy: la charla los lee para no repetirse (D-042). */
   recent?: { role: 'user' | 'axis'; text: string }[]
+  /**
+   * Lo que la IA necesita recordar de los días anteriores y del resto de la app
+   * (D-070, bloque 2): viaja con el briefing, nunca con fotos ni con el nombre.
+   */
+  aiMemory?: AxisAiMemory
 }
 
 /**

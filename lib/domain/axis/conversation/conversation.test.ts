@@ -429,7 +429,7 @@ test('D-027: una respuesta de datos sin datos no gasta una llamada al modelo', a
   assert.equal(llamadas, 0)
 })
 
-test('lo médico, el test y el escáner no gastan una llamada al modelo; lo que toca hoy, desde D-070, sí', async () => {
+test('lo médico no gasta una llamada al modelo; lo que toca hoy, el test y el escáner, desde D-070, sí', async () => {
   const { briefing } = briefingWith({}, [session()])
   let llamadas = 0
   const conversation = createAxisConversation({
@@ -443,8 +443,6 @@ test('lo médico, el test y el escáner no gastan una llamada al modelo; lo que 
 
   for (const pregunta of [
     'Me duele la rodilla',
-    '¿Cuándo me toca el test?',
-    '¿Qué tal mi escaneo?',
   ]) {
     const result = await conversation.ask(pregunta, briefing)
     assert.match(result.engineId, /deterministic/, pregunta)
@@ -453,9 +451,10 @@ test('lo médico, el test y el escáner no gastan una llamada al modelo; lo que 
 
   assert.equal(llamadas, 0)
 
-  const today = await conversation.ask('¿Qué entrenamiento tengo hoy?', briefing)
-  assert.equal(today.engineId, 'axis-conversation-ai-v1')
-  assert.equal(llamadas, 1)
+  for (const pregunta of ['¿Qué entrenamiento tengo hoy?', '¿Cuándo me toca el test?']) {
+    assert.equal((await conversation.ask(pregunta, briefing)).engineId, 'axis-conversation-ai-v1', pregunta)
+  }
+  assert.equal(llamadas, 2)
 })
 
 test('lo médico y lo ajeno a AXTHLETICS nunca pasan por el modelo', async () => {

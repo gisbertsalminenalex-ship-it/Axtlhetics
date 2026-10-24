@@ -106,6 +106,7 @@ import {
   type AxisDayMemory,
 } from '../domain/axis/memory'
 import { createAxisConversation, fallbackNoticeOf, suggestionsFor } from '../domain/axis/conversation'
+import { buildAiMemory, MEMORY_DAYS } from '../domain/axis/conversation/memory-pack'
 import { changeOpeningMessage } from '../domain/axis/conversation/negotiation'
 import type { AxisFallbackNotice, AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
 import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
@@ -420,6 +421,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
    * negociar, y sus molestias permiten preguntar cómo van.
    */
   const [yesterdayMemory, setYesterdayMemory] = useState<AxisDayMemory | null>(null)
+  /** Los días anteriores a ayer (D-070, bloque 2): lo que la IA recuerda de ellos. */
+  const [olderMemories, setOlderMemories] = useState<AxisDayMemory[]>([])
   const [axisFallback, setAxisFallback] = useState<AxisFallbackNotice | null>(null)
 
   /** Día con el que se cargaron los datos. Permite detectar que ha cambiado la fecha. */
@@ -447,6 +450,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           storedYesterday,
           storedRecent,
           storedMeasurements,
+          storedOlder,
         ] = await Promise.all([
           repositories.profile.get(),
           repositories.activities.list(),
@@ -460,6 +464,10 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           repositories.recovery.recent(RECENT_RECOVERY_DAYS),
           // Peso y medidas (D-060): pocos registros, se leen todos.
           repositories.measurements.list(),
+          // Lo hablado de anteayer hacia atrás, para que la IA recuerde (D-070, bloque 2).
+          Promise.all(
+            Array.from({ length: MEMORY_DAYS - 1 }, (_, index) => repositories.axisMemory.getByDay(addDays(dayKey, -(index + 2)))),
+          ),
         ])
 
         if (cancelled) return
@@ -515,6 +523,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         )
         setMovedFromYesterday(movedFromDayBefore(storedYesterday, dayKey))
         setYesterdayMemory(storedYesterday && storedYesterday.dayKey === addDays(dayKey, -1) ? storedYesterday : null)
+        setOlderMemories(storedOlder.filter((day): day is AxisDayMemory => day !== null))
         setStatus(storedProfile ? 'ready' : 'onboarding')
       } catch (cause) {
         if (cancelled) return
@@ -1214,7 +1223,19 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       setAxisError(null)
 
       try {
-        const result = await conversation.ask(text, briefing, conversationMemoryOf(memory))
+        const aiMemory = buildAiMemory({
+          today,
+          name: profile?.name?.trim() || null,
+          pastDays: [...(yesterdayMemory ? [yesterdayMemory] : []), ...olderMemories],
+          sessions,
+          profile,
+          catalog: EXERCISE_CATALOG,
+          nutrition: { targets: nutritionTargets, todayMeals: measurements.find((record) => record.dayKey === today)?.meals },
+          weeklyReview,
+          scan: briefing.scan,
+          assessments: assessments.assessments,
+        })
+        const result = await conversation.ask(text, briefing, { ...conversationMemoryOf(memory), aiMemory })
 
         const answer: AxisMessage = {
           id: createId(),
@@ -1256,7 +1277,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setAxisStatus('error')
       }
     },
-    [briefing, memory, day, commitMemory, setExerciseDisliked],
+    [briefing, memory, day, commitMemory, setExerciseDisliked, today, profile, yesterdayMemory, olderMemories, sessions, nutritionTargets, measurements, weeklyReview, assessments.assessments],
   )
 
   /** Acciones que se están ejecutando ahora mismo, para no lanzar dos veces la misma. */
