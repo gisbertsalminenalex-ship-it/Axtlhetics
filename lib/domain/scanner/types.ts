@@ -13,6 +13,7 @@
 import { addDays, daysBetween, type DayKey } from '../shared/dates'
 import { isRecord } from '../shared/guards'
 import { SCAN_SEXES, type ScanSex } from './body-fat'
+import { PERIMETER_LIMITS, PERIMETER_ORDER, type PerimeterKey } from '../body/measurements'
 import type { Measurements, ScanPose } from './measure'
 import type { CategoryKey, ScanPriority, ScanSelfReport } from './summary'
 
@@ -35,6 +36,8 @@ export type ScanRecord = {
     /** El % de grasa estimado al guardarlo (enmienda del 2026-10-14). Ausente en los anteriores. */
     bodyFatPct?: number | null
   }
+  /** Los perímetros con cinta que valían el día del escaneo, en cm (D-069). Ausente en los anteriores. */
+  tape?: Partial<Record<PerimeterKey, number>>
   /** Una miniatura JPEG por pose. Solo en el dispositivo: nunca en la copia. */
   thumbnails?: Partial<Record<ScanPose, string>>
 }
@@ -81,6 +84,13 @@ export function isScanRecord(value: unknown): value is ScanRecord {
   if (!Object.values(value.result.scores).every(isScore)) return false
   const fat = value.result.bodyFatPct
   if (fat !== undefined && fat !== null && !(typeof fat === 'number' && Number.isFinite(fat) && fat > 0 && fat < 100)) return false
+  if (value.tape !== undefined) {
+    if (!isRecord(value.tape)) return false
+    for (const [key, cm] of Object.entries(value.tape)) {
+      if (!PERIMETER_ORDER.includes(key as PerimeterKey)) return false
+      if (typeof cm !== 'number' || cm < PERIMETER_LIMITS.min || cm > PERIMETER_LIMITS.max) return false
+    }
+  }
   if (value.thumbnails !== undefined) {
     if (!isRecord(value.thumbnails)) return false
     for (const [pose, src] of Object.entries(value.thumbnails)) {
@@ -119,6 +129,7 @@ export function createScanRecord(input: {
   measurements: Partial<Record<ScanPose, Measurements[]>>
   summary: { index: number | null; categories: readonly { key: CategoryKey; score: number | null }[]; bodyFat?: { pct: number } | null }
   thumbnails: Partial<Record<ScanPose, string>>
+  tape?: Partial<Record<PerimeterKey, number>> | null
 }): ScanRecord {
   return {
     id: input.id,
@@ -133,6 +144,7 @@ export function createScanRecord(input: {
       bodyFatPct: input.summary.bodyFat?.pct ?? null,
     },
     thumbnails: input.thumbnails,
+    ...(input.tape && Object.keys(input.tape).length ? { tape: input.tape } : {}),
   }
 }
 

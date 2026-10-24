@@ -8,6 +8,7 @@ import { compareScans } from '@/lib/domain/scanner/compare'
 import { SCAN_POSE_GUIDE } from '@/lib/domain/scanner/protocol'
 import { summarizeScan } from '@/lib/domain/scanner/summary'
 import { physiquePlan } from '@/lib/domain/scanner/physique'
+import { tapeForScan } from '@/lib/domain/scanner/coach'
 import { formatDayInSentence } from '@/lib/domain/shared/dates'
 import { useAxtlhetics } from '@/lib/state/store'
 
@@ -45,7 +46,7 @@ export function ScanHistoryList({ onOpen }: { onOpen: (id: string) => void }) {
  * entrenamiento de hoy. Se puede borrar: son fotos del cuerpo de alguien.
  */
 export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
-  const { scans, assessments, sessions, profile } = useAxtlhetics()
+  const { scans, assessments, sessions, profile, measurements: bodyRecords } = useAxtlhetics()
   const [confirming, setConfirming] = useState(false)
   useEffect(() => {
     document.querySelector('main')?.scrollTo({ top: 0 })
@@ -81,6 +82,7 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
         selfReport: scan.selfReport,
         body: profile ? { heightCm: profile.heightCm, age: profile.age, weightKg: profile.weightKg } : null,
         previous: older,
+        tape: tapeForScan(scan, bodyRecords),
         today: scan.dayKey,
       })
     : null

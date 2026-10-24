@@ -19,6 +19,7 @@
 import { fixedPushUpVariant } from '../assessment/assessment'
 import { summarizeScan, type ScanPriority, type ScanZone } from '../scanner/summary'
 import { compareScans } from '../scanner/compare'
+import { tapeForScan } from '../scanner/coach'
 import { sortScans } from '../scanner/types'
 import { recommendedPushUpVariant } from '../assessment/protocol'
 import { assessmentStatusFor, type AxisAssessmentStatus } from './assessment'
@@ -385,6 +386,7 @@ function briefingScan(context: AxisContext, sessions: readonly WorkoutSession[])
     sessions,
     experience: context.profile?.experience ?? null,
     selfReport: last.selfReport,
+    tape: tapeForScan(last),
     body: context.profile ? { heightCm: context.profile.heightCm, age: context.profile.age, weightKg: context.profile.weightKg } : null,
     previous: previous ?? null,
     today: last.dayKey,

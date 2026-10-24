@@ -24,6 +24,7 @@ import { EXPERIENCE_LABELS, type ExperienceLevel } from '../profile/types'
 import { daysBetween, type DayKey } from '../shared/dates'
 import { MUSCLE_GROUP_LABELS, type MuscleGroup, type WorkoutSession } from '../workouts/types'
 import { estimateBodyFat, type BodyFatEstimate, type BodyFatMissing, type ScanSex } from './body-fat'
+import { tapeText, type TapeReading } from './coach'
 import { diagnoseScan, SOMATOTYPE_LABELS, type BuildEstimate, type ScanDiagnosis } from './diagnosis'
 import type { Measurements, ScanPose } from './measure'
 import { nutritionGuide } from './nutrition'
@@ -71,6 +72,8 @@ export type ScanSummary = {
   bodyFat: BodyFatEstimate | null
   /** Complexión, zonas que destacan, zonas a priorizar y asimetrías, deducidas de las fotos (D-068). */
   diagnosis: ScanDiagnosis
+  /** Lo que ha cambiado este mes en la cinta y en la fuerza (D-069), una línea cada cosa. */
+  progress: string[]
 }
 
 /** Zonas por las que se pregunta: las que un adolescente reconoce al mirarse. */
@@ -116,6 +119,8 @@ export type ScanInput = {
   selfReport?: ScanSelfReport | null
   /** El escaneo anterior, para ver cómo han cambiado las zonas. */
   previous?: { measurements: PoseShots; dayKey: DayKey } | null
+  /** La cinta del día del escaneo y su cambio frente al mes anterior (D-069). */
+  tape?: TapeReading | null
   /** Día de referencia para el historial de entrenamiento. */
   today?: DayKey
 }
@@ -387,7 +392,7 @@ function categoryText(findings: Finding[], empty: string): string {
 const AREA: Record<string, string> = { push: 'empuje', core: 'core', legs: 'piernas', pull: 'tirón' }
 const MAIN_GROUPS: readonly MuscleGroup[] = ['pecho', 'espalda', 'hombros', 'brazos', 'piernas', 'gluteos']
 
-type Development = { category: ScanCategory; strengths: string[]; improvements: string[]; actions: ScanAction[] }
+type Development = { category: ScanCategory; strengths: string[]; improvements: string[]; actions: ScanAction[]; progress: string[] }
 
 function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Development {
   const done = completedAssessments(input.assessments ?? [])
@@ -404,15 +409,16 @@ function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Developm
     CORE_ARMS_KEYS.some(([pose, key]) => stableValue(input.shots, pose, key) !== null)
   let strengthUp: string[] = []
 
-  if (done.length === 0 && recent.length === 0 && !hasZones) {
+  if (done.length === 0 && recent.length === 0 && !hasZones && !input.tape) {
     return {
       category: {
         ...base,
-        text: 'La foto no muestra cuánto músculo tienes; eso lo estimo con tu fuerza y tu entrenamiento, y todavía no tengo datos de ninguno de los dos. Haz el test de evolución y tus primeras sesiones, y en el próximo escaneo te lo podré decir.',
+        text: 'La foto no ve cuánto músculo tienes: lo sigo con la cinta y con tu fuerza, y todavía no tengo ninguna de las dos. Mide tu brazo, tu pecho y tu muslo, haz el test de evolución, y en el próximo escaneo te lo diré.',
       },
       strengths: [],
       improvements: [],
       actions: [],
+      progress: [],
     }
   }
 
@@ -421,6 +427,7 @@ function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Developm
   const strengths: string[] = []
   const improvements: string[] = []
   const actions: ScanAction[] = []
+  const progress: string[] = []
 
   // Lo que dicen los datos, dicho primero.
   const sources: string[] = []
@@ -444,6 +451,8 @@ function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Developm
       improvements.push(`Tu fuerza no sube en ${list(stuck)}`)
       actions.push({ text: `Más frecuencia y progresión de carga en ${list(stuck)}: elígelas cuando AXIS te las ofrezca como opción.`, exerciseIds: [] })
     }
+    if (up.length) progress.push(`Fuerza: sube en ${list(up)}`)
+    if (stuck.length) progress.push(`Fuerza: sin progreso en ${list(stuck)}`)
   } else if (done.length === 1) {
     parts.push('Tu primer test es la referencia: con el siguiente veremos qué zonas crecen más rápido.')
   }
@@ -467,18 +476,18 @@ function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Developm
     else parts.push(`Con ${one(perWeek)} sesiones por semana, la constancia es lo que más te hará crecer ahora.`)
   }
 
-  // Lo que destaca y lo que va por detrás en tus fotos (D-068); el historial lo confirma o lo matiza.
+  // Lo que destaca y lo que va por detrás en la foto y la cinta (D-068, D-069); el historial lo confirma o lo matiza.
   if (strongZones.length) {
     const zones = list(strongZones.map((z) => SCAN_ZONE_LABELS[z]))
-    parts.push(`En tus fotos destacan ${zones} frente a un físico equilibrado.`)
-    strengths.push(`En tus fotos destacan ${zones}`)
+    parts.push(`Frente a un físico equilibrado, destacan ${zones}.`)
+    strengths.push(`Destacan ${zones}`)
   }
   if (weakZones.length) {
     for (const zone of weakZones) {
       const trained = counts.get(zone) ?? 0
       const median = ordered[Math.floor(ordered.length / 2)]?.n ?? 0
       const plural = PLURAL_ZONES.includes(zone)
-      const behind = `En tus fotos, ${plural ? 'tus' : 'tu'} ${SCAN_ZONE_LABELS[zone]} ${plural ? 'van' : 'va'} por detrás`
+      const behind = `Frente a un físico equilibrado, ${plural ? 'tus' : 'tu'} ${SCAN_ZONE_LABELS[zone]} ${plural ? 'van' : 'va'} por detrás`
       if (leastTrained === zone) {
         parts.push(`${behind} y tu historial lo confirma: es lo que menos has entrenado, y ahí está tu mayor margen.`)
       } else if (recent.length && trained > 0 && trained >= median) {
@@ -496,6 +505,13 @@ function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Developm
     })
   }
 
+  // El músculo, con la cinta y la fuerza (D-069): lo que la foto no puede ver.
+  const tape = tapeText(input.tape ?? null, strengthUp, done.length >= 2)
+  parts.push(...tape.parts)
+  details.push(...tape.details)
+  strengths.push(...tape.strengths)
+  progress.unshift(...tape.progress)
+
   const zones = zoneDevelopment(input.shots, input.previous ?? null, strengthUp, done.length >= 2)
   parts.push(...zones.parts)
   details.push(...zones.details)
@@ -506,7 +522,7 @@ function muscleDevelopment(input: ScanInput, diagnosis: ScanDiagnosis): Developm
   details.push(...coreArms.details)
   strengths.push(...coreArms.strengths)
 
-  return { category: { ...base, text: parts.join(' '), details }, strengths, improvements, actions }
+  return { category: { ...base, text: parts.join(' '), details }, strengths, improvements, actions, progress }
 }
 
 /**
@@ -712,6 +728,7 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     sex: input.selfReport?.sex,
     body: input.body ?? null,
     bodyFatPct: input.bodyFatPct ?? (fat.ok ? fat.estimate.pct : null),
+    tape: input.tape?.latest ?? null,
   })
   const development = muscleDevelopment(input, diagnosis)
 
@@ -822,6 +839,7 @@ export function summarizeScan(input: ScanInput): ScanSummary {
     photoNotes: Array.from(notes),
     bodyFat: fat.ok ? fat.estimate : null,
     diagnosis,
+    progress: development.progress,
   }
 }
 
@@ -931,9 +949,10 @@ const PRIORITY_ACTIONS: Record<ScanPriority, ScanAction> = {
 }
 
 /**
- * El resumen de entrada, como lo diría un entrenador: dónde estás, lo mejor que
- * tienes, lo que más te hará avanzar y, si se pudo estimar, tu grasa. Primero la
- * conclusión, sin exclamaciones ni cumplidos de apertura.
+ * La impresión de entrada, como la daría un entrenador el primer día (D-069):
+ * cómo es tu físico, dónde estás, lo mejor que tienes, lo que más te hará
+ * avanzar y, si se pudo estimar, tu grasa. Primero la conclusión, sin
+ * exclamaciones ni cumplidos de apertura.
  */
 function overviewText(
   index: number | null,
@@ -943,17 +962,23 @@ function overviewText(
   diagnosis: ScanDiagnosis,
   bodyFat: BodyFatEstimate | null,
 ): string {
-  if (index === null) return 'Me faltan fotos para darte un resultado completo: necesito de frente, de perfil, la sentadilla y los brazos arriba.'
-  const parts: string[] = [
+  const physique = physiqueImpression(diagnosis)
+  if (index === null) {
+    return [physique, 'Me faltan fotos para darte un resultado completo: necesito de frente, de perfil, la sentadilla y los brazos arriba.']
+      .filter(Boolean)
+      .join(' ')
+  }
+  const parts: string[] = physique ? [physique] : []
+  parts.push(
     index >= STRENGTH_FROM
       ? `Partes de una base sólida: ${index}/100 en equilibrio corporal.`
       : index > IMPROVE_UNTIL
         ? `Tienes una buena base para construir: ${index}/100 en equilibrio corporal.`
         : `Tienes mucho margen para avanzar: ${index}/100 en equilibrio corporal, y eso significa que notarás los cambios pronto si entrenas con constancia.`,
-  ]
+  )
   if (strong.length) parts.push(`Lo mejor: ${lowerFirst(list(strong.slice(0, 2).map((f, i) => (i === 0 ? f.strength : lowerFirst(f.strength)))))}.`)
   const goal = diagnosis.weakZones.length
-    ? `dar prioridad a ${list(diagnosis.weakZones.map((z) => SCAN_ZONE_LABELS[z]))}, que es lo que menos destaca en tus fotos`
+    ? `dar prioridad a ${list(diagnosis.weakZones.map((z) => SCAN_ZONE_LABELS[z]))}, que es lo que va más por detrás`
     : self?.priority
       ? `${SCAN_PRIORITY_LABELS[self.priority]}, que es tu prioridad`
       : null
@@ -969,4 +994,18 @@ function overviewText(
   )
   if (bodyFat) parts.push(`Tu grasa corporal estimada es del ${one(bodyFat.pct)} % (±${bodyFat.marginPct} %).`)
   return parts.join(' ')
+}
+
+/** «Tu físico: complexión mesomorfa, con hombros y espalda como punto fuerte y las piernas por detrás.» `null` sin nada que decir. */
+function physiqueImpression(diagnosis: ScanDiagnosis): string | null {
+  const strong = diagnosis.strongZones.map((z) => SCAN_ZONE_LABELS[z])
+  const weak = diagnosis.weakZones.map((z) => SCAN_ZONE_LABELS[z])
+  const zones = [
+    strong.length ? `${list(strong)} como punto fuerte` : null,
+    weak.length ? `${list(weak)} por detrás` : null,
+  ].filter((part): part is string => part !== null)
+  if (!diagnosis.build && zones.length === 0) return null
+  const build = diagnosis.build ? `complexión ${buildText(diagnosis.build)}` : null
+  if (build && zones.length) return `Tu físico: ${build}, con ${list(zones)}.`
+  return build ? `Tu físico: ${build}.` : `Tu físico: ${list(zones)}.`
 }

@@ -2295,6 +2295,20 @@ Se ve en Entrenamiento, después de «La semana pasada», sin tarjeta.
 
 ---
 
+## D-069 — El escáner como valoración de entrenador
+
+**Fecha:** 2026-10-24 · **Estado:** aprobada e implementada · Decidido por Alex: que el escáner sirva para «ver cómo es tu físico, como hace un entrenador personal», tras descartar mandar las fotos a una IA externa (las fotos siguen sin salir del móvil, `P-016`; el usuario objetivo es adolescente y las fotos se piden sin camiseta). **Amplía** D-023, D-041, D-067 y D-068.
+
+- **La foto ve la forma, la cinta y la fuerza siguen el músculo.** El escáner lo dice así y deja de prometer que ve la musculatura.
+- **Paso «Tu músculo, con cinta»** después de la prioridad y antes de las fotos (`components/scanner/tape-step.tsx`): brazo, pecho, muslo y cintura. Opcional, como en D-067: «Medir ahora» / «Lo mido luego»; con una medida de los últimos 60 días, «Usar la última» / «Medir de nuevo». Lo medido se guarda en Peso y medidas (`savePerimeters`) al guardar el escaneo, nunca antes.
+- **`ScanRecord.tape`**: la cinta que valía el día del escaneo, para que el motor y AXIS la usen sin el historial de medidas. Ausente en los anteriores.
+- **Zonas con cinta** (`tapeReadings`, `TAPE_REFERENCE`, provisionales hasta P-015): brazo frente a muslo (por sexo) **manda sobre** la anchura en la foto; pecho frente a cintura solo en hombres. El motor (D-041) las prioriza igual que las de la foto y lo explica «con la cinta».
+- **Músculo con cinta y fuerza** (`lib/domain/scanner/coach.ts`): frente a la medida de al menos 21 días antes, un perímetro que crece más que el margen de la cinta (0,5 cm brazo, 1 cm el resto) **y** con la fuerza de su zona subiendo en los tests es «coherente con más músculo»; sin fuerza que lo respalde, se dice tal cual. La cintura se dice sin juzgarla.
+- **Impresión de entrenador**: el resumen de entrada empieza por «Tu físico: complexión …, con … como punto fuerte y … por detrás.».
+- **«Este mes: cinta y fuerza»** en el resultado (`ScanSummary.progress`): cada perímetro antes → ahora y la fuerza que sube o no.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

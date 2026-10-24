@@ -55,3 +55,22 @@ test('D-068: solo las asimetrías claras, con su lado', () => {
   ])
   assert.deepEqual(detectAsymmetries(reader({ 'front.shoulderTiltDeg': 3, 'arms_up.armsDiffDeg': -8 })), [])
 })
+
+test('D-069: la cinta manda sobre la foto en brazo y muslo, y añade el pecho en hombres', () => {
+  // La foto dice brazos por detrás; la cinta (36 / 54 = 0,67 > 0,66) dice que las piernas.
+  const read = reader({ 'front.upperArmMean': 0.25, 'front.thighMean': 0.45 })
+  const withTape = diagnoseScan({ read, sex: 'hombre', tape: { brazo: 36, muslo: 54 } })
+  assert.deepEqual(withTape.strongZones, ['brazos'])
+  assert.deepEqual(withTape.weakZones, ['piernas'])
+
+  assert.deepEqual(diagnoseScan({ read: reader({}), sex: 'hombre', tape: { pecho: 88, cintura: 82 } }).weakZones, ['pecho'])
+  assert.deepEqual(diagnoseScan({ read: reader({}), sex: 'hombre', tape: { pecho: 110, cintura: 80 } }).strongZones, ['pecho'])
+  // En mujeres el perímetro del pecho no sigue al músculo: no se usa.
+  assert.deepEqual(diagnoseScan({ read: reader({}), sex: 'mujer', tape: { pecho: 88, cintura: 82 } }).weakZones, [])
+})
+
+test('D-069: la foto y la cinta se suman: la «V» de la foto y brazo/muslo de la cinta', () => {
+  const d = diagnoseScan({ read: reader({ 'front.shoulderToWaist': 1.5 }), sex: 'hombre', tape: { brazo: 30, muslo: 65 } })
+  assert.deepEqual(d.strongZones, ['hombros', 'espalda', 'piernas'])
+  assert.deepEqual(d.weakZones, ['brazos'])
+})

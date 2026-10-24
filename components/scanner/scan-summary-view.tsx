@@ -42,6 +42,18 @@ export function ScanSummaryView({
 
       {comparison && <ComparisonBlock comparison={comparison} />}
 
+      {/* Lo que la foto no ve: la cinta y la fuerza del último mes (D-069). */}
+      {summary.progress.length > 0 && (
+        <section className="mt-6 rounded-3xl bg-surface p-5">
+          <h3 className="text-[15px] font-semibold">Este mes: cinta y fuerza</h3>
+          <ul className="mt-2 space-y-1.5 text-[14px] leading-relaxed">
+            {summary.progress.map((line) => (
+              <li key={line}>· {line}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <ul className="mt-6 divide-y divide-border border-y border-border">
         {summary.categories.map((category) => (
           <li key={category.key} className="py-4">
@@ -166,7 +178,7 @@ function DiagnosisBlock({ diagnosis }: { diagnosis: ScanDiagnosis }) {
         ))}
       </dl>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground text-pretty">
-        Deducido de la forma en tus fotos y de tu perfil. Orientativo, no es una medida médica.
+        Deducido de tus fotos, tu cinta y tu perfil. Orientativo, no es una medida médica.
       </p>
     </>
   )

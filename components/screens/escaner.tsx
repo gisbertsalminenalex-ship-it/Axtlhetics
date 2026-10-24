@@ -3,7 +3,7 @@
 /**
  * El escáner corporal (D-023): un flujo dentro de Entrenamiento, como el test de
  * evolución. Introducción → sexo y prioridad (una pregunta por paso, como el
- * onboarding) → una pose por paso → resumen → guardar.
+ * onboarding) → cinta (D-069) → una pose por paso → resumen → guardar.
  *
  * Las fotos se analizan en el dispositivo y solo se guardan miniaturas, en el
  * dispositivo. Nada se guarda hasta pulsar «Guardar escaneo».
@@ -23,11 +23,14 @@ import { createId } from '@/lib/domain/shared/ids'
 import { formatDayInSentence, todayKey } from '@/lib/domain/shared/dates'
 import { useAxtlhetics } from '@/lib/state/store'
 import { physiquePlan } from '@/lib/domain/scanner/physique'
+import { readTape } from '@/lib/domain/scanner/coach'
+import { emptyMeasurement, withPerimeters, type PerimeterKey } from '@/lib/domain/body/measurements'
+import { TapeStep } from '@/components/scanner/tape-step'
 import { cn } from '@/lib/utils'
 
-// La complexión y las zonas ya no se preguntan: salen de las fotos (D-068).
-type Step = 'intro' | 'sex' | 'priority' | ScanPose | 'summary'
-const STEPS: readonly Step[] = ['intro', 'sex', 'priority', ...SCAN_POSE_GUIDE.map((g) => g.pose), 'summary']
+// La complexión y las zonas ya no se preguntan: salen de las fotos y la cinta (D-068, D-069).
+type Step = 'intro' | 'sex' | 'priority' | 'tape' | ScanPose | 'summary'
+const STEPS: readonly Step[] = ['intro', 'sex', 'priority', 'tape', ...SCAN_POSE_GUIDE.map((g) => g.pose), 'summary']
 
 type Photo = { id: string; result: AnalyzedPhoto }
 
@@ -39,7 +42,7 @@ const SEXES: { id: ScanSex; label: string }[] = [
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
 export function EscanerScreen({ onClose }: { onClose: () => void }) {
-  const { scans, assessments, sessions, profile } = useAxtlhetics()
+  const { scans, assessments, sessions, profile, measurements: bodyRecords, savePerimeters } = useAxtlhetics()
   const [stepIndex, setStepIndex] = useState(0)
   // El sexo del perfil sale marcado; se puede cambiar en cada escaneo (D-051).
   const [selfReport, setSelfReport] = useState<ScanSelfReport>({
@@ -50,6 +53,17 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [modelError, setModelError] = useState(false)
   const [saving, setSaving] = useState(false)
+  // `undefined`: sin elegir; `null`: sin medir ahora (D-069).
+  const [tape, setTape] = useState<Partial<Record<PerimeterKey, number>> | null | undefined>(undefined)
+  const today = todayKey()
+
+  // La cinta reciente que ya había, y la de hoy si se mide en el escáner (se guarda al guardar el escaneo).
+  const previousTape = useMemo(() => readTape(bodyRecords, today), [bodyRecords, today])
+  const tapeReading = useMemo(() => {
+    if (!tape) return previousTape
+    const current = bodyRecords.find((r) => r.dayKey === today) ?? emptyMeasurement(today, '')
+    return readTape([...bodyRecords.filter((r) => r.dayKey !== today), withPerimeters(current, tape, '')], today)
+  }, [tape, bodyRecords, today, previousTape])
 
   const step = STEPS[stepIndex]
   const isPose = SCAN_POSE_GUIDE.some((g) => g.pose === step)
@@ -86,9 +100,10 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
         body: profile ? { heightCm: profile.heightCm, age: profile.age, weightKg: profile.weightKg } : null,
         // Frente al último escaneo guardado: cómo han cambiado las zonas.
         previous: scans.scans[0] ?? null,
-        today: todayKey(),
+        tape: tapeReading,
+        today,
       }),
-    [measurements, assessments.assessments, sessions, profile, selfReport, scans.scans],
+    [measurements, assessments.assessments, sessions, profile, selfReport, scans.scans, tapeReading, today],
   )
 
   // Frente a tu último escaneo guardado, si lo hay.
@@ -129,7 +144,17 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
       const first = (photos[pose] ?? []).find((p) => p.result.ok)
       if (first?.result.thumbnail) thumbnails[pose] = first.result.thumbnail
     }
-    const record = createScanRecord({ id: createId(), dayKey: todayKey(), now: new Date(), selfReport, measurements, summary, thumbnails })
+    if (tape) await savePerimeters(tape)
+    const record = createScanRecord({
+      id: createId(),
+      dayKey: today,
+      now: new Date(),
+      selfReport,
+      measurements,
+      summary,
+      thumbnails,
+      tape: tapeReading?.latest ?? null,
+    })
     const saved = await scans.save(record)
     setSaving(false)
     if (saved) onClose()
@@ -175,6 +200,8 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
         </Question>
       )}
 
+      {step === 'tape' && <TapeStep previous={previousTape} tape={tape} onTape={setTape} onNext={next} />}
+
       {isPose && (
         <PoseStep
           guide={SCAN_POSE_GUIDE.find((g) => g.pose === step)!}
@@ -194,7 +221,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
             <ScanSummaryView
               summary={summary}
               comparison={comparison}
-              plan={physiquePlan({ dayKey: todayKey(), measurements, selfReport }).findings}
+              plan={physiquePlan({ dayKey: today, measurements, selfReport, tape: tapeReading?.latest }).findings}
             />
           </div>
           <div className="mt-auto pt-8">
@@ -220,10 +247,10 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
   return (
     <>
       <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Escáner corporal</h1>
-      <p className="mt-1.5 text-[15px] text-muted-foreground">2 preguntas y 5 fotos, más 1 opcional · 5 min</p>
+      <p className="mt-1.5 text-[15px] text-muted-foreground">2 preguntas, tu cinta y 5 fotos · 5–10 min</p>
       <p className="mt-4 text-[15px] leading-relaxed text-pretty">
-        Mido tu simetría, tus proporciones, tu postura y tu movilidad, y lo combino con tu fuerza y tu entrenamiento.
-        De las fotos deduzco tu complexión, las zonas que destacan y las que conviene priorizar.
+        Como la primera valoración de un entrenador: miro cómo estás de pie, cómo te mueves y tus proporciones, y sigo
+        tu músculo con la cinta y tu fuerza. Te digo cómo es tu físico, qué destaca, qué va por detrás y por dónde empezar.
       </p>
       <p className="mt-4 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
         Las fotos se analizan en tu móvil y no salen de él. Solo se guarda una miniatura de cada pose, también en tu móvil,

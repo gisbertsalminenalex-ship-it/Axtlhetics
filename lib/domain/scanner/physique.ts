@@ -24,7 +24,7 @@ import type { DayKey } from '../shared/dates'
 import { daysBetween } from '../shared/dates'
 import { listNames } from '../shared/text'
 import { MUSCLE_GROUP_LABELS, type MuscleGroup } from '../workouts/types'
-import { detectAsymmetries, zoneReadings } from './diagnosis'
+import { allZoneReadings, detectAsymmetries, zonesOf, type ZoneReading } from './diagnosis'
 import { clearly, POSTURE_SCALES } from './scales'
 import { stableValue, type PoseShots, type ScanZone } from './summary'
 import type { ScanRecord } from './types'
@@ -69,8 +69,8 @@ export function latestScan(scans: readonly ScanRecord[], today: DayKey): ScanRec
   return recent.reduce((latest, scan) => (scan.dayKey > latest.dayKey ? scan : latest))
 }
 
-/** Basta con lo que se mide y el sexo de la fórmula: sirve antes de guardar el escaneo. */
-export type PhysiqueInput = Pick<ScanRecord, 'dayKey' | 'measurements' | 'selfReport'>
+/** Basta con lo que se mide, la cinta del día y el sexo de la fórmula: sirve antes de guardar el escaneo. */
+export type PhysiqueInput = Pick<ScanRecord, 'dayKey' | 'measurements' | 'selfReport' | 'tape'>
 
 export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
   const shots = scan.measurements as PoseShots
@@ -79,17 +79,14 @@ export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
   const extras: string[] = []
   const findings: string[] = []
 
-  // --- Las fotos, frente a un físico equilibrado (D-068: ya no se pregunta) ---
-  for (const reading of zoneReadings(value, scan.selfReport.sex)) {
-    if (reading.weak.length === 0) continue
-    for (const zone of reading.weak) for (const group of ZONE_GROUPS[zone]) priority.add(group)
-    findings.push(
-      reading.source === 'shoulderToWaist'
-        ? `En tus fotos, la «V» de hombros a cintura (${decimal(reading.value)}) queda por debajo de un físico equilibrado (${decimal(reading.reference)}): doy prioridad a hombros y espalda.`
-        : reading.weak.includes('brazos')
-          ? 'En tus fotos, los brazos se ven por detrás de las piernas: les doy prioridad.'
-          : 'En tus fotos, las piernas se ven por detrás de los brazos: les doy prioridad.',
-    )
+  // --- La foto y la cinta, frente a un físico equilibrado (D-068, D-069) -------
+  const readings = allZoneReadings(value, scan.selfReport.sex, scan.tape ?? null)
+  const { weak } = zonesOf(readings)
+  for (const reading of readings) {
+    const behind = reading.weak.filter((zone) => weak.includes(zone))
+    if (behind.length === 0) continue
+    for (const zone of behind) for (const group of ZONE_GROUPS[zone]) priority.add(group)
+    findings.push(zoneFinding(reading))
   }
 
   // --- Postura y movilidad -----------------------------------------------------
@@ -126,6 +123,24 @@ export function physiquePlan(scan: PhysiqueInput): PhysiquePlan {
     warmupExtras: [...new Set(extras)],
     unilateral,
     findings,
+  }
+}
+
+/** Lo que AXIS cuenta de una zona que va por detrás, según de dónde sale. */
+function zoneFinding(reading: ZoneReading): string {
+  switch (reading.source) {
+    case 'shoulderToWaist':
+      return `En tus fotos, la «V» de hombros a cintura (${decimal(reading.value)}) queda por debajo de un físico equilibrado (${decimal(reading.reference)}): doy prioridad a hombros y espalda.`
+    case 'armToThigh':
+      return reading.weak.includes('brazos')
+        ? 'En tus fotos, los brazos se ven por detrás de las piernas: les doy prioridad.'
+        : 'En tus fotos, las piernas se ven por detrás de los brazos: les doy prioridad.'
+    case 'tapeArmToThigh':
+      return reading.weak.includes('brazos')
+        ? 'Con la cinta, tu brazo va por detrás de tu muslo: doy prioridad a los brazos.'
+        : 'Con la cinta, tu muslo va por detrás de tu brazo: doy prioridad a las piernas.'
+    case 'tapeChestToWaist':
+      return `Con la cinta, tu pecho queda corto frente a tu cintura (${decimal(reading.value)}): doy prioridad al pecho.`
   }
 }
 

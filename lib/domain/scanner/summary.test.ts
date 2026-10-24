@@ -122,7 +122,7 @@ test('desarrollo muscular sin datos: lo dice y explica de dónde saldrá; no cue
   const dev = summarizeScan({ shots: balanced() }).categories.find((c) => c.key === 'muscleDevelopment')!
   assert.equal(dev.score, null)
   assert.equal(dev.inIndex, false)
-  assert.match(dev.text, /La foto no muestra cuánto músculo tienes/)
+  assert.match(dev.text, /La foto no ve cuánto músculo tienes: lo sigo con la cinta y con tu fuerza/)
   assert.match(dev.text, /test de evolución/)
 })
 
@@ -162,12 +162,12 @@ test('D-068: las zonas salen de la foto, y el historial lo confirma o lo matiza'
   assert.deepEqual(s.diagnosis.strongZones, ['brazos'])
   assert.deepEqual(s.diagnosis.weakZones, ['hombros', 'espalda', 'piernas'])
   const dev = s.categories.find((c) => c.key === 'muscleDevelopment')!
-  assert.match(dev.text, /En tus fotos destacan brazos frente a un físico equilibrado\./)
+  assert.match(dev.text, /Frente a un físico equilibrado, destacan brazos\./)
   // La espalda es lo menos entrenado: el historial lo confirma.
-  assert.match(dev.text, /En tus fotos, tu espalda va por detrás y tu historial lo confirma/)
+  assert.match(dev.text, /Frente a un físico equilibrado, tu espalda va por detrás y tu historial lo confirma/)
   // Los hombros se entrenan a menudo: el consejo es subir la carga.
-  assert.match(dev.text, /En tus fotos, tus hombros van por detrás aunque los entrenas a menudo/)
-  assert.match(dev.text, /En tus fotos, tus piernas van por detrás del resto\./)
+  assert.match(dev.text, /Frente a un físico equilibrado, tus hombros van por detrás aunque los entrenas a menudo/)
+  assert.match(dev.text, /Frente a un físico equilibrado, tus piernas van por detrás del resto\./)
   assert.ok(s.improvements.includes('Más desarrollo en hombros, espalda y piernas'))
   const priority = s.actions[0]
   assert.match(priority.text, /^Dar prioridad a hombros, espalda y piernas: ya les subo las series de la semana/)
@@ -314,7 +314,7 @@ test('el contorno máximo solo, por encima de su margen, también cuenta como cr
 test('si la media sube y el contorno baja, no hay un cambio claro y no se dice nada de esa zona', () => {
   const previous = { measurements: withZones({ thighMean: 0.36, thighPeak: 0.45 }), dayKey: '2026-09-01' }
   const s = summarizeScan({ shots: withZones({ thighMean: 0.42, thighPeak: 0.4 }), previous })
-  assert.doesNotMatch(devText(s), /muslo/)
+  assert.doesNotMatch(devText(s), /Tu muslo ocupa/)
 })
 
 test('el antebrazo se mide como una zona más, con su media y su contorno', () => {
@@ -410,7 +410,7 @@ test('con zonas por detrás en la foto, el primer paso son esas zonas (D-068)', 
     body: { heightCm: 178, age: 25, weightKg: 70 },
   })
   assert.match(s.actions[0].text, /^Dar prioridad a hombros y espalda/)
-  assert.match(s.overview, /dar prioridad a hombros y espalda, que es lo que menos destaca en tus fotos/)
+  assert.match(s.overview, /dar prioridad a hombros y espalda, que es lo que va más por detrás/)
 })
 
 test('un menor recibe guía de alimentación sin déficit ni cifras', () => {
@@ -427,4 +427,25 @@ test('un menor recibe guía de alimentación sin déficit ni cifras', () => {
 test('sin prioridad no hay paso de alimentación', () => {
   const s = summarizeScan({ shots: balanced(), body: { heightCm: 178, age: 25, weightKg: 70 } })
   assert.ok(!s.actions.some((a) => a.text.startsWith('Alimentación')))
+})
+
+test('D-069: la impresión de entrada empieza por cómo es tu físico, como un entrenador', () => {
+  const s = summarizeScan({
+    shots: { ...balanced(), front: steady({ shoulderTiltDeg: 0.5, hipTiltDeg: 0.4, shoulderToWaist: 1.5 }) },
+    selfReport: { priority: null, sex: 'hombre' },
+    body: { heightCm: 178, age: 25, weightKg: 75 },
+    tape: { latest: { brazo: 30, muslo: 65 }, changes: [] },
+  })
+  assert.match(s.overview, /^Tu físico: complexión mesomorfa, con hombros, espalda y piernas como punto fuerte y brazos por detrás\. /)
+})
+
+test('D-069: la cinta y la fuerza del mes llegan al resumen, en «Este mes»', () => {
+  const s = summarizeScan({
+    shots: balanced(),
+    tape: { latest: { brazo: 32 }, changes: [{ key: 'brazo', from: 31, to: 32, days: 28 }] },
+  })
+  assert.deepEqual(s.progress, ['Brazo: 31 cm → 32 cm (+1 cm) en 28 días'])
+  const dev = s.categories.find((c) => c.key === 'muscleDevelopment')!
+  assert.match(dev.text, /Tu brazo ha crecido 1 cm\. Con el próximo test de evolución sabré si es músculo\./)
+  assert.ok(dev.details.includes('Brazo: 32 cm'))
 })

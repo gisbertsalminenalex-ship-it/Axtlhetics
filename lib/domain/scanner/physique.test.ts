@@ -69,3 +69,14 @@ test('D-041: solo guía el escaneo más reciente de los últimos 90 días', () =
   assert.equal(latestScan([record('a', '2026-09-01'), record('b', '2026-10-01')], '2026-10-18')?.id, 'b')
   assert.equal(latestScan([record('a', '2026-06-01')], '2026-10-18'), null)
 })
+
+test('D-069: la cinta guardada con el escaneo también prioriza, y lo dice como cinta', () => {
+  const plan = physiquePlan({ ...input(shots({ front: { upperArmMean: 0.25, thighMean: 0.45 } })), tape: { brazo: 36, muslo: 54 } })
+  // La cinta manda: no son los brazos (foto) sino las piernas.
+  assert.deepEqual(plan.priorityGroups, ['piernas', 'gluteos'])
+  assert.deepEqual(plan.findings, ['Con la cinta, tu muslo va por detrás de tu brazo: doy prioridad a las piernas.'])
+
+  const chest = physiquePlan({ ...input(shots({})), tape: { pecho: 88, cintura: 82 } })
+  assert.deepEqual(chest.priorityGroups, ['pecho'])
+  assert.match(chest.findings[0], /^Con la cinta, tu pecho queda corto frente a tu cintura \(1,07\): doy prioridad al pecho\.$/)
+})

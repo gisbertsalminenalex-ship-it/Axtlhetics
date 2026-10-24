@@ -234,3 +234,26 @@ export const BUILD_SCALE = {
   mesoStep: 0.08,
   closeRating: 0.75,
 } as const
+
+/**
+ * La cinta en la valoración del escáner (D-069). La foto ve la forma; la cinta
+ * mide el perímetro, que sí sigue al músculo. Referencias de orientación, no
+ * normas: **provisionales hasta P-015**.
+ *
+ * - `armToThigh`: perímetro del brazo frente al del muslo. Por debajo de `min`,
+ *   los brazos van por detrás; por encima de `max`, las piernas.
+ * - `chestToWaist`: pecho frente a cintura, solo en hombres (en mujeres el
+ *   perímetro del pecho no sigue al músculo). Por debajo de `min`, pecho y
+ *   espalda van por detrás; desde `strong`, destacan.
+ * - `recentDays`: una medida más antigua ya no describe el cuerpo de hoy.
+ * - `changeCm`: lo que tiene que moverse un perímetro para contar como cambio
+ *   (el error de medir con cinta ronda el medio centímetro).
+ * - `monthGapDays`: la medida anterior con la que se compara, al menos estos días antes.
+ */
+export const TAPE_REFERENCE = {
+  armToThigh: { hombre: { min: 0.5, max: 0.66 }, mujer: { min: 0.45, max: 0.6 }, sin_dato: { min: 0.47, max: 0.63 } },
+  chestToWaist: { min: 1.12, strong: 1.3 },
+  recentDays: 60,
+  changeCm: { brazo: 0.5, pecho: 1, muslo: 1, cintura: 1, cadera: 1 },
+  monthGapDays: 21,
+} as const

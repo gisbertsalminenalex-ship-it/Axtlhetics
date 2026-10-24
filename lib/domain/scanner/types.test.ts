@@ -7,7 +7,7 @@ import test from 'node:test'
 
 import { createMemoryRepositories } from '../../data/memory-repositories'
 import { buildBackup, parseBackup, type BackupContents } from '../backup/backup'
-import { isScanRecord, scanDue, sortScans, withoutThumbnails, type ScanRecord } from './types'
+import { createScanRecord, isScanRecord, scanDue, sortScans, withoutThumbnails, type ScanRecord } from './types'
 
 const THUMB = 'data:image/jpeg;base64,/9j/AAAA'
 
@@ -102,4 +102,23 @@ test('el sexo para la fórmula y la grasa estimada se guardan; los escaneos ante
   assert.equal(isScanRecord(scan('2026-10-08')), true, 'sin sexo ni grasa')
   assert.equal(isScanRecord({ ...withFat, selfReport: { ...withFat.selfReport, sex: 'otro' } }), false)
   assert.equal(isScanRecord({ ...withFat, result: { ...withFat.result, bodyFatPct: 140 } }), false)
+})
+
+test('D-069: la cinta del día se guarda con el escaneo; una cinta imposible no se acepta', () => {
+  const input = {
+    id: 'scan-t',
+    dayKey: '2026-10-24',
+    now: new Date('2026-10-24T10:00:00.000Z'),
+    selfReport: { priority: null },
+    measurements: {},
+    summary: { index: null, categories: [] },
+    thumbnails: {},
+    tape: { brazo: 31, pecho: 95 },
+  }
+  const base = createScanRecord(input)
+  assert.deepEqual(base.tape, { brazo: 31, pecho: 95 })
+  assert.equal(isScanRecord(base), true)
+  assert.equal(isScanRecord({ ...base, tape: { brazo: 3 } }), false, 'fuera de los límites')
+  assert.equal(isScanRecord({ ...base, tape: { cuello: 38 } }), false, 'perímetro desconocido')
+  assert.equal('tape' in createScanRecord({ ...input, tape: null }), false)
 })

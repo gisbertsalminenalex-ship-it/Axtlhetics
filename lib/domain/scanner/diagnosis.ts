@@ -15,8 +15,9 @@
  * depender del resumen.
  */
 
+import type { PerimeterKey } from '../body/measurements'
 import type { ScanSex, StableReader } from './body-fat'
-import { BUILD_SCALE, clearly, PHYSIQUE_REFERENCE, STRONG_ZONE_MARGIN, SYMMETRY_SCALES } from './scales'
+import { BUILD_SCALE, clearly, PHYSIQUE_REFERENCE, STRONG_ZONE_MARGIN, SYMMETRY_SCALES, TAPE_REFERENCE } from './scales'
 import type { ScanZone } from './summary'
 
 export type Somatotype = 'ectomorfa' | 'mesomorfa' | 'endomorfa'
@@ -34,9 +35,9 @@ export type BuildEstimate = {
   ratings: Partial<Record<Somatotype, number>>
 }
 
-/** De dónde sale una zona fuerte o floja: la «V» o el equilibrio brazo/muslo. */
+/** De dónde sale una zona fuerte o floja: la «V» o el equilibrio brazo/muslo de la foto, o la cinta (D-069). */
 export type ZoneReading = {
-  source: 'shoulderToWaist' | 'armToThigh'
+  source: 'shoulderToWaist' | 'armToThigh' | 'tapeArmToThigh' | 'tapeChestToWaist'
   value: number
   /** La referencia con la que se compara (para la «V», la de su sexo). */
   reference: number
@@ -59,16 +60,32 @@ export type DiagnosisInput = {
   sex?: ScanSex | null
   body?: { heightCm: number; weightKg?: number } | null
   bodyFatPct?: number | null
+  /** Los últimos perímetros con cinta, en cm (D-069). */
+  tape?: Partial<Record<PerimeterKey, number>> | null
 }
 
 export function diagnoseScan(input: DiagnosisInput): ScanDiagnosis {
-  const readings = zoneReadings(input.read, input.sex)
+  const { strong, weak } = zonesOf(allZoneReadings(input.read, input.sex, input.tape ?? null))
   return {
     build: estimateBuild(input),
-    strongZones: unique(readings.flatMap((r) => r.strong)),
-    weakZones: unique(readings.flatMap((r) => r.weak)),
+    strongZones: strong,
+    weakZones: weak,
     asymmetries: detectAsymmetries(input.read),
   }
+}
+
+/** La foto y la cinta juntas. La cinta mide el perímetro: donde la hay, manda sobre la anchura en la foto (D-069). */
+export function allZoneReadings(read: StableReader, sex?: ScanSex | null, tape?: Partial<Record<PerimeterKey, number>> | null): ZoneReading[] {
+  const fromTape = tapeReadings(tape ?? null, sex)
+  const photo = zoneReadings(read, sex).filter((r) => !(r.source === 'armToThigh' && fromTape.some((t) => t.source === 'tapeArmToThigh')))
+  return [...photo, ...fromTape]
+}
+
+/** Las zonas fuertes y flojas de unas lecturas. Si dos lecturas no coinciden en una zona, no es ni una cosa ni otra. */
+export function zonesOf(readings: readonly ZoneReading[]): { strong: ScanZone[]; weak: ScanZone[] } {
+  const strong = unique(readings.flatMap((r) => r.strong))
+  const weak = unique(readings.flatMap((r) => r.weak))
+  return { strong: strong.filter((z) => !weak.includes(z)), weak: weak.filter((z) => !strong.includes(z)) }
 }
 
 /**
@@ -91,6 +108,29 @@ export function zoneReadings(read: StableReader, sex?: ScanSex | null): ZoneRead
     const { min, max } = PHYSIQUE_REFERENCE.armToThigh
     if (ratio < min) out.push({ source: 'armToThigh', value: ratio, reference: min, strong: ['piernas'], weak: ['brazos'] })
     else if (ratio > max) out.push({ source: 'armToThigh', value: ratio, reference: max, strong: ['brazos'], weak: ['piernas'] })
+  }
+  return out
+}
+
+/**
+ * La cinta (D-069): brazo frente a muslo y, en hombres, pecho frente a cintura,
+ * con las referencias provisionales de `TAPE_REFERENCE`.
+ */
+export function tapeReadings(tape: Partial<Record<PerimeterKey, number>> | null, sex?: ScanSex | null): ZoneReading[] {
+  if (!tape) return []
+  const out: ZoneReading[] = []
+  const { brazo, muslo, pecho, cintura } = tape
+  if (brazo && muslo) {
+    const ratio = brazo / muslo
+    const { min, max } = TAPE_REFERENCE.armToThigh[sex ?? 'sin_dato']
+    if (ratio < min) out.push({ source: 'tapeArmToThigh', value: ratio, reference: min, strong: ['piernas'], weak: ['brazos'] })
+    else if (ratio > max) out.push({ source: 'tapeArmToThigh', value: ratio, reference: max, strong: ['brazos'], weak: ['piernas'] })
+  }
+  if (sex === 'hombre' && pecho && cintura) {
+    const ratio = pecho / cintura
+    const { min, strong } = TAPE_REFERENCE.chestToWaist
+    if (ratio < min) out.push({ source: 'tapeChestToWaist', value: ratio, reference: min, strong: [], weak: ['pecho'] })
+    else if (ratio >= strong) out.push({ source: 'tapeChestToWaist', value: ratio, reference: strong, strong: ['pecho'], weak: [] })
   }
   return out
 }
