@@ -67,6 +67,7 @@ export function InicioScreen({
     weeklyActivity,
     movedToTomorrow,
     axisNote,
+    progression,
   } = useAxtlhetics()
 
   const copy = proposal ? DAY_TITLES[proposal.type] : DAY_TITLES.LIGHT_TRAINING
@@ -96,8 +97,11 @@ export function InicioScreen({
         </button>
       </header>
 
-      {/* Greeting */}
-      <p className="text-[15px] font-medium text-muted-foreground">Hola, {firstName}.</p>
+      {/* Greeting. El nivel (D-071), discreto: el protagonista sigue siendo AXIS. */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[15px] font-medium text-muted-foreground">Hola, {firstName}.</p>
+        <LevelBadge level={progression.level} rankLabel={progression.rankLabel} intoLevel={progression.intoLevel} levelXp={progression.levelXp} />
+      </div>
       <h1 className="mt-1 text-[40px] font-bold leading-[1.05] tracking-[-0.03em] text-balance">
         {copy.title}
       </h1>
@@ -308,5 +312,20 @@ function QuickAccess({
         {label}
       </span>
     </button>
+  )
+}
+
+/** «Nivel 7 · Plata» y una barra pequeña hacia el siguiente (D-071). */
+function LevelBadge({ level, rankLabel, intoLevel, levelXp }: { level: number; rankLabel: string; intoLevel: number; levelXp: number }) {
+  const share = Math.min(1, intoLevel / levelXp)
+  return (
+    <div className="flex shrink-0 items-center gap-2" aria-label={`Nivel ${level}, ${rankLabel}: ${intoLevel} de ${levelXp} XP para el siguiente`}>
+      <span className="text-[12.5px] font-medium tabular-nums text-muted-foreground">
+        Nivel {level} · {rankLabel}
+      </span>
+      <span className="h-1 w-10 overflow-hidden rounded-full bg-track" aria-hidden="true">
+        <span className="block h-full rounded-full bg-primary" style={{ width: `${Math.round(share * 100)}%` }} />
+      </span>
+    </div>
   )
 }

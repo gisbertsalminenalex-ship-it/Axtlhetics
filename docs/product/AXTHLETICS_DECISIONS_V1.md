@@ -1,7 +1,7 @@
 # Axtlhetics — Registro de Decisiones V1
 
 **Estado:** vivo — se amplía decisión a decisión.
-**Última actualización:** 2026-10-23.
+**Última actualización:** 2026-10-24.
 
 ## Qué es este documento
 
@@ -2340,6 +2340,59 @@ Sus cifras y frases respaldan lo que dice la IA en la puerta de seguridad. Con e
 - **Riesgo para la vida** (`conversation/crisis.ts`): si habla de hacerse daño o de no querer vivir, antes que nada y **sin pasar por la IA**, siempre el mismo texto revisado: que lo hable con alguien, el **024** (gratis, a cualquier hora) y el **112** si está en peligro, y un adulto de confianza. Lista de frases concretas: no salta con «me muero de agujetas» ni «esta rutina me mata».
 - **Temas serios** (tristeza que dura, ansiedad, problemas en casa o en clase, no comer): la IA contesta con cuidado, sin diagnosticar, y anima a hablarlo con un adulto de confianza o un profesional (`SERIOUS_RULE`).
 - **Límite de uso** (`lib/ai/rate-limit.ts`): **40 peticiones cada 10 minutos por persona**, en la ruta, con el Redis de los avisos (D-044). La persona es un resumen de su IP, que no se guarda. Pasado el límite, la ruta responde `RATE_LIMITED` (429) y contesta el determinista. Sin Redis o si Redis falla, se deja pasar; el firewall de Vercel (`RATE_LIMIT`) sigue por delante.
+
+---
+
+## D-071 — Tu nivel, calculado de tu historial
+
+**Fecha:** 2026-10-24 · **Estado:** aprobada e implementada · Decidido por Alex: «en axthletics vamos a implementar esto», con la revisión de la propuesta de niveles y XP (nivel derivado del historial, sin rachas ni pérdidas, rangos Arranque → Plata → Oro → Legendario → Prime, celebraciones breves, AXIS con hechos). **Levanta** para esto la exclusión de «gamificación» de `CLAUDE.md` §3 y **matiza** D-021: el test sigue sin puntuación ni niveles dentro de su flujo; sus XP solo se ven en «Tu progreso».
+
+**La regla:** la progresión recompensa el compromiso con el plan, no se convierte en el centro del sistema. Nada de rachas que se rompen, rankings entre usuarios, insignias por cada acción, recordatorios para ganar XP ni «¡No pares ahora!».
+
+### El nivel no se guarda: se calcula (`lib/domain/progression/`)
+
+- `xpLedger` recorre sesiones, tests, escaneos y medidas y devuelve cada concesión como un apunte con fecha y motivo. Es pura: el mismo historial da los mismos XP, una copia restaurada reconstruye el nivel y cada XP se puede comprobar. No hay almacén nuevo ni migración.
+- Las reglas tienen versión (`XP_RULES_VERSION = 1`). Cambiar un valor es cambiar de versión y registrarlo aquí: los niveles de todos se recalculan con las reglas nuevas. Por eso no se promete que el nivel no cambie nunca; se promete que es reconstruible y coherente.
+- Los XP los da la lógica determinista. La IA no decide cuántos XP da nada.
+
+### Reglas v1 (`XP` en `xp.ts`)
+
+| Qué | XP | Control |
+|---|---|---|
+| Sesión completada | 100 | Una al día. Completada y con al menos una serie de entrenamiento hecha; interrumpida no cuenta. |
+| Semana cumplida | 150 | Las sesiones de los días disponibles del perfil (`availableWeekdays`), en días distintos. Se gana el día que se llega; entrenar un día más no da más. La semana de descarga se cumple igual, con su plan. |
+| Marca personal | 50 | Los récords de `personalRecords` frente a lo **anterior** (la primera vez no hay marca, repetir el mismo resultado tampoco). Como mucho 2 al día. |
+| Bloque cerrado | 300 | La semana de descarga hecha: 2 sesiones de descarga (las de una semana cargada, D-031; 1 si el plan es de un día). Cantidad fija: cerrarlo antes no da más. |
+| Test de evolución | 200 | Completado. Como mucho uno cada 28 días: repetirlo buscando un resultado mejor no da más. |
+| Prueba del test mejorada | +50 | Mejora según las reglas del test (D-021: en el remo, los dos lados). No mejorar no resta. |
+| Revisión del mes | 100 | Un escaneo o una medida con cinta, como mucho una cada 28 días. Pesarse no cuenta. No hace falta para progresar. |
+
+Descansar no resta, no se pierden niveles y no se dan XP por saltarse una descarga o entrenar más de lo previsto. **Conocido:** la semana cumplida usa los días disponibles **actuales** del perfil también para semanas pasadas; cambiar los días recalcula esas semanas.
+
+### Curva y rangos (`levels.ts`)
+
+- Del nivel 1 al 2 cuestan **400 XP** y cada nivel **100 más** que el anterior (lineal: los avanzados no se vuelven inalcanzables).
+- Rangos: **Arranque** (1–4), **Plata** (5–9), **Oro** (10–19), **Legendario** (20–34), **Prime** (35+).
+- **Simulación** (`levels.test.ts`): bloques de 4 semanas + descarga, un 10 % de sesiones perdidas, una semana sin entrenar de cada 13, una marca cada tres sesiones, test cada 4 semanas con dos pruebas mejoradas, sin escáner. Semanas hasta cada nivel:
+
+| Plan | Nivel 2 | 5 (Plata) | 10 (Oro) | 20 (Legendario) | 35 (Prime) |
+|---|---|---|---|---|---|
+| 3 días | 1 | 5 | 15 | 48 | 136 |
+| 4 días | 1 | 4 | 12 | 41 | 116 |
+| 6 días | 1 | 3 | 10 | 32 | 92 |
+
+- El nivel **no cambia el entrenamiento**: los días fuertes siguen saliendo de la experiencia (`HARD_DAYS_PER_WEEK`, D-048).
+
+### Dónde se ve
+
+- **Inicio**: junto al saludo, discreto, «Nivel 7 · Plata» con una barra pequeña. Sin tarjeta: el protagonista sigue siendo AXIS.
+- **Al terminar la sesión**: «+100 XP · Sesión», «+50 XP · Marca personal · Flexiones»… Si sube de nivel, un aviso breve («Nuevo nivel · Nivel 8 · Oro»); el resto de días, solo la lista. Una sesión interrumpida no enseña XP.
+- **AXIS reconoce con hechos** (`sessionAward`): «Has completado las cuatro sesiones previstas esta semana.», «Has cerrado tu bloque de entrenamiento.», «Subes al nivel 8.». Una sesión normal no trae frase: nada de cumplidos.
+- **Entrenamiento → Tu progreso**, al principio: «Tu nivel» (nivel, rango, XP totales, lo que falta para el siguiente y el próximo rango), los niveles alcanzados con su fecha, los hitos (bloques cerrados y tests) y «Cómo se ganan los XP».
+
+### Fuera de D-071
+
+Rachas, rankings, insignias, retos, notificaciones o recordatorios de XP, XP dentro del flujo del test o del escáner, y que el nivel llegue a la capa de lenguaje.
 
 ---
 

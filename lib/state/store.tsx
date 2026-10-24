@@ -113,6 +113,7 @@ import { computeTrainingLoad, type TrainingLoad } from '../domain/workouts/load'
 import { bestSetOf } from '../domain/workouts/targets'
 import { proactiveNote, type ProactiveNote } from '../domain/axis/proactive'
 import { weeklyReview as reviewWeek, type WeeklyReview } from '../domain/axis/weekly-review'
+import { progression as computeProgression, type Progression } from '../domain/progression/progression'
 import { nutritionTargets as computeNutritionTargets, withAdjustment, type NutritionGoal, type NutritionTargets } from '../domain/nutrition/targets'
 import { lowIntakeYesterday, type MealEntry } from '../domain/nutrition/intake'
 import { currentWeight } from '../domain/body/measurements'
@@ -224,6 +225,8 @@ type AxtlheticsStore = {
   axisNote: ProactiveNote | null
   /** La revisión de la semana pasada (D-059), o `null` si no se entrenó. */
   weeklyReview: WeeklyReview | null
+  /** Tu nivel (D-071), calculado del historial: no se guarda aparte. */
+  progression: Progression
   /** Peso y medidas (D-060), del día más antiguo al más reciente. */
   measurements: BodyMeasurement[]
   /** Apunta el peso de hoy. */
@@ -708,6 +711,18 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           })
         : null,
     [status, today, profile, sessions, yesterdayMemory, recoveryScore.status, assessments.assessments, weeklyReview, measurements],
+  )
+
+  const progression = useMemo(
+    () =>
+      computeProgression({
+        sessions,
+        assessments: assessments.assessments,
+        scans: scans.scans,
+        measurements,
+        plannedDaysPerWeek: profile?.availableWeekdays.length ?? 0,
+      }),
+    [sessions, assessments.assessments, scans.scans, measurements, profile],
   )
 
   const axisSuggestions = useMemo(
@@ -1607,6 +1622,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       setExerciseDisliked,
       axisNote,
       weeklyReview,
+      progression,
       measurements,
       saveWeight,
       savePerimeters,
@@ -1688,6 +1704,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       setExerciseDisliked,
       axisNote,
       weeklyReview,
+      progression,
       measurements,
       saveWeight,
       savePerimeters,

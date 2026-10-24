@@ -7,6 +7,7 @@ import { AxisMark } from '@/components/axis-mark'
 import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
 import { closingMessage } from '@/lib/domain/axis/closing'
 import { formatVolume } from '@/lib/domain/history/stats'
+import { sessionAward } from '@/lib/domain/progression/progression'
 import { formatDuration } from '@/lib/domain/shared/dates'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { formatKg, formatSets, personalRecords } from '@/lib/domain/workouts/history'
@@ -76,6 +77,9 @@ export function EntrenamientoCompletado() {
           {closingMessage(lastCompleted, records)}
         </p>
       </div>
+
+      {/* Los XP de la sesión (D-071): lo ganado y, solo si sube, el nivel. */}
+      {!abandoned && <SessionXp sessionId={lastCompleted.id} />}
 
       {/* Récords: solo frente a algo registrado antes, sin insignias. */}
       {records.length > 0 && (
@@ -221,6 +225,45 @@ export function EntrenamientoCompletado() {
         <ArrowRight className="h-4 w-4" />
       </button>
     </div>
+  )
+}
+
+/**
+ * «+100 XP · Sesión», «+50 XP · Marca personal…». Al subir de nivel, un
+ * aviso breve; el resto de días, solo la lista. AXIS dice los hechos.
+ */
+function SessionXp({ sessionId }: { sessionId: string }) {
+  const { progression, profile } = useAxtlhetics()
+  const award = sessionAward(sessionId, progression, profile?.availableWeekdays.length ?? 0)
+  if (award.events.length === 0) return null
+  const levelUp = award.levelAfter > award.levelBefore
+
+  return (
+    <section className="mt-7">
+      {levelUp && (
+        <div className="ax-enter mb-4 rounded-2xl bg-secondary px-4 py-3">
+          <p className="text-[12px] font-semibold tracking-[0.12em] text-primary">NUEVO NIVEL</p>
+          <p className="mt-0.5 text-[20px] font-bold tracking-[-0.02em]">
+            Nivel {award.levelAfter}
+            {award.newRank && <span className="text-muted-foreground"> · {award.newRank}</span>}
+          </p>
+        </div>
+      )}
+      <ul className="space-y-1.5">
+        {award.events.map((event, index) => (
+          <li key={`${event.kind}-${index}`} className="flex items-baseline gap-2 text-[13.5px]">
+            <span className="font-semibold tabular-nums text-primary">+{event.xp} XP</span>
+            <span className="text-muted-foreground">· {event.label}</span>
+          </li>
+        ))}
+      </ul>
+      {award.facts.length > 0 && (
+        <div className="mt-3 flex items-start gap-2">
+          <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <p className="text-[13px] leading-relaxed text-muted-foreground text-pretty">{award.facts.join(' ')}</p>
+        </div>
+      )}
+    </section>
   )
 }
 

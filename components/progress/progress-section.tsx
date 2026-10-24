@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from 'react'
 import { StrengthChart } from '@/components/progress/strength-chart'
 import { BodySection } from '@/components/progress/body-section'
+import { LevelSection } from '@/components/progress/level-section'
 import { TargetRecommendations } from '@/components/assessment/target-recommendations'
 import { isFirstCompletedTest } from '@/lib/domain/assessment/targets'
 import { formatShortDate } from '@/lib/domain/shared/dates'
@@ -36,8 +37,11 @@ export function ProgressSection() {
     <>
       <h3 className="mt-9 text-[15px] font-semibold tracking-[-0.01em]">Tu progreso</h3>
 
+      {/* Tu nivel (D-071) */}
+      <LevelSection />
+
       {/* Objetivos medibles (D-035) */}
-      <p className="mt-4 text-[13px] font-medium text-muted-foreground">Tus objetivos</p>
+      <p className="mt-7 text-[13px] font-medium text-muted-foreground">Tus objetivos</p>
       {targets.length === 0 ? (
         firstTest ? (
           <TargetRecommendations assessment={firstTest} />
