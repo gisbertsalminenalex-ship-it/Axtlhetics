@@ -360,7 +360,7 @@ export function practicesJumpSport(activities: readonly { name: string }[]): boo
 }
 
 /**
- * Alternativas para «Cambiar entrenamiento».
+ * Alternativas para «Habla con AXIS».
  *
  * Todas las genera AXIS. No hay edición manual de ejercicios: el usuario elige
  * entre propuestas, no construye una rutina.

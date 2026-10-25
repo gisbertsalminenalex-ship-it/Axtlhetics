@@ -2,7 +2,7 @@
  * Una petición clara de cambio abre la negociación sin pasar por el botón.
  *
  * Regresión del fallo visto en producción: «quiero una sesión más corta»,
- * escrito desde Inicio sin haber pulsado «Cambiar entrenamiento», se leía como
+ * escrito desde Inicio sin haber pulsado «Habla con AXIS», se leía como
  * una pregunta por la sesión de hoy y AXIS la recitaba entera. Una petición
  * inequívoca —pide algo, y ese algo tiene nombre— se negocia desde cualquier
  * estado; una pregunta informativa nunca, aunque nombre lo mismo.

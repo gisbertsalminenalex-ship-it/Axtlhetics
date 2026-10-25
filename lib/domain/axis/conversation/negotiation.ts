@@ -1,7 +1,7 @@
 /**
  * Negociación del entrenamiento del día.
  *
- * «Cambiar entrenamiento» no baraja alternativas al azar: abre una conversación
+ * «Habla con AXIS» no baraja alternativas al azar: abre una conversación
  * con AXIS acotada a ese cambio. El usuario expone lo que quiere y por qué, y
  * AXIS responde con un veredicto razonado.
  *
@@ -1041,7 +1041,7 @@ function evaluateTrainAnyway(
   }
 }
 
-/** Mensaje con el que AXIS abre la negociación al pulsar «Cambiar entrenamiento». */
+/** Mensaje con el que AXIS abre la negociación al pulsar «Habla con AXIS». */
 export function changeOpeningMessage(briefing: AxisBriefing): string {
   const proposal = briefing.proposal
   if (!proposal) {

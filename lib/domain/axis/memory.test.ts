@@ -4,7 +4,7 @@
  * Primero las operaciones, una a una. Después el flujo entero tal y como lo
  * recorre la aplicación —preguntar, negociar, confirmar, recargar—, con el
  * repositorio en memoria haciendo de disco. Las regresiones del fallo que se
- * encontró en la Fase 1 («Cambiar entrenamiento» borraba el hilo) están al
+ * encontró en la Fase 1 («Habla con AXIS» borraba el hilo) están al
  * final, numeradas.
  */
 
@@ -384,7 +384,7 @@ test('flujo: negociar, confirmar y recargar deja exactamente la misma memoria', 
   assert.equal(reloaded.day().proposal.type, 'LIGHT_TRAINING', 'Inicio muestra la sesión elegida tras recargar')
 })
 
-test('regresión 1-4: abrir «Cambiar entrenamiento» no borra mensajes, acciones ni marcas', async () => {
+test('regresión 1-4: abrir «Habla con AXIS» no borra mensajes, acciones ni marcas', async () => {
   const a = app()
   await a.ask('¿Por qué me recomiendas este entrenamiento?')
   await a.openChange()

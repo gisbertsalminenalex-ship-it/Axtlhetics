@@ -139,7 +139,7 @@ test('D-042: la charla respeta la personalidad: sin exclamaciones ni aperturas p
   }
 })
 
-test('D-042: en «Cambiar entrenamiento», un hola es un hola; un «vale» sigue siendo parte de la negociación', () => {
+test('D-042: en «Habla con AXIS», un hola es un hola; un «vale» sigue siendo parte de la negociación', () => {
   const briefing = setup()
   const hello = answerFromBriefing('hola', briefing, CHANGE_MODE)
   assert.equal(hello.intent, 'social')
@@ -221,7 +221,7 @@ test('D-042: la ruta acepta un historial corto y bien formado, y lo pasa como co
   assert.equal(parseProxyRequest({ ...base, history: [{ role: 'user', text: 'x'.repeat(5000) }] }), null)
 })
 
-test('D-042: en «Cambiar entrenamiento», si el modelo olvida la invitación, se añade', async () => {
+test('D-042: en «Habla con AXIS», si el modelo olvida la invitación, se añade', async () => {
   const transport: AxisAiTransport = { isConfigured: () => true, send: async () => ({ text: 'Todo bien por aquí. ¿Cómo llegas hoy?' }) }
   const result = await createAxisConversation({ transport }).ask('hola', setup(), CHANGE_MODE)
   assert.equal(result.text, 'Todo bien por aquí. ¿Cómo llegas hoy? Cuando quieras, dime qué te gustaría cambiar de la sesión de hoy.')

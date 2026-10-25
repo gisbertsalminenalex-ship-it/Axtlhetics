@@ -158,7 +158,7 @@ export function InicioScreen({
               }}
               className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-white/70"
             >
-              Cambiar entrenamiento
+              Habla con AXIS
             </button>
           )}
         </section>

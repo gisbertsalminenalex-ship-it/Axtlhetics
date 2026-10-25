@@ -163,7 +163,7 @@ export type AxisConversationMemory = {
   /**
    * La conversación está acotada a cambiar el entrenamiento de hoy.
    *
-   * Se activa al pulsar «Cambiar entrenamiento». Mientras dura, un mensaje suelto
+   * Se activa al pulsar «Habla con AXIS». Mientras dura, un mensaje suelto
    * («ayer hice 20 km de bici, hoy piernas no») se lee como una petición de
    * cambio y no como una pregunta cualquiera.
    */

@@ -20,7 +20,7 @@ import { describeFocus } from '../knowledge/focus'
 import { normalizeQuestion } from './intents'
 import type { AxisAnswer } from './types'
 
-/** Lo que se recuerda en «Cambiar entrenamiento». La charla del modelo lo conserva. */
+/** Lo que se recuerda en «Habla con AXIS». La charla del modelo lo conserva. */
 export const CHANGE_INVITATION = 'Cuando quieras, dime qué te gustaría cambiar de la sesión de hoy.'
 
 export type SocialKind = 'greeting' | 'how_are_you' | 'thanks' | 'bye' | 'praise' | 'ack'
@@ -127,7 +127,7 @@ function todayHook(briefing: AxisBriefing, seed: number): string | null {
 export type SocialAnswerOptions = {
   /** Cuántos mensajes lleva la conversación: cambia la forma de decirlo. */
   turn?: number
-  /** «Cambiar entrenamiento» está abierto: se recuerda, sin insistir. */
+  /** «Habla con AXIS» está abierto: se recuerda, sin insistir. */
   changeMode?: boolean
 }
 

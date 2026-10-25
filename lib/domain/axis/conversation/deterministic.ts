@@ -94,7 +94,7 @@ export function answerFromBriefing(
 
   /*
    * Charla (D-042): un «hola» o un «gracias» se contestan como tal, también
-   * con «Cambiar entrenamiento» abierto. Ahí un «vale» o un «venga» sí pueden
+   * con «Habla con AXIS» abierto. Ahí un «vale» o un «venga» sí pueden
    * ser parte de la negociación, así que esos siguen su camino.
    */
   const social = detectSocial(message)

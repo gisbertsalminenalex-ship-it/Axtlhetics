@@ -975,7 +975,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   // Propuesta de AXIS
   // -------------------------------------------------------------------------
 
-  /** «Cambiar entrenamiento»: rota entre las propuestas que ha generado AXIS. */
+  /** «Habla con AXIS»: rota entre las propuestas que ha generado AXIS. */
   /**
    * Abre la negociación del entrenamiento de hoy.
    *

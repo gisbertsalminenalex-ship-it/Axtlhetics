@@ -541,7 +541,7 @@ export function createAiConversation(
       const useName = !(name && lastAxis?.text.includes(name))
       // La forma se arregla en vez de descartar la respuesta (D-070); el fondo lo comprueba la puerta.
       const tidied = tidyVoiceText(response.text, domain.intent, useName ? name : null)
-      // Con «Cambiar entrenamiento» abierto, la invitación no se pierde aunque el modelo la olvide.
+      // Con «Habla con AXIS» abierto, la invitación no se pierde aunque el modelo la olvide.
       const invite = chat && domain.text.includes(CHANGE_INVITATION) && !/cambi/i.test(tidied)
       const text = invite ? `${tidied} ${CHANGE_INVITATION}` : tidied
       /*

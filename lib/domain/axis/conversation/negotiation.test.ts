@@ -104,7 +104,7 @@ function briefingWith(
   return buildBriefing(context, decide(context), sessions)
 }
 
-/** Responde como lo hará la aplicación al pulsar «Cambiar entrenamiento». */
+/** Responde como lo hará la aplicación al pulsar «Habla con AXIS». */
 function negotiate(message: string, briefing: AxisBriefing) {
   return answerFromBriefing(message, briefing, { lastIntent: 'change', changeMode: true })
 }

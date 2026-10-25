@@ -104,7 +104,7 @@ export type AxisProposal = {
 
 /**
  * Resultado completo de una decisión: la propuesta principal y las alternativas
- * que el usuario puede elegir desde «Cambiar entrenamiento».
+ * que el usuario puede elegir desde «Habla con AXIS».
  *
  * Las alternativas también las genera AXIS. No hay editor manual de rutinas.
  */
