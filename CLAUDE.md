@@ -401,7 +401,7 @@ Input scales, normalization and the "enough data" policy are closed by D-009. Th
 
 ### AXIS visual identity
 
-- Brand mark (D-072, replaces D-029): a line-drawn **«A» over a barbell, crossed by a line rising to a dot**, traced from Alex's logo into `docs/design/AXTHLETICS_LOGO.svg` (source JPG next to it). In the app it is one colour, the surrounding text's, with thicker strokes and no black tile (`components/axis-mark.tsx`); in full colour — tile `#111111`, white strokes, dot `#0A61F8` — only in the app icons (`public/icon-*.png`, `apple-icon.png`), rendered from the SVG.
+- Brand mark (D-029): an **«A» with a rising arrow**, traced from Alex's logo into `docs/design/AXTHLETICS_LOGO.svg` (source PNG next to it). It replaces the former abstract X. In the app it is one colour, the surrounding text's (`components/axis-mark.tsx`); in full colour — A `#111111`, arrow `#0A61F8`, on `#F8F8F8` — only in the app icons (`public/icon-*.png`, `apple-icon.png`).
 - In the main app header, use the small mark immediately before the word **AXIS**.
 - Inside AXIS cards/blocks, the symbol becomes secondary and more discreet.
 - AXIS should guide decisions through concise, authoritative copy and a clear reason.

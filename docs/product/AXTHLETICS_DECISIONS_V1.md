@@ -1335,7 +1335,7 @@ Que el modelo responda directamente a lo que el determinista no sabe responder.
 
 ## D-029 — Nuevo logo: la «A» con la flecha que sube
 
-**Fecha:** 2026-10-17 · **Estado:** sustituida por D-072 (2026-10-25) · Decidido por Alex, que aporta el logo.
+**Fecha:** 2026-10-17 · **Estado:** aprobada e implementada · Decidido por Alex, que aporta el logo.
 
 ### Qué cambia
 
@@ -2393,31 +2393,6 @@ Descansar no resta, no se pierden niveles y no se dan XP por saltarse una descar
 ### Fuera de D-071
 
 Rachas, rankings, insignias, retos, notificaciones o recordatorios de XP, XP dentro del flujo del test o del escáner, y que el nivel llegue a la capa de lenguaje.
-
----
-
-## D-072 — Nuevo logo: la «A» sobre la barra
-
-**Fecha:** 2026-10-25 · **Estado:** aprobada e implementada · Decidido por Alex, que aporta el logo: «pon este logo para axthletics». **Sustituye a D-029.**
-
-### Qué cambia
-
-La marca pasa a ser una **«A» de trazo blanco sobre una barra con discos, cruzada por una línea que sube hasta un punto azul**, dentro de un cuadro negro redondeado. Cambia en los mismos dos sitios que D-029:
-
-- **El icono de la app** —pantalla de inicio, pestaña del navegador e icono de Apple—: el logo a color, cuadro `#111111`, trazos blancos y el punto `#0A61F8`. El icono normal es el cuadro redondeado con las esquinas transparentes; el de Apple y el *maskable* de Android llenan todo el cuadrado de negro (el sistema pone la forma), y el *maskable* lleva el dibujo más pequeño para que el recorte circular no lo corte.
-- **La marca dentro de la app** (`AxisMark`): el mismo dibujo sin el cuadro negro y en un solo color, el del texto que la rodea, como antes. Sus trazos son más gruesos que en el icono para que se lea a 12–14 px, y una máscara abre los huecos donde la «A» y la línea se cruzan con lo de debajo, como en el original.
-
-### Fuente
-
-El original es una imagen generada (`docs/design/AXTHLETICS_LOGO_SOURCE.jpg`) con el fondo de cuadros «transparente» pintado dentro, así que no se puede usar tal cual. Se ha trazado a vectores, `docs/design/AXTHLETICS_LOGO.svg`, y los iconos salen de ese SVG. El trazado es limpio y simétrico: no copia las imperfecciones de la imagen.
-
-### Caché
-
-Los iconos se llaman igual que los anteriores: se sube la versión del service worker (`axtlhetics-v3`). El icono de una app ya instalada lo cambia el sistema cuando quiere; reinstalarla lo cambia al momento.
-
-### Lo que no cambia
-
-El nombre, el color primario, la palabra «AXIS» junto a la marca y dónde aparece.
 
 ---
 
