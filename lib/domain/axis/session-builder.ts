@@ -16,6 +16,7 @@
 import type { CareZone, ExperienceLevel, Sex, TrainingGoal } from '../profile/types'
 import { loadsCareZone } from '../workouts/joints'
 import { chosenLevel } from '../workouts/levels'
+import { isIsolation, isPatternFallback, patternOf, type MovementPattern } from '../workouts/patterns'
 import { laggingSubgroups, subgroupsOf, type Subgroup } from '../workouts/subgroups'
 import type { DayKey } from '../shared/dates'
 import { clamp } from '../shared/ids'
@@ -112,6 +113,53 @@ export const GOAL_PARAMS: Record<TrainingGoal, GoalParams> = {
   // Resistencia y movilidad tienen sesión propia; si una de fuerza les sirve, es fuerza general.
   resistencia: { repFactor: 1, setShift: 0, difficultyShift: 0, minRest: null, maxRest: null, tempo: null },
   movilidad: { repFactor: 1, setShift: 0, difficultyShift: 0, minRest: null, maxRest: null, tempo: null },
+}
+
+/** Los objetivos de repeticiones bajas (D-047): fuerza y potencia. */
+const LOW_REP_GOALS: readonly TrainingGoal[] = ['fuerza', 'rendimiento_deportivo']
+
+/**
+ * Con menos de 2 × el peso de partida del catálogo, la pesa más pesada del
+ * usuario no da para repeticiones bajas (D-073): 6 repeticiones con 5 kg no
+ * son fuerza, son poco trabajo.
+ */
+export const STRENGTH_LOAD_FACTOR = 2
+/** Con poco peso, la fuerza se busca bajando despacio (D-073). */
+export const SLOW_TEMPO = '3-1-1'
+/** A repeticiones bajas se empieza con más peso que a las de siempre (D-073). */
+export const LOW_REP_START_FACTOR = 1.5
+
+/**
+ * Un ejercicio de peso corporal que el catálogo ya manda a 12 o más
+ * repeticiones (puentes, superman, sentadilla libre) es demasiado fácil para
+ * trabajarlo a repeticiones bajas (D-073).
+ */
+export const LIGHT_BODYWEIGHT_REPS = 12
+
+/**
+ * `true` si el ejercicio se queda corto para repeticiones bajas: con carga, si
+ * la más pesada que tiene el usuario no da; sin carga, si es de los fáciles.
+ */
+export function lightLoadFor(exercise: Exercise, gear: UserEquipment = LEGACY_EQUIPMENT): boolean {
+  if (exercise.work.isTimed) return false
+  if (!usesLoad(exercise)) return exercise.work.reps >= LIGHT_BODYWEIGHT_REPS
+  if (exercise.startLoadKg === undefined) return false
+  const loads = loadsFor(exercise, gear)
+  const heaviest = loads[loads.length - 1]
+  return heaviest === undefined || heaviest < exercise.startLoadKg * STRENGTH_LOAD_FACTOR
+}
+
+/**
+ * El objetivo con el que se trabaja este ejercicio en una sesión de ese
+ * objetivo (D-073). En fuerza y potencia, los accesorios (brazos, hombro,
+ * gemelos, core) y lo que lleva una pesa que se queda corta se trabajan como en
+ * hipertrofia: un entrenador no manda 5 elevaciones laterales ni 6 sentadillas
+ * con 5 kg. Los saltos y los intervalos no cambian.
+ */
+export function workGoalFor(exercise: Exercise, goal: TrainingGoal, gear: UserEquipment = LEGACY_EQUIPMENT): TrainingGoal {
+  if (!LOW_REP_GOALS.includes(goal)) return goal
+  if (exercise.category === 'pliometria' || exercise.category === 'acondicionamiento') return goal
+  return isIsolation(exercise) || lightLoadFor(exercise, gear) ? 'hipertrofia' : goal
 }
 
 /** El objetivo de una sesión cuando solo se conocen los del perfil: uno solo, ese; si no, fuerza general. */
@@ -295,7 +343,12 @@ function withPriority(
     const wanted = pool.find((exercise) => exercise.id === id)
     if (!wanted) continue
     const sameFamily = wanted.family ? result.findIndex((exercise) => exercise.family === wanted.family) : -1
-    let slot = sameFamily
+    // Si no, el de su mismo patrón (D-073): un objetivo de dominadas ocupa el tirón vertical.
+    const pattern = patternOf(wanted)
+    const samePattern = pattern
+      ? result.findIndex((exercise) => patternOf(exercise) === pattern && !priorityIds.includes(exercise.id))
+      : -1
+    let slot = sameFamily >= 0 ? sameFamily : samePattern
     if (slot < 0) {
       for (let i = result.length - 1; i >= 0; i--) {
         if (!priorityIds.includes(result[i].id)) {
@@ -326,7 +379,10 @@ export function withAnchors(selected: readonly Exercise[], anchors: readonly Exe
     }
     const sameCategory = rest.findIndex((exercise) => exercise.category === anchor.category)
     const sameFamily = anchor.family ? rest.findIndex((exercise) => exercise.family === anchor.family) : -1
-    const slot = sameFamily >= 0 ? sameFamily : sameCategory >= 0 ? sameCategory : rest.length - 1
+    const pattern = patternOf(anchor)
+    const samePattern = pattern ? rest.findIndex((exercise) => patternOf(exercise) === pattern) : -1
+    const slot =
+      sameFamily >= 0 ? sameFamily : samePattern >= 0 ? samePattern : sameCategory >= 0 ? sameCategory : rest.length - 1
     if (slot >= 0) rest.splice(slot, 1)
   }
   return [...kept, ...rest]
@@ -441,7 +497,8 @@ function approachSets(
   for (const planned of main) {
     if (exercises >= APPROACH_EXERCISES) break
     const exercise = catalog.find((item) => item.id === planned.exerciseId)
-    if (!exercise || planned.isTimed || exercise.category === 'pliometria') continue
+    // Solo los compuestos: 5 curls o 5 elevaciones de gemelos no preparan nada (D-073).
+    if (!exercise || planned.isTimed || exercise.category === 'pliometria' || isIsolation(exercise)) continue
     const easier =
       !usesLoad(exercise) && exercise.regressionId ? catalog.find((item) => item.id === exercise.regressionId) : undefined
     const used =
@@ -559,7 +616,7 @@ export function hasMastered(
 ): boolean {
   const last = lastPerformanceOf(exercise.id, history)
   if (!last || !last.allSetsCompleted) return false
-  if (last.reps < repCapFor(exercise, goal)) return false
+  if (last.reps < repCapFor(exercise, workGoalFor(exercise, goal, gear))) return false
   if (!usesLoad(exercise)) return true
   return nextLoad(loadsFor(exercise, gear), last.weightKg ?? 0) === null
 }
@@ -607,7 +664,8 @@ export function suggestWorkFor(
   },
 ): SuggestedWork {
   const { intensity, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT, sex = null } = options
-  const goal = options.goal ?? sessionGoalFrom(options.goals ?? DEFAULT_GOALS)
+  // Accesorios y pesas cortas no van a repeticiones bajas (D-073).
+  const goal = workGoalFor(exercise, options.goal ?? sessionGoalFrom(options.goals ?? DEFAULT_GOALS), gear)
 
   const maxSets = MAX_SETS_BY_EXPERIENCE[experience] ?? MAX_SETS_BY_EXPERIENCE[DEFAULT_EXPERIENCE]
   // Los intervalos van por rondas: el objetivo no suma series.
@@ -620,7 +678,9 @@ export function suggestWorkFor(
 
   const loads = usesLoad(exercise) ? loadsFor(exercise, gear) : []
   const upperBody = exercise.category === 'empuje' || exercise.category === 'tiron'
-  const baseWeight = startingLoad(exercise, loads, experience, sex === 'mujer' && upperBody ? FEMALE_UPPER_START_FACTOR : 1)
+  // Menos repeticiones, más peso de partida (D-073).
+  const startFactor = (sex === 'mujer' && upperBody ? FEMALE_UPPER_START_FACTOR : 1) * (LOW_REP_GOALS.includes(goal) ? LOW_REP_START_FACTOR : 1)
+  const baseWeight = startingLoad(exercise, loads, experience, startFactor)
 
   const last = lastPerformanceOf(exercise.id, history)
   if (!last) {
@@ -907,6 +967,119 @@ function selectExercises(
   return selected
 }
 
+/**
+ * Cómo se monta cada sesión de fuerza (D-073), como lo haría un entrenador:
+ * cada hueco acepta estos patrones y los huecos van en orden, los compuestos
+ * primero y los accesorios detrás. Con pocos ejercicios entran los primeros.
+ * Movilidad e intervalos no tienen plantilla: siguen repartiendo por categoría.
+ */
+export const SESSION_TEMPLATES: Partial<Record<SessionFocus, readonly (readonly MovementPattern[])[]>> = {
+  tren_superior: [
+    ['empuje_horizontal'],
+    ['tiron_vertical', 'tiron_horizontal'],
+    ['empuje_vertical'],
+    ['tiron_horizontal', 'tiron_vertical'],
+    ['biceps', 'triceps'],
+    ['biceps', 'triceps', 'hombro'],
+  ],
+  tren_inferior: [['sentadilla'], ['bisagra'], ['zancada'], ['bisagra', 'gluteo'], ['gemelos'], ['zancada', 'sentadilla']],
+  cuerpo_completo: [
+    ['sentadilla', 'zancada'],
+    ['empuje_horizontal'],
+    ['tiron_vertical', 'tiron_horizontal'],
+    ['bisagra'],
+    ['empuje_vertical', 'tiron_horizontal', 'tiron_vertical'],
+    ['core'],
+  ],
+}
+
+/**
+ * La selección por patrones (D-073). Cada hueco toma, del orden de rotación de
+ * siempre (D-020, D-053), el primero de sus patrones que no repita ejercicio
+ * ni familia; prefiere un patrón que la sesión aún no tenga (un tirón vertical
+ * y otro horizontal, no dos remos) y, en los compuestos, uno por repeticiones
+ * antes que uno de tiempo. Un hueco sin candidato se salta, y si así no se
+ * llena la sesión, se completa con el reparto por categoría.
+ */
+function selectByPattern(
+  pool: readonly Exercise[],
+  focus: SessionFocus,
+  template: readonly (readonly MovementPattern[])[],
+  count: number,
+  adapt: (exercise: Exercise) => Exercise,
+  target: Difficulty,
+  usage: ReadonlyMap<string, ExerciseUsage>,
+  lagging: readonly Subgroup[] = [],
+): Exercise[] {
+  const ordered = rotationOrder(pool, target, adapt, usage, lagging)
+  const slots: (Exercise | null)[] = template.slice(0, count).map(() => null)
+  const taken = new Set<string>()
+  const takenFamilies = new Set<string>()
+  const usedPatterns = new Set<MovementPattern>()
+
+  // Nunca dos variantes de la misma familia: tres flexiones distintas no son una sesión (D-020.1).
+  slots.forEach((_, index) => {
+    const accepts = template[index]
+    const candidates = ordered
+      .filter((exercise) => {
+        const pattern = patternOf(exercise)
+        return pattern !== null && accepts.includes(pattern)
+      })
+      .map((exercise, order) => ({
+        exercise,
+        repeated: usedPatterns.has(patternOf(exercise)!) ? 1 : 0,
+        fallback: isPatternFallback(exercise) ? 1 : 0,
+        timed: exercise.work.isTimed && !isIsolation(exercise) ? 1 : 0,
+        order,
+      }))
+      .sort((a, b) => a.repeated - b.repeated || a.fallback - b.fallback || a.timed - b.timed || a.order - b.order)
+    for (const { exercise } of candidates) {
+      const adapted = adapt(exercise)
+      if (taken.has(adapted.id)) continue
+      if (adapted.family && takenFamilies.has(adapted.family)) continue
+      taken.add(adapted.id)
+      if (adapted.family) takenFamilies.add(adapted.family)
+      usedPatterns.add(patternOf(adapted) ?? patternOf(exercise)!)
+      slots[index] = adapted
+      break
+    }
+  })
+
+  const selected = slots.filter((exercise): exercise is Exercise => exercise !== null)
+  if (selected.length >= count) return selected
+  /*
+   * Lo que falte, del reparto de siempre, pero sin repetir familia ni meter un
+   * tercer ejercicio del mismo patrón. Si aun así no se llena, la sesión sale
+   * con menos ejercicios: mejor eso que relleno.
+   */
+  const patternCount = (pattern: MovementPattern | null) =>
+    selected.filter((exercise) => patternOf(exercise) === pattern).length
+  for (const exercise of selectExercises(pool, focus, pool.length, adapt, target, usage, lagging)) {
+    if (selected.length >= count) break
+    if (taken.has(exercise.id)) continue
+    if (exercise.family && takenFamilies.has(exercise.family)) continue
+    if (patternCount(patternOf(exercise)) >= MAX_PER_PATTERN) continue
+    taken.add(exercise.id)
+    if (exercise.family) takenFamilies.add(exercise.family)
+    selected.push(exercise)
+  }
+  /*
+   * Si ni así llega al mínimo —una zona a cuidar o el material dejan muy poco—,
+   * se repite familia (D-020.1): una sesión de tres ejercicios parecidos antes
+   * que una de uno.
+   */
+  for (const exercise of selectExercises(pool, focus, pool.length, adapt, target, usage, lagging)) {
+    if (selected.length >= Math.min(count, MIN_EXERCISES)) break
+    if (taken.has(exercise.id)) continue
+    taken.add(exercise.id)
+    selected.push(exercise)
+  }
+  return selected
+}
+
+/** Como mucho dos ejercicios del mismo patrón en una sesión (D-073). */
+const MAX_PER_PATTERN = 2
+
 export function buildSession(options: SessionBuildOptions): PlannedSession {
   const {
     focus,
@@ -1006,7 +1179,11 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     .filter((exercise): exercise is Exercise => exercise !== undefined)
     .map(adapt)
   const assemble = (count: number): PlannedSession => {
-    const selected = withAnchors(selectExercises(pool, focus, count, adapt, target, usage, lagging), anchors)
+    const template = SESSION_TEMPLATES[focus]
+    const picked = template
+      ? selectByPattern(pool, focus, template, count, adapt, target, usage, lagging)
+      : selectExercises(pool, focus, count, adapt, target, usage, lagging)
+    const selected = withAnchors(picked, anchors)
 
     // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
     // Un objetivo lo pidió el usuario: entra aunque el ejercicio esté entre los que no gustan.
@@ -1019,6 +1196,10 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
 
     const exercises: PlannedExercise[] = main.map((exercise) => {
       const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear, sex })
+      // Descanso y cadencia del objetivo con que se trabaja este ejercicio (D-073): la
+      // plancha no descansa 2 minutos y, con una pesa corta, la fuerza se busca bajando despacio.
+      const workGoal = workGoalFor(exercise, goal, gear)
+      const slow = workGoal !== goal && !isIsolation(exercise)
       return {
         exerciseId: exercise.id,
         name: exercise.name,
@@ -1026,9 +1207,9 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
         reps: work.reps,
         isTimed: exercise.work.isTimed,
         suggestedWeightKg: work.weightKg,
-        restSeconds: restFor(exercise, goal, sex),
+        restSeconds: restFor(exercise, workGoal, sex),
         unilateral: exercise.unilateral,
-        tempo: exercise.work.tempo ?? (exercise.work.isTimed ? null : GOAL_PARAMS[goal].tempo),
+        tempo: exercise.work.tempo ?? (exercise.work.isTimed ? null : slow ? SLOW_TEMPO : GOAL_PARAMS[workGoal].tempo),
         imageUrl: exercise.imageUrl,
       }
     })
@@ -1074,17 +1255,24 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     session = bigger
   }
 
-  // Con muy poco tiempo, antes que pasarse: dos ejercicios y, si aún no cabe, dos series (D-050).
+  // Con muy poco tiempo, antes que pasarse: dos series en vez de quitar un patrón
+  // (D-073) y, si aún no cabe, dos ejercicios con dos series (D-050).
+  if (session.estimatedMinutes > availableMinutes) {
+    const compacted = compact(session)
+    if (compacted.estimatedMinutes <= availableMinutes) return compacted
+  }
   const floor = Math.max(1, MIN_EXERCISES_WHEN_SHORT - extra)
   while (session.estimatedMinutes > availableMinutes && count > floor) {
     count -= 1
     session = assemble(count)
   }
-  if (session.estimatedMinutes > availableMinutes) {
-    const compact = session.exercises.map((item) => (isMainExercise(item) ? { ...item, sets: Math.min(item.sets, MIN_SETS) } : item))
-    session = { ...session, exercises: compact, estimatedMinutes: estimateMinutes(compact) }
-  }
-  return session
+  return session.estimatedMinutes > availableMinutes ? compact(session) : session
+}
+
+/** La sesión con como mucho dos series por ejercicio de entrenamiento (D-050). */
+function compact(session: PlannedSession): PlannedSession {
+  const exercises = session.exercises.map((item) => (isMainExercise(item) ? { ...item, sets: Math.min(item.sets, MIN_SETS) } : item))
+  return { ...session, exercises, estimatedMinutes: estimateMinutes(exercises) }
 }
 
 /** Con muy poco tiempo, una sesión puede quedarse en dos ejercicios (D-050). */

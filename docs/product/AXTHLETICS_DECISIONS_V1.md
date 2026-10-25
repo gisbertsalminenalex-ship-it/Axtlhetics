@@ -2396,6 +2396,52 @@ Rachas, rankings, insignias, retos, notificaciones o recordatorios de XP, XP den
 
 ---
 
+## D-073 — Las sesiones se montan como las monta un entrenador
+
+**Fecha:** 2026-10-25 · **Estado:** aprobada e implementada · Decidido por Alex: «no me convence cómo hace los ejercicios… haz todo para que sea mejor», tras revisar sesiones reales generadas por el motor. (D-072 se usó para un logo y se retiró; el número no se reutiliza.) **Cambia** D-020 (reparto por categorías) para las sesiones de fuerza, **matiza** D-020.1 (la familia ya no se repite para rellenar), D-047 (las repeticiones bajas de fuerza y potencia) y D-050 (con poco tiempo, antes dos series que quitar un ejercicio).
+
+**El problema:** el constructor rellenaba huecos alternando empuje / tirón / piernas y elegía el que más tiempo llevaba sin usarse. Salían sesiones de pierna sin bisagra de cadera (tres ejercicios de rodilla con mancuernas de 10 kg en casa), de torso sin tirón vertical teniendo barra, dos empujes verticales juntos, press de hombro 4×6 con 5 kg «de fuerza», plancha con 2 minutos de descanso, flexiones negativas para un intermedio y, sin material, tres variantes de flexión en la misma sesión.
+
+### Patrones de movimiento (`lib/domain/workouts/patterns.ts`)
+
+- Cada ejercicio de empuje, tirón, piernas y core tiene **un patrón**: empuje horizontal / vertical, tirón horizontal / vertical, sentadilla, bisagra, zancada, y los accesorios bíceps, tríceps, hombro, gemelos, glúteo y core. Un test exige que estén todos; saltos, movilidad e intervalos no tienen.
+- **Sustitutos** (`PATTERN_FALLBACKS`: pullover, colgarse de la barra, superman, sentadilla isométrica, puentes): hacen el patrón solo si no hay otra cosa. El pullover no es una dominada.
+
+### Plantillas (`SESSION_TEMPLATES` en `session-builder.ts`)
+
+| Foco | Huecos, en orden |
+|---|---|
+| Tren superior | empuje horizontal · tirón (vertical u horizontal) · empuje vertical · el otro tirón · brazo · brazo u hombro |
+| Tren inferior | sentadilla · bisagra · zancada · bisagra o glúteo · gemelos · zancada o sentadilla |
+| Cuerpo completo | sentadilla o zancada · empuje horizontal · tirón · bisagra · empuje vertical o tirón · core |
+
+- Los compuestos van primero y los accesorios detrás; con poco tiempo entran los primeros huecos. Dentro de cada hueco manda la rotación de siempre (D-020, D-053), prefiriendo un patrón que la sesión aún no tenga, un ejercicio que no sea sustituto y, en los compuestos, uno por repeticiones antes que uno por tiempo.
+- **Nunca dos variantes de la misma familia ni tres del mismo patrón.** Si faltan candidatos, la sesión sale con menos ejercicios; solo por debajo de 3 se repite familia.
+- Movilidad e intervalos siguen con el reparto por categoría.
+- Los principales del bloque (D-057) y los objetivos medibles (D-035) ocupan el hueco de su familia o, si no, el de su patrón.
+
+### Fuerza en casa (`workGoalFor`, `lightLoadFor`)
+
+- En las sesiones de fuerza y de potencia, se trabajan **como en hipertrofia** (repeticiones, series y descanso):
+  - los **accesorios y el core**;
+  - lo que lleva una **pesa que se queda corta**: la más pesada del usuario para ese ejercicio por debajo de 2 × su `startLoadKg` (`STRENGTH_LOAD_FACTOR`);
+  - un **peso corporal fácil**, al que el catálogo manda 12 repeticiones o más (`LIGHT_BODYWEIGHT_REPS`).
+- Los compuestos con pesa corta llevan bajada lenta (`SLOW_TEMPO` 3-1-1).
+- Los saltos y los intervalos no cambian.
+- A repeticiones bajas se empieza con 1,5 × el peso de partida (`LOW_REP_START_FACTOR`); D-056 lo corrige con la reserva desde la primera serie.
+
+### Más
+
+- **Flexiones recalibradas.** Inclinadas, con rodillas y negativas son entradas de principiante (dificultad 1, las tres progresan a la flexión). La flexión es 2 y diamante y declinadas 3. Un intermedio empieza por flexiones.
+- **Series de aproximación** solo en los compuestos (nada de 5 curls ni 5 elevaciones de gemelos).
+- **Con poco tiempo**, antes de quitar un ejercicio se prueba la sesión con 2 series (un cuerpo completo de 25 min conserva pierna, empuje y tirón); si aun así no cabe, D-050 como antes.
+
+### Fuera de D-073
+
+El calentamiento de activación (jumping jacks y escaladores, D-045) no cambia, aunque podría adaptarse al foco del día: queda para una decisión aparte.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

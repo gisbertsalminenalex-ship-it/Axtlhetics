@@ -146,6 +146,7 @@ test('la siguiente sesión parte de la variante elegida', () => {
 test('dominada la variante elegida, AXIS sube a la siguiente', () => {
   const mastered = [performed('flexiones-rodillas', Array.from({ length: 3 }, () => ({ reps: 99, weightKg: null, completed: true })))]
   const ids = pushUps(mastered, { flexion: 'flexiones-rodillas' })
-  assert.ok(ids.includes('flexiones-negativas'))
+  // Desde D-073 la siguiente a las de rodillas es la flexión completa.
+  assert.ok(ids.includes('flexiones'))
   assert.ok(!ids.includes('flexiones-rodillas'))
 })

@@ -21,6 +21,7 @@ import {
   toWorkoutSession,
   type ActiveWorkout,
 } from '../workouts/active-workout'
+import { isPatternFallback, patternOf } from '../workouts/patterns'
 import type { AxisProposal } from './types'
 import {
   adaptDifficulty,
@@ -179,13 +180,13 @@ test('un ejercicio se domina cuando llega al tope de repeticiones con todas las 
 })
 
 test('solo se sube de variante cuando la actual está dominada; bajar no requiere nada', () => {
-  const negativas = exercise('flexiones-negativas')
-  assert.equal(negativas.difficulty, 2)
+  const inclinadas = exercise('flexiones-inclinadas')
+  assert.equal(inclinadas.difficulty, 1)
 
-  assert.equal(adaptDifficulty(negativas, 3, {}).id, 'flexiones-negativas', 'sin dominarlo, se queda')
-  const mastered = [performed('flexiones-negativas', [{ reps: repCapFor(negativas), weightKg: null, completed: true }])]
-  assert.equal(adaptDifficulty(negativas, 3, { history: mastered }).id, 'flexiones', 'dominado, sube')
-  assert.equal(adaptDifficulty(negativas, 1, {}).id, 'flexiones-inclinadas', 'por encima del objetivo, baja')
+  assert.equal(adaptDifficulty(inclinadas, 2, {}).id, 'flexiones-inclinadas', 'sin dominarlo, se queda')
+  const mastered = [performed('flexiones-inclinadas', [{ reps: repCapFor(inclinadas), weightKg: null, completed: true }])]
+  assert.equal(adaptDifficulty(inclinadas, 2, { history: mastered }).id, 'flexiones', 'dominado, sube')
+  assert.equal(adaptDifficulty(exercise('flexiones'), 1, {}).id, 'flexiones-inclinadas', 'por encima del objetivo, baja')
 })
 
 test('la dificultad objetivo combina experiencia e intensidad dentro de 1–5', () => {
@@ -398,8 +399,9 @@ function weeks(
 test('sin historial la selección es la de siempre: sin uso registrado, manda la dificultad', () => {
   const session = buildSession({ ...ROTATION, focus: 'tren_superior' })
   // En 45 min, con la duración real (D-050), caben cinco.
+  // Por patrones (D-073): empuje horizontal, tirón, empuje vertical, el otro tirón y un brazo.
   assert.deepEqual(ids(session), [
-    'flexiones-negativas',
+    'flexiones',
     'remo-unilateral',
     'press-hombro-unilateral',
     'pullover-con-pesa',
@@ -409,7 +411,7 @@ test('sin historial la selección es la de siempre: sin uso registrado, manda la
 })
 
 test('con el mismo historial sale siempre la misma sesión', () => {
-  const history = [day('2026-09-19', ['flexiones-negativas', 'remo-unilateral'])]
+  const history = [day('2026-09-19', ['flexiones', 'remo-unilateral'])]
   const a = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
   const b = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
   assert.deepEqual(ids(a), ids(b))
@@ -424,14 +426,17 @@ test('dos sesiones seguidas del mismo foco no son iguales', () => {
 
 test('con el tiempo salen todos los ejercicios de dificultad equivalente: ninguno queda fuera', () => {
   const target = targetDifficultyFor(ROTATION.experience, ROTATION.intensity)
-  const seen = new Set(weeks('tren_superior', 8).flat())
+  // Con tiempo para los seis huecos de la plantilla (D-073): con menos, el accesorio de hombro no llega.
+  const seen = new Set(weeks('tren_superior', 8, { availableMinutes: 75 }).flat())
 
   const expected = EXERCISE_CATALOG.filter(
     (item) =>
       (item.category === 'empuje' || item.category === 'tiron') &&
       isAvailable(item) &&
       Math.abs(item.difficulty - target) <= ROTATION_DIFFICULTY_BAND &&
-      adaptDifficulty(item, target).id === item.id,
+      adaptDifficulty(item, target).id === item.id &&
+      // Un sustituto (D-073) solo entra si no hay nada mejor del patrón.
+      !isPatternFallback(item),
   )
   assert.ok(expected.length > 4, 'hay más candidatos que huecos en una sesión')
   for (const item of expected) {
@@ -439,11 +444,16 @@ test('con el tiempo salen todos los ejercicios de dificultad equivalente: ningun
   }
 })
 
-test('en cuerpo completo corto, el core ya no se queda siempre fuera', () => {
-  const sessions = weeks('cuerpo_completo', 4, { availableMinutes: 25 })
-  assert.ok(sessions[0].length < 4, 'menos ejercicios que categorías')
-  const core = sessions.flat().filter((id) => exercise(id).category === 'core')
-  assert.ok(core.length > 0, `ninguna de ${sessions.length} sesiones tuvo core`)
+test('en cuerpo completo corto van los compuestos: pierna, empuje y tirón antes que el core (D-073)', () => {
+  for (const sessionIds of weeks('cuerpo_completo', 4, { availableMinutes: 30 })) {
+    const patterns = sessionIds.map((id) => patternOf(exercise(id)))
+    assert.ok(patterns[0] === 'sentadilla' || patterns[0] === 'zancada', sessionIds.join(', '))
+    assert.equal(patterns[1], 'empuje_horizontal', sessionIds.join(', '))
+    assert.ok(patterns[2] === 'tiron_horizontal' || patterns[2] === 'tiron_vertical', sessionIds.join(', '))
+    assert.ok(!patterns.includes('core'), sessionIds.join(', '))
+  }
+  const long = ids(buildSession({ ...ROTATION, focus: 'cuerpo_completo', availableMinutes: 75 }))
+  assert.ok(long.some((id) => patternOf(exercise(id)) === 'core'), `con tiempo, el core entra: ${long.join(', ')}`)
 })
 
 test('la rotación respeta los grupos que hay que evitar', () => {
@@ -465,9 +475,9 @@ test('la rotación respeta los grupos que hay que evitar', () => {
 })
 
 test('una sesión interrumpida con series también cuenta como uso', () => {
-  const history = [day('2026-09-19', ['flexiones-negativas'], { status: 'abandoned' })]
+  const history = [day('2026-09-19', ['flexiones'], { status: 'abandoned' })]
   const session = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
-  assert.ok(!ids(session).includes('flexiones-negativas'))
+  assert.ok(!ids(session).includes('flexiones'))
 })
 
 test('la movilidad no cuenta como grupo cargado de la sesión', () => {
@@ -487,23 +497,23 @@ test('la movilidad no cuenta como grupo cargado de la sesión', () => {
 // ---------------------------------------------------------------------------
 
 test('un ejercicio nunca usado puede aparecer', () => {
-  // Sin historial, «Flexiones negativas» abre la sesión.
+  // Sin historial, «Flexiones» abre la sesión.
   const session = buildSession({ ...ROTATION, focus: 'tren_superior', history: [], today: TODAY })
-  assert.equal(ids(session)[0], 'flexiones-negativas')
+  assert.equal(ids(session)[0], 'flexiones')
 })
 
 test('un ejercicio saltado hace poco pierde prioridad frente a uno nunca usado', () => {
-  const history = [day('2026-09-19', [], { skipped: ['flexiones-negativas'] })]
+  const history = [day('2026-09-19', [], { skipped: ['flexiones'] })]
   const session = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
-  assert.ok(!ids(session).includes('flexiones-negativas'), 'AXIS no lo vuelve a proponer de inmediato')
+  assert.ok(!ids(session).includes('flexiones'), 'AXIS no lo vuelve a proponer de inmediato')
 })
 
 test('un ejercicio saltado hace suficiente tiempo vuelve a competir normalmente', () => {
   // 19 días antes de TODAY: más que SKIP_PENALTY_DAYS.
-  const history = [day('2026-09-01', [], { skipped: ['flexiones-negativas'] })]
+  const history = [day('2026-09-01', [], { skipped: ['flexiones'] })]
   assert.ok(19 > SKIP_PENALTY_DAYS)
   const session = buildSession({ ...ROTATION, focus: 'tren_superior', history, today: TODAY })
-  assert.equal(ids(session)[0], 'flexiones-negativas', 'la señal caducó: como si nunca se hubiera usado')
+  assert.equal(ids(session)[0], 'flexiones', 'la señal caducó: como si nunca se hubiera usado')
 })
 
 test('saltar un ejercicio no cambia su progresión: solo cuentan las series hechas', () => {
@@ -561,12 +571,13 @@ test('nunca se repite el mismo ejercicio dentro de una sesión', () => {
   }
 })
 
-test('la familia es lo único que separa: sin familias, la misma sesión juntaba dos zancadas', () => {
+test('la familia separa lo que el patrón no: sin familias, la misma sesión juntaba dos puentes', () => {
   const withFamilies = ids(buildSession({ ...ROTATION, focus: 'tren_inferior' }))
   const withoutFamilies = ids(buildSession({ ...ROTATION, focus: 'tren_inferior', catalog: WITHOUT_FAMILIES }))
 
-  assert.ok(withoutFamilies.includes('zancadas') && withoutFamilies.includes('zancada-atras'), withoutFamilies.join(', '))
-  assert.ok(!(withFamilies.includes('zancadas') && withFamilies.includes('zancada-atras')), withFamilies.join(', '))
+  const realFamilies = (sessionIds: string[]) => families(sessionIds)
+  assert.ok(new Set(realFamilies(withoutFamilies)).size < realFamilies(withoutFamilies).length, withoutFamilies.join(', '))
+  assert.equal(new Set(realFamilies(withFamilies)).size, realFamilies(withFamilies).length, withFamilies.join(', '))
   assert.equal(withFamilies.length, withoutFamilies.length, 'la sesión no sale más corta')
 })
 
@@ -782,7 +793,7 @@ test('D-033: el salto ocupa un hueco, no alarga la sesión', () => {
   const jumping = buildSession({ ...ROTATION, focus: 'tren_inferior', jumpSport: true })
   // El equilibrio añade 2 minutos al calentamiento: como mucho, un ejercicio de fuerza menos.
   assert.ok(ids(jumping).length <= ids(plain).length)
-  assert.equal(jumping.estimatedMinutes, plain.estimatedMinutes)
+  assert.ok(jumping.estimatedMinutes <= plain.estimatedMinutes)
 })
 
 test('D-033: los saltos rotan: el último usado no repite', () => {

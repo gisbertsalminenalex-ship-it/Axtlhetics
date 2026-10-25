@@ -179,7 +179,7 @@ test('pedir una variante más ligera devuelve algo ejecutable', () => {
   const pushup = findExercise('flexiones')
   assert.ok(pushup)
   const easier = variantOf(pushup!, 'easier')
-  assert.equal(easier.id, 'flexiones-negativas')
+  assert.equal(easier.id, 'flexiones-inclinadas')
   assert.ok(easier.difficulty < pushup!.difficulty)
   assert.ok(isAvailable(easier))
 })
@@ -267,7 +267,7 @@ test('las flexiones con rodillas (D-025): iniciación sin material, sin tocar la
   assert.deepEqual(knee!.equipment, ['ninguno'])
   assert.equal(knee!.unilateral, false)
   assert.equal(knee!.regressionId, null)
-  assert.equal(knee!.progressionId, 'flexiones-negativas')
+  assert.equal(knee!.progressionId, 'flexiones')
   assert.ok(isAvailable(knee!))
 })
 
@@ -370,16 +370,16 @@ test('los cuatro ejercicios de D-020.1 existen con su categoría, dificultad, ma
 })
 
 test('las relaciones de los 39 ejercicios anteriores no cambian', () => {
-  // [dificultad, regresión, progresión] tal y como estaban en d719b81.
+  // [dificultad, regresión, progresión] tal y como estaban en d719b81; la familia de la flexión, recalibrada en D-073.
   const before: Record<string, [number, string | null, string | null]> = {
-    'flexiones-inclinadas': [1, null, 'flexiones-negativas'],
-    'flexiones-negativas': [2, 'flexiones-inclinadas', 'flexiones'],
-    'flexiones': [3, 'flexiones-negativas', 'flexiones-diamante'],
-    'flexiones-diamante': [4, 'flexiones', null],
+    'flexiones-inclinadas': [1, null, 'flexiones'],
+    'flexiones-negativas': [1, null, 'flexiones'],
+    'flexiones': [2, 'flexiones-inclinadas', 'flexiones-diamante'],
+    'flexiones-diamante': [3, 'flexiones', null],
     'press-hombro-unilateral': [2, null, null],
     'extension-triceps-unilateral': [2, null, null],
     'press-suelo-unilateral': [1, null, null],
-    'flexiones-declinadas': [4, 'flexiones', null],
+    'flexiones-declinadas': [3, 'flexiones', null],
     'flexion-pica': [3, null, null],
     'patada-triceps-unilateral': [1, null, null],
     'superman': [1, null, 'remo-unilateral'],
