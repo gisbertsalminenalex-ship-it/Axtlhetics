@@ -20,8 +20,8 @@
  * Al subir CACHE_VERSION se borran las cachés anteriores.
  */
 
-// v2 (D-029): los iconos nuevos tienen el mismo nombre que los viejos y aquí se sirven de caché.
-const CACHE_VERSION = 'axtlhetics-v2'
+// v3 (D-072): los iconos nuevos tienen el mismo nombre que los viejos y aquí se sirven de caché.
+const CACHE_VERSION = 'axtlhetics-v3'
 const OFFLINE_URL = '/'
 
 self.addEventListener('install', (event) => {

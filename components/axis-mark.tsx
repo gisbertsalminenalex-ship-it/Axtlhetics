@@ -1,12 +1,20 @@
+import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
+/** La «A» y su línea (D-072), en las coordenadas de `docs/design/AXTHLETICS_LOGO.svg`. */
+const A_PATH =
+  'M480 365C494 320 530 320 544 365L676 645Q690 678 660 688Q640 694 628 668L604 618C592 590 554 572 512 572C470 572 432 590 420 618L396 668Q384 694 364 688Q334 678 348 645L480 365Z'
+const LINE_PATH = 'M368 613C405 565 470 525 528 483C565 456 590 420 625 384Q642 371 664 369'
+
 /**
- * Marca de AXTHLETICS (D-029): una «A» con una flecha que sube.
+ * Marca de AXTHLETICS (D-072): una «A» de trazo sobre una barra con discos y
+ * una línea que sube hasta un punto.
  *
- * Trazada a partir del logo de Alex (`docs/design/AXTHLETICS_LOGO.svg`). Aquí
- * va en un solo color, el del texto que la rodea, como la marca anterior: azul
- * en las tarjetas de AXIS, blanco sobre azul. Los huecos entre la flecha y la
- * «A» son los que la hacen legible en un color.
+ * Es el logo de Alex (`docs/design/AXTHLETICS_LOGO.svg`) sin su cuadro negro y
+ * en un solo color, el del texto que la rodea: azul en las tarjetas de AXIS,
+ * blanco sobre azul. Los trazos son más gruesos que en el icono para que se lea
+ * a 12–14 px, y la máscara abre los huecos donde la «A» y la línea se cruzan
+ * con lo que tienen debajo, como en el original.
  */
 export function AxisMark({
   className,
@@ -15,15 +23,29 @@ export function AxisMark({
   className?: string
   color?: string
 }) {
+  const mask = useId()
   return (
     <svg
-      viewBox="0 -13.5 835 835"
+      viewBox="236 242 552 552"
       fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={cn('h-5 w-5', className)}
       aria-hidden="true"
     >
-      <path fill={color} d="M412 0L415 3L454.3 79.7L586 327L586 330L532 398L530 398L413 175L410 172L215 537L177.5 549.5L145.2 564.2L114.8 582.8L80 612ZM410 304L485 445L443.5 474.5L423.7 485.7L404.4 494.4L380.2 503.2L355.8 509.8L295 521L410 306ZM659 471L661 472L705.7 558.3L833 807L830 808L739 808L738 807L597 537L597 534L633.8 498.8ZM125 741L228 741L228 743L193 808L93 808L90 807Z" />
-      <path fill={color} d="M830.2 136.7L835 136L804 382L777.5 351.5L744 309L742 309L686.5 387.5L652.5 430.5L621.8 465.8L586.8 501.8L559.4 525.4L529.2 548.2L498.5 567.5L471.7 581.7L447.5 592.5L412.2 605.2L371.8 615.8L268.2 634.2L233.8 643.8L209.2 654.2L194.8 661.8L176.6 674.6L160.8 688.8L147.5 704.5L130.5 730.5L90 808L3 808L0 807L47.3 713.3L67.8 677.8L83.6 655.6L104.2 632.2L129.8 610.8L165.3 589.3L207.8 571.8L243.2 562.2L352.8 542.8L389.2 533.2L413.5 524.5L444.8 509.8L476.2 490.2L511.2 462.2L533.2 441.2L562.2 409.2L585.5 380.5L609.2 349.2L668 264L667 261L584 215Z" />
+      <mask id={mask} maskUnits="userSpaceOnUse" x="236" y="242" width="552" height="552">
+        <rect x="236" y="242" width="552" height="552" fill="#fff" />
+        <path d={A_PATH} stroke="#000" strokeWidth="60" />
+        <path d={LINE_PATH} stroke="#000" strokeWidth="58" />
+      </mask>
+      <g mask={`url(#${mask})`} stroke={color}>
+        <path d="M250 616H774" strokeWidth="26" />
+        <path d="M248 604v24M776 604v24" strokeWidth="18" />
+        <path d="M276 574v88M308 551v134M715 551v134M747 574v88" strokeWidth="28" />
+      </g>
+      <path d={A_PATH} stroke={color} strokeWidth="32" />
+      <path d={LINE_PATH} stroke={color} strokeWidth="32" />
+      <circle cx="688" cy="367" r="44" fill={color} />
     </svg>
   )
 }
