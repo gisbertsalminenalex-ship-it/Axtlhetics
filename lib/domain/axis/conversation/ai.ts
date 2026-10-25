@@ -71,7 +71,7 @@ export function aiSystemPrompt(intent?: AxisIntent): string {
       ? ['Aquí la respuesta son cifras: conserva todas las de `domain.text` escritas con dígitos (no «siete horas», sino «7 h»). Si falta una, tu respuesta se descarta.']
       : ['Si das una cifra, que sea de `domain.text` o de `briefing`, escrita con dígitos. Nunca una que no esté.']),
     'Usa el contexto para que se note que le conoces: sus objetivos, cómo va su semana, su última sesión, lo que te ha dicho hoy.',
-    'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text`, en `briefing` o en la conversación. Que un dato no aparezca no significa que no haya ocurrido: di que no está registrado, nunca lo conviertas en un hecho.',
+    'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text`, en `briefing` o en la conversación. Que algo no aparezca no significa que no haya ocurrido: dilo con naturalidad («no sé cómo has dormido»), sin hablar de registros, y nunca lo conviertas en un hecho. Lo que te ha contado él sí lo puedes usar.',
     long
       ? 'Aquí se espera una respuesta de entrenador, desarrollada: empieza por la conclusión, explica el porqué con sus datos, di qué cambia en concreto y termina con un consejo práctico para hoy. Sin relleno ni frases genéricas.'
       : 'Si la pregunta es sencilla, contesta corto y al grano.',

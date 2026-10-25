@@ -107,7 +107,7 @@ const lowRecovery: Rule = {
       factors.push({
         key: 'muscle_fatigue',
         label: 'Fatiga muscular muy alta',
-        detail: 'Has registrado fatiga muscular muy alta.',
+        detail: 'Tienes la fatiga muscular muy alta.',
         direction: 'limits',
       })
     }
@@ -305,8 +305,8 @@ const unknownRecovery: Rule = {
             key: 'recovery_unknown',
             label: 'Sin datos de recuperación',
             detail: facts.recentLowRecovery
-              ? 'No has registrado tu recuperación de hoy y los últimos días no llegabas bien.'
-              : 'Todavía no has registrado tu recuperación de hoy.',
+              ? 'No sé cómo llegas hoy y los últimos días no llegabas bien.'
+              : 'Todavía no sé cómo llegas hoy.',
             direction: 'neutral',
           },
         ],
@@ -320,7 +320,7 @@ const unknownRecovery: Rule = {
         {
           key: 'recovery_unknown',
           label: 'Sin datos de recuperación',
-          detail: 'No sé cómo llegas hoy: no has registrado tu recuperación. Si estás cansado, dímelo y lo ajusto.',
+          detail: 'No sé cómo llegas hoy. Si estás cansado, dímelo y lo ajusto.',
           direction: 'neutral',
         },
       ],
@@ -346,7 +346,7 @@ const moderateRecovery: Rule = {
       factors.push({
         key: 'muscle_fatigue',
         label: 'Fatiga alta',
-        detail: 'Has registrado fatiga muscular alta.',
+        detail: 'Tienes la fatiga muscular alta.',
         direction: 'limits',
       })
     }

@@ -294,6 +294,12 @@ type ClaimFamily = {
   patterns?: readonly RegExp[]
   /** Cuándo el briefing, por sí solo, respalda hablar de esto. */
   backedByBriefing?: (briefing: unknown) => boolean
+  /**
+   * Cómo lo dice el propio usuario, en primera persona (D-074): si lo ha
+   * contado él, el modelo puede devolvérselo («ayer jugaste al fútbol»). Solo
+   * se busca en lo que respalda, nunca en el texto del modelo.
+   */
+  selfMarkers?: readonly string[]
 }
 
 type BriefingShape = {
@@ -369,6 +375,7 @@ const CLAIM_FAMILIES: readonly ClaimFamily[] = [
       'estos dias',
     ],
     patterns: [/\bllevas\b[^.]*\b(dias|sesiones|semanas|entrenad|trabajad)/, /\bhace \S+ dias\b/],
+    selfMarkers: ['entrene', 'he entrenado', 'jugue', 'he jugado', 'hice', 'he hecho', 'corri', 'he corrido', 'trabaje'],
   },
   {
     label: 'la última sesión',
@@ -384,6 +391,7 @@ const CLAIM_FAMILIES: readonly ClaimFamily[] = [
     label: 'sueño',
     markers: ['dormiste', 'has dormido', 'duermes', 'dormido poco', 'dormido mal'],
     backedByBriefing: sleepIsRegistered,
+    selfMarkers: ['dormi', 'he dormido', 'duermo'],
   },
   {
     label: 'estado de recuperación',
@@ -399,6 +407,18 @@ const CLAIM_FAMILIES: readonly ClaimFamily[] = [
       'tienes estres',
       'tienes energia',
     ],
+    selfMarkers: [
+      'estoy cansad',
+      'estoy agotad',
+      'estoy fatigad',
+      'estoy estresad',
+      'estoy reventad',
+      'estoy muert',
+      'estoy descansad',
+      'me siento',
+      'tengo fatiga',
+      'tengo energia',
+    ],
   },
   {
     label: 'molestias',
@@ -410,6 +430,7 @@ const CLAIM_FAMILIES: readonly ClaimFamily[] = [
   {
     label: 'preferencias',
     markers: ['prefieres', 'preferiste', 'te gusta', 'te gustan', 'te encanta', 'odias', 'como siempre', 'sueles', 'tu favorit', 'tu preferencia'],
+    selfMarkers: ['prefiero', 'me gusta', 'me gustan', 'me encanta', 'odio', 'suelo'],
   },
 ]
 
@@ -443,6 +464,7 @@ export function findUnsupportedClaim(
     const claim = claimIn(normalizedText, family)
     if (claim === null) continue
     if (claimIn(normalizedDomain, family) !== null) continue
+    if (family.selfMarkers?.some((term) => new RegExp(`\\b${escapeRegExp(term)}`).test(normalizedDomain))) continue
     if (family.backedByBriefing?.(briefing)) continue
     return { family: family.label, claim }
   }

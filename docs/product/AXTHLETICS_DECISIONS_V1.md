@@ -2442,6 +2442,35 @@ El calentamiento de activación (jumping jacks y escaladores, D-045) no cambia, 
 
 ---
 
+## D-074 — AXIS habla como un entrenador, no como una app
+
+**Fecha:** 2026-10-25 · **Estado:** aprobada e implementada · Decidido por Alex: «ahora mejora la forma de hablar de AXIS», tras la revisión en la que se vio que sonaba a sistema. **Matiza** D-016: lo que el usuario cuenta ya no se presenta como «no me consta registrado».
+
+**El problema:** las frases fijas y el prompt hacían hablar a AXIS de registros y de datos («no me consta registrado», «son los datos los que deciden», «mañana vuelvo a decidir con tus datos», «no voy a inventarte ejercicios…», «puedo cambiarla, pero no a ciegas»). Además desconfiaba de lo que se le contaba, decía que repartía los objetivos «sin dar prioridad a ninguno» (falso desde D-047) y cerraba con un «no hay nada que negociar» sin ofrecer salida.
+
+### Qué cambia
+
+- **Las frases fijas** (`deterministic.ts`, `negotiation.ts`, `assessment-answer.ts`, `closing.ts`, `proactive.ts`, `rules.ts`, `actions.ts`) se reescriben sin cambiar lo que decide cada una:
+  - «no sé cómo llegas hoy» en vez de «no tengo tu recuperación registrada»;
+  - «te creo» cuando el usuario cuenta un esfuerzo;
+  - «tú mandas» y «mañana vemos cómo llegas»;
+  - los objetivos «los reparto en la semana: cada sesión trabaja uno»;
+  - después de entrenar, «un paseo o algo de movilidad suave te sienta bien».
+
+  Un test (`voice.test.ts`) impide que vuelvan «registrado», «tus datos», «no me consta», «vuelvo a decidir» o «el motor» a esas frases.
+- **El prompt** (`personality.ts`, `ai.ts`):
+  - habla del cuerpo y del entrenamiento, nunca de «datos», «registrado» ni «me consta»;
+  - lo que falta lo dice con naturalidad;
+  - lo que el usuario cuenta se lo cree y lo usa;
+  - piensa como entrenador: da el principio detrás, mira la semana y el bloque, siempre ofrece una salida cuando dice que no y da un consejo cuando cede.
+- **La puerta del texto** (`safety.ts`, `selfMarkers`): una afirmación sobre el usuario pasa si él mismo la ha dicho en primera persona en la conversación de hoy («jugué», «estoy cansado», «he dormido», «prefiero»). Así el modelo puede devolvérselo y no cae al texto fijo. Que algo **no** ha ocurrido sigue pudiéndolo afirmar solo el dominio.
+
+### Lo que no cambia
+
+El motor decide igual; las cifras, el veredicto y la propuesta siguen siendo del dominio; lo médico y la crisis siguen fuera del modelo.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

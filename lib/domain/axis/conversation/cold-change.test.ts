@@ -241,7 +241,7 @@ test('3. pedir sin decir qué, nombrar una zona o querer entrenar no abren la ne
   const vague = answerFromBriefing('quiero cambiar el entrenamiento de hoy', briefing, COLD)
   assert.equal(vague.intent, 'change')
   assert.equal(vague.verdict ?? null, null)
-  assert.match(vague.text, /qué quieres cambiar y por qué/i)
+  assert.match(vague.text, /dime qué no te encaja/i)
 
   // Nombra una zona sin pedir nada: no es una petición.
   for (const message of ['ayer hice piernas', 'hoy toca piernas']) {

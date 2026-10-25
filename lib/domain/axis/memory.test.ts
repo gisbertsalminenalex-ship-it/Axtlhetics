@@ -439,7 +439,7 @@ test('regresión 8: «ayer hice 20 km» y luego «hoy piernas no» conserva la e
 
   const second = await a.ask('hoy piernas no')
   assert.equal(second.result.verdict, 'accept', `sin la memoria era decline: ${second.result.text}`)
-  assert.match(second.result.text, /no me conste registrado/i, 'sigue diciendo que no está registrado')
+  assert.match(second.result.text, /^te creo/i, 'sigue diciendo que no está registrado')
 })
 
 test('sin la evidencia recordada, la misma petición se concede con reparo (control)', async () => {
@@ -461,7 +461,7 @@ test('insistir tras recargar mantiene el criterio en corto', async () => {
   await reloaded.load()
   const { result } = await reloaded.ask('venga, porfa')
   assert.equal(result.verdict, 'decline')
-  assert.match(result.text, /^Sigo pensando lo mismo/)
+  assert.match(result.text, /^Lo mantengo/)
 })
 
 test('terminar el entrenamiento retira la elección y conserva el resto', async () => {

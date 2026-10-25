@@ -117,8 +117,8 @@ function reasonText(
       // Registrarla solo cambia algo si es lo único que falta: si no, sería
       // ofrecer una salida que no lleva a ningún sitio.
       return onlyBlock
-        ? 'No tengo tu recuperación de hoy registrada, y sin ella no sé si estás para un esfuerzo máximo. Regístrala y lo miro.'
-        : 'No tengo tu recuperación de hoy registrada.'
+        ? 'No sé cómo llegas hoy, y para un esfuerzo máximo necesito saberlo. Apunta tu recuperación y lo miramos.'
+        : 'Hoy no sé cómo llegas: no has apuntado tu recuperación.'
     case 'recovery_low':
       return 'Tu recuperación de hoy es baja: no es día para un esfuerzo máximo.'
     case 'demanding_activity_today':

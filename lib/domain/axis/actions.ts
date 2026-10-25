@@ -340,7 +340,7 @@ function validateMoveToTomorrow(
     return {
       ok: false,
       reason: 'ya_no_disponible',
-      message: 'Esa opción ya no está sobre la mesa con tus datos de ahora. Dime qué quieres y lo replanteo.',
+      message: 'Esa opción ya no encaja con cómo ha quedado el día. Dime qué quieres y te propongo otra.',
     }
   }
   return { ok: true, target }
@@ -380,7 +380,7 @@ function validateDatedActivity(activity: DatedActivityDraft, context: AxisContex
     return {
       ok: false,
       reason: 'sin_efecto',
-      message: `Ya tengo registrado ${activity.name.toLowerCase()} para mañana.`,
+      message: `Ya tengo apuntado ${activity.name.toLowerCase()} para mañana.`,
     }
   }
   return { ok: true, target: null }
@@ -398,7 +398,7 @@ function validateChangeTraining(
     return {
       ok: false,
       reason: 'ya_no_disponible',
-      message: 'Esa opción ya no está sobre la mesa con tus datos de ahora. Dime qué quieres y lo replanteo.',
+      message: 'Esa opción ya no encaja con cómo ha quedado el día. Dime qué quieres y te propongo otra.',
     }
   }
 

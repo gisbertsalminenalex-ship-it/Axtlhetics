@@ -420,10 +420,10 @@ function restAlternative(alternatives: readonly BriefingAlternative[]): Briefing
 /**
  * Cómo se nombra lo que el usuario acaba de contar.
  *
- * Cuenta para decidir, pero se dice que no está registrado: AXIS no puede
- * presentar como comprobado algo que solo tiene de oídas.
+ * Cuenta para decidir y se dice que se cree, como lo diría un entrenador
+ * (D-074): AXIS no habla de registros. Sigue sin convertirlo en una cifra.
  */
-const REPORTED_CLAUSE = 'Me fío de lo que me cuentas, aunque no me conste registrado'
+const REPORTED_CLAUSE = 'Te creo'
 
 // ---------------------------------------------------------------------------
 // El veredicto
@@ -586,14 +586,14 @@ function evaluateAvoid(
    */
   const recoveryClause = briefing.recovery.known
     ? `tu recuperación está en ${briefing.recovery.value}`
-    : 'no tengo tu recuperación de hoy registrada'
+    : 'no sé cómo llegas hoy'
 
   const goalClause =
     briefing.profile && briefing.profile.goals.length > 0
       ? ' y es una zona que pesa en lo que quieres conseguir'
       : ''
 
-  const caveat = `No es lo que yo haría: ${recoveryClause}${goalClause}, y no veo en tus datos nada que pida saltar ${label}. Pero lo decides tú.`
+  const caveat = `No es lo que yo haría: ${recoveryClause}${goalClause}, y no veo nada que pida saltarse ${label}. Pero tú mandas.`
 
   if (swap) {
     return {
@@ -693,13 +693,13 @@ function recordedAbsenceOfFocus(briefing: AxisBriefing): string {
   const hasRecentSessions =
     briefing.daysSinceLastWorkout !== null && briefing.daysSinceLastWorkout <= RECENT_HISTORY_DAYS
   return hasRecentSessions
-    ? `En tus sesiones registradas de los últimos ${RECENT_HISTORY_DAYS} días no aparece esa zona`
-    : 'No tengo registrada ninguna sesión estos días que haya cargado esa zona'
+    ? `En tus sesiones de los últimos ${RECENT_HISTORY_DAYS} días no aparece esa zona`
+    : 'No tengo sesiones tuyas de estos días que hayan cargado esa zona'
 }
 
 /** Lo que el usuario contó y afecta a esa zona: se reconoce, pero no se da por comprobado. */
 const UNRECORDED_REPORT_CLAUSE =
-  '; lo que me cuentas que hiciste no está registrado, así que decido solo con lo que tengo'
+  '; eso sí, si ya la cargaste como me cuentas, ve con calma'
 
 /** Menos tiempo. Es una restricción real, no una preferencia: se acomoda. */
 function evaluateShorter(
@@ -765,7 +765,7 @@ function evaluateLonger(
 
   return {
     outcome: 'compromise',
-    text: 'No tengo una versión más larga preparada para hoy. La sesión se queda como está: no voy a inventarte ejercicios ni volumen que no he planificado.',
+    text: 'Hoy la dejo como está: más volumen no te aportaría mucho más. Si te sobra energía, ponle más intención a lo que ya tienes.',
     proposedTarget: null,
   }
 }
@@ -842,7 +842,7 @@ function loadCaveat(briefing: AxisBriefing, what: string): string | null {
     return `Llevas ${briefing.load.sessionCount} sesiones en ${briefing.load.windowDays} días y tu carga acumulada ya está alta, así que no es lo que te propondría: ${what.toLowerCase()} justo cuando toca asimilar lo que llevas. Pero lo decides tú.`
   }
   if (!briefing.recovery.known) {
-    return `No tengo tu recuperación de hoy registrada, así que no sé si hoy da para más. ${what} sin saber cómo estás; regístrala en Recuperación y lo afino. Si aun así quieres, adelante.`
+    return `No sé cómo llegas hoy, así que no sé si da para más. ${what} sin saber cómo estás; apunta tu recuperación y lo afino. Si aun así quieres, adelante.`
   }
   return null
 }
@@ -890,7 +890,7 @@ function evaluateRest(
   if (activeToday(briefing)) {
     return {
       outcome: 'accept',
-      text: 'Hoy ya has entrenado. No hay nada que negociar: toca recuperar.',
+      text: 'Hoy ya has entrenado, así que toca recuperar. Si te apetece moverte, un paseo o algo de movilidad suave te sienta bien.',
       proposedTarget: asTarget(rest),
     }
   }
@@ -899,7 +899,7 @@ function evaluateRest(
   if (!rest) {
     return {
       outcome: 'accept',
-      text: 'Hoy ya es día de recuperación, así que no hay nada que quitar: descansa. Mañana vuelvo a decidir con tus datos.',
+      text: 'Hoy ya es día de recuperación, así que no hay nada que quitar: descansa. Mañana vemos cómo llegas.',
       proposedTarget: null,
     }
   }
@@ -907,11 +907,11 @@ function evaluateRest(
   const days = briefing.daysSinceLastWorkout
   const opinion =
     days !== null && days >= 3
-      ? `Llevas ${days} días sin entrenar y tus datos no piden parar, así que no es lo que te recomendaría: la continuidad es lo que más mueve tus objetivos.`
-      : 'Tus datos de hoy no piden descanso, pero un día libre no rompe nada.'
+      ? `Llevas ${days} días sin entrenar y nada pide parar, así que no te lo recomendaría: lo que más te acerca a tus objetivos es la constancia.`
+      : 'Hoy no necesitas descansar, pero un día libre no rompe nada.'
   return {
     outcome: 'accept',
-    text: `${opinion} Lo decides tú: hoy descansas. Si cambias de idea, pídeme algo suave; si no, mañana vuelvo a decidir con tus datos.`,
+    text: `${opinion} Tú mandas: hoy descansas. Si cambias de idea, pídeme algo suave; si no, mañana vemos cómo llegas.`,
     proposedTarget: asTarget(rest),
   }
 }
@@ -1014,8 +1014,8 @@ function evaluateTrainAnyway(
       return {
         outcome: 'accept',
         text: training
-          ? `Hoy no lo tenías marcado como día de entrenar, pero eso lo decides tú, no tu cuerpo: nada en tus datos lo desaconseja. Cambio a ${nameOf(training)}.`
-          : 'Hoy no lo tenías marcado como día de entrenar, pero eso lo decides tú, no tu cuerpo. Nada en tus datos lo desaconseja.',
+          ? `Hoy no tocaba entrenar, pero si te apetece, adelante: no veo nada que lo desaconseje. Cambio a ${nameOf(training)}.`
+          : 'Hoy no tocaba entrenar, pero si te apetece, adelante: no veo nada que lo desaconseje.',
         proposedTarget: asTarget(training),
       }
     }
@@ -1023,8 +1023,8 @@ function evaluateTrainAnyway(
     return {
       outcome: 'accept',
       text: training
-        ? `Adelante. Nada en tus datos de hoy lo desaconseja. Cambio a ${nameOf(training)}.`
-        : 'Adelante: nada en tus datos de hoy lo desaconseja.',
+        ? `Adelante, no veo nada que lo desaconseje. Cambio a ${nameOf(training)}.`
+        : 'Adelante, no veo nada que lo desaconseje.',
       proposedTarget: asTarget(training),
     }
   }
@@ -1053,7 +1053,7 @@ export function changeOpeningMessage(briefing: AxisBriefing): string {
     ? `Hoy te he propuesto ${session.title.toLowerCase()}, unos ${session.estimatedMinutes} min.`
     : `Hoy te he propuesto ${proposal.headline.toLowerCase()}.`
 
-  return `${what} ${proposal.reason} ¿Qué quieres cambiar, y por qué? Cuéntame lo que no tenga registrado y lo tendré en cuenta.`
+  return `${what} ${proposal.reason} ¿Qué te gustaría cambiar? Si hay algo que no sé, cuéntamelo y lo tengo en cuenta.`
 }
 
 
@@ -1093,13 +1093,13 @@ function evaluateCannotToday(
   if (!rest) {
     return {
       outcome: 'compromise',
-      text: 'Si hoy no puedes, no entrenes. No acumulo la sesión: mañana vuelvo a decidir con tus datos.',
+      text: 'Si hoy no puedes, no pasa nada: no entrenes. No te acumulo la sesión; mañana vemos cómo llegas.',
       proposedTarget: null,
     }
   }
   return {
     outcome: 'accept',
-    text: 'Si no puedes, no puedes: hoy no entrenamos. No voy a acumular la sesión en otro día; mañana vuelvo a decidir con tus datos. Si prefieres, puedo moverla a mañana.',
+    text: 'Si no puedes, no puedes: hoy no entrenamos. No te la acumulo en otro día; mañana vemos cómo llegas. Si prefieres, la paso a mañana.',
     proposedTarget: asTarget(rest),
   }
 }
@@ -1119,14 +1119,14 @@ function evaluateMoveTomorrow(
   if (activeToday(briefing)) {
     return {
       outcome: 'accept',
-      text: 'Hoy ya has entrenado, así que no queda nada que mover: lo de hoy ya está hecho. Mañana vuelvo a decidir con tus datos de mañana.',
+      text: 'Hoy ya has entrenado, así que no hay nada que mover: lo de hoy está hecho. Mañana vemos cómo llegas.',
       proposedTarget: null,
     }
   }
   if (!isTrainingDay(briefing)) {
     return {
       outcome: 'accept',
-      text: `Hoy ya te tocaba recuperar${lowRecovery(briefing) ? `: tu recuperación está en ${lowRecoveryValue(briefing)}` : ''}, así que hoy descansas igualmente y mañana vuelvo a decidir con tus datos de mañana. No hace falta mover nada.`,
+      text: `Hoy ya te tocaba recuperar${lowRecovery(briefing) ? `: tu recuperación está en ${lowRecoveryValue(briefing)}` : ''}, así que hoy descansas igualmente y mañana vemos cómo llegas. No hace falta mover nada.`,
       proposedTarget: null,
     }
   }
@@ -1149,13 +1149,13 @@ function evaluateMoveTomorrow(
   if (!rest) {
     return {
       outcome: 'compromise',
-      text: 'No puedo dejar hoy como descanso con lo que tengo preparado. Si hoy no puedes, dímelo y lo replanteo.',
+      text: 'Hoy prefiero que entrenes, aunque sea algo corto. Si de verdad no puedes, dímelo y lo replanteo.',
       proposedTarget: null,
     }
   }
   return {
     outcome: 'accept',
-    text: `${caveat}Lo muevo a mañana: hoy descansas y mañana queda como día de entrenamiento. No copio la sesión de hoy; mañana decido con tus datos de mañana.`,
+    text: `${caveat}La paso a mañana: hoy descansas y mañana entrenas. No copio la de hoy; mañana te preparo la que toque según cómo llegues.`,
     proposedTarget: asTarget(rest),
     proposedEffect: { kind: 'move_to_tomorrow' },
   }
@@ -1205,7 +1205,7 @@ function askBlockReason(briefing: AxisBriefing): ChangeVerdict {
   if (activeToday(briefing)) return ALREADY_TRAINED
   return {
     outcome: 'need_info',
-    text: '¿Qué te lo impide: el tiempo, la zona que toca, el material o el sitio, u otro motivo? Con eso decido.',
+    text: '¿Qué te lo impide: el tiempo, la zona que toca, el material o el sitio? Con eso te propongo otra cosa.',
     proposedTarget: null,
   }
 }
@@ -1288,13 +1288,13 @@ function evaluateTired(
   if (briefing.fatigueLevel !== null) return easier
   return {
     ...easier,
-    text: `${easier.text} No tengo tu fatiga registrada hoy: regístrala en Recuperación y contará en las próximas decisiones.`,
+    text: `${easier.text} Apunta también tu fatiga en Recuperación y la tendré en cuenta los próximos días.`,
   }
 }
 
 /** Lo que AXIS dice cuando el cansancio no está registrado. Lo comparten las dos vías. */
 export const FATIGUE_NOT_REGISTERED =
-  'No tengo tu fatiga registrada hoy. Regístrala en Recuperación y decido con ese dato; desde aquí no la anoto.'
+  'Si notas los músculos cargados, apúntalo en Recuperación y lo tengo en cuenta. Desde el chat no puedo anotarlo.'
 
 /**
  * Hoy ya hubo actividad: una sesión completada o un test de evolución completo

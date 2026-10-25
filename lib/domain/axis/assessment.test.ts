@@ -354,7 +354,7 @@ test('sin recuperación registrada no se da por disponible', () => {
   const { status, briefing } = setup({ recovery: null, assessments: [OLD_TEST] })
   assert.notEqual(status.status, 'available')
   assert.ok(status.reasons.includes('recovery_unknown'))
-  assert.match(answerFromBriefing('¿puedo hacer el test?', briefing).text, /Regístrala y lo miro/)
+  assert.match(answerFromBriefing('¿puedo hacer el test?', briefing).text, /Apunta tu recuperación y lo miramos/)
 })
 
 test('una razón por causa: tras entrenar, el descanso del motor no se dice dos veces', () => {
@@ -370,7 +370,7 @@ test('«regístrala» solo se ofrece si registrar la recuperación cambiaría al
   const { status, briefing } = setup({ recovery: null, sessions: [session(TODAY)], assessments: [OLD_TEST] })
   assert.ok(status.reasons.includes('recovery_unknown'))
   const text = answerFromBriefing('¿puedo hacer el test?', briefing).text
-  assert.match(text, /No tengo tu recuperación de hoy registrada\./)
+  assert.match(text, /no has apuntado tu recuperación\./)
   assert.doesNotMatch(text, /Regístrala/)
 })
 

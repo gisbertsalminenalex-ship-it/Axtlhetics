@@ -84,14 +84,14 @@ test('una sesión interrumpida dice cuántas series quedaron y que no sirve para
   const text = closingMessage(
     session({ status: 'abandoned', exercises: [done('Remo', [10, 8], { sets: 3, reps: 10 })] }),
   )
-  assert.match(text, /^Sesión interrumpida con 2 series registradas/)
+  assert.match(text, /^Sesión interrumpida con 2 series hechas/)
   assert.match(text, /no la uso para subir cargas/)
   assertAxisVoice(text)
 })
 
 test('una sola serie en singular', () => {
   const text = closingMessage(session({ status: 'abandoned', exercises: [done('Remo', [10])] }))
-  assert.match(text, /con 1 serie registrada\./)
+  assert.match(text, /con 1 serie hecha\./)
 })
 
 test('los récords se añaden después del veredicto, por nombre y sin repetir', () => {
@@ -101,7 +101,7 @@ test('los récords se añaden después del veredicto, por nombre y sin repetir',
   ]
   const text = closingMessage(session(), records)
   assert.match(text, /^Sesión completa/)
-  assert.match(text, /Has superado tu mejor marca registrada en Remo y Flexiones\.$/)
+  assert.match(text, /Has superado tu mejor marca en Remo y Flexiones\.$/)
 })
 
 test('sin récords no se menciona ninguna marca', () => {
@@ -125,7 +125,7 @@ test('un récord en un ejercicio sin completar se dice aparte, dejando claro que
   )
 
   assert.match(text, /^Remo quedó por debajo de lo previsto/)
-  assert.match(text, /Has superado tu mejor marca registrada en Flexiones\./)
+  assert.match(text, /Has superado tu mejor marca en Flexiones\./)
   assert.match(text, /En Remo también superaste tu mejor marca, aunque sin completar lo previsto\.$/)
   assertAxisVoice(text)
 })

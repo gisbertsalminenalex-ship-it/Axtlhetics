@@ -377,7 +377,7 @@ test('fatiga sin registrar: fuera del cambio pide registrarla; dentro, suaviza y
   const inside = answerFromBriefing('estoy reventado', briefing, CHANGE_MODE)
   assert.notEqual(inside.verdict, 'need_info', 'pedir algo más suave estando cansado se concede')
   assert.notEqual(inside.verdict, 'decline')
-  assert.match(inside.text, /no tengo tu fatiga registrada/i, 'y no la anota: pide registrarla')
+  assert.match(inside.text, /apunta tambi[eé]n tu fatiga en Recuperaci[oó]n/i, 'y no la anota: pide registrarla')
 })
 
 test('fatiga registrada: negociando, se juzga como pedir algo más suave', () => {

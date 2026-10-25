@@ -25,7 +25,7 @@ export function closingMessage(
     // Las del entrenamiento: el calentamiento no cuenta (D-032, D-045).
     const sets = session.exercises.filter(isMainExercise).reduce((total, exercise) => total + exercise.sets.length, 0)
     parts.push(
-      `Sesión interrumpida con ${sets} ${sets === 1 ? 'serie registrada' : 'series registradas'}.`,
+      `Sesión interrumpida con ${sets} ${sets === 1 ? 'serie hecha' : 'series hechas'}.`,
       'Queda guardada, pero no la uso para subir cargas: al no terminarla no dice de qué eres capaz.',
     )
     return parts.join(' ')
@@ -41,9 +41,9 @@ export function closingMessage(
       `${listNames(short)} ${short.length === 1 ? 'quedó' : 'quedaron'} por debajo de lo previsto, así que la próxima vez repito esos parámetros en lugar de subir.`,
     )
   } else if (skipped) {
-    parts.push('Te dejaste ejercicios sin hacer. Lo que sí hiciste queda registrado y la próxima propuesta parte de ahí.')
+    parts.push('Te dejaste ejercicios sin hacer. Lo que hiciste cuenta, y la próxima sesión parte de ahí.')
   } else {
-    parts.push('Sesión completa: hiciste todo lo previsto. La próxima propuesta parte de lo que has registrado hoy.')
+    parts.push('Sesión completa: hiciste todo lo previsto. La próxima parte de lo que has hecho hoy.')
   }
 
   /*
@@ -56,7 +56,7 @@ export function closingMessage(
   const partialRecords = recordNames.filter((name) => short.includes(name))
 
   if (fullRecords.length > 0) {
-    parts.push(`Has superado tu mejor marca registrada en ${listNames(fullRecords)}.`)
+    parts.push(`Has superado tu mejor marca en ${listNames(fullRecords)}.`)
   }
   if (partialRecords.length > 0) {
     parts.push(

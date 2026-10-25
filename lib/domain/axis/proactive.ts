@@ -143,7 +143,7 @@ export function proactiveNote(input: ProactiveInput): ProactiveNote | null {
   if (!input.recoveryRegistered) {
     return {
       kind: 'register_recovery',
-      text: 'Todavía no has registrado tu recuperación de hoy. Con ella decido mejor qué te conviene.',
+      text: 'Todavía no me has dicho cómo llegas hoy. Apúntalo en Recuperación y afino la sesión.',
     }
   }
 

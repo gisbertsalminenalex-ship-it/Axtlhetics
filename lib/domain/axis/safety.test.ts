@@ -248,6 +248,19 @@ test('historial: lo que el modelo añade sobre sesiones pasadas se rechaza', () 
   assert.equal(reasonOf('Hoy toca tren inferior, porque el pecho ya lo has trabajado estos días.', backed, {}), null)
 })
 
+test('lo que el usuario ha contado en primera persona se le puede devolver (D-074)', () => {
+  // En la llamada real, lo que dijo el usuario viaja junto a `domain.text` como respaldo.
+  const said = (words: string): DomainAnswerForSafety => ({ ...PLAIN, text: `${PLAIN.text} ${words}` })
+  assert.equal(reasonOf('Si ayer jugaste al fútbol, hoy vamos más suave.', said('ayer jugué al fútbol'), {}), null)
+  assert.equal(reasonOf('Si estás cansado, hoy bajamos un punto.', said('estoy cansadísimo'), {}), null)
+  assert.equal(reasonOf('Si dormiste poco, hoy sin apretar.', said('he dormido fatal'), {}), null)
+  assert.equal(reasonOf('Ya sé que prefieres las dominadas.', said('prefiero las dominadas'), {}), null)
+  // Sin que lo haya dicho, sigue siendo una afirmación sin respaldo.
+  assert.equal(reasonOf('Si ayer jugaste al fútbol, hoy vamos más suave.', PLAIN, {}), 'unsupported_claim')
+  // Que algo NO ha pasado no lo respalda nada de lo que diga: solo el dominio.
+  assert.equal(reasonOf('No has entrenado piernas esta semana.', said('ayer entrené brazos'), {}), 'unsupported_claim')
+})
+
 test('la última sesión y la comparación semanal pasan si el briefing las tiene registradas', () => {
   assert.equal(reasonOf('Tu última sesión fue de tren superior.', PLAIN, {}), 'unsupported_claim')
   assert.equal(reasonOf('Tu última sesión fue de tren superior.', PLAIN, { lastSession: { focus: 'tren_superior' } }), null)

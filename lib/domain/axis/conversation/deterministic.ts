@@ -360,7 +360,7 @@ function answerFactors(briefing: AxisBriefing): AxisAnswer {
   looked.push(
     briefing.recovery.known
       ? `tu recuperación de hoy (${briefing.recovery.value})`
-      : 'tu recuperación, que hoy no tengo registrada',
+      : 'tu recuperación, que hoy no me has contado',
   )
 
   if (briefing.load.known) looked.push(`tu carga de los últimos ${briefing.load.windowDays} días (${briefing.load.value})`)
@@ -396,7 +396,7 @@ function answerSportToday(briefing: AxisBriefing): AxisAnswer {
     if (sports.length === 0 && dated.length === 0) {
       return unknown(
         'sport_today',
-        'No tienes ningún deporte registrado. Puedes añadirlo desde tu perfil y lo tendré en cuenta.',
+        'No me has dicho que hagas ningún deporte. Si haces alguno, añádelo en tu perfil y lo tengo en cuenta.',
       )
     }
     const recurring = sports
@@ -435,7 +435,7 @@ function answerSportImpact(briefing: AxisBriefing): AxisAnswer {
   if (today.length === 0 && tomorrow.length === 0) {
     return unknown(
       'sport_impact',
-      'Hoy y mañana no tienes deporte registrado, así que no está condicionando la sesión.',
+      'Hoy y mañana no tienes deporte, así que no condiciona la sesión.',
     )
   }
 
@@ -487,13 +487,13 @@ function answerTired(briefing: AxisBriefing): AxisAnswer {
 
   if (briefing.recovery.known) {
     parts.push(
-      `Tus datos de hoy dan ${briefing.recovery.value} de recuperación (${RECOVERY_BAND_LABELS[briefing.recovery.band].toLowerCase()}).`,
+      `Hoy llegas con ${briefing.recovery.value} de recuperación (${RECOVERY_BAND_LABELS[briefing.recovery.band].toLowerCase()}).`,
     )
     if (briefing.recovery.band === 'good') {
       parts.push('Si te notas peor de lo que dicen los números, hazles caso a las sensaciones antes que a mí.')
     }
   } else {
-    parts.push('No tengo tu recuperación de hoy registrada, así que no puedo medirlo.')
+    parts.push('No sé cómo llegas hoy, así que eso no puedo medirlo.')
   }
   if (briefing.fatigueLevel === null) parts.push(FATIGUE_NOT_REGISTERED)
 
@@ -605,7 +605,7 @@ function negotiate(
    */
   if (insisting && verdict.outcome === 'decline') {
     return {
-      text: 'Sigo pensando lo mismo, y no por llevarte la contraria: nada de lo que me has dicho cambia tus datos, y son los datos los que deciden. Si hay algo que no tengo registrado —un esfuerzo de ayer, una molestia, que duermes mal esta semana—, dímelo concreto y lo reviso.',
+      text: 'Lo mantengo, y no por llevarte la contraria: nada de lo que me has contado cambia el porqué. Si hay algo que no sé —un esfuerzo de ayer, una molestia, que duermes mal esta semana—, cuéntamelo y lo replanteo.',
       intent: 'change',
       unknown: false,
       verdict: verdict.outcome,
@@ -716,7 +716,7 @@ function answerMatchTomorrow(briefing: AxisBriefing, intensity: ActivityIntensit
 
   if (!intensity) {
     return {
-      text: 'No tengo ningún partido registrado para mañana. ¿Cómo de exigente es: suave, normal o exigente? Con eso lo registro y replanteo el día de hoy.',
+      text: 'No tenía ningún partido para mañana. ¿Cómo de exigente es: suave, normal o exigente? Con eso lo apunto y ajusto lo de hoy.',
       intent: 'match_tomorrow',
       unknown: false,
       verdict: 'need_info',
@@ -726,7 +726,7 @@ function answerMatchTomorrow(briefing: AxisBriefing, intensity: ActivityIntensit
 
   const name = matchName(briefing.profile?.sports.map((sport) => sport.name) ?? []).toLowerCase()
   const label = ACTIVITY_INTENSITY_LABELS[intensity].toLowerCase()
-  const text = `Lo registro como ${name} mañana, de intensidad ${label}. Al confirmarlo, vuelvo a decidir el día de hoy contando con él.`
+  const text = `Lo apunto: ${name} mañana, de intensidad ${label}. Cuando lo confirmes, ajusto lo de hoy contando con él.`
   return {
     text,
     intent: 'match_tomorrow',
@@ -771,8 +771,8 @@ function answerChange(briefing: AxisBriefing): AxisAnswer {
   }
 
   return say('change', [
-    'Puedo cambiarla, pero no a ciegas: dime qué quieres cambiar y por qué.',
-    'Si me cuentas algo que no tenga registrado —un esfuerzo de ayer, una molestia, que vas justo de tiempo— lo tengo en cuenta. Si no hay motivo, te lo diré.',
+    'Se puede cambiar. Dime qué no te encaja: menos tiempo, otra zona, algo más suave o más duro.',
+    'Y si hay algo que no sé —un esfuerzo de ayer, una molestia, que vas justo de tiempo—, cuéntamelo y lo tengo en cuenta.',
   ])
 }
 
@@ -809,7 +809,7 @@ function answerRecovery(briefing: AxisBriefing): AxisAnswer {
   const parts = [
     `Tu recuperación de hoy está en ${recovery.value} sobre 100: ${RECOVERY_BAND_LABELS[recovery.band].toLowerCase()}.`,
   ]
-  if (recovery.sleepHours !== null) parts.push(`Has registrado ${recovery.sleepHours} h de sueño.`)
+  if (recovery.sleepHours !== null) parts.push(`Has dormido ${recovery.sleepHours} h.`)
   if (recovery.hydrationGlasses !== null) parts.push(`Vas por ${recovery.hydrationGlasses} de 8 vasos.`)
   if (recovery.band !== 'good' && recovery.weakest.length > 0) {
     parts.push(`Lo que más pesa hoy: ${recovery.weakest[0]}.`)
@@ -878,7 +878,7 @@ function answerGoals(briefing: AxisBriefing): AxisAnswer {
 
   return say('goals', [
     `Tus objetivos son ${listNames(goals.map((goal) => TRAINING_GOAL_LABELS[goal].toLowerCase()))}.`,
-    'Los tengo todos en cuenta a la vez al preparar la sesión, sin dar prioridad a ninguno.',
+    'Los reparto en la semana: cada sesión trabaja uno, y el que lleva más pendiente entra primero.',
     ...(briefing.profile?.targets ?? []).map(describeTarget),
   ])
 }

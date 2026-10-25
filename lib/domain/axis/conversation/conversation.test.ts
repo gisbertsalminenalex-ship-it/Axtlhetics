@@ -197,7 +197,7 @@ test('sin deportes registrados, AXIS no inventa un partido', () => {
 
   assert.equal(answer.intent, 'sport_today')
   assert.equal(answer.unknown, true)
-  assert.match(answer.text, /no tienes ning[uú]n deporte registrado/i)
+  assert.match(answer.text, /no me has dicho que hagas ning[uú]n deporte/i)
 })
 
 test('una pregunta fuera de ámbito recibe la respuesta acordada', () => {
@@ -263,7 +263,7 @@ test('los objetivos múltiples se nombran todos, sin priorizar ninguno', () => {
 
   assert.match(answer.text, /fuerza/i)
   assert.match(answer.text, /rendimiento deportivo/i)
-  assert.match(answer.text, /sin dar prioridad/i)
+  assert.match(answer.text, /los reparto en la semana/i)
 })
 
 // ---------------------------------------------------------------------------
@@ -673,7 +673,7 @@ test('sin deporte, preguntar cómo afecta lo dice en vez de inventarlo', () => {
   const answer = answerFromBriefing('¿Cómo afecta mi deporte al entrenamiento?', briefing)
 
   assert.equal(answer.unknown, true)
-  assert.match(answer.text, /no tienes deporte registrado/i)
+  assert.match(answer.text, /no tienes deporte, as[ií] que no condiciona/i)
 })
 
 test('preguntar si se puede entrenar con deporte responde según la decisión real', () => {
@@ -706,7 +706,7 @@ test('decir que estás cansado usa los datos si existen y lo admite si no', () =
     briefingWith({ recoveryInputs: null }).briefing,
   )
   assert.equal(sinDatos.unknown, true)
-  assert.match(sinDatos.text, /no tengo tu recuperaci/i)
+  assert.match(sinDatos.text, /no s[eé] c[oó]mo llegas hoy/i)
 })
 
 test('pedir un cambio sin motivo no despliega un menú de opciones: AXIS pregunta por qué', () => {
@@ -716,7 +716,7 @@ test('pedir un cambio sin motivo no despliega un menú de opciones: AXIS pregunt
   assert.equal(answer.intent, 'change')
   // Antes esto listaba las alternativas y el usuario elegía la que le apetecía.
   // Ahora AXIS pide el motivo, que es lo que le permite decidir.
-  assert.match(answer.text, /qué quieres cambiar y por qué/i)
+  assert.match(answer.text, /dime qué no te encaja/i)
 })
 
 test('acortar la sesión parte de la duración real propuesta', () => {
@@ -844,7 +844,7 @@ test('«hoy no hay partido» cancela el partido con fecha de hoy', () => {
 // ningún deporte registrado», porque miraba únicamente los deportes recurrentes.
 // ---------------------------------------------------------------------------
 
-const NO_SPORT_REGISTERED = /ning[uú]n deporte registrado/i
+const NO_SPORT_REGISTERED = /no me has dicho que hagas ning[uú]n deporte/i
 
 test('con solo un partido futuro, «¿Tengo partido hoy?» no dice que no haya deporte registrado', () => {
   const { briefing } = briefingWith({ activities: [matchOn('2026-09-12')] }, [session()])

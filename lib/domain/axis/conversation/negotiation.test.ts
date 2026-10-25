@@ -153,7 +153,7 @@ test('con una carga contada que pega a la zona, acepta evitarla', () => {
   const answer = negotiate('ayer hice 20 km de bici por montaña, ¿podemos no hacer piernas?', briefing)
 
   assert.equal(answer.intent, 'change')
-  assert.match(answer.text, /no me conste registrado|no est[eé] registrado/i)
+  assert.match(answer.text, /^te creo/i)
   assert.doesNotMatch(answer.text, SYCOPHANCY, 'no debe empezar dándole la razón')
 })
 
@@ -165,7 +165,7 @@ test('lo que el usuario cuenta se tiene en cuenta pero no se presenta como compr
   )
 
   assert.equal(verdict.outcome, 'accept')
-  assert.match(verdict.text, /me f[ií]o de lo que me cuentas/i)
+  assert.match(verdict.text, /^te creo/i)
 })
 
 test('con recuperación baja, pedir descansar se acepta', () => {
@@ -283,7 +283,7 @@ test('venir de un esfuerzo grande y querer entrenar da una sesión más suave, n
 
   assert.equal(verdict.outcome, 'accept')
   assert.doesNotMatch(verdict.text, /^no\b/i, 'no se le niega entrenar')
-  assert.match(verdict.text, /me f[ií]o de lo que me cuentas/i)
+  assert.match(verdict.text, /^te creo/i)
 })
 
 test('la sesión más suave no puede ser de lo que acaba de castigar', () => {
@@ -344,7 +344,7 @@ test('evitar una zona sin ningún motivo se acepta, diciendo que no lo haría (D
   assert.ok(verdict.proposedTarget, 'lo deja listo con el botón de confirmar')
   assert.notEqual(verdict.proposedTarget!.focus, 'tren_inferior')
   assert.match(verdict.text, /no es lo que yo har[ií]a/i)
-  assert.match(verdict.text, /lo decides t[uú]/i)
+  assert.match(verdict.text, /t[uú] mandas/i)
   assert.doesNotMatch(verdict.text, SYCOPHANCY)
 })
 
@@ -364,8 +364,8 @@ test('sin recuperación registrada sube la carga, avisando de que va a ciegas (D
   const verdict = evaluateChange(parseChangeRequest('quiero algo más intenso'), briefing)
 
   assert.equal(verdict.outcome, 'accept')
-  assert.match(verdict.text, /no tengo tu recuperaci[oó]n/i)
-  assert.match(verdict.text, /reg[ií]stra/i)
+  assert.match(verdict.text, /no s[eé] c[oó]mo llegas hoy/i)
+  assert.match(verdict.text, /apunta tu recuperaci[oó]n/i)
 })
 
 test('llevando días sin entrenar y sin motivo, acepta el descanso diciendo lo que opina (D-030)', () => {
@@ -376,7 +376,7 @@ test('llevando días sin entrenar y sin motivo, acepta el descanso diciendo lo q
   assert.equal(verdict.outcome, 'accept')
   assert.equal(verdict.proposedTarget?.type, 'RECOVERY')
   assert.match(verdict.text, /d[ií]as sin entrenar/i)
-  assert.match(verdict.text, /no es lo que te recomendar[ií]a/i)
+  assert.match(verdict.text, /no te lo recomendar[ií]a/i)
 })
 
 test('insistir sin aportar nada nuevo no cambia el veredicto', () => {
@@ -405,7 +405,7 @@ test('insistir sin argumentos mantiene el criterio y no repite el párrafo enter
     lastChangeRequest: primera.changeRequest,
   })
 
-  assert.match(insistiendo.text, /sigo pensando lo mismo/i)
+  assert.match(insistiendo.text, /^lo mantengo/i)
   assert.equal(insistiendo.proposedTarget, null, 'insistir no propone nada')
   assert.ok(!insistiendo.text.includes(primera.text), 'no repite la misma parrafada')
 })
@@ -428,7 +428,7 @@ test('aportar el dato que faltaba reabre la petición y cambia la respuesta', ()
     /dime qué quieres cambiar/i,
     'no puede volver a preguntar lo que ya sabe',
   )
-  assert.match(conEvidencia.text, /me f[ií]o de lo que me cuentas/i)
+  assert.match(conEvidencia.text, /^te creo/i)
   assert.doesNotMatch(conEvidencia.text, /no es lo que yo har[ií]a/i, 'con la evidencia, ya no hay reparo')
   assert.ok(conEvidencia.proposedTarget, 'con la evidencia, AXIS propone el cambio')
 })
@@ -496,7 +496,7 @@ test('sin historial, pedir otra zona se acepta sin afirmar que esa zona no se ha
   const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
   assert.equal(verdict.outcome, 'accept')
   assert.deepEqual(verdict.proposedTarget, { type: 'MODIFIED_TRAINING', focus: 'tren_inferior' })
-  assert.equal(verdict.text, 'No tengo registrada ninguna sesión estos días que haya cargado esa zona. Cambio a «Tren inferior».')
+  assert.equal(verdict.text, 'No tengo sesiones tuyas de estos días que hayan cargado esa zona. Cambio a «Tren inferior».')
   assert.doesNotMatch(verdict.text, UNTOUCHED_AS_FACT)
 })
 
@@ -507,14 +507,14 @@ test('con sesiones recientes de otra zona, se afirma solo lo que registran esas 
   const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
   assert.equal(verdict.outcome, 'accept')
   assert.deepEqual(verdict.proposedTarget, { type: 'MODIFIED_TRAINING', focus: 'tren_inferior' })
-  assert.equal(verdict.text, 'En tus sesiones registradas de los últimos 3 días no aparece esa zona. Cambio a «Tren inferior».')
+  assert.equal(verdict.text, 'En tus sesiones de los últimos 3 días no aparece esa zona. Cambio a «Tren inferior».')
   assert.doesNotMatch(verdict.text, UNTOUCHED_AS_FACT)
 })
 
 test('una sesión fuera de la ventana no cuenta como historial reciente', () => {
   const briefing = briefingWith({}, [session({ dayKey: '2026-09-01' })])
   const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
-  assert.match(verdict.text, /^No tengo registrada ninguna sesión estos días/)
+  assert.match(verdict.text, /^No tengo sesiones tuyas de estos días/)
 })
 
 test('lo que el usuario cuenta de esa zona se reconoce sin darlo por comprobado, y el veredicto no cambia', () => {
@@ -527,7 +527,7 @@ test('lo que el usuario cuenta de esa zona se reconoce sin darlo por comprobado,
   assert.deepEqual(contando.proposedTarget, sinContar.proposedTarget)
   assert.equal(
     contando.text,
-    'No tengo registrada ninguna sesión estos días que haya cargado esa zona; lo que me cuentas que hiciste no está registrado, así que decido solo con lo que tengo. Cambio a «Tren inferior».',
+    'No tengo sesiones tuyas de estos días que hayan cargado esa zona; eso sí, si ya la cargaste como me cuentas, ve con calma. Cambio a «Tren inferior».',
   )
   assert.doesNotMatch(contando.text, UNTOUCHED_AS_FACT, 'no puede decir que no ha hecho piernas')
 })
@@ -538,7 +538,7 @@ test('una carga contada antes en el día también se reconoce al pedir la zona d
   const withMemory: AxisBriefing = { ...briefing, reportedLoads: [{ ...load, reportedAt: '2026-09-07T09:00:00.000Z', messageId: 'm1' }] }
 
   const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), withMemory)
-  assert.match(verdict.text, /lo que me cuentas que hiciste no está registrado/)
+  assert.match(verdict.text, /si ya la cargaste como me cuentas, ve con calma/)
   assert.doesNotMatch(verdict.text, UNTOUCHED_AS_FACT)
 })
 
@@ -574,7 +574,7 @@ test('el mensaje de apertura parte de la sesión real y pide el motivo', () => {
   const briefing = briefingWith({}, [session()])
   const opening = changeOpeningMessage(briefing)
 
-  assert.match(opening, /qué quieres cambiar/i)
+  assert.match(opening, /qué te gustaría cambiar/i)
   assert.match(opening, new RegExp(String(briefing.proposal!.session!.estimatedMinutes)))
 })
 
@@ -768,7 +768,7 @@ test('sin recuperación registrada alarga la sesión si la hay, avisando (D-030)
   const verdict = evaluateChange(parseChangeRequest('añade 10 minutos'), briefing)
 
   assert.equal(verdict.outcome, 'accept')
-  assert.match(verdict.text, /no tengo tu recuperaci[oó]n/i)
+  assert.match(verdict.text, /no s[eé] c[oó]mo llegas hoy/i)
   assert.ok(verdict.proposedTarget)
 })
 
@@ -795,7 +795,7 @@ test('sin alternativa más larga preparada, compromiso honesto: no inventa ejerc
 
   assert.equal(verdict.outcome, 'compromise')
   assert.equal(verdict.proposedTarget, null)
-  assert.match(verdict.text, /no tengo una versi[oó]n m[aá]s larga/i)
+  assert.match(verdict.text, /hoy la dejo como est[aá]/i)
   assert.doesNotMatch(verdict.text, /m[aá]s corta/i)
   assert.doesNotMatch(verdict.text, /a[nñ]ade|series?\b|repetici/i, 'no receta volumen que el motor no preparó')
   assert.doesNotMatch(verdict.text, SYCOPHANCY)

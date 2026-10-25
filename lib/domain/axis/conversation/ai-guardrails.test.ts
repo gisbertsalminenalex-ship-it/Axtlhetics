@@ -311,7 +311,7 @@ test('el caso de producción: el modelo afirma que la zona no se ha tocado y res
   const message = 'quiero hacer piernas'
   const local = answerFromBriefing(message, briefing, CHANGE_MODE)
   assert.equal(local.verdict, 'accept')
-  assert.match(local.text, /^No tengo registrada ninguna sesión estos días/)
+  assert.match(local.text, /^No tengo sesiones tuyas de estos días/)
 
   const { transport } = fakeTransport(() => ({
     text: 'Se puede: esa zona no la has tocado estos días. Cambio a «Tren inferior».',
@@ -348,7 +348,7 @@ test('afirmaciones sin respaldo de cualquier familia caen al determinista', asyn
 test('el prompt pide no convertir la ausencia de datos en un hecho', () => {
   const prompt = aiSystemPrompt()
   assert.match(prompt, /No afirmes nada del usuario/)
-  assert.match(prompt, /no está registrado/)
+  assert.match(prompt, /sin hablar de registros, y nunca lo conviertas en un hecho/)
 })
 
 // ---------------------------------------------------------------------------
