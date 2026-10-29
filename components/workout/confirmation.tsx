@@ -36,10 +36,10 @@ export function Confirmation({
       de `page.tsx` no impone altura, así que un `min-h-full` aquí no resolvería.
     */
     <div className="ax-enter px-6 pt-10 pb-8">
-      <h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em] text-balance">
+      <h1 className="text-title-lg font-bold leading-[1.1] tracking-[-0.03em] text-balance">
         {title}
       </h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
         {body}
       </p>
 
@@ -47,7 +47,7 @@ export function Confirmation({
         <button
           type="button"
           onClick={onStay}
-          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
         >
           {stayLabel}
         </button>
@@ -55,7 +55,7 @@ export function Confirmation({
           type="button"
           onClick={onLeave}
           className={cn(
-            'ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold',
+            'ax-press mt-2 min-h-11 w-full text-footnote font-semibold',
             leaveTone === 'error' ? 'text-error' : 'text-muted-foreground',
           )}
         >

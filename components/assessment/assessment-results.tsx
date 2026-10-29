@@ -16,10 +16,10 @@ export function AssessmentResults({ rows, showPrevious = false }: { rows: Summar
       {rows.map((row) => (
         <li key={row.key} className="py-3.5">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[15px] font-semibold tracking-[-0.01em]">{row.name}</span>
-            <span className="text-[20px] font-bold tracking-[-0.01em] tabular-nums">{row.value}</span>
+            <span className="text-callout font-semibold tracking-[-0.01em]">{row.name}</span>
+            <span className="text-headline font-bold tracking-[-0.01em] tabular-nums">{row.value}</span>
           </div>
-          <div className="mt-1 flex items-baseline justify-between gap-3 text-[13px] text-muted-foreground tabular-nums">
+          <div className="mt-1 flex items-baseline justify-between gap-3 text-footnote text-muted-foreground tabular-nums">
             {/* Cada dato entero en su línea: un «12 / 12 reps» nunca se parte. */}
             <span className="flex min-w-0 flex-1 flex-wrap gap-x-1">
               {showPrevious && row.previous && (

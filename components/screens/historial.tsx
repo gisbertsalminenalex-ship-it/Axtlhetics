@@ -37,7 +37,7 @@ export function HistorialScreen() {
     <div className="px-6 pb-10">
       {/* Header */}
       <header className="flex items-center justify-between pt-2 pb-5">
-        <h1 className="text-[26px] font-bold tracking-[-0.02em]">Historial</h1>
+        <h1 className="text-title font-bold tracking-[-0.02em]">Historial</h1>
       </header>
 
       {/* Segmented control */}
@@ -49,7 +49,7 @@ export function HistorialScreen() {
             onClick={() => setRange(option)}
             aria-pressed={range === option}
             className={cn(
-              'ax-press min-h-11 flex-1 rounded-xl text-[14px] font-medium transition-colors',
+              'ax-press min-h-11 flex-1 rounded-xl text-subhead font-medium transition-colors',
               range === option
                 ? 'bg-background text-foreground shadow-[0_1px_2px_rgba(10,10,11,0.08)]'
                 : 'text-muted-foreground',
@@ -61,23 +61,23 @@ export function HistorialScreen() {
       </div>
 
       {/* Rendimiento */}
-      <p className="mt-7 text-[13px] font-medium text-muted-foreground">Rendimiento</p>
+      <p className="mt-7 text-footnote font-medium text-muted-foreground">Rendimiento</p>
       {stats.performance.available && stats.performance.percent !== null ? (
         <>
-          <p className="mt-1 text-[34px] font-bold leading-none tracking-[-0.02em] tabular-nums text-primary">
+          <p className="mt-1 text-title-lg font-bold leading-none tracking-[-0.02em] tabular-nums text-primary">
             {stats.performance.percent > 0 ? '+' : ''}
             {stats.performance.percent}%
           </p>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">
+          <p className="mt-1.5 text-footnote text-muted-foreground">
             {stats.performance.comparisonLabel}
           </p>
         </>
       ) : (
         <>
-          <p className="mt-1 text-[34px] font-bold leading-none tracking-[-0.02em] text-muted-foreground">
+          <p className="mt-1 text-title-lg font-bold leading-none tracking-[-0.02em] text-muted-foreground">
             —
           </p>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">
+          <p className="mt-1.5 text-footnote text-muted-foreground">
             Sin datos suficientes para comparar
           </p>
         </>
@@ -86,7 +86,7 @@ export function HistorialScreen() {
       <VolumeChart points={stats.points} periodLabel={stats.periodLabel} />
 
       {/* Resumen del periodo */}
-      <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">
+      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">
         {SUMMARY_TITLES[range]}
       </h3>
       <ul className="mt-2 divide-y divide-border">
@@ -111,7 +111,7 @@ export function HistorialScreen() {
       </ul>
 
       {/* Últimos entrenamientos */}
-      <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">
+      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">
         Últimos entrenamientos
       </h3>
       {recent.length > 0 ? (
@@ -124,13 +124,13 @@ export function HistorialScreen() {
             >
               <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left">
                 <span className="flex-1">
-                  <span className="block text-[15px] font-semibold">{session.title}</span>
-                  <span className="block text-[12.5px] text-muted-foreground tabular-nums">
+                  <span className="block text-callout font-semibold">{session.title}</span>
+                  <span className="block text-caption text-muted-foreground tabular-nums">
                     {formatShortDate(session.dayKey)} ·{' '}
                     {formatDuration(session.durationSeconds)}
                   </span>
                 </span>
-                <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
+                <span className="text-footnote font-medium tabular-nums text-muted-foreground">
                   {formatVolume(session.totalVolumeKg)}
                 </span>
               </div>
@@ -138,7 +138,7 @@ export function HistorialScreen() {
           ))}
         </ul>
       ) : (
-        <p className="mt-3 rounded-2xl border border-dashed border-border px-4 py-6 text-center text-[13.5px] text-muted-foreground">
+        <p className="mt-3 rounded-2xl border border-dashed border-border px-4 py-6 text-center text-footnote text-muted-foreground">
           Cuando completes tu primer entrenamiento aparecerá aquí.
         </p>
       )}
@@ -168,8 +168,8 @@ function SummaryRow({
       style={{ '--ax-index': index } as CSSProperties}
     >
       <Icon className="h-[19px] w-[19px] text-primary" strokeWidth={1.75} />
-      <span className="flex-1 text-[15px] font-medium">{label}</span>
-      <span className="text-[15px] font-semibold tabular-nums">{value}</span>
+      <span className="flex-1 text-callout font-medium">{label}</span>
+      <span className="text-callout font-semibold tabular-nums">{value}</span>
     </li>
   )
 }
@@ -218,9 +218,9 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
   return (
     <figure className="mt-5">
       <figcaption className="flex items-baseline justify-between">
-        <span className="text-[13px] font-medium">{periodLabel}</span>
+        <span className="text-footnote font-medium">{periodLabel}</span>
         {hasData && (
-          <span className="text-[12px] tabular-nums text-muted-foreground">
+          <span className="text-caption tabular-nums text-muted-foreground">
             máx. {formatVolume(max)}
           </span>
         )}
@@ -280,7 +280,7 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
             <span
               key={index}
               className={cn(
-                'absolute -translate-x-1/2 text-[11.5px] tabular-nums',
+                'absolute -translate-x-1/2 text-overline tabular-nums',
                 index === currentIndex ? 'font-semibold text-foreground' : 'text-muted-foreground',
               )}
               style={{ left: `${((index + 0.5) / points.length) * 100}%` }}
@@ -292,7 +292,7 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
       </div>
 
       {!hasData && (
-        <p className="mt-1 text-[12.5px] text-muted-foreground">
+        <p className="mt-1 text-caption text-muted-foreground">
           Todavía no hay volumen registrado en este periodo.
         </p>
       )}

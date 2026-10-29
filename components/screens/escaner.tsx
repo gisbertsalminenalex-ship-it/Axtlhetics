@@ -167,7 +167,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
           <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
         </button>
         {step !== 'intro' && step !== 'summary' && (
-          <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
+          <span className="text-footnote font-semibold text-muted-foreground tabular-nums">
             {stepIndex} de {STEPS.length - 2}
           </span>
         )}
@@ -216,7 +216,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 
       {step === 'summary' && (
         <>
-          <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Tu escaneo</h1>
+          <h1 className="mt-3 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">Tu escaneo</h1>
           <div className="mt-5">
             <ScanSummaryView
               summary={summary}
@@ -229,11 +229,11 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
               type="button"
               disabled={saving || Object.keys(measurements).length === 0}
               onClick={() => void save()}
-              className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
             >
               {saving ? 'Guardando…' : 'Guardar escaneo'}
             </button>
-            <button type="button" onClick={onClose} className="ax-press mt-2 min-h-11 w-full text-[14px] font-semibold text-muted-foreground">
+            <button type="button" onClick={onClose} className="ax-press mt-2 min-h-11 w-full text-subhead font-semibold text-muted-foreground">
               Salir sin guardar
             </button>
           </div>
@@ -246,24 +246,24 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: string | null }) {
   return (
     <>
-      <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Escáner corporal</h1>
-      <p className="mt-1.5 text-[15px] text-muted-foreground">2 preguntas, tu cinta y 5 fotos · 5–10 min</p>
-      <p className="mt-4 text-[15px] leading-relaxed text-pretty">
+      <h1 className="mt-3 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">Escáner corporal</h1>
+      <p className="mt-1.5 text-callout text-muted-foreground">2 preguntas, tu cinta y 5 fotos · 5–10 min</p>
+      <p className="mt-4 text-callout leading-relaxed text-pretty">
         Como la primera valoración de un entrenador: miro cómo estás de pie, cómo te mueves y tus proporciones, y sigo
         tu músculo con la cinta y tu fuerza. Te digo cómo es tu físico, qué destaca, qué va por detrás y por dónde empezar.
       </p>
-      <p className="mt-4 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-4 text-footnote leading-relaxed text-muted-foreground text-pretty">
         Las fotos se analizan en tu móvil y no salen de él. Solo se guarda una miniatura de cada pose, también en tu móvil,
         para que compares mes a mes.
       </p>
-      <ul className="mt-5 divide-y divide-border border-y border-border text-[14px]">
+      <ul className="mt-5 divide-y divide-border border-y border-border text-subhead">
         {SCAN_PHOTO_TIPS.map((tip) => (
           <li key={tip} className="py-2.5 leading-snug">{tip}</li>
         ))}
       </ul>
-      {lastScanDay && <p className="mt-3 text-[13px] text-muted-foreground">Último escaneo: {formatDayInSentence(lastScanDay)}</p>}
+      {lastScanDay && <p className="mt-3 text-footnote text-muted-foreground">Último escaneo: {formatDayInSentence(lastScanDay)}</p>}
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onStart} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground">
+        <button type="button" onClick={onStart} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground">
           Empezar
         </button>
       </div>
@@ -274,11 +274,11 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
 function Question({ title, hint, onNext, children }: { title: string; hint: string; onNext: () => void; children: React.ReactNode }) {
   return (
     <>
-      <h1 className="mt-3 text-[28px] font-bold leading-[1.15] tracking-[-0.03em] text-balance">{title}</h1>
-      <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground text-pretty">{hint}</p>
+      <h1 className="mt-3 text-title font-bold leading-[1.15] tracking-[-0.03em] text-balance">{title}</h1>
+      <p className="mt-2 text-subhead leading-relaxed text-muted-foreground text-pretty">{hint}</p>
       <div className="mt-6 flex flex-wrap gap-2">{children}</div>
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground">
+        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground">
           Continuar
         </button>
       </div>
@@ -294,7 +294,7 @@ function Chip({ selected, disabled, onClick, children }: { selected: boolean; di
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'ax-press min-h-11 rounded-full px-4 text-[13.5px] font-semibold disabled:opacity-40',
+        'ax-press min-h-11 rounded-full px-4 text-footnote font-semibold disabled:opacity-40',
         selected ? 'bg-primary text-primary-foreground' : 'border border-border bg-background',
       )}
     >
@@ -330,12 +330,12 @@ function PoseStep({
   const valid = photos.filter((p) => p.result.ok).length
   return (
     <>
-      <h1 className="mt-3 text-[28px] font-bold leading-[1.15] tracking-[-0.03em]">{guide.name}</h1>
-      <p className="mt-2 text-[15px] leading-relaxed text-pretty">{guide.how}</p>
+      <h1 className="mt-3 text-title font-bold leading-[1.15] tracking-[-0.03em]">{guide.name}</h1>
+      <p className="mt-2 text-callout leading-relaxed text-pretty">{guide.how}</p>
 
       <label
         className={cn(
-          'ax-press mt-6 flex h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl border border-border bg-background text-[15px] font-semibold',
+          'ax-press mt-6 flex h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl border border-border bg-background text-callout font-semibold',
           analyzing && 'pointer-events-none opacity-60',
         )}
       >
@@ -356,7 +356,7 @@ function PoseStep({
       </label>
 
       {modelError && (
-        <p role="alert" className="mt-3 text-[13.5px] leading-relaxed text-error">
+        <p role="alert" className="mt-3 text-footnote leading-relaxed text-error">
           No se pudo cargar el analizador en este navegador. Comprueba la conexión la primera vez e inténtalo de nuevo.
         </p>
       )}
@@ -371,11 +371,11 @@ function PoseStep({
               ) : (
                 <div className="aspect-[3/4] w-full rounded-xl bg-surface" />
               )}
-              {!photo.result.ok && <p className="mt-1 text-[11.5px] leading-snug text-error">{PHOTO_PROBLEM[photo.result.reason]}</p>}
+              {!photo.result.ok && <p className="mt-1 text-overline leading-snug text-error">{PHOTO_PROBLEM[photo.result.reason]}</p>}
               <button
                 type="button"
                 onClick={() => onRemove(photo.id)}
-                className="ax-press mt-0.5 min-h-11 w-full text-[12.5px] font-semibold text-muted-foreground"
+                className="ax-press mt-0.5 min-h-11 w-full text-caption font-semibold text-muted-foreground"
               >
                 Quitar
               </button>
@@ -389,11 +389,11 @@ function PoseStep({
           type="button"
           onClick={onNext}
           disabled={analyzing}
-          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
         >
           {valid > 0 ? 'Continuar' : 'Saltar esta pose'}
         </button>
-        {valid === 1 && <p className="mt-2 text-center text-[12.5px] text-muted-foreground">Con 2 o 3 fotos la medida es más fiable.</p>}
+        {valid === 1 && <p className="mt-2 text-center text-caption text-muted-foreground">Con 2 o 3 fotos la medida es más fiable.</p>}
       </div>
     </>
   )

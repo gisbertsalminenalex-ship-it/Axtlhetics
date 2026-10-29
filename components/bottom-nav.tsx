@@ -19,9 +19,28 @@ export function BottomNav({
   active: Tab
   onChange: (t: Tab) => void
 }) {
+  const activeIndex = TABS.findIndex((t) => t.id === active)
+
   return (
-    <nav className="border-t border-border bg-background/95 backdrop-blur">
-      <div className="flex items-stretch justify-around px-2 pt-2 pb-6">
+    <nav className="border-t border-border bg-background/85 backdrop-blur-xl">
+      <div className="relative flex items-stretch px-2 pt-2 pb-[max(env(safe-area-inset-bottom),20px)]">
+        {/*
+          Indicador del tab activo (D-075). Una sola pieza que se desliza de un
+          tab a otro en lugar de cuatro que se encienden y apagan: el ojo sigue
+          el movimiento y entiende dónde ha ido.
+        */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-2 left-2 flex h-8 justify-center"
+          style={{
+            width: 'calc((100% - 16px) / 4)',
+            transform: `translateX(${activeIndex * 100}%)`,
+            transition: 'transform var(--ax-slide) var(--ax-spring)',
+          }}
+        >
+          <span className="h-full w-14 rounded-full bg-secondary/70" />
+        </span>
+
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = id === active
           return (
@@ -29,20 +48,22 @@ export function BottomNav({
               key={id}
               type="button"
               onClick={() => onChange(id)}
-              className="flex flex-1 flex-col items-center gap-1.5 py-1"
+              className="ax-press relative flex flex-1 flex-col items-center gap-1"
               aria-current={isActive ? 'page' : undefined}
             >
-              <Icon
-                className={cn(
-                  'h-[22px] w-[22px]',
-                  isActive ? 'text-primary' : 'text-muted-foreground',
-                )}
-                strokeWidth={2}
-                fill={id === 'recuperacion' && isActive ? 'currentColor' : 'none'}
-              />
+              <span className="flex h-8 items-center justify-center">
+                <Icon
+                  className={cn(
+                    'h-[21px] w-[21px] transition-colors duration-200',
+                    isActive ? 'text-primary' : 'text-muted-nontext',
+                  )}
+                  strokeWidth={isActive ? 2 : 1.75}
+                  fill={id === 'recuperacion' && isActive ? 'currentColor' : 'none'}
+                />
+              </span>
               <span
                 className={cn(
-                  'text-[11px] font-medium tracking-tight',
+                  'text-overline font-medium transition-colors duration-200',
                   isActive ? 'text-primary' : 'text-muted-foreground',
                 )}
               >

@@ -12,13 +12,13 @@ import { cn } from '@/lib/utils'
 
 export function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[13px] font-medium text-muted-foreground">{children}</p>
+    <p className="text-footnote font-medium text-muted-foreground">{children}</p>
   )
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">{children}</h3>
+    <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">{children}</h3>
   )
 }
 
@@ -52,9 +52,9 @@ export function StepperField({
           disabled={value <= min}
           icon="minus"
         />
-        <span className="min-w-[76px] text-right text-[16px] font-semibold tabular-nums">
+        <span className="min-w-[76px] text-right text-body font-semibold tabular-nums">
           {formatNumber(value)}
-          <span className="ml-1 text-[13px] font-normal text-muted-foreground">{unit}</span>
+          <span className="ml-1 text-footnote font-normal text-muted-foreground">{unit}</span>
         </span>
         <StepButton
           ariaLabel={`Aumentar ${label.toLowerCase()}`}
@@ -123,7 +123,7 @@ export function MultiChoiceGroup<T extends string>({
     <div className="py-3">
       <FieldLabel>{label}</FieldLabel>
       {hint && (
-        <p className="mt-1 text-[12.5px] text-muted-foreground">{hint}</p>
+        <p className="mt-1 text-caption text-muted-foreground">{hint}</p>
       )}
       <div className="mt-2.5 flex flex-wrap gap-2">
         {options.map((option) => {
@@ -137,7 +137,7 @@ export function MultiChoiceGroup<T extends string>({
               disabled={blocked}
               aria-pressed={selected}
               className={cn(
-                'ax-press min-h-11 rounded-full border px-4 text-[14px] font-medium transition-colors',
+                'ax-press min-h-11 rounded-full border px-4 text-subhead font-medium transition-colors',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-background text-muted-foreground',
@@ -178,7 +178,7 @@ export function ChoiceGroup<T extends string>({
               onClick={() => onChange(option.value)}
               aria-pressed={selected}
               className={cn(
-                'ax-press min-h-11 rounded-full border px-4 text-[14px] font-medium transition-colors',
+                'ax-press min-h-11 rounded-full border px-4 text-subhead font-medium transition-colors',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-background text-muted-foreground',
@@ -219,7 +219,7 @@ export function WeekdayPicker({
               aria-pressed={selected}
               aria-label={`Día ${index + 1}`}
               className={cn(
-                'ax-press h-11 flex-1 rounded-full border text-[14px] font-semibold transition-colors',
+                'ax-press h-11 flex-1 rounded-full border text-subhead font-semibold transition-colors',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-background text-muted-foreground',
@@ -253,7 +253,7 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-4 text-[15px] outline-none placeholder:text-muted-foreground focus-visible:border-primary"
+        className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-4 text-callout outline-none placeholder:text-muted-foreground focus-visible:border-primary"
       />
     </div>
   )
@@ -276,7 +276,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="ax-press flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+      className="ax-press flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
     >
       {children}
     </button>

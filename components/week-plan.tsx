@@ -35,7 +35,7 @@ export function WeekPlan({ days, className }: { days: readonly WeekDayView[]; cl
                 isSelected && 'bg-surface',
               )}
             >
-              <span className={cn('text-[13px] font-medium', isSelected ? 'text-foreground' : 'text-muted-foreground')}>
+              <span className={cn('text-footnote font-medium', isSelected ? 'text-foreground' : 'text-muted-foreground')}>
                 {WEEKDAY_INITIALS[index]}
               </span>
               <span
@@ -54,24 +54,24 @@ export function WeekPlan({ days, className }: { days: readonly WeekDayView[]; cl
 
       {selected && (
         <div key={selected.dayKey} className="ax-fade mt-3 rounded-2xl border border-border bg-surface px-4 py-3.5">
-          <p className="text-[12px] font-medium text-muted-foreground">
+          <p className="text-caption font-medium text-muted-foreground">
             {WEEKDAY_LABELS[weekdayOfKey(selected.dayKey)]} · {statusLabel(selected)}
           </p>
-          <p className="mt-1 text-[15px] font-semibold">{selected.title ?? (selected.isToday ? 'Hoy toca recuperar' : 'Descanso')}</p>
+          <p className="mt-1 text-callout font-semibold">{selected.title ?? (selected.isToday ? 'Hoy toca recuperar' : 'Descanso')}</p>
           {(selected.hard || selected.activities.length > 0) && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {selected.hard && (
-                <span className="rounded-full bg-secondary px-2.5 py-1 text-[12px] font-semibold text-primary">Día fuerte</span>
+                <span className="rounded-full bg-secondary px-2.5 py-1 text-caption font-semibold text-primary">Día fuerte</span>
               )}
               {selected.activities.map((name) => (
-                <span key={name} className="rounded-full border border-border bg-background px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
+                <span key={name} className="rounded-full border border-border bg-background px-2.5 py-1 text-caption font-medium text-muted-foreground">
                   {name}
                 </span>
               ))}
             </div>
           )}
           {selected.status === 'planned' && (
-            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-caption leading-relaxed text-muted-foreground">
               AXIS lo vuelve a decidir ese día con tu recuperación.
             </p>
           )}

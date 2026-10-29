@@ -19,19 +19,19 @@ export function BlockReviewSection() {
   const closing = review.status === 'closing'
   return (
     <section aria-labelledby="block-review">
-      <h3 id="block-review" className="mt-9 text-[15px] font-semibold tracking-[-0.01em]">
+      <h3 id="block-review" className="mt-9 text-callout font-semibold tracking-[-0.01em]">
         {closing ? 'Cierre del bloque' : 'Tu bloque anterior'}
       </h3>
-      <p className="mt-1 text-[13px] text-muted-foreground">
+      <p className="mt-1 text-footnote text-muted-foreground">
         Del {formatShortDate(review.start).toLowerCase()} al {formatShortDate(review.end).toLowerCase()}
       </p>
 
       {review.anchors.length > 0 && (
         <>
-          <p className="mt-4 text-[13px] font-medium text-muted-foreground">Tus principales</p>
+          <p className="mt-4 text-footnote font-medium text-muted-foreground">Tus principales</p>
           <ul className="mt-1.5 space-y-1">
             {review.anchors.map((item) => (
-              <li key={item.exerciseId} className="text-[14.5px] font-medium tabular-nums">
+              <li key={item.exerciseId} className="text-subhead font-medium tabular-nums">
                 {describeAnchor(item)}
               </li>
             ))}
@@ -39,24 +39,24 @@ export function BlockReviewSection() {
         </>
       )}
 
-      <p className="mt-4 text-[13px] font-medium text-muted-foreground">Test de evolución</p>
+      <p className="mt-4 text-footnote font-medium text-muted-foreground">Test de evolución</p>
       {review.test ? (
         <ul className="mt-1.5 space-y-1">
           {review.test.rows.map((row) => (
-            <li key={row.key} className="text-[14px] tabular-nums">
+            <li key={row.key} className="text-subhead tabular-nums">
               {row.name}: {row.value} <span className="text-muted-foreground">({row.delta})</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-1 text-[14px] leading-snug text-pretty">
+        <p className="mt-1 text-subhead leading-snug text-pretty">
           {closing
             ? 'Repítelo esta semana: con la descarga llegas fresco y la comparación es justa.'
             : 'No lo repetiste al cerrar el bloque. Hazlo cuando esté disponible para medir lo que avanzaste.'}
         </p>
       )}
 
-      <p className="mt-4 text-[14px] leading-snug text-pretty">
+      <p className="mt-4 text-subhead leading-snug text-pretty">
         {closing
           ? 'La semana que viene empieza un bloque nuevo: elijo principales nuevos en la primera sesión de cada zona.'
           : 'Este bloque estrena principales: se fijan en tu primera sesión de cada zona y se repiten hasta la descarga.'}

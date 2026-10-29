@@ -60,12 +60,12 @@ export function RecuperacionScreen() {
     <div className="px-6 pb-10">
       {/* Header */}
       <header className="flex items-center justify-between pt-2 pb-6">
-        <h1 className="text-[26px] font-bold tracking-[-0.02em]">Recuperación</h1>
+        <h1 className="text-title font-bold tracking-[-0.02em]">Recuperación</h1>
       </header>
 
       {/* Score — protagonist */}
       <section className="flex flex-col items-center rounded-3xl border border-border bg-background px-5 py-8 text-center">
-        <p className="text-[13px] font-medium text-muted-foreground">Tu recuperación</p>
+        <p className="text-footnote font-medium text-muted-foreground">Tu recuperación</p>
 
         <CircularMetric
           value={animatedScore}
@@ -74,27 +74,27 @@ export function RecuperacionScreen() {
           stroke={9}
           className="mt-4"
         >
-          <span className="text-[46px] font-bold leading-none tracking-[-0.03em]">
+          <span className="text-display font-bold leading-none tracking-[-0.03em]">
             {recoveryScore.status === 'ok' ? animatedScore : '—'}
           </span>
-          <span className="text-[13px] text-muted-foreground">/100</span>
+          <span className="text-footnote text-muted-foreground">/100</span>
         </CircularMetric>
 
         {recoveryScore.status === 'ok' ? (
           <>
-            <p className={cn('mt-5 text-[16px] font-semibold', BAND_COLOR[recoveryScore.band])}>
+            <p className={cn('mt-5 text-body font-semibold', BAND_COLOR[recoveryScore.band])}>
               {BAND_HEADLINE[recoveryScore.band]}
             </p>
-            <p className="mt-2 max-w-[16rem] text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+            <p className="mt-2 max-w-[16rem] text-footnote leading-relaxed text-muted-foreground text-pretty">
               {explainScore(recoveryScore.band, recoveryScore.weakest[0])}
             </p>
           </>
         ) : (
           <>
-            <p className="mt-5 text-[16px] font-semibold text-muted-foreground">
+            <p className="mt-5 text-body font-semibold text-muted-foreground">
               Datos insuficientes
             </p>
-            <p className="mt-2 max-w-[16rem] text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+            <p className="mt-2 max-w-[16rem] text-footnote leading-relaxed text-muted-foreground text-pretty">
               {recoveryScore.reason}
             </p>
           </>
@@ -102,7 +102,7 @@ export function RecuperacionScreen() {
       </section>
 
       {/* Factores clave */}
-      <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">Factores clave</h3>
+      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">Factores clave</h3>
       <ul className="mt-2 divide-y divide-border">
         {/* Sueño */}
         <li className="ax-stagger py-1" style={{ '--ax-index': 0 } as CSSProperties}>
@@ -116,7 +116,7 @@ export function RecuperacionScreen() {
           />
           {expanded === 'sleep' && (
             <div className="flex items-center justify-between gap-3 pb-3 pl-8">
-              <span className="text-[13px] text-muted-foreground">Horas dormidas</span>
+              <span className="text-footnote text-muted-foreground">Horas dormidas</span>
               <div className="flex items-center gap-1">
                 <StepButton
                   ariaLabel="Reducir horas de sueño"
@@ -127,7 +127,7 @@ export function RecuperacionScreen() {
                     })
                   }
                 />
-                <span className="min-w-[60px] text-center text-[16px] font-semibold tabular-nums">
+                <span className="min-w-[60px] text-center text-body font-semibold tabular-nums">
                   {formatSleepHours(recoveryInputs.sleepHours ?? DEFAULT_SLEEP_HOURS)}
                 </span>
                 <StepButton
@@ -178,7 +178,7 @@ export function RecuperacionScreen() {
         <li className="ax-stagger py-4" style={{ '--ax-index': SCALE_ORDER.length + 1 } as CSSProperties}>
           <div className="flex items-center gap-3">
             <Droplet className="h-[19px] w-[19px] text-primary" strokeWidth={1.75} />
-            <span className="flex-1 text-[15px] font-medium">
+            <span className="flex-1 text-callout font-medium">
               {RECOVERY_FACTOR_LABELS.hydration}
             </span>
           </div>
@@ -196,7 +196,7 @@ export function RecuperacionScreen() {
               </button>
             ))}
           </div>
-          <p className="mt-2 pl-8 text-[12.5px] text-muted-foreground tabular-nums">
+          <p className="mt-2 pl-8 text-caption text-muted-foreground tabular-nums">
             {filled} / {HYDRATION_GLASS_COUNT} vasos
           </p>
         </li>
@@ -244,14 +244,14 @@ function FactorRow({
       className="flex min-h-11 w-full items-center gap-3 py-2.5 text-left"
     >
       <Icon className="h-[19px] w-[19px] text-primary" strokeWidth={1.75} />
-      <span className="flex-1 text-[15px] font-medium">{label}</span>
+      <span className="flex-1 text-callout font-medium">{label}</span>
       {value === null ? (
-        <span className="text-[13.5px] font-semibold text-primary">Registrar</span>
+        <span className="text-footnote font-semibold text-primary">Registrar</span>
       ) : (
         <span className="text-right">
-          <span className="block text-[14px] font-semibold tabular-nums">{value}</span>
+          <span className="block text-subhead font-semibold tabular-nums">{value}</span>
           {status && (
-            <span className="block text-[12px] font-medium text-muted-foreground">{status}</span>
+            <span className="block text-caption font-medium text-muted-foreground">{status}</span>
           )}
         </span>
       )}

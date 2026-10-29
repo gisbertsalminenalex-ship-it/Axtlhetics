@@ -224,15 +224,16 @@ Axtlhetics should feel like a **calm, confident personal coach**, not a generic 
 - Soft secondary blue: `#DCE8FF`
 - Primary text: `#111111`
 - Secondary text: `#6B6B6B`
-- Surface: `#F7F7F7`
-- Border: `#D6D6D6`
-- Progress track: `#EAEAEA`
+- Surface: `#F4F4F6` (grouped, borderless)
+- Border: `#E8E8EA` hairline; `border-strong` `#D6D6D6` only for tappable control outlines
+- Progress track: `#ECECEF`
 - Muted non-text: `#9A9A9A`
-- Font: Inter
+- Ink (AXIS card on Inicio): `#0C111B`
+- Font: Inter with the optical-size axis; type scale of 11 named sizes (D-075): `text-overline` 11, `caption` 12, `footnote` 13, `subhead` 14, `callout` 15, `body` 16, `headline` 20, `title` 28, `title-lg` 34, `display` 44, `hero` 72. Never write `text-[Npx]`; `cn` (`lib/utils.ts`) knows these names so tailwind-merge does not drop them
 - Base spacing unit: 4 px
-- Surface radius (large): 32 px — the protagonist surface of a screen
-- Surface radius: 24 px — surfaces and controls, including buttons and fields
-- Full radius: 999 px only for pills/chips/badges/circular controls
+- Surface radius (large): 28 px — the protagonist surface of a screen
+- Surface radius: 20 px — surfaces, grouped lists and fields
+- Full radius: 999 px for primary buttons, pills, chips, badges and circular controls
 - Primary button: 52 px
 - Minimum touch target: 44 × 44 px
 - Motion: generally 200–300 ms
@@ -243,7 +244,7 @@ The primary blue `#0A61F8` replaces the former `#4F7CFF`. Do not reintroduce `#4
 
 Neutrals must be **centralized as tokens** and must use the approved values above. Do not scatter arbitrary greys (`#71757e`, `#6f737c` and similar) across components.
 
-Radii are semantic and come from the design system, not from arbitrary numbers written into a component. The approved interface uses 32 px for the protagonist surface, 24 px for surfaces and controls, and 999 px for pills.
+Radii are semantic and come from the design system, not from arbitrary numbers written into a component. Since D-075 the interface uses 28 px for the protagonist surface, 20 px for surfaces, and 999 px for primary buttons and pills.
 
 The background should read as a **very light, slightly softened neutral canvas** rather than a stark visual white. The exact background token may be refined during visual QA without changing the approved primary blue, typography or hierarchy.
 

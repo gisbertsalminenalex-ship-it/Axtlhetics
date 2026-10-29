@@ -16,7 +16,7 @@ export function WeeklyVolume({ volumes, className }: { volumes: readonly GroupVo
         const done = Math.min(fulfilmentOf(volume), 1)
         return (
           <li key={volume.group}>
-            <div className="flex items-baseline justify-between text-[13.5px]">
+            <div className="flex items-baseline justify-between text-footnote">
               <span className="font-medium">{MUSCLE_GROUP_LABELS[volume.group]}</span>
               <span className="tabular-nums text-muted-foreground">
                 {volume.sets.toLocaleString('es-ES', { maximumFractionDigits: 1 })} / {volume.target} series

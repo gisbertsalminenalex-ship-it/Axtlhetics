@@ -35,18 +35,18 @@ export function ProgressSection() {
 
   return (
     <>
-      <h3 className="mt-9 text-[15px] font-semibold tracking-[-0.01em]">Tu progreso</h3>
+      <h3 className="mt-9 text-callout font-semibold tracking-[-0.01em]">Tu progreso</h3>
 
       {/* Tu nivel (D-071) */}
       <LevelSection />
 
       {/* Objetivos medibles (D-035) */}
-      <p className="mt-7 text-[13px] font-medium text-muted-foreground">Tus objetivos</p>
+      <p className="mt-7 text-footnote font-medium text-muted-foreground">Tus objetivos</p>
       {targets.length === 0 ? (
         firstTest ? (
           <TargetRecommendations assessment={firstTest} />
         ) : (
-          <p className="mt-3 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-[13.5px] text-muted-foreground">
+          <p className="mt-3 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
             Haz tu primer test de evolución y te propongo objetivos, o añade uno en tu perfil.
           </p>
         )
@@ -62,10 +62,10 @@ export function ProgressSection() {
             return (
               <li key={target.id}>
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[15px] font-semibold">
+                  <span className="text-callout font-semibold">
                     {exercise?.name ?? 'Ejercicio retirado'} · {target.target} {unit}
                   </span>
-                  <span className={cn('text-[12.5px] font-medium', behind ? 'text-foreground' : 'text-primary')}>
+                  <span className={cn('text-caption font-medium', behind ? 'text-foreground' : 'text-primary')}>
                     {TARGET_STATUS_LABELS[progress.status]}
                   </span>
                 </div>
@@ -76,7 +76,7 @@ export function ProgressSection() {
                     <span className="absolute -top-1 h-4 w-0.5 rounded-full bg-foreground" style={{ left: `calc(${Math.round(expected * 100)}% - 1px)` }} />
                   )}
                 </div>
-                <p className="mt-1.5 text-[12.5px] tabular-nums text-muted-foreground">
+                <p className="mt-1.5 text-caption tabular-nums text-muted-foreground">
                   Llevas {progress.current} {unit} · hoy tocaría {progress.expected.toLocaleString('es-ES')} · hasta el{' '}
                   {formatShortDate(target.deadline).toLowerCase()}
                 </p>
@@ -87,14 +87,14 @@ export function ProgressSection() {
       )}
 
       {/* Fuerza por ejercicio */}
-      <p className="mt-7 text-[13px] font-medium text-muted-foreground">Tu fuerza</p>
+      <p className="mt-7 text-footnote font-medium text-muted-foreground">Tu fuerza</p>
       {chosen ? (
         <>
           <select
             value={chosen.id}
             onChange={(event) => setExerciseId(event.target.value)}
             aria-label="Ejercicio"
-            className="mt-3 h-11 w-full rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold outline-none"
+            className="mt-3 h-11 w-full rounded-2xl border border-border bg-background px-3 text-callout font-semibold outline-none"
           >
             {exercises.map((exercise) => (
               <option key={exercise.id} value={exercise.id}>
@@ -107,13 +107,13 @@ export function ProgressSection() {
           <StrengthChart points={oneRepMaxHistory(chosen.id, sessions)} unit="kg" title="1RM estimado" />
         </>
       ) : (
-        <p className="mt-4 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-[13.5px] text-muted-foreground">
+        <p className="mt-4 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
           Completa un entrenamiento y aquí verás cómo mejora cada ejercicio.
         </p>
       )}
 
       {/* Series por semana */}
-      <p className="mt-7 text-[13px] font-medium text-muted-foreground">Series por semana</p>
+      <p className="mt-7 text-footnote font-medium text-muted-foreground">Series por semana</p>
       <WeekBars weeks={weeks} />
 
       {/* Peso y medidas (D-060). */}
@@ -131,8 +131,8 @@ function WeekBars({ weeks }: { weeks: ReturnType<typeof weeklySetTotals> }) {
   return (
     <figure className="mt-4">
       <figcaption className="flex items-baseline justify-between">
-        <span className="text-[13px] font-medium">Últimas {weeks.length} semanas</span>
-        <span className="text-[12px] tabular-nums text-muted-foreground">
+        <span className="text-footnote font-medium">Últimas {weeks.length} semanas</span>
+        <span className="text-caption tabular-nums text-muted-foreground">
           Semana del {formatShortDate(shown.weekStart).toLowerCase()} · {shown.sets} series
         </span>
       </figcaption>
@@ -155,7 +155,7 @@ function WeekBars({ weeks }: { weeks: ReturnType<typeof weeklySetTotals> }) {
           </button>
         ))}
       </div>
-      {max === 0 && <p className="mt-2 text-[12.5px] text-muted-foreground">Todavía no hay series registradas.</p>}
+      {max === 0 && <p className="mt-2 text-caption text-muted-foreground">Todavía no hay series registradas.</p>}
     </figure>
   )
 }

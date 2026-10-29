@@ -19,20 +19,20 @@ export function DislikedExercises() {
   return (
     <>
       <SectionTitle>Ejercicios que evito proponerte</SectionTitle>
-      <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">
         Mientras haya alternativas, no entran en tus sesiones.
       </p>
       <ul className="mt-4 divide-y divide-border">
         {told.map((id) => (
           <li key={id} className="flex min-h-11 items-center gap-3 py-2">
             <span className="flex-1">
-              <span className="block text-[15px] font-medium">{findExercise(id)?.name ?? id}</span>
-              <span className="block text-[12.5px] text-muted-foreground">Me dijiste que no te gusta</span>
+              <span className="block text-callout font-medium">{findExercise(id)?.name ?? id}</span>
+              <span className="block text-caption text-muted-foreground">Me dijiste que no te gusta</span>
             </span>
             <button
               type="button"
               onClick={() => void setExerciseDisliked(id, false)}
-              className="ax-press min-h-11 px-2 text-[14px] font-semibold text-primary"
+              className="ax-press min-h-11 px-2 text-subhead font-semibold text-primary"
             >
               Quitar
             </button>
@@ -41,8 +41,8 @@ export function DislikedExercises() {
         {skipped.map((id) => (
           <li key={id} className="flex min-h-11 items-center gap-3 py-2">
             <span className="flex-1">
-              <span className="block text-[15px] font-medium">{findExercise(id)?.name ?? id}</span>
-              <span className="block text-[12.5px] text-muted-foreground">Lo has saltado varias veces este mes</span>
+              <span className="block text-callout font-medium">{findExercise(id)?.name ?? id}</span>
+              <span className="block text-caption text-muted-foreground">Lo has saltado varias veces este mes</span>
             </span>
           </li>
         ))}

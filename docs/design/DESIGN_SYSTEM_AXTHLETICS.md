@@ -154,12 +154,14 @@ Evitar:
 | Token | Valor | Uso |
 |---|---|---|
 | `--color-primary` | `#0A61F8` | acción principal, estado activo, progreso relevante y AXIS |
-| `--color-background` | `PENDIENTE` | canvas general; debe ser blanco o blanco muy suavemente grisáceo |
-| `--color-surface` | `#F7F7F7` | superficies y agrupaciones |
+| `--color-background` | `#FCFCFC` | canvas general (D-016) |
+| `--color-surface` | `#F4F4F6` | superficies agrupadas, sin borde (D-075) |
 | `--color-text-primary` | `#111111` | texto principal |
 | `--color-text-secondary` | `#6B6B6B` | texto secundario |
-| `--color-border` | `#D6D6D6` | bordes y divisores |
-| `--color-track` | `#EAEAEA` | pistas de anillos y progreso |
+| `--color-border` | `#E8E8EA` | divisores y contorno fino de tarjetas (D-075) |
+| `--color-border-strong` | `#D6D6D6` | contorno de controles que deben leerse como tocables (D-075) |
+| `--color-track` | `#ECECEF` | pistas de anillos y progreso |
+| `--color-ink` | `#0C111B` | superficie de la recomendación de AXIS en Inicio |
 | `--color-muted-nontext` | `#9A9A9A` | iconos inactivos y anotaciones internas |
 | `--color-secondary` | `#DCE8FF` | superficies/acento azul muy suave cuando sea necesario |
 
@@ -193,12 +195,25 @@ La **Carga** usa una semántica distinta a propósito, porque en ella «más» n
 
 Fuente oficial: **Inter**.
 
-| Uso | Tamaño |
-|---|---:|
-| Título principal | 32 px |
-| Título de sección | 20 px |
-| Texto normal | 16 px |
-| Texto secundario | 13 px |
+Escala cerrada por **D-075**. Son once tamaños con nombre, cada uno con su interlineado y su tracking (`app/globals.css`). Ningún componente escribe un tamaño en píxeles (`text-[13.5px]`): antes convivían 26 tamaños y la jerarquía se perdía.
+
+| Token | Tamaño | Uso |
+|---|---:|---|
+| `text-hero` | 72 px | una cifra que es la pantalla (cronómetro) |
+| `text-display` | 44 px | titular editorial de Inicio, cifra protagonista |
+| `text-title-lg` | 34 px | cifras grandes de resumen |
+| `text-title` | 28 px | título de pantalla |
+| `text-headline` | 20 px | titular de tarjeta, título de sección destacada |
+| `text-body` | 16 px | título de sección, texto de lectura |
+| `text-callout` | 15 px | filas de lista, botones |
+| `text-subhead` | 14 px | texto de apoyo dentro de tarjetas |
+| `text-footnote` | 13 px | texto secundario |
+| `text-caption` | 12 px | etiquetas de métrica, metadatos |
+| `text-overline` | 11 px | rótulos en mayúsculas, barra de navegación |
+
+Inter se carga con su eje de **tamaño óptico**: los titulares usan el corte Display, más cerrado. Las cifras que se comparan llevan `tabular-nums`.
+
+Pesos: `bold` solo en titulares de pantalla y en el display; `semibold` en títulos de sección, cifras y botones; `medium` en etiquetas; el resto, regular.
 
 No introducir una segunda familia tipográfica.
 
@@ -224,9 +239,11 @@ Actualizado por **D-005**. Los radios **no son uniformemente 8 px**: la referenc
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--radius-surface-lg` | `32px` | superficie protagonista: tarjeta de AXIS, tarjeta de sesión, tarjeta del Recovery Score |
-| `--radius-surface` | `24px` | superficies y controles: botones, accesos rápidos, filas de lista, campos |
-| `--radius-full` | `999px` | solo pills, chips, badges y elementos circulares |
+| `--radius-surface-lg` | `28px` | superficie protagonista: tarjeta de AXIS, tarjeta de sesión, tarjeta del Recovery Score |
+| `--radius-surface` | `20px` | superficies: listas agrupadas, tarjetas, campos |
+| `--radius-full` | `999px` | botones principales, pills, chips, badges y elementos circulares |
+
+Actualizado por **D-075**: 32 y 24 px hacían que todo pareciera una burbuja. Los botones principales pasan a ser pill.
 
 Cerrado por **D-009**, siguiendo la regla de D-004: estos son los valores que usa la referencia visual aprobada, y el Design System los recoge en lugar de imponer otros.
 

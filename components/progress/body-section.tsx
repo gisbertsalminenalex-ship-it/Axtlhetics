@@ -49,7 +49,7 @@ export function BodySection() {
 
   return (
     <>
-      <p className="mt-7 text-[13px] font-medium text-muted-foreground">Tu cuerpo</p>
+      <p className="mt-7 text-footnote font-medium text-muted-foreground">Tu cuerpo</p>
 
       <div className="mt-1 divide-y divide-border">
         <StepperField
@@ -66,11 +66,11 @@ export function BodySection() {
         type="button"
         onClick={() => void saveWeight(weight)}
         disabled={savedToday === weight}
-        className="ax-press mt-2 min-h-11 w-full rounded-full border border-border bg-background px-4 text-[13.5px] font-semibold disabled:text-muted-foreground"
+        className="ax-press mt-2 min-h-11 w-full rounded-full border border-border bg-background px-4 text-footnote font-semibold disabled:text-muted-foreground"
       >
         {savedToday === weight ? 'Peso de hoy guardado' : savedToday === null ? 'Guardar peso' : 'Cambiar el peso de hoy'}
       </button>
-      <p className="mt-2 text-[12.5px] leading-snug text-muted-foreground text-pretty">
+      <p className="mt-2 text-caption leading-snug text-muted-foreground text-pretty">
         Mejor por la mañana, tras ir al baño y antes de comer. Cuenta la media de la semana, no el día.
       </p>
 
@@ -82,7 +82,7 @@ export function BodySection() {
             title="Peso medio por semana"
           />
           {change !== null && (
-            <p className="mt-1 text-[13px] tabular-nums text-muted-foreground">
+            <p className="mt-1 text-footnote tabular-nums text-muted-foreground">
               {change === 0
                 ? 'Estable en las últimas semanas.'
                 : `${change > 0 ? '+' : '−'}${Math.abs(change).toLocaleString('es-ES', { maximumFractionDigits: 2 })} kg por semana en las últimas semanas.`}
@@ -93,7 +93,7 @@ export function BodySection() {
 
       {evolution.length > 0 && (
         <>
-          <p className="mt-6 text-[13px] font-medium">Tu evolución</p>
+          <p className="mt-6 text-footnote font-medium">Tu evolución</p>
           <ul className="mt-2 divide-y divide-border">
             {evolution.map((item) => (
               <EvolutionRow key={item.key} item={item} />
@@ -104,8 +104,8 @@ export function BodySection() {
 
       {/* Medidas con cinta, una vez al mes (D-067). */}
       <div className="mt-6 flex items-baseline justify-between gap-3">
-        <span className="text-[13px] font-medium">Medidas</span>
-        <span className="text-[12px] text-muted-foreground">
+        <span className="text-footnote font-medium">Medidas</span>
+        <span className="text-caption text-muted-foreground">
           {due ? 'Toca medir' : `Cada ${PERIMETER_INTERVAL_DAYS} días`}
         </span>
       </div>
@@ -115,12 +115,12 @@ export function BodySection() {
           {PERIMETER_ORDER.filter((key) => latest[key]).map((key) => {
             const diff = changes[key] ? Math.round((changes[key]!.to - changes[key]!.from) * 10) / 10 : 0
             return (
-              <li key={key} className="flex items-baseline justify-between py-2.5 text-[14px]">
+              <li key={key} className="flex items-baseline justify-between py-2.5 text-subhead">
                 <span>{PERIMETER_LABELS[key]}</span>
                 <span className="tabular-nums">
                   {latest[key]!.cm.toLocaleString('es-ES')} cm
                   {diff !== 0 && (
-                    <span className="ml-1.5 text-[12.5px] text-muted-foreground">
+                    <span className="ml-1.5 text-caption text-muted-foreground">
                       ({diff > 0 ? '+' : '−'}
                       {Math.abs(diff).toLocaleString('es-ES')})
                     </span>
@@ -129,7 +129,7 @@ export function BodySection() {
               </li>
             )
           })}
-          <li className="py-2 text-[12px] text-muted-foreground">
+          <li className="py-2 text-caption text-muted-foreground">
             Última vez: {formatShortDate(Object.values(latest).map((item) => item!.dayKey).sort().reverse()[0]).toLowerCase()}
           </li>
         </ul>
@@ -149,7 +149,7 @@ export function BodySection() {
                   max={PERIMETER_LIMITS.max}
                   onChange={(next) => setTape((current) => ({ ...current, [key]: next }))}
                 />
-                <p className="-mt-2 pb-3 text-[12px] text-muted-foreground">{PERIMETER_HINTS[key]}</p>
+                <p className="-mt-2 pb-3 text-caption text-muted-foreground">{PERIMETER_HINTS[key]}</p>
               </div>
             ))}
           </div>
@@ -159,14 +159,14 @@ export function BodySection() {
               void savePerimeters(tape)
               setMeasuring(false)
             }}
-            className="ax-press mt-2 h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+            className="ax-press mt-2 h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
           >
             Guardar medidas
           </button>
           <button
             type="button"
             onClick={() => setMeasuring(false)}
-            className="ax-press mt-1 min-h-11 w-full text-[13.5px] font-medium text-muted-foreground"
+            className="ax-press mt-1 min-h-11 w-full text-footnote font-medium text-muted-foreground"
           >
             Cancelar
           </button>
@@ -175,7 +175,7 @@ export function BodySection() {
         <button
           type="button"
           onClick={() => setMeasuring(true)}
-          className="ax-press mt-2 min-h-11 w-full rounded-full border border-border bg-background px-4 text-[13.5px] font-semibold"
+          className="ax-press mt-2 min-h-11 w-full rounded-full border border-border bg-background px-4 text-footnote font-semibold"
         >
           {Object.keys(latest).length === 0 ? 'Tomar mis medidas' : due ? 'Medir ahora' : 'Medir antes de tiempo'}
         </button>
@@ -194,13 +194,13 @@ const signed = (value: number) => {
 function EvolutionRow({ item }: { item: MeasureEvolution }) {
   return (
     <li className="py-2.5">
-      <div className="flex items-baseline justify-between gap-3 text-[14px]">
+      <div className="flex items-baseline justify-between gap-3 text-subhead">
         <span>{item.label}</span>
         <span className="tabular-nums">
           {number(item.first.value)} → <span className="font-semibold">{number(item.latest.value)}</span> {item.unit}
         </span>
       </div>
-      <p className="mt-0.5 text-right text-[12.5px] tabular-nums text-muted-foreground">
+      <p className="mt-0.5 text-right text-caption tabular-nums text-muted-foreground">
         {signed(item.latest.value - item.first.value)} desde el principio
         {item.previous ? ` · ${signed(item.latest.value - item.previous.value)} en el último mes` : ''}
       </p>

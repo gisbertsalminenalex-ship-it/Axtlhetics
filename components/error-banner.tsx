@@ -26,7 +26,7 @@ export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss
       className="ax-enter pointer-events-auto flex items-start gap-3 rounded-2xl border border-error/30 bg-background px-4 py-3"
     >
       <AlertTriangle className="mt-0.5 h-[18px] w-[18px] shrink-0 text-error" strokeWidth={2} />
-      <p className="flex-1 text-[13.5px] leading-relaxed text-foreground text-pretty">{message}</p>
+      <p className="flex-1 text-footnote leading-relaxed text-foreground text-pretty">{message}</p>
       <button
         type="button"
         onClick={onDismiss}

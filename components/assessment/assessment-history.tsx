@@ -21,7 +21,7 @@ export function AssessmentHistoryList({ onOpen }: { onOpen: (id: string) => void
 
   return (
     <>
-      <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">Tests de evolución</h3>
+      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">Tests de evolución</h3>
       <ul className="mt-2 divide-y divide-border">
         {entries.map((entry) =>
           entry.status === 'completed' ? (
@@ -56,8 +56,8 @@ function EntryText({ entry }: { entry: HistoryEntry }) {
         : 'Test completado'
   return (
     <span>
-      <span className="block text-[15px] font-semibold">{capitalize(formatDayInSentence(entry.dayKey))}</span>
-      <span className="block text-[13px] text-muted-foreground">{detail}</span>
+      <span className="block text-callout font-semibold">{capitalize(formatDayInSentence(entry.dayKey))}</span>
+      <span className="block text-footnote text-muted-foreground">{detail}</span>
     </span>
   )
 }
@@ -88,26 +88,26 @@ export function AssessmentDetail({ id, onBack }: { id: string; onBack: () => voi
           <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
         </button>
       </header>
-      <h1 className="mt-2 text-[28px] font-bold tracking-[-0.02em]">Test de evolución</h1>
+      <h1 className="mt-2 text-title font-bold tracking-[-0.02em]">Test de evolución</h1>
       {entry && (
-        <p className="mt-1.5 text-[14px] text-muted-foreground">
+        <p className="mt-1.5 text-subhead text-muted-foreground">
           {capitalize(formatDayInSentence(entry.dayKey))} · Protocolo {ASSESSMENT_PROTOCOL_VERSION}
         </p>
       )}
       {summary?.isFirst && (
-        <p className="mt-0.5 text-[14px] text-muted-foreground">Primera referencia: no había un test anterior.</p>
+        <p className="mt-0.5 text-subhead text-muted-foreground">Primera referencia: no había un test anterior.</p>
       )}
       {summary ? (
         <>
           <div className="mt-5">
             <AssessmentResults rows={summary.rows} showPrevious />
           </div>
-          <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-caption leading-relaxed text-muted-foreground">
             Remo: izquierdo / derecho. Cada lado se compara por separado.
           </p>
         </>
       ) : (
-        <p className="mt-6 text-[14px] text-muted-foreground">Este test ya no está en el dispositivo.</p>
+        <p className="mt-6 text-subhead text-muted-foreground">Este test ya no está en el dispositivo.</p>
       )}
     </div>
   )

@@ -41,12 +41,12 @@ export function ValueStepper({
           aria-label={inputLabel}
           value={value}
           onChange={(event) => onInput(event.target.value)}
-          className="mx-auto block w-32 bg-transparent text-center text-[34px] font-bold leading-none tracking-[-0.02em] tabular-nums outline-none focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="mx-auto block w-32 bg-transparent text-center text-title-lg font-bold leading-none tracking-[-0.02em] tabular-nums outline-none focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-primary/40"
         />
       ) : (
-        <p className="text-[34px] font-bold leading-none tracking-[-0.02em] tabular-nums">{value}</p>
+        <p className="text-title-lg font-bold leading-none tracking-[-0.02em] tabular-nums">{value}</p>
       )}
-      <p className="mt-1.5 text-[13px] text-muted-foreground">{unit}</p>
+      <p className="mt-1.5 text-footnote text-muted-foreground">{unit}</p>
       <div className="mt-2 flex items-center justify-center gap-2">
         <button
           type="button"

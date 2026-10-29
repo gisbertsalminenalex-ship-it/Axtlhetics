@@ -99,14 +99,14 @@ export function TrainingNotifications() {
   return (
     <>
       <SectionTitle>Avisos de entreno</SectionTitle>
-      <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">
         {weekdays.length > 0
           ? `Una notificación los días que entrenas (${days}) para que no se te pase la sesión.`
           : 'Marca en tu perfil los días que puedes entrenar y te aviso esos días.'}
       </p>
 
       {status === 'unsupported' ? (
-        <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">{PROBLEMS.unsupported}</p>
+        <p className="mt-3 text-footnote leading-relaxed text-muted-foreground text-pretty">{PROBLEMS.unsupported}</p>
       ) : (
         <>
           <div className="mt-3 flex items-center justify-between gap-3 py-2">
@@ -115,7 +115,7 @@ export function TrainingNotifications() {
               value={hour}
               onChange={(event) => changeHour(Number(event.target.value))}
               aria-label="Hora del aviso de entreno"
-              className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold tabular-nums outline-none"
+              className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold tabular-nums outline-none"
             >
               {HOURS.map((value) => (
                 <option key={value} value={value}>
@@ -131,7 +131,7 @@ export function TrainingNotifications() {
                 type="button"
                 onClick={() => void test()}
                 disabled={busy}
-                className="ax-press flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold text-primary disabled:opacity-40"
+                className="ax-press flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary disabled:opacity-40"
               >
                 <Send className="h-4 w-4" strokeWidth={2} />
                 Probar aviso
@@ -140,7 +140,7 @@ export function TrainingNotifications() {
                 type="button"
                 onClick={() => void disable()}
                 disabled={busy}
-                className="ax-press flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold text-muted-foreground disabled:opacity-40"
+                className="ax-press flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-muted-foreground disabled:opacity-40"
               >
                 <BellOff className="h-4 w-4" strokeWidth={2} />
                 Desactivar
@@ -151,7 +151,7 @@ export function TrainingNotifications() {
               type="button"
               onClick={() => void enable()}
               disabled={busy || status === 'loading' || weekdays.length === 0}
-              className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground disabled:opacity-40"
+              className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-40"
             >
               <Bell className="h-4 w-4" strokeWidth={2} />
               {busy ? 'Activando…' : 'Activar avisos'}
@@ -160,7 +160,7 @@ export function TrainingNotifications() {
         </>
       )}
 
-      {message && <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground text-pretty">{message}</p>}
+      {message && <p className="mt-2 text-footnote leading-relaxed text-muted-foreground text-pretty">{message}</p>}
     </>
   )
 }

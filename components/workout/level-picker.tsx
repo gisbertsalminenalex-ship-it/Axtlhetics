@@ -25,7 +25,7 @@ export function LevelPicker({
 
   return (
     <section className="mt-5">
-      <h3 className="text-[12px] font-semibold tracking-[0.14em] text-muted-foreground">NIVEL</h3>
+      <h3 className="text-caption font-semibold tracking-[0.14em] text-muted-foreground">NIVEL</h3>
       <div
         role="radiogroup"
         aria-label="Nivel del ejercicio"
@@ -41,7 +41,7 @@ export function LevelPicker({
               aria-checked={selected}
               onClick={() => !selected && onChange(option.id)}
               className={cn(
-                'ax-press min-h-11 shrink-0 rounded-full border px-4 text-[14px] font-medium whitespace-nowrap transition-colors',
+                'ax-press min-h-11 shrink-0 rounded-full border px-4 text-subhead font-medium whitespace-nowrap transition-colors',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-background text-muted-foreground',
@@ -52,7 +52,7 @@ export function LevelPicker({
           )
         })}
       </div>
-      <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-1.5 text-caption leading-relaxed text-muted-foreground text-pretty">
         {recommended
           ? `AXIS proponía ${recommended.name.toLowerCase()}. Recordaré tu nivel para la próxima vez.`
           : 'Si no es tu nivel, cámbialo antes de la primera serie. Lo recordaré.'}

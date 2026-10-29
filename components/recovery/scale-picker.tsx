@@ -27,7 +27,7 @@ export function ScalePicker({
             aria-pressed={value === level}
             aria-label={labels[level]}
             className={cn(
-              'h-11 flex-1 rounded-full border text-[14px] font-semibold transition-colors',
+              'h-11 flex-1 rounded-full border text-subhead font-semibold transition-colors',
               value === level
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-background text-muted-foreground',
@@ -37,7 +37,7 @@ export function ScalePicker({
           </button>
         ))}
       </div>
-      <p className="mt-2 text-[12.5px] text-muted-foreground">
+      <p className="mt-2 text-caption text-muted-foreground">
         {value === null ? `1 · ${labels[1]} — 5 · ${labels[5]}` : labels[value]}
       </p>
     </div>

@@ -165,7 +165,7 @@ export function EntrenamientoActivo() {
         >
           <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
         </button>
-        <h1 className="text-[16px] font-semibold tracking-[-0.01em]">
+        <h1 className="text-body font-semibold tracking-[-0.01em]">
           {activeWorkout.plan.title}
         </h1>
         <button
@@ -190,9 +190,9 @@ export function EntrenamientoActivo() {
             )}
           />
         ))}
-        <span className="ml-2 shrink-0 text-right text-[13px] font-semibold tabular-nums">
+        <span className="ml-2 shrink-0 text-right text-footnote font-semibold tabular-nums">
           {formatDuration(elapsed)}
-          <span className="block text-[10px] font-normal text-muted-foreground">
+          <span className="block text-overline font-normal text-muted-foreground">
             Tiempo total
           </span>
         </span>
@@ -220,21 +220,21 @@ export function EntrenamientoActivo() {
       ) : (
         <>
           {/* Current exercise */}
-          <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">
+          <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">
             {phaseLabel(entry)?.toUpperCase() ?? 'EJERCICIO ACTUAL'}
           </p>
           <div key={entry.exerciseId} className="ax-enter mt-3 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-[26px] font-bold tracking-[-0.02em]">{entry.name}</h2>
+              <h2 className="text-title font-bold tracking-[-0.02em]">{entry.name}</h2>
               <p
                 key={entry.sets.length}
-                className="ax-fade mt-1 text-[14px] text-muted-foreground tabular-nums"
+                className="ax-fade mt-1 text-subhead text-muted-foreground tabular-nums"
               >
                 Serie {currentSetNumber(activeWorkout)} de {entry.targetSets}
                 {entry.unilateral ? ' · por lado' : ''}
               </p>
               {!entry.phase && !entry.isTimed && (
-                <p className="mt-1 text-[13px] text-muted-foreground">
+                <p className="mt-1 text-footnote text-muted-foreground">
                   Deja {REPS_IN_RESERVE_LABELS[targetReserveOf(activeWorkout)]} en reserva
                 </p>
               )}
@@ -292,7 +292,7 @@ export function EntrenamientoActivo() {
               <button
                 type="button"
                 onClick={startWork}
-                className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground tabular-nums"
+                className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground tabular-nums"
               >
                 <Play className="h-[18px] w-[18px]" strokeWidth={2.25} />
                 Empezar · {entry.reps} s
@@ -300,7 +300,7 @@ export function EntrenamientoActivo() {
               <button
                 type="button"
                 onClick={completeSet}
-                className="ax-press mt-1 min-h-11 w-full text-[13.5px] font-medium text-muted-foreground"
+                className="ax-press mt-1 min-h-11 w-full text-footnote font-medium text-muted-foreground"
               >
                 Ya lo hice: completar serie
               </button>
@@ -309,7 +309,7 @@ export function EntrenamientoActivo() {
             <button
               type="button"
               onClick={completeSet}
-              className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+              className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
             >
               Completar serie
               <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
@@ -325,7 +325,7 @@ export function EntrenamientoActivo() {
       {/* Next exercise */}
       {upcoming && (
         <>
-          <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">
+          <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">
             SIGUIENTE EJERCICIO
           </p>
           <div className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left">
@@ -345,8 +345,8 @@ export function EntrenamientoActivo() {
               <div className="h-12 w-12 shrink-0 rounded-xl bg-surface" aria-hidden="true" />
             )}
             <span className="flex-1">
-              <span className="block text-[15px] font-semibold">{upcoming.name}</span>
-              <span className="block text-[12.5px] text-muted-foreground tabular-nums">
+              <span className="block text-callout font-semibold">{upcoming.name}</span>
+              <span className="block text-caption text-muted-foreground tabular-nums">
                 {upcoming.phase
                   ? `${phaseLabel(upcoming)} · ${upcoming.targetReps} ${upcoming.isTimed ? 'seg' : 'reps'}`
                   : `${upcoming.targetSets} series × ${upcoming.targetReps} ${upcoming.isTimed ? 'seg' : 'reps'}`}
@@ -372,7 +372,7 @@ export function EntrenamientoActivo() {
           type="button"
           onClick={() => setDetailsOpen((open) => !open)}
           aria-expanded={detailsOpen}
-          className="mt-3 flex min-h-11 w-full items-center justify-center gap-1 text-[13px] font-medium text-muted-foreground"
+          className="mt-3 flex min-h-11 w-full items-center justify-center gap-1 text-footnote font-medium text-muted-foreground"
         >
           {detailsOpen ? 'Ocultar detalles' : 'Ver detalles del entrenamiento'}
           <ChevronRight
@@ -386,24 +386,24 @@ export function EntrenamientoActivo() {
               <li key={`${item.exerciseId}-${index}`} className="flex items-center gap-3 py-3">
                 <span
                   className={cn(
-                    'w-4 text-[13px] font-semibold tabular-nums',
+                    'w-4 text-footnote font-semibold tabular-nums',
                     index < doneExercises ? 'text-primary' : 'text-muted-foreground',
                   )}
                 >
                   {index + 1}
                 </span>
                 <span className="flex-1">
-                  <span className="block text-[14.5px] font-medium">{item.name}</span>
+                  <span className="block text-subhead font-medium">{item.name}</span>
                   {item.phase && (
-                    <span className="block text-[12px] text-muted-foreground">{phaseLabel(item)}</span>
+                    <span className="block text-caption text-muted-foreground">{phaseLabel(item)}</span>
                   )}
                 </span>
-                <span className="text-[13px] tabular-nums text-muted-foreground">
+                <span className="text-footnote tabular-nums text-muted-foreground">
                   {item.sets.length}/{item.targetSets} series
                 </span>
               </li>
             ))}
-            <li className="py-3 text-[12.5px] text-muted-foreground tabular-nums">
+            <li className="py-3 text-caption text-muted-foreground tabular-nums">
               {completedSetsTotal(activeWorkout)} series completadas
             </li>
           </ul>
@@ -431,7 +431,7 @@ function LastTime({
   const last = lastPerformedExercise(entry.exerciseId, sessions)
   if (!last) return null
   return (
-    <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
+    <p className="mt-1 text-footnote text-muted-foreground tabular-nums">
       La última vez: {formatSets(last.sets, { isTimed: entry.isTimed })}
     </p>
   )
@@ -522,17 +522,17 @@ function WorkPanel({
 }) {
   return (
     <section className="ax-enter" aria-label="Cronómetro">
-      <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">EN MARCHA</p>
+      <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">EN MARCHA</p>
       <CountdownRing remainingSeconds={work.remainingSeconds} totalSeconds={work.totalSeconds} />
-      <p className="mt-6 text-[17px] font-semibold tracking-[-0.01em]">{entry.name}</p>
-      <p className="mt-0.5 text-[14px] text-muted-foreground tabular-nums">
+      <p className="mt-6 text-body font-semibold tracking-[-0.01em]">{entry.name}</p>
+      <p className="mt-0.5 text-subhead text-muted-foreground tabular-nums">
         Serie {setNumber} de {entry.targetSets}
         {entry.unilateral ? ' · por lado' : ''}
       </p>
       <button
         type="button"
         onClick={onFinish}
-        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
       >
         Terminar ya
         <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
@@ -540,7 +540,7 @@ function WorkPanel({
       <button
         type="button"
         onClick={onCancel}
-        className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-muted-foreground"
+        className="ax-press mt-2 min-h-11 w-full text-footnote font-semibold text-muted-foreground"
       >
         Cancelar
       </button>
@@ -553,8 +553,8 @@ function WorkPanel({
 function ReservePicker({ question }: { question: ReserveQuestion }) {
   return (
     <div className="mt-4 rounded-2xl border border-border bg-surface px-4 py-3.5 text-left">
-      <p className="text-[13.5px] font-semibold">¿Cuántas te quedaban?</p>
-      <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+      <p className="text-footnote font-semibold">¿Cuántas te quedaban?</p>
+      <p className="mt-0.5 text-caption text-muted-foreground">
         {question.name} · buscamos {REPS_IN_RESERVE_LABELS[question.target]} ·{' '}
         {question.last ? 'AXIS ajusta la próxima vez' : 'AXIS ajusta la siguiente serie'}
       </p>
@@ -566,7 +566,7 @@ function ReservePicker({ question }: { question: ReserveQuestion }) {
             onClick={() => question.onSelect(value)}
             aria-pressed={question.value === value}
             className={cn(
-              'ax-press h-11 flex-1 rounded-full border text-[14px] font-semibold transition-colors',
+              'ax-press h-11 flex-1 rounded-full border text-subhead font-semibold transition-colors',
               question.value === value
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-background text-muted-foreground',
@@ -577,7 +577,7 @@ function ReservePicker({ question }: { question: ReserveQuestion }) {
         ))}
       </div>
       {question.advice && (
-        <p key={question.advice} className="ax-fade mt-3 text-[13.5px] font-medium text-primary">
+        <p key={question.advice} className="ax-fade mt-3 text-footnote font-medium text-primary">
           {question.advice}
         </p>
       )}
@@ -591,7 +591,7 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
     <button
       type="button"
       onClick={onUndo}
-      className="ax-press mt-1 flex min-h-11 w-full items-center justify-center gap-1.5 text-[13.5px] font-medium text-muted-foreground"
+      className="ax-press mt-1 flex min-h-11 w-full items-center justify-center gap-1.5 text-footnote font-medium text-muted-foreground"
     >
       <Undo2 className="h-4 w-4" strokeWidth={1.75} />
       Deshacer última serie
@@ -605,8 +605,8 @@ function HowTo({ exerciseId }: { exerciseId: string }) {
   if (!instructions) return null
   return (
     <section key={exerciseId} className="ax-fade mt-6 rounded-2xl bg-surface px-4 py-3.5">
-      <h3 className="text-[12px] font-semibold tracking-[0.14em] text-muted-foreground">CÓMO SE HACE</h3>
-      <p className="mt-1.5 text-[14.5px] leading-relaxed text-pretty">{instructions}</p>
+      <h3 className="text-caption font-semibold tracking-[0.14em] text-muted-foreground">CÓMO SE HACE</h3>
+      <p className="mt-1.5 text-subhead leading-relaxed text-pretty">{instructions}</p>
     </section>
   )
 }
@@ -615,8 +615,8 @@ function HowTo({ exerciseId }: { exerciseId: string }) {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div>
-      <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">{value}</p>
-      <p className="mt-0.5 text-[10.5px] leading-tight text-muted-foreground text-pretty">
+      <p className="text-footnote font-semibold text-muted-foreground tabular-nums">{value}</p>
+      <p className="mt-0.5 text-overline leading-tight text-muted-foreground text-pretty">
         {label}
       </p>
     </div>

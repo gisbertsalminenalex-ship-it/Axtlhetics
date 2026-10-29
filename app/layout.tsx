@@ -7,6 +7,9 @@ import './globals.css'
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  // Tamaño óptico (D-075): los titulares usan el corte Display de Inter, más
+  // cerrado y fino; el texto pequeño, el de lectura. Lo elige el navegador.
+  axes: ['opsz'],
 })
 
 export const metadata: Metadata = {

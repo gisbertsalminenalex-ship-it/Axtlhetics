@@ -61,7 +61,7 @@ export function FoodLog({
 
   return (
     <div className="mt-5">
-      <p className="text-[13px] font-medium text-muted-foreground">Lo que llevas hoy</p>
+      <p className="text-footnote font-medium text-muted-foreground">Lo que llevas hoy</p>
       <div className="mt-2.5 space-y-3">
         <MacroBar label="Calorías" unit="kcal" value={intake.kcal} range={targets ? [targets.kcal, targets.kcal] : null} />
         <MacroBar label="Proteína" unit="g" value={intake.proteinG} range={targets?.proteinGrams ?? null} />
@@ -74,8 +74,8 @@ export function FoodLog({
           {meals.map((meal) => (
             <li key={meal.id} className="flex items-center gap-3 py-2.5">
               <div className="flex-1">
-                <p className="text-[14px] font-medium">{MEAL_SLOT_LABELS[meal.slot]}</p>
-                <p className="text-[12.5px] text-muted-foreground tabular-nums">
+                <p className="text-subhead font-medium">{MEAL_SLOT_LABELS[meal.slot]}</p>
+                <p className="text-caption text-muted-foreground tabular-nums">
                   {Math.round(meal.kcal)} kcal · P {format(meal.proteinG)} · C {format(meal.carbsG)} · G {format(meal.fatG)} g
                 </p>
               </div>
@@ -107,14 +107,14 @@ export function FoodLog({
             <AmountField label="Carbohidratos" unit="g" value={draft.carbsG} onChange={(value) => setDraft({ ...draft, carbsG: value })} />
             <AmountField label="Grasa" unit="g" value={draft.fatG} onChange={(value) => setDraft({ ...draft, fatG: value })} />
           </div>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+          <p className="mt-2 text-caption leading-relaxed text-muted-foreground text-pretty">
             Sin calorías, las calculo con los macros. Lo que no sepas, déjalo vacío.
           </p>
           <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={() => setDraft(null)}
-              className="ax-press min-h-11 flex-1 rounded-full border border-border px-4 text-[14px] font-medium text-muted-foreground"
+              className="ax-press min-h-11 flex-1 rounded-full border border-border px-4 text-subhead font-medium text-muted-foreground"
             >
               Cancelar
             </button>
@@ -122,7 +122,7 @@ export function FoodLog({
               type="button"
               onClick={() => void save()}
               disabled={!valid}
-              className="ax-press min-h-11 flex-1 rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+              className="ax-press min-h-11 flex-1 rounded-full bg-primary px-4 text-subhead font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
             >
               Guardar
             </button>
@@ -132,7 +132,7 @@ export function FoodLog({
         <button
           type="button"
           onClick={() => setDraft(EMPTY_DRAFT)}
-          className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border px-4 text-[14px] font-medium"
+          className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border px-4 text-subhead font-medium"
         >
           <Plus className="h-4 w-4" />
           Añadir comida
@@ -160,7 +160,7 @@ function MacroBar({
   const target = range ? (range[0] === range[1] ? `${range[0]}` : `${range[0]}–${range[1]}`) : null
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-3 text-[13.5px]">
+      <div className="flex items-baseline justify-between gap-3 text-footnote">
         <span className="font-medium">{label}</span>
         <span className="tabular-nums text-muted-foreground">
           <span className="font-semibold text-foreground">{value.toLocaleString('es-ES')}</span>
@@ -191,7 +191,7 @@ function AmountField({
 }) {
   return (
     <label className="block">
-      <span className="text-[13px] font-medium text-muted-foreground">{label}</span>
+      <span className="text-footnote font-medium text-muted-foreground">{label}</span>
       <span className="mt-1.5 flex h-12 items-center rounded-2xl border border-border bg-background px-4 focus-within:border-primary">
         <input
           type="text"
@@ -199,9 +199,9 @@ function AmountField({
           value={value}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full min-w-0 bg-transparent text-[15px] tabular-nums outline-none placeholder:text-muted-foreground"
+          className="w-full min-w-0 bg-transparent text-callout tabular-nums outline-none placeholder:text-muted-foreground"
         />
-        <span className="text-[13px] text-muted-foreground">{unit}</span>
+        <span className="text-footnote text-muted-foreground">{unit}</span>
       </span>
     </label>
   )

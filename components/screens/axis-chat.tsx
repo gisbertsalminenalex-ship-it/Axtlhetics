@@ -65,9 +65,9 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
         <div className="flex flex-1 flex-col items-center">
           <div className="flex items-center gap-2">
             <AxisMark className="h-4 w-4 text-primary" />
-            <h1 className="text-[16px] font-semibold tracking-[-0.01em]">AXIS</h1>
+            <h1 className="text-body font-semibold tracking-[-0.01em]">AXIS</h1>
           </div>
-          <p className="text-[11.5px] text-muted-foreground">
+          <p className="text-overline text-muted-foreground">
             Tu guía de entrenamiento y recuperación
           </p>
         </div>
@@ -77,17 +77,17 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
       {/* Conversación vacía: quién es AXIS y qué se le puede preguntar */}
       {isEmpty && (
         <div className="ax-enter flex flex-1 flex-col justify-center py-6">
-          <h2 className="text-[26px] font-bold leading-[1.1] tracking-[-0.02em] text-balance">
+          <h2 className="text-title font-bold leading-[1.1] tracking-[-0.02em] text-balance">
             Pregúntame por tu día.
           </h2>
-          <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground text-pretty">
+          <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
             Respondo con tus datos: tu recuperación, tu historial, tu calendario y la
             sesión que te he propuesto. Si no tengo un dato, te lo digo.
           </p>
 
           {/* Lo que AXIS quería decirte (D-038): el punto de partida de la conversación. */}
           {axisNote && (
-            <p className="mt-5 flex items-start gap-2 text-[14px] leading-relaxed text-foreground text-pretty">
+            <p className="mt-5 flex items-start gap-2 text-subhead leading-relaxed text-foreground text-pretty">
               <AxisMark className="mt-1 h-3.5 w-3.5 shrink-0 text-primary" />
               <span>{axisNote.text}</span>
             </p>
@@ -104,7 +104,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
                   <button
                     type="button"
                     onClick={() => void send(suggestion.question)}
-                    className="ax-press flex min-h-11 w-full items-center rounded-2xl border border-border bg-surface px-4 py-3 text-left text-[14.5px] font-medium"
+                    className="ax-press flex min-h-11 w-full items-center rounded-2xl border border-border bg-surface px-4 py-3 text-left text-subhead font-medium"
                   >
                     {suggestion.label}
                   </button>
@@ -114,7 +114,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
           )}
 
           {!briefing && (
-            <p className="mt-7 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-[13.5px] text-muted-foreground">
+            <p className="mt-7 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
               Todavía estoy cargando tus datos.
             </p>
           )}
@@ -132,7 +132,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
               <div className="max-w-[85%]">
                 <div
                   className={cn(
-                    'rounded-2xl px-4 py-3 text-[14.5px] leading-relaxed text-pretty',
+                    'rounded-2xl px-4 py-3 text-subhead leading-relaxed text-pretty',
                     message.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-surface text-foreground',
@@ -154,7 +154,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
                   key={question}
                   type="button"
                   onClick={() => void send(question)}
-                  className="ax-press min-h-11 rounded-full border border-border bg-background px-4 text-left text-[13.5px] font-medium"
+                  className="ax-press min-h-11 rounded-full border border-border bg-background px-4 text-left text-footnote font-medium"
                 >
                   {question}
                 </button>
@@ -166,8 +166,8 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
 
           {axisError && (
             <div className="ax-enter rounded-2xl border border-border bg-surface px-4 py-3">
-              <p className="text-[14px] font-medium">AXIS no ha podido responder.</p>
-              <p className="mt-1 text-[13px] text-muted-foreground">{axisError}</p>
+              <p className="text-subhead font-medium">AXIS no ha podido responder.</p>
+              <p className="mt-1 text-footnote text-muted-foreground">{axisError}</p>
             </div>
           )}
 
@@ -177,7 +177,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
 
       {/* Aviso honesto cuando la IA falla y responde el motor local */}
       {axisFallback && (
-        <p className="pb-2 text-center text-[12px] text-muted-foreground">
+        <p className="pb-2 text-center text-caption text-muted-foreground">
           {axisFallback === 'offline'
             ? 'Sin conexión: respondo con tus datos locales.'
             : 'Respuesta directa con tus datos.'}
@@ -193,7 +193,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
           placeholder="Pregúntale algo a AXIS…"
           aria-label="Escribe tu pregunta"
           enterKeyHint="send"
-          className="h-12 flex-1 rounded-2xl border border-border bg-background px-4 text-[15px] outline-none placeholder:text-muted-foreground focus-visible:border-primary"
+          className="h-12 flex-1 rounded-2xl border border-border bg-background px-4 text-callout outline-none placeholder:text-muted-foreground focus-visible:border-primary"
         />
         <button
           type="submit"
@@ -231,7 +231,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
     const undoable = canUndoAxisAction(action.id)
     return (
       <div className="ax-enter mt-2">
-        <p className="flex min-h-11 items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 text-[14px] font-semibold text-success">
+        <p className="flex min-h-11 items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 text-subhead font-semibold text-success">
           <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
           Cambio aplicado
         </p>
@@ -244,19 +244,19 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
               setUndoError(await undoAxisAction(action))
               setWorking(false)
             }}
-            className="ax-press mt-1 min-h-11 px-1 text-[13.5px] font-semibold text-muted-foreground disabled:opacity-50"
+            className="ax-press mt-1 min-h-11 px-1 text-footnote font-semibold text-muted-foreground disabled:opacity-50"
           >
             {working ? 'Deshaciendo…' : 'Deshacer cambio'}
           </button>
         )}
-        {undoError && <p className="ax-enter px-1 text-[13px] text-error">{undoError}</p>}
+        {undoError && <p className="ax-enter px-1 text-footnote text-error">{undoError}</p>}
       </div>
     )
   }
 
   if (status.state === 'undone') {
     return (
-      <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+      <p className="mt-2 px-1 text-footnote text-muted-foreground">
         Cambio deshecho: todo vuelve a como estaba.
       </p>
     )
@@ -264,7 +264,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
 
   if (status.state === 'cancelled') {
     return (
-      <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+      <p className="mt-2 px-1 text-footnote text-muted-foreground">
         No se ha cambiado nada.
       </p>
     )
@@ -273,7 +273,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
   // Otra propuesta se aplicó después: esta partía de una sesión que ya no es la que hay.
   if (status.state === 'superseded') {
     return (
-      <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+      <p className="mt-2 px-1 text-footnote text-muted-foreground">
         Ya aplicaste otro cambio después de esta propuesta.
       </p>
     )
@@ -281,7 +281,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
 
   return (
     <div className="mt-2">
-      <p className="px-1 text-[13px] text-muted-foreground">{action.summary}</p>
+      <p className="px-1 text-footnote text-muted-foreground">{action.summary}</p>
 
       <div className="mt-2 flex gap-2">
         <button
@@ -292,7 +292,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
             await confirmAxisAction(action)
             setWorking(false)
           }}
-          className="ax-press flex h-12 flex-1 items-center justify-center rounded-2xl bg-primary text-[14.5px] font-semibold text-primary-foreground disabled:opacity-50"
+          className="ax-press flex h-12 flex-1 items-center justify-center rounded-2xl bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-50"
         >
           {working ? 'Aplicando…' : action.label}
         </button>
@@ -300,14 +300,14 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
           type="button"
           onClick={() => cancelAxisAction(action)}
           disabled={working}
-          className="ax-press h-12 rounded-2xl border border-border bg-background px-4 text-[14px] font-medium text-muted-foreground disabled:opacity-50"
+          className="ax-press h-12 rounded-2xl border border-border bg-background px-4 text-subhead font-medium text-muted-foreground disabled:opacity-50"
         >
           Cancelar
         </button>
       </div>
 
       {status.state === 'error' && (
-        <p className="ax-enter mt-2 px-1 text-[13px] text-error">{status.message}</p>
+        <p className="ax-enter mt-2 px-1 text-footnote text-error">{status.message}</p>
       )}
     </div>
   )

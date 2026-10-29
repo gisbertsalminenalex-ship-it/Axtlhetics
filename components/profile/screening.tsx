@@ -154,9 +154,9 @@ export function HealthNote({
             aria-label="Tu salud, con tus palabras"
             placeholder="Por ejemplo: me operaron de la rodilla derecha hace un año y tengo la tensión alta."
             onChange={(event) => setText(event.target.value)}
-            className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground focus-visible:border-primary"
+            className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-callout leading-relaxed outline-none placeholder:text-muted-foreground focus-visible:border-primary"
           />
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+          <p className="mt-1.5 text-caption leading-relaxed text-muted-foreground text-pretty">
             AXIS lo lee con su modelo de lenguaje para entenderlo. No se guarda fuera de tu dispositivo.
           </p>
 
@@ -165,14 +165,14 @@ export function HealthNote({
               type="button"
               onClick={() => void readNote()}
               disabled={busy}
-              className="ax-press mt-3 min-h-11 w-full rounded-full border border-primary px-4 text-[14px] font-medium text-primary transition-opacity disabled:opacity-60"
+              className="ax-press mt-3 min-h-11 w-full rounded-full border border-primary px-4 text-subhead font-medium text-primary transition-opacity disabled:opacity-60"
             >
               {busy ? 'Leyendo…' : 'Que AXIS lo lea'}
             </button>
           )}
 
           {reading && note === readText.trim() && (
-            <div className="mt-3 space-y-1.5 text-[13.5px] leading-relaxed text-pretty">
+            <div className="mt-3 space-y-1.5 text-footnote leading-relaxed text-pretty">
               {describeHealthReading(reading).map((line) => (
                 <p key={line}>{line}</p>
               ))}
@@ -185,7 +185,7 @@ export function HealthNote({
       )}
 
       {choice === 'escribir' && current.flags.length > 0 && (
-        <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-[13.5px] leading-relaxed text-pretty">
+        <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-footnote leading-relaxed text-pretty">
           Consulta con tu médico antes de empezar a entrenar o de subir la intensidad. AXIS no diagnostica nada; hasta
           que te dé el visto bueno, no te propondrá días fuertes.
         </p>
@@ -196,7 +196,7 @@ export function HealthNote({
           onClick={() => onChange({ ...current, cleared: !current.cleared })}
           aria-pressed={current.cleared}
           className={cn(
-            'ax-press mt-3 min-h-11 w-full rounded-full border px-4 text-[14px] font-medium transition-colors',
+            'ax-press mt-3 min-h-11 w-full rounded-full border px-4 text-subhead font-medium transition-colors',
             current.cleared
               ? 'border-primary bg-primary text-primary-foreground'
               : 'border-border bg-background text-muted-foreground',

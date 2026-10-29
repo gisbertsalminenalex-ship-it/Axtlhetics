@@ -37,14 +37,14 @@ export function TapeStep({
   const starting = (): Tape => Object.fromEntries(SCAN_TAPE_KEYS.map((key) => [key, previous?.latest[key] ?? PERIMETER_START[key]]))
   return (
     <>
-      <h1 className="mt-3 text-[28px] font-bold leading-[1.15] tracking-[-0.03em] text-balance">Tu músculo, con cinta</h1>
-      <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground text-pretty">
+      <h1 className="mt-3 text-title font-bold leading-[1.15] tracking-[-0.03em] text-balance">Tu músculo, con cinta</h1>
+      <p className="mt-2 text-subhead leading-relaxed text-muted-foreground text-pretty">
         La foto ve tu postura, cómo te mueves y tus proporciones, pero no el músculo. La cinta sí: con el brazo, el pecho y el
         muslo sigo cómo crece mes a mes, junto con tu fuerza. Son 2 minutos.
       </p>
 
       {known.length > 0 && (
-        <p className="mt-4 rounded-2xl bg-surface px-4 py-3 text-[13.5px] leading-relaxed text-pretty">
+        <p className="mt-4 rounded-2xl bg-surface px-4 py-3 text-footnote leading-relaxed text-pretty">
           Uso tu última medida: {known.map((key) => `${PERIMETER_LABELS[key].toLowerCase()} ${cm(previous!.latest[key]!)}`).join(', ')}.
         </p>
       )}
@@ -72,7 +72,7 @@ export function TapeStep({
                   max={PERIMETER_LIMITS.max}
                   onChange={(next) => onTape({ ...tape, [key]: next })}
                 />
-                <p className="-mt-2 pb-3 text-[12px] text-muted-foreground">{PERIMETER_HINTS[key]}</p>
+                <p className="-mt-2 pb-3 text-caption text-muted-foreground">{PERIMETER_HINTS[key]}</p>
               </div>
             ))}
           </div>
@@ -80,7 +80,7 @@ export function TapeStep({
       </div>
 
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground">
+        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground">
           Continuar
         </button>
       </div>

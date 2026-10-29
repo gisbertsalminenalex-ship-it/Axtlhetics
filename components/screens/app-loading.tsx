@@ -11,7 +11,7 @@ export function AppLoading() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-6 pb-16">
       <AxisMark className="h-7 w-7 animate-pulse text-primary" />
-      <p className="mt-4 text-[13px] text-muted-foreground">Preparando tu día…</p>
+      <p className="mt-4 text-footnote text-muted-foreground">Preparando tu día…</p>
     </div>
   )
 }

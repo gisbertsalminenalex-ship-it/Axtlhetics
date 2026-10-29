@@ -35,7 +35,7 @@ export function EntrenamientoCompletado() {
       {/* Top bar */}
       <header className="flex items-center justify-between pt-2 pb-6">
         <span className="h-11 w-11" aria-hidden="true" />
-        <h1 className="text-[16px] font-semibold tracking-[-0.01em]">
+        <h1 className="text-body font-semibold tracking-[-0.01em]">
           {abandoned ? 'Entrenamiento interrumpido' : 'Entrenamiento completado'}
         </h1>
         <span className="h-11 w-11" aria-hidden="true" />
@@ -55,10 +55,10 @@ export function EntrenamientoCompletado() {
             <Check className="h-7 w-7 text-success" strokeWidth={2.5} />
           )}
         </span>
-        <h2 className="mt-4 text-[24px] font-bold tracking-[-0.02em]">
+        <h2 className="mt-4 text-title font-bold tracking-[-0.02em]">
           {abandoned ? 'Guardado igualmente.' : 'Sesión completada.'}
         </h2>
-        <p className="mt-1 text-[14px] text-muted-foreground">
+        <p className="mt-1 text-subhead text-muted-foreground">
           {abandoned ? 'Hemos guardado lo que llegaste a hacer.' : 'Has terminado tu sesión.'}
         </p>
       </div>
@@ -73,7 +73,7 @@ export function EntrenamientoCompletado() {
       {/* Lo que AXIS concluye de la sesión (D-019), no el motivo con el que la propuso. */}
       <div className="mt-4 flex items-start gap-2">
         <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-        <p className="text-[13px] leading-relaxed text-muted-foreground text-pretty">
+        <p className="text-footnote leading-relaxed text-muted-foreground text-pretty">
           {closingMessage(lastCompleted, records)}
         </p>
       </div>
@@ -84,20 +84,20 @@ export function EntrenamientoCompletado() {
       {/* Récords: solo frente a algo registrado antes, sin insignias. */}
       {records.length > 0 && (
         <>
-          <h3 className="mt-7 text-[15px] font-semibold tracking-[-0.01em]">Récords personales</h3>
+          <h3 className="mt-7 text-callout font-semibold tracking-[-0.01em]">Récords personales</h3>
           <ul className="mt-3 space-y-2">
             {records.map((record) => (
               <li key={`${record.exerciseId}-${record.kind}`} className="flex items-baseline justify-between gap-3">
                 <span>
-                  <span className="block text-[14.5px] font-semibold">{record.name}</span>
+                  <span className="block text-subhead font-semibold">{record.name}</span>
                   {/* La marca cuenta aunque quedara a medias, pero no se confunde con haberlo hecho todo. */}
                   {!completedAsPlanned(record.exerciseId) && (
-                    <span className="block text-[12px] text-muted-foreground">
+                    <span className="block text-caption text-muted-foreground">
                       Ejercicio sin completar
                     </span>
                   )}
                 </span>
-                <span className="text-[13px] tabular-nums text-muted-foreground">
+                <span className="text-footnote tabular-nums text-muted-foreground">
                   <span className="font-semibold text-primary">
                     {record.kind === 'weight' ? `${formatKg(record.value)} kg` : `${record.value} ${repsUnit(record.exerciseId)}`}
                   </span>{' '}
@@ -113,7 +113,7 @@ export function EntrenamientoCompletado() {
       {lastCompleted.modifications.length > 0 && (
         <ul className="mt-3 space-y-1">
           {lastCompleted.modifications.map((modification, index) => (
-            <li key={index} className="text-[12.5px] text-muted-foreground">
+            <li key={index} className="text-caption text-muted-foreground">
               {modification.detail}
             </li>
           ))}
@@ -123,7 +123,7 @@ export function EntrenamientoCompletado() {
       {/* Resumen de ejercicios */}
       {lastCompleted.exercises.length > 0 ? (
         <>
-          <h3 className="mt-7 text-[15px] font-semibold tracking-[-0.01em]">
+          <h3 className="mt-7 text-callout font-semibold tracking-[-0.01em]">
             Resumen de ejercicios
           </h3>
           <ul className="mt-3 space-y-3">
@@ -150,16 +150,16 @@ export function EntrenamientoCompletado() {
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="text-[14.5px] font-semibold leading-tight">
+                    <p className="text-subhead font-semibold leading-tight">
                       {index + 1}. {exercise.name}
                     </p>
-                    <p className="text-[12.5px] text-muted-foreground tabular-nums">
+                    <p className="text-caption text-muted-foreground tabular-nums">
                       {formatSets(exercise.sets, { isTimed: catalog?.work.isTimed ?? false })}
                     </p>
                   </div>
                   {/* Sin carga no hay volumen que enseñar: un «0 kg» no dice nada. */}
                   {volume > 0 && (
-                    <span className="text-[13.5px] font-medium tabular-nums text-muted-foreground">
+                    <span className="text-footnote font-medium tabular-nums text-muted-foreground">
                       {formatVolume(volume)}
                     </span>
                   )}
@@ -169,13 +169,13 @@ export function EntrenamientoCompletado() {
           </ul>
         </>
       ) : (
-        <p className="mt-7 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-[13.5px] text-muted-foreground">
+        <p className="mt-7 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
           No llegaste a completar ninguna serie.
         </p>
       )}
 
       {/* Esfuerzo (D-019): lo que usa la Carga. Números, no caras: no es cómo te sientes. */}
-      <h3 className="mt-7 text-[15px] font-semibold tracking-[-0.01em]">
+      <h3 className="mt-7 text-callout font-semibold tracking-[-0.01em]">
         ¿Cuánto te ha costado?
       </h3>
       <div className="mt-4 flex items-start justify-between">
@@ -193,7 +193,7 @@ export function EntrenamientoCompletado() {
             >
               <span
                 className={cn(
-                  'flex h-11 w-11 items-center justify-center rounded-full border text-[16px] font-semibold tabular-nums transition-colors',
+                  'flex h-11 w-11 items-center justify-center rounded-full border text-body font-semibold tabular-nums transition-colors',
                   selected
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-border text-muted-foreground',
@@ -204,7 +204,7 @@ export function EntrenamientoCompletado() {
               {edge && (
                 <span
                   className={cn(
-                    'text-[10.5px] font-medium',
+                    'text-overline font-medium',
                     selected ? 'text-primary' : 'text-muted-foreground',
                   )}
                 >
@@ -219,7 +219,7 @@ export function EntrenamientoCompletado() {
       <button
         type="button"
         onClick={dismissSummary}
-        className="ax-press mt-8 flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+        className="ax-press mt-8 flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
       >
         Finalizar
         <ArrowRight className="h-4 w-4" />
@@ -242,8 +242,8 @@ function SessionXp({ sessionId }: { sessionId: string }) {
     <section className="mt-7">
       {levelUp && (
         <div className="ax-enter mb-4 rounded-2xl bg-secondary px-4 py-3">
-          <p className="text-[12px] font-semibold tracking-[0.12em] text-primary">NUEVO NIVEL</p>
-          <p className="mt-0.5 text-[20px] font-bold tracking-[-0.02em]">
+          <p className="text-caption font-semibold tracking-[0.12em] text-primary">NUEVO NIVEL</p>
+          <p className="mt-0.5 text-headline font-bold tracking-[-0.02em]">
             Nivel {award.levelAfter}
             {award.newRank && <span className="text-muted-foreground"> · {award.newRank}</span>}
           </p>
@@ -251,7 +251,7 @@ function SessionXp({ sessionId }: { sessionId: string }) {
       )}
       <ul className="space-y-1.5">
         {award.events.map((event, index) => (
-          <li key={`${event.kind}-${index}`} className="flex items-baseline gap-2 text-[13.5px]">
+          <li key={`${event.kind}-${index}`} className="flex items-baseline gap-2 text-footnote">
             <span className="font-semibold tabular-nums text-primary">+{event.xp} XP</span>
             <span className="text-muted-foreground">· {event.label}</span>
           </li>
@@ -260,7 +260,7 @@ function SessionXp({ sessionId }: { sessionId: string }) {
       {award.facts.length > 0 && (
         <div className="mt-3 flex items-start gap-2">
           <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-          <p className="text-[13px] leading-relaxed text-muted-foreground text-pretty">{award.facts.join(' ')}</p>
+          <p className="text-footnote leading-relaxed text-muted-foreground text-pretty">{award.facts.join(' ')}</p>
         </div>
       )}
     </section>
@@ -288,8 +288,8 @@ function SummaryStat({
       className={cn('ax-stagger', divider && 'border-l border-border')}
       style={{ '--ax-index': index } as CSSProperties}
     >
-      <p className="text-[17px] font-bold tracking-[-0.01em] tabular-nums">{value}</p>
-      <p className="mt-0.5 text-[11px] text-muted-foreground text-pretty">{label}</p>
+      <p className="text-body font-bold tracking-[-0.01em] tabular-nums">{value}</p>
+      <p className="mt-0.5 text-overline text-muted-foreground text-pretty">{label}</p>
     </div>
   )
 }

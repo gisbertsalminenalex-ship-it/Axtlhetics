@@ -48,7 +48,7 @@ export function BackupControls() {
   return (
     <div className="mt-10 border-t border-border px-6 pt-6">
       <SectionTitle>Copia de seguridad</SectionTitle>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-2 text-footnote leading-relaxed text-muted-foreground">
         Tus datos viven solo en este dispositivo. Si el navegador libera espacio o
         cambias de teléfono, se pierden. Descarga una copia de vez en cuando y
         guárdala donde quieras.
@@ -58,7 +58,7 @@ export function BackupControls() {
         type="button"
         onClick={() => void download()}
         disabled={working}
-        className="ax-press mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold disabled:opacity-40"
+        className="ax-press mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40"
       >
         <Download className="h-[18px] w-[18px]" strokeWidth={2} />
         Descargar una copia
@@ -66,7 +66,7 @@ export function BackupControls() {
 
       <RestoreFlow className="mt-2" />
 
-      <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-caption leading-relaxed text-muted-foreground">
         El archivo incluye tus entrenamientos, tu recuperación, tus tests de
         evolución, los resultados de tus escaneos (sin fotos), tu peso y tus medidas,
         y tus conversaciones con AXIS. Es para ti, no para compartir.
@@ -87,7 +87,7 @@ export function RestoreFromBackup() {
   return (
     <RestoreFlow
       label="Ya tengo una copia de seguridad"
-      className="mt-4 border-0 bg-transparent text-[13.5px] font-semibold text-primary"
+      className="mt-4 border-0 bg-transparent text-footnote font-semibold text-primary"
     />
   )
 }
@@ -177,7 +177,7 @@ function RestoreFlow({ label = 'Restaurar desde una copia', className }: {
         onClick={() => fileInput.current?.click()}
         disabled={working}
         className={cn(
-          'ax-press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold disabled:opacity-40',
+          'ax-press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40',
           className,
         )}
       >
@@ -196,7 +196,7 @@ function RestoreFlow({ label = 'Restaurar desde una copia', className }: {
       />
 
       {problem && (
-        <p role="alert" className="ax-enter mt-3 text-[13px] leading-relaxed text-error">
+        <p role="alert" className="ax-enter mt-3 text-footnote leading-relaxed text-error">
           {problem}
         </p>
       )}
@@ -237,12 +237,12 @@ function RestoreConfirmation({
 
   return (
     <div className="ax-enter mt-4 rounded-2xl border border-border bg-surface p-4">
-      <p className="text-[14px] font-semibold">Restaurar esta copia</p>
+      <p className="text-subhead font-semibold">Restaurar esta copia</p>
 
-      <p className="mt-2 text-[13.5px] leading-relaxed">La copia trae {describe(counts)}.</p>
+      <p className="mt-2 text-footnote leading-relaxed">La copia trae {describe(counts)}.</p>
 
       {hasSomethingToLose ? (
-        <p className="mt-2 text-[13.5px] leading-relaxed">
+        <p className="mt-2 text-footnote leading-relaxed">
           {/* El sujeto es «restaurarla»: concuerda igual con uno o con varios. */}
           Restaurarla sustituirá{' '}
           <span className="font-semibold">
@@ -251,13 +251,13 @@ function RestoreConfirmation({
           . <span className="font-semibold">No se puede deshacer.</span>
         </p>
       ) : (
-        <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-footnote leading-relaxed text-muted-foreground">
           Ahora mismo no hay nada guardado en este dispositivo, así que no se pierde nada.
         </p>
       )}
 
       {discarded > 0 && (
-        <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-caption leading-relaxed text-muted-foreground">
           {discarded === 1
             ? 'Un registro del archivo no se ha entendido y no se restaurará.'
             : `${discarded} registros del archivo no se han entendido y no se restaurarán.`}
@@ -269,7 +269,7 @@ function RestoreConfirmation({
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-[14px] font-semibold disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40"
         >
           Cancelar
         </button>
@@ -277,7 +277,7 @@ function RestoreConfirmation({
           type="button"
           onClick={onConfirm}
           disabled={busy}
-          className="ax-press h-12 flex-1 rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-2xl bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-40"
         >
           {busy ? 'Restaurando…' : 'Restaurar'}
         </button>

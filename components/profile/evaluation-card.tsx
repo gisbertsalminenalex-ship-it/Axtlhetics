@@ -26,12 +26,12 @@ export function EvaluationCard({ onOpenPerfil }: { onOpenPerfil: () => void }) {
   return (
     <section className="ax-enter mt-4 rounded-3xl bg-surface p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-[15px] font-semibold tracking-[-0.01em]">Tu evaluación inicial</h3>
-        <span className="text-[12.5px] tabular-nums text-muted-foreground">
+        <h3 className="text-callout font-semibold tracking-[-0.01em]">Tu evaluación inicial</h3>
+        <span className="text-caption tabular-nums text-muted-foreground">
           {done} de {steps.length}
         </span>
       </div>
-      <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground text-pretty">
+      <p className="mt-0.5 text-footnote leading-snug text-muted-foreground text-pretty">
         Lo que mide un entrenador antes de empezar. Con ello AXIS ajusta tus sesiones.
       </p>
       <ul className="mt-3 space-y-2.5">
@@ -47,8 +47,8 @@ export function EvaluationCard({ onOpenPerfil }: { onOpenPerfil: () => void }) {
               {step.done && <Check className="h-3 w-3" strokeWidth={3} />}
             </span>
             <span className="flex-1">
-              <span className={cn('block text-[14px] font-medium', step.done && 'text-muted-foreground')}>{step.label}</span>
-              {!step.done && <span className="block text-[12.5px] text-muted-foreground">{step.detail}</span>}
+              <span className={cn('block text-subhead font-medium', step.done && 'text-muted-foreground')}>{step.label}</span>
+              {!step.done && <span className="block text-caption text-muted-foreground">{step.detail}</span>}
             </span>
             <span className="sr-only">{step.done ? 'Hecho' : 'Pendiente'}</span>
           </li>
@@ -58,7 +58,7 @@ export function EvaluationCard({ onOpenPerfil }: { onOpenPerfil: () => void }) {
         <button
           type="button"
           onClick={onOpenPerfil}
-          className="ax-press mt-4 min-h-11 w-full rounded-full border border-border bg-background px-4 text-[13.5px] font-semibold"
+          className="ax-press mt-4 min-h-11 w-full rounded-full border border-border bg-background px-4 text-footnote font-semibold"
         >
           Contestar salud e historia
         </button>

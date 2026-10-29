@@ -50,7 +50,7 @@ export function NutritionSection() {
 
   return (
     <section aria-labelledby="nutrition">
-      <h3 id="nutrition" className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">
+      <h3 id="nutrition" className="mt-8 text-callout font-semibold tracking-[-0.01em]">
         Alimentación
       </h3>
       <ChoiceGroup
@@ -64,28 +64,28 @@ export function NutritionSection() {
 
       {targets && (
         <div className="mt-1 rounded-3xl bg-surface px-5 py-4">
-          <p className="text-[22px] font-bold tracking-[-0.02em] tabular-nums">
-            {targets.kcal.toLocaleString('es-ES')} <span className="text-[13px] font-medium text-muted-foreground">kcal al día</span>
+          <p className="text-headline font-bold tracking-[-0.02em] tabular-nums">
+            {targets.kcal.toLocaleString('es-ES')} <span className="text-footnote font-medium text-muted-foreground">kcal al día</span>
           </p>
-          <p className="mt-0.5 text-[15px] font-semibold tabular-nums">
+          <p className="mt-0.5 text-callout font-semibold tabular-nums">
             {targets.proteinGrams[0]}–{targets.proteinGrams[1]} g{' '}
-            <span className="text-[13px] font-medium text-muted-foreground">de proteína</span>
+            <span className="text-footnote font-medium text-muted-foreground">de proteína</span>
           </p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground tabular-nums">
+          <p className="mt-0.5 text-footnote text-muted-foreground tabular-nums">
             Carbohidratos {targets.carbsGrams[0]}–{targets.carbsGrams[1]} g · Grasa {targets.fatGrams[0]}–{targets.fatGrams[1]} g
           </p>
-          <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground text-pretty">{targets.text}</p>
+          <p className="mt-2 text-footnote leading-relaxed text-muted-foreground text-pretty">{targets.text}</p>
         </div>
       )}
 
       {adjustment && (
         <div className="mt-3 rounded-3xl border border-border px-5 py-4">
-          <p className="text-[14px] leading-relaxed text-pretty">{adjustment.reason}</p>
+          <p className="text-subhead leading-relaxed text-pretty">{adjustment.reason}</p>
           {adjustment.kind === 'adjust' && (
             <button
               type="button"
               onClick={() => void applyNutritionAdjustment(adjustment.deltaKcal)}
-              className="ax-press mt-3 min-h-11 w-full rounded-full bg-primary px-4 text-[13.5px] font-semibold text-primary-foreground"
+              className="ax-press mt-3 min-h-11 w-full rounded-full bg-primary px-4 text-footnote font-semibold text-primary-foreground"
             >
               Aplicar ajuste ({adjustment.deltaKcal > 0 ? '+' : '−'}
               {Math.abs(adjustment.deltaKcal)} kcal)
@@ -98,7 +98,7 @@ export function NutritionSection() {
 
       {plan && meals.length === 0 && (
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex-1 text-[14px] font-medium">¿Hoy llegaste a tu proteína?</span>
+          <span className="flex-1 text-subhead font-medium">¿Hoy llegaste a tu proteína?</span>
           {([true, false] as const).map((value) => (
             <button
               key={String(value)}
@@ -106,7 +106,7 @@ export function NutritionSection() {
               onClick={() => void saveProteinCheck(value)}
               aria-pressed={protein === value}
               className={cn(
-                'ax-press h-11 min-w-11 rounded-full border px-3.5 text-[14px] font-medium transition-colors',
+                'ax-press h-11 min-w-11 rounded-full border px-3.5 text-subhead font-medium transition-colors',
                 protein === value
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-background text-muted-foreground',

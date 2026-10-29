@@ -90,7 +90,7 @@ export function EquipmentPicker({
                 key={`${weight.kind}-${weight.kg}`}
                 className="flex items-center gap-3 rounded-2xl border border-border bg-surface pl-4"
               >
-                <span className="flex-1 text-[15px] font-medium">{describeWeight(weight)}</span>
+                <span className="flex-1 text-callout font-medium">{describeWeight(weight)}</span>
                 <button
                   type="button"
                   onClick={() => removeWeight(index)}
@@ -103,7 +103,7 @@ export function EquipmentPicker({
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
+          <p className="mt-1 text-caption text-muted-foreground">
             Sin pesas, AXIS te propone ejercicios con tu peso corporal.
           </p>
         )}
@@ -123,14 +123,14 @@ export function EquipmentPicker({
             onKeyDown={(event) => {
               if (event.key === 'Enter') addWeight()
             }}
-            className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-4 text-[15px] tabular-nums outline-none placeholder:text-muted-foreground focus-visible:border-primary"
+            className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-4 text-callout tabular-nums outline-none placeholder:text-muted-foreground focus-visible:border-primary"
           />
         </label>
         <button
           type="button"
           onClick={addWeight}
           disabled={kg === null}
-          className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold text-primary disabled:opacity-35"
+          className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary disabled:opacity-35"
         >
           <Plus className="h-4 w-4" strokeWidth={2.25} />
           Añadir {kind === 'mancuerna' ? (count === 'par' ? 'mancuernas' : 'mancuerna') : count === 'par' ? 'kettlebells' : 'kettlebell'}

@@ -60,10 +60,10 @@ export function TestIntro({
         </button>
       </header>
 
-      <h1 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">Test de evolución</h1>
-      <p className="mt-1.5 text-[15px] text-muted-foreground">4 pruebas · 10–15 min</p>
+      <h1 className="mt-3 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">Test de evolución</h1>
+      <p className="mt-1.5 text-callout text-muted-foreground">4 pruebas · 10–15 min</p>
       <StaleTestNotice className="mt-4" />
-      <p className="mt-4 text-[15px] leading-relaxed text-pretty">
+      <p className="mt-4 text-callout leading-relaxed text-pretty">
         {/* Sin ningún test completado no hay con qué comparar: este es la primera referencia. */}
         {fixed === null
           ? 'Este primer test establece tu línea base: los siguientes se compararán con él para medir tu evolución.'
@@ -72,12 +72,12 @@ export function TestIntro({
 
       <ol className="mt-5 divide-y divide-border border-y border-border">
         {ASSESSMENT_PROTOCOL.map((test) => (
-          <li key={test.key} className="flex min-h-12 items-center justify-between gap-3 py-2 text-[15px]">
+          <li key={test.key} className="flex min-h-12 items-center justify-between gap-3 py-2 text-callout">
             <span>
               {test.key === 'push' ? findExercise(variant)?.name ?? test.name : test.name}
               {test.loadKg ? ` · ${test.loadKg} kg` : ''}
             </span>
-            <span className="text-[13px] text-muted-foreground">
+            <span className="text-footnote text-muted-foreground">
               {MEASURE_LABEL[test.measure]}
               {test.perSide ? ' por lado' : ''}
             </span>
@@ -86,15 +86,15 @@ export function TestIntro({
       </ol>
 
       {last && (
-        <p className="mt-3 text-[13px] text-muted-foreground">Test anterior: {formatDayInSentence(last)}</p>
+        <p className="mt-3 text-footnote text-muted-foreground">Test anterior: {formatDayInSentence(last)}</p>
       )}
 
       {fixed === null && (
         <section className="mt-5 rounded-3xl bg-surface p-5">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.12em] text-primary">
+          <p className="flex items-center gap-1.5 text-overline font-semibold tracking-[0.12em] text-primary">
             <AxisMark className="h-3 w-3" /> AXIS
           </p>
-          <p className="mt-2 text-[14px] leading-relaxed text-pretty">
+          <p className="mt-2 text-subhead leading-relaxed text-pretty">
             Para tu primer test recomendamos {findExercise(recommended)?.name.toLowerCase()}. Si prefieres, puedes
             elegir otra variante.
           </p>
@@ -107,7 +107,7 @@ export function TestIntro({
                 aria-checked={variant === id}
                 onClick={() => setVariant(id)}
                 className={cn(
-                  'ax-press min-h-11 rounded-full px-4 text-[13.5px] font-semibold',
+                  'ax-press min-h-11 rounded-full px-4 text-footnote font-semibold',
                   variant === id ? 'bg-primary text-primary-foreground' : 'border border-border bg-background',
                 )}
               >
@@ -115,17 +115,17 @@ export function TestIntro({
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[12.5px] text-muted-foreground">La variante queda fijada para los próximos tests.</p>
+          <p className="mt-3 text-caption text-muted-foreground">La variante queda fijada para los próximos tests.</p>
         </section>
       )}
 
-      <p className="mt-5 text-[13px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-5 text-footnote leading-relaxed text-muted-foreground text-pretty">
         En cada prueba, para cuando ya no puedas mantener una buena técnica. Cuenta la técnica, no aguantar a toda costa.
       </p>
 
       <div className="mt-auto pt-8">
         {unavailable && (
-          <p role="status" className="mb-4 text-[13.5px] leading-relaxed text-pretty">
+          <p role="status" className="mb-4 text-footnote leading-relaxed text-pretty">
             {unavailable}
           </p>
         )}
@@ -139,11 +139,11 @@ export function TestIntro({
             // aviso de error lo explica y se puede volver a intentar.
             if (!(await onStart(variant))) setStarting(false)
           }}
-          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
         >
           Empezar test
         </button>
-        <button type="button" onClick={onBack} className="ax-press mt-2 min-h-11 w-full text-[14px] font-semibold text-muted-foreground">
+        <button type="button" onClick={onBack} className="ax-press mt-2 min-h-11 w-full text-subhead font-semibold text-muted-foreground">
           Volver
         </button>
       </div>

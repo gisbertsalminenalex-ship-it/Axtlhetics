@@ -20,14 +20,14 @@ export function ScanHistoryList({ onOpen }: { onOpen: (id: string) => void }) {
   if (scans.scans.length === 0) return null
   return (
     <>
-      <h3 className="mt-8 text-[15px] font-semibold tracking-[-0.01em]">Escáneres corporales</h3>
+      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">Escáneres corporales</h3>
       <ul className="mt-2 divide-y divide-border">
         {scans.scans.map((scan) => (
           <li key={scan.id}>
             <button type="button" onClick={() => onOpen(scan.id)} className="ax-press flex min-h-14 w-full items-center justify-between gap-3 py-2 text-left">
               <span>
-                <span className="block text-[15px] font-semibold">{capital(formatDayInSentence(scan.dayKey))}</span>
-                <span className="block text-[13px] text-muted-foreground">
+                <span className="block text-callout font-semibold">{capital(formatDayInSentence(scan.dayKey))}</span>
+                <span className="block text-footnote text-muted-foreground">
                   Índice de equilibrio {scan.result.index ?? '—'}/100
                 </span>
               </span>
@@ -108,8 +108,8 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
         </button>
       </header>
-      <h1 className="mt-2 text-[28px] font-bold tracking-[-0.02em]">Escáner corporal</h1>
-      {scan && <p className="mt-1.5 text-[14px] text-muted-foreground">{capital(formatDayInSentence(scan.dayKey))}</p>}
+      <h1 className="mt-2 text-title font-bold tracking-[-0.02em]">Escáner corporal</h1>
+      {scan && <p className="mt-1.5 text-subhead text-muted-foreground">{capital(formatDayInSentence(scan.dayKey))}</p>}
 
       {scan && summary ? (
         <>
@@ -129,13 +129,13 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="ax-press mt-8 min-h-11 w-full text-[14px] font-semibold text-error"
+            className="ax-press mt-8 min-h-11 w-full text-subhead font-semibold text-error"
           >
             Borrar escaneo
           </button>
         </>
       ) : (
-        <p className="mt-6 text-[14px] text-muted-foreground">Este escaneo ya no está en el dispositivo.</p>
+        <p className="mt-6 text-subhead text-muted-foreground">Este escaneo ya no está en el dispositivo.</p>
       )}
     </div>
   )

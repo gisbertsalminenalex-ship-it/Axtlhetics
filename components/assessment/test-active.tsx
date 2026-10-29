@@ -69,7 +69,7 @@ export function TestActive({
         <button type="button" onClick={onExit} aria-label="Salir del test" className="ax-press -ml-2 flex h-11 w-11 items-center justify-center">
           <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
         </button>
-        <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
+        <span className="text-footnote font-semibold text-muted-foreground tabular-nums">
           {/* En el descanso ninguna prueba está activa: se cuentan las hechas. */}
           {rest
             ? `${index} de ${ASSESSMENT_PROTOCOL.length} completadas`
@@ -135,9 +135,9 @@ function TestBody({
 
   return (
     <section className="ax-enter flex flex-1 flex-col">
-      <p className="mt-8 text-[12px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">{test.area}</p>
-      <h1 className="mt-1.5 text-[30px] font-bold leading-[1.1] tracking-[-0.03em]">{testName(test, assessment)}</h1>
-      <p className="mt-3 text-[15.5px] leading-relaxed text-pretty">{test.instruction}</p>
+      <p className="mt-8 text-caption font-semibold tracking-[0.14em] text-muted-foreground uppercase">{test.area}</p>
+      <h1 className="mt-1.5 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">{testName(test, assessment)}</h1>
+      <p className="mt-3 text-callout leading-relaxed text-pretty">{test.instruction}</p>
 
       {test.perSide && (
         <SidesRow assessment={assessment} side={side} onUndoLeft={onUndoLeft} />
@@ -172,19 +172,19 @@ function SidesRow({
   return (
     <div className="mt-6 grid grid-cols-2 divide-x divide-border border-y border-border text-center">
       <div className="py-3">
-        <p className="text-[12px] font-medium text-muted-foreground">Izquierdo</p>
-        <p className={cn('mt-0.5 text-[17px] font-semibold tabular-nums', side === 'left' && 'text-primary')}>
+        <p className="text-caption font-medium text-muted-foreground">Izquierdo</p>
+        <p className={cn('mt-0.5 text-body font-semibold tabular-nums', side === 'left' && 'text-primary')}>
           {left !== null ? `${left} reps` : side === 'left' ? 'Ahora' : '—'}
         </p>
         {left !== null && (
-          <button type="button" onClick={onUndoLeft} className="ax-press min-h-11 px-2 text-[13px] font-semibold text-primary">
+          <button type="button" onClick={onUndoLeft} className="ax-press min-h-11 px-2 text-footnote font-semibold text-primary">
             Corregir
           </button>
         )}
       </div>
       <div className="py-3">
-        <p className="text-[12px] font-medium text-muted-foreground">Derecho</p>
-        <p className={cn('mt-0.5 text-[17px] font-semibold tabular-nums', side === 'right' && 'text-primary')}>
+        <p className="text-caption font-medium text-muted-foreground">Derecho</p>
+        <p className={cn('mt-0.5 text-body font-semibold tabular-nums', side === 'right' && 'text-primary')}>
           {side === 'right' ? 'Ahora' : '—'}
         </p>
       </div>
@@ -225,7 +225,7 @@ function RepsEntry({
   const result = useResultValue(measure, initial)
   return (
     <div className="mt-auto pt-8">
-      <p className="mb-2 text-center text-[13px] font-semibold text-muted-foreground">{label}</p>
+      <p className="mb-2 text-center text-footnote font-semibold text-muted-foreground">{label}</p>
       <ValueStepper
         value={result.text}
         unit={UNIT[measure]}
@@ -271,7 +271,7 @@ function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: nu
   if (stopped) {
     return (
       <div className="mt-auto pt-8">
-        <p className="mb-2 text-center text-[13px] font-semibold text-muted-foreground">Resultado · puedes corregirlo</p>
+        <p className="mb-2 text-center text-footnote font-semibold text-muted-foreground">Resultado · puedes corregirlo</p>
         <ValueStepper
           value={result.text}
           unit="segundos"
@@ -289,7 +289,7 @@ function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: nu
             setStartedAt(null)
             setStopped(false)
           }}
-          className="ax-press mt-2 min-h-11 w-full text-[14px] font-semibold text-muted-foreground"
+          className="ax-press mt-2 min-h-11 w-full text-subhead font-semibold text-muted-foreground"
         >
           Repetir cronómetro
         </button>
@@ -299,10 +299,10 @@ function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: nu
 
   return (
     <div className="mt-auto flex flex-col items-center pt-8">
-      <span role="timer" aria-live="off" className="text-[72px] font-bold leading-none tracking-[-0.04em] tabular-nums">
+      <span role="timer" aria-live="off" className="text-hero font-bold leading-none tracking-[-0.04em] tabular-nums">
         {formatDuration(elapsed)}
       </span>
-      <p className="mt-2 text-[14px] text-muted-foreground">
+      <p className="mt-2 text-subhead text-muted-foreground">
         {startedAt === null ? 'Ponte en posición y empieza' : 'Para cuando la técnica deje de ser válida'}
       </p>
       {startedAt === null ? (
@@ -313,7 +313,7 @@ function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: nu
             setNow(start)
             setStartedAt(start)
           }}
-          className="ax-press mt-8 h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+          className="ax-press mt-8 h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
         >
           Empezar cronómetro
         </button>
@@ -324,7 +324,7 @@ function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: nu
             result.set(elapsed)
             setStopped(true)
           }}
-          className="ax-press mt-8 h-[52px] w-full rounded-2xl bg-foreground text-[15px] font-semibold text-background"
+          className="ax-press mt-8 h-[52px] w-full rounded-2xl bg-foreground text-callout font-semibold text-background"
         >
           Parar
         </button>
@@ -347,7 +347,7 @@ function FinishButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="ax-press mt-5 h-[52px] w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+      className="ax-press mt-5 h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-50"
     >
       {label}
     </button>

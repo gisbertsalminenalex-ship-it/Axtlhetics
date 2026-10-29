@@ -22,20 +22,20 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
 
   return (
     <section aria-labelledby="weekly-review">
-      <h3 id="weekly-review" className="mt-9 text-[15px] font-semibold tracking-[-0.01em]">
+      <h3 id="weekly-review" className="mt-9 text-callout font-semibold tracking-[-0.01em]">
         La semana pasada
       </h3>
-      <p className="mt-1 text-[13px] tabular-nums text-muted-foreground">
+      <p className="mt-1 text-footnote tabular-nums text-muted-foreground">
         {review.sessions} de {review.planned} {review.planned === 1 ? 'sesión' : 'sesiones'}
         {rest.length > 0 ? ` · ${rest.join(' · ')}` : ''}
       </p>
 
       {review.improvements.length > 0 && (
         <>
-          <p className="mt-4 text-[13px] font-medium text-muted-foreground">Mejoraste</p>
+          <p className="mt-4 text-footnote font-medium text-muted-foreground">Mejoraste</p>
           <ul className="mt-1.5 space-y-1">
             {review.improvements.map((item) => (
-              <li key={item.exerciseId} className="text-[14.5px] font-medium tabular-nums">
+              <li key={item.exerciseId} className="text-subhead font-medium tabular-nums">
                 {describeImprovement(item)}
               </li>
             ))}
@@ -43,10 +43,10 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
         </>
       )}
 
-      <p className="mt-4 text-[13px] font-medium text-muted-foreground">Esta semana</p>
+      <p className="mt-4 text-footnote font-medium text-muted-foreground">Esta semana</p>
       <ul className="mt-1.5 space-y-2">
         {review.next.map((line) => (
-          <li key={line} className="flex gap-2.5 text-[14px] leading-snug text-pretty">
+          <li key={line} className="flex gap-2.5 text-subhead leading-snug text-pretty">
             <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             <span>{line}</span>
           </li>

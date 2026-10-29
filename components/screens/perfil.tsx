@@ -187,7 +187,7 @@ export function PerfilScreen({
     <div className="px-6 pb-10">
       <header className="flex items-center justify-between pt-2 pb-6">
         {isOnboarding ? (
-          <span className="text-[15px] font-bold tracking-[0.18em] text-foreground">
+          <span className="text-callout font-bold tracking-[0.18em] text-foreground">
             AXTHLETICS
           </span>
         ) : (
@@ -200,7 +200,7 @@ export function PerfilScreen({
             >
               <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
             </button>
-            <h1 className="text-[16px] font-semibold tracking-[-0.01em]">Tu perfil</h1>
+            <h1 className="text-body font-semibold tracking-[-0.01em]">Tu perfil</h1>
             <span className="h-11 w-11" aria-hidden="true" />
           </>
         )}
@@ -208,10 +208,10 @@ export function PerfilScreen({
 
       {isOnboarding && (
         <>
-          <h1 className="text-[34px] font-bold leading-[1.05] tracking-[-0.03em] text-balance">
+          <h1 className="text-title-lg font-bold leading-[1.05] tracking-[-0.03em] text-balance">
             Empecemos por ti.
           </h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground text-pretty">
+          <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
             AXIS necesita conocerte para decidir qué entrenamiento tiene sentido cada día.
             Puedes cambiarlo cuando quieras.
           </p>
@@ -304,7 +304,7 @@ export function PerfilScreen({
       </div>
 
       <SectionTitle>Tu material</SectionTitle>
-      <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">
         AXIS solo te propone ejercicios que puedes hacer con él, y con los pesos que tienes.
       </p>
       <div className="mt-1">
@@ -315,7 +315,7 @@ export function PerfilScreen({
       </div>
 
       <SectionTitle>Tus deportes</SectionTitle>
-      <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">
         Entrenamientos de cada semana y partidos de un día concreto. AXIS los tiene en
         cuenta para no proponerte una sesión que interfiera.
       </p>
@@ -327,8 +327,8 @@ export function PerfilScreen({
             className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4"
           >
             <span className="flex-1">
-              <span className="block text-[15px] font-semibold">{activity.name}</span>
-              <span className="block text-[12.5px] text-muted-foreground">
+              <span className="block text-callout font-semibold">{activity.name}</span>
+              <span className="block text-caption text-muted-foreground">
                 {isDatedActivity(activity)
                   ? `Solo el ${formatShortDate(activity.date).toLowerCase()}`
                   : `Cada ${WEEKDAY_LABELS[activity.weekday].toLowerCase()}`}
@@ -343,7 +343,7 @@ export function PerfilScreen({
                   value={activity.date}
                   onChange={(event) => void updateActivity(activity.id, { date: event.target.value })}
                   aria-label={`Fecha de ${activity.name}`}
-                  className="mt-2 h-11 rounded-2xl border border-border bg-background px-3 text-[14px] font-semibold outline-none"
+                  className="mt-2 h-11 rounded-2xl border border-border bg-background px-3 text-subhead font-semibold outline-none"
                 >
                   {dateChoices(today, activity.date).map((day) => (
                     <option key={day} value={day}>
@@ -364,7 +364,7 @@ export function PerfilScreen({
           </li>
         ))}
         {activities.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-border px-4 py-5 text-center text-[13.5px] text-muted-foreground">
+          <li className="rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
             Todavía no has añadido ninguna actividad.
           </li>
         )}
@@ -384,7 +384,7 @@ export function PerfilScreen({
           {isOnboarding && <ArrowRight className="h-4 w-4" />}
         </PrimaryButton>
         {!canSave && (
-          <p className="mt-3 text-center text-[12.5px] text-muted-foreground">
+          <p className="mt-3 text-center text-caption text-muted-foreground">
             Añade tu nombre, un objetivo y al menos un día disponible.
           </p>
         )}
@@ -417,21 +417,21 @@ function DangerZone() {
 
       {!confirming ? (
         <>
-          <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-footnote leading-relaxed text-muted-foreground">
             Todo lo que registras vive solo en este dispositivo. Puedes borrarlo cuando
             quieras y empezar de cero.
           </p>
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="ax-press mt-4 min-h-11 w-full rounded-2xl border border-border bg-background text-[14px] font-semibold text-error"
+            className="ax-press mt-4 min-h-11 w-full rounded-2xl border border-border bg-background text-subhead font-semibold text-error"
           >
             Cerrar sesión y borrar mis datos
           </button>
         </>
       ) : (
         <div className="ax-enter mt-2">
-          <p className="text-[13.5px] leading-relaxed">
+          <p className="text-footnote leading-relaxed">
             Se borrarán tu perfil, tus deportes, tu recuperación y{' '}
             {sessions.length === 1
               ? 'el entrenamiento que tienes guardado'
@@ -445,7 +445,7 @@ function DangerZone() {
               type="button"
               onClick={() => setConfirming(false)}
               disabled={clearing}
-              className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-[14px] font-semibold disabled:opacity-40"
+              className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40"
             >
               Cancelar
             </button>
@@ -456,7 +456,7 @@ function DangerZone() {
                 void clearAllData()
               }}
               disabled={clearing}
-              className="ax-press h-12 flex-1 rounded-2xl bg-error text-[14px] font-semibold text-white disabled:opacity-40"
+              className="ax-press h-12 flex-1 rounded-2xl bg-error text-subhead font-semibold text-white disabled:opacity-40"
             >
               {clearing ? 'Borrando…' : 'Borrar todo'}
             </button>
@@ -573,7 +573,7 @@ function ActivityForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold text-primary"
+        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary"
       >
         <Plus className="h-4 w-4" strokeWidth={2.25} />
         Añadir actividad
@@ -601,7 +601,7 @@ function ActivityForm({
             value={date}
             onChange={(event) => setDate(event.target.value)}
             aria-label="Qué día"
-            className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold outline-none"
+            className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold outline-none"
           >
             {dateChoices(today, date).map((day) => (
               <option key={day} value={day}>
@@ -625,8 +625,8 @@ function ActivityForm({
         aria-pressed={loadsLegs}
         className={
           loadsLegs
-            ? 'min-h-11 rounded-full border border-primary bg-primary px-4 text-[14px] font-medium text-primary-foreground'
-            : 'min-h-11 rounded-full border border-border bg-background px-4 text-[14px] font-medium text-muted-foreground'
+            ? 'min-h-11 rounded-full border border-primary bg-primary px-4 text-subhead font-medium text-primary-foreground'
+            : 'min-h-11 rounded-full border border-border bg-background px-4 text-subhead font-medium text-muted-foreground'
         }
       >
         Carga {MUSCLE_GROUP_LABELS.piernas.toLowerCase()}
@@ -641,7 +641,7 @@ function ActivityForm({
         type="button"
         onClick={() => setWithSchedule((current) => !current)}
         aria-pressed={withSchedule}
-        className="ax-press mt-4 min-h-11 w-full text-left text-[13.5px] font-medium text-muted-foreground"
+        className="ax-press mt-4 min-h-11 w-full text-left text-footnote font-medium text-muted-foreground"
       >
         {withSchedule ? '− Quitar la hora' : '+ Añadir una hora fija (opcional)'}
       </button>
@@ -654,7 +654,7 @@ function ActivityForm({
               value={startHour}
               onChange={(event) => setStartHour(Number(event.target.value))}
               aria-label="Hora de inicio"
-              className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold tabular-nums outline-none"
+              className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold tabular-nums outline-none"
             >
               {HOUR_OPTIONS.map((hour) => (
                 <option key={hour} value={hour}>
@@ -670,7 +670,7 @@ function ActivityForm({
               value={durationHours}
               onChange={(event) => setDurationHours(Number(event.target.value))}
               aria-label="Duración"
-              className="h-11 rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold tabular-nums outline-none"
+              className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold tabular-nums outline-none"
             >
               {[1, 2, 3].map((hours) => (
                 <option key={hours} value={hours}>
@@ -687,7 +687,7 @@ function ActivityForm({
           type="button"
           onClick={reset}
           disabled={saving}
-          className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-[14px] font-semibold text-muted-foreground disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-subhead font-semibold text-muted-foreground disabled:opacity-40"
         >
           Cancelar
         </button>
@@ -695,14 +695,14 @@ function ActivityForm({
           type="button"
           onClick={() => void submit()}
           disabled={!canSave || saving}
-          className="ax-press h-12 flex-1 rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-2xl bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-40"
         >
           {saving ? 'Guardando…' : 'Añadir'}
         </button>
       </div>
 
       {!canSave && (
-        <p className="mt-3 text-center text-[12.5px] text-muted-foreground">
+        <p className="mt-3 text-center text-caption text-muted-foreground">
           Ponle nombre y marca al menos un día.
         </p>
       )}

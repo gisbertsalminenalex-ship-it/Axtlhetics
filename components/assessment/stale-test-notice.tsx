@@ -14,7 +14,7 @@ export function StaleTestNotice({ className }: { className?: string }) {
   if (!assessments.staleTestClosed) return null
 
   return (
-    <p role="status" className={cn('text-[13px] leading-snug text-muted-foreground text-pretty', className)}>
+    <p role="status" className={cn('text-footnote leading-snug text-muted-foreground text-pretty', className)}>
       <span className="font-semibold text-foreground">Test de evolución:</span> el que dejaste a medias se cerró
       sin completar y no se comparará con los demás.
     </p>

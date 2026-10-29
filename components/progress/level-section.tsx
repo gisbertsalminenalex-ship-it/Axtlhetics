@@ -30,27 +30,27 @@ export function LevelSection() {
 
   return (
     <>
-      <p className="mt-4 text-[13px] font-medium text-muted-foreground">Tu nivel</p>
+      <p className="mt-4 text-footnote font-medium text-muted-foreground">Tu nivel</p>
       <div className="mt-2 flex items-baseline justify-between gap-3">
-        <span className="text-[22px] font-bold tracking-[-0.02em]">
+        <span className="text-headline font-bold tracking-[-0.02em]">
           Nivel {level} · {rankLabel}
         </span>
-        <span className="text-[12.5px] tabular-nums text-muted-foreground">{totalXp.toLocaleString('es-ES')} XP</span>
+        <span className="text-caption tabular-nums text-muted-foreground">{totalXp.toLocaleString('es-ES')} XP</span>
       </div>
       <div className="mt-2 h-2 rounded-full bg-track" aria-hidden="true">
         <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(share * 100)}%` }} />
       </div>
-      <p className="mt-1.5 text-[12.5px] tabular-nums text-muted-foreground">
+      <p className="mt-1.5 text-caption tabular-nums text-muted-foreground">
         {intoLevel} de {levelXp} XP para el nivel {level + 1}
         {nextRank && ` · ${nextRank.label} desde el nivel ${nextRank.fromLevel}`}
       </p>
 
       {levelsReached.length > 0 && (
         <>
-          <p className="mt-5 text-[13px] font-medium">Niveles alcanzados</p>
+          <p className="mt-5 text-footnote font-medium">Niveles alcanzados</p>
           <ul className="mt-2 space-y-1">
             {levelsReached.slice(0, SHOWN).map((item) => (
-              <li key={item.level} className="flex justify-between text-[13px] tabular-nums text-muted-foreground">
+              <li key={item.level} className="flex justify-between text-footnote tabular-nums text-muted-foreground">
                 <span>Nivel {item.level}</span>
                 <span>{formatShortDate(item.dayKey)}</span>
               </li>
@@ -61,10 +61,10 @@ export function LevelSection() {
 
       {milestones.length > 0 && (
         <>
-          <p className="mt-5 text-[13px] font-medium">Hitos</p>
+          <p className="mt-5 text-footnote font-medium">Hitos</p>
           <ul className="mt-2 space-y-1">
             {milestones.slice(0, SHOWN).map((event) => (
-              <li key={`${event.kind}-${event.at}`} className="flex justify-between text-[13px] tabular-nums text-muted-foreground">
+              <li key={`${event.kind}-${event.at}`} className="flex justify-between text-footnote tabular-nums text-muted-foreground">
                 <span>{event.label}</span>
                 <span>{formatShortDate(event.dayKey)}</span>
               </li>
@@ -74,18 +74,18 @@ export function LevelSection() {
       )}
 
       <details className="mt-5">
-        <summary className="flex min-h-11 cursor-pointer items-center text-[13px] font-medium text-primary">
+        <summary className="flex min-h-11 cursor-pointer items-center text-footnote font-medium text-primary">
           Cómo se ganan los XP
         </summary>
         <ul className="space-y-1">
           {RULES.map(([label, xp]) => (
-            <li key={label} className="flex justify-between gap-3 text-[13px] text-muted-foreground">
+            <li key={label} className="flex justify-between gap-3 text-footnote text-muted-foreground">
               <span>{label}</span>
               <span className="tabular-nums">+{xp}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+        <p className="mt-2 text-caption leading-relaxed text-muted-foreground text-pretty">
           Descansar no resta y no se pierden niveles. Entrenar más de lo previsto no da más XP.
         </p>
       </details>

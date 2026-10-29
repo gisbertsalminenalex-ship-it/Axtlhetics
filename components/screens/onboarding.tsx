@@ -342,12 +342,12 @@ export function OnboardingScreen() {
             <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
           </button>
         ) : (
-          <span className="text-[15px] font-bold tracking-[0.18em] text-foreground">
+          <span className="text-callout font-bold tracking-[0.18em] text-foreground">
             AXTHLETICS
           </span>
         )}
 
-        <span className="text-[12.5px] font-medium tabular-nums text-muted-foreground">
+        <span className="text-caption font-medium tabular-nums text-muted-foreground">
           {safeIndex + 1} de {steps.length}
         </span>
       </header>
@@ -360,11 +360,11 @@ export function OnboardingScreen() {
       </div>
 
       <div key={step.key} className="ax-enter flex flex-1 flex-col pt-10">
-        <h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em] text-balance">
+        <h1 className="text-title-lg font-bold leading-[1.1] tracking-[-0.03em] text-balance">
           {step.question}
         </h1>
         {step.hint && (
-          <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground text-pretty">
+          <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
             {step.hint}
           </p>
         )}
@@ -564,7 +564,7 @@ function SportsPicker({
         type="button"
         onClick={onAdd}
         disabled={value.trim().length === 0}
-        className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold text-primary disabled:opacity-35"
+        className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary disabled:opacity-35"
       >
         <Plus className="h-4 w-4" strokeWidth={2.25} />
         Añadir deporte
@@ -578,9 +578,9 @@ function SportsPicker({
               className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3"
             >
               <span className="flex-1">
-                <span className="block text-[15px] font-semibold">{sport.name}</span>
+                <span className="block text-callout font-semibold">{sport.name}</span>
                 {sport.weekdays.length > 0 && (
-                  <span className="block text-[12.5px] text-muted-foreground">
+                  <span className="block text-caption text-muted-foreground">
                     {sport.weekdays.map((day) => WEEKDAY_LABELS[day]).join(', ')}
                   </span>
                 )}
@@ -597,7 +597,7 @@ function SportsPicker({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 text-[13.5px] text-muted-foreground">
+        <p className="mt-4 text-footnote text-muted-foreground">
           Puedes seguir sin añadir ninguno y hacerlo más tarde desde tu perfil.
         </p>
       )}
@@ -633,10 +633,10 @@ function IntensityPicker({
                     : 'border-border bg-background',
                 )}
               >
-                <span className="block text-[15px] font-semibold">{option.label}</span>
+                <span className="block text-callout font-semibold">{option.label}</span>
                 <span
                   className={cn(
-                    'mt-0.5 block text-[13px] leading-snug',
+                    'mt-0.5 block text-footnote leading-snug',
                     selected ? 'text-primary-foreground/70' : 'text-muted-foreground',
                   )}
                 >
@@ -655,7 +655,7 @@ function IntensityPicker({
           onClick={onToggleLegs}
           aria-pressed={sport.loadsLegs}
           className={cn(
-            'ax-press mt-2.5 min-h-11 rounded-full border px-4 text-[14px] font-medium transition-colors',
+            'ax-press mt-2.5 min-h-11 rounded-full border px-4 text-subhead font-medium transition-colors',
             sport.loadsLegs
               ? 'border-primary bg-primary text-primary-foreground'
               : 'border-border bg-background text-muted-foreground',
@@ -663,7 +663,7 @@ function IntensityPicker({
         >
           Sí, carga {MUSCLE_GROUP_LABELS.piernas.toLowerCase()}
         </button>
-        <p className="mt-2 text-[12.5px] text-muted-foreground">
+        <p className="mt-2 text-caption text-muted-foreground">
           Si lo marcas, AXIS evitará encadenar una sesión de piernas exigente el mismo día.
         </p>
       </div>

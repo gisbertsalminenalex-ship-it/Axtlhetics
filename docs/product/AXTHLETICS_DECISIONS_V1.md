@@ -2471,6 +2471,26 @@ El motor decide igual; las cifras, el veredicto y la propuesta siguen siendo del
 
 ---
 
+## D-075 — Rediseño premium: base visual
+
+**Fecha:** 2026-10-29 · **Estado:** en revisión, en local (rama `rediseno-premium`, sin publicar) · Pedido por Alex: «quiero que se sienta como una app premium», con interfaz minimalista, microinteracciones fluidas, tipografía cuidada y buen uso del espacio en blanco. Dirección elegida: pulir el lenguaje aprobado, no cambiarlo. Sin modo oscuro por ahora.
+
+**El problema:** 26 tamaños de letra casi iguales, bordes `#D6D6D6` que daban aspecto de boceto, radios de 24/32 px que lo redondeaban todo, y en Inicio varios lenguajes visuales compitiendo (tarjeta oscura, anillos, rejilla de accesos genérica).
+
+### Qué cambia
+
+- **Tipografía:** once tamaños con nombre, con interlineado y tracking propios, e Inter con su eje de tamaño óptico (Design System §7).
+- **Color:** borde fino `#E8E8EA` y `border-strong` `#D6D6D6` para controles; superficie `#F4F4F6`; ink `#0C111B` (§6).
+- **Forma:** radios de 28 / 20 px; los botones principales pasan a pill (§9).
+- **Movimiento:** curva `--ax-spring` para lo que cambia de sitio. La barra inferior tiene un indicador que se desliza entre tabs.
+- **Inicio:** fecha y saludo editorial, tarjeta de AXIS con duración y ejercicios en pills, estado de hoy en un solo módulo que lleva a Recuperación, semana con el número de cada día, y accesos como lista agrupada.
+
+### Lo que no cambia
+
+Lógica, datos, textos de AXIS y funciones. Solo cambia cómo se ve.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

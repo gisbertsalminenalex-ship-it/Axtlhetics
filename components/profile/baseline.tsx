@@ -36,7 +36,7 @@ export function BaselinePicker({
   return (
     <div>
       {measures.weight && (
-        <p className="py-3 text-[14px] leading-relaxed text-pretty">
+        <p className="py-3 text-subhead leading-relaxed text-pretty">
           Tu peso de partida: <span className="font-semibold tabular-nums">{weightKg.toLocaleString('es-ES')} kg</span>, el que
           has puesto antes.
         </p>
@@ -63,7 +63,7 @@ export function BaselinePicker({
                     max={PERIMETER_LIMITS.max}
                     onChange={(next) => onTape({ ...tape, [key]: next })}
                   />
-                  <p className="-mt-2 pb-3 text-[12px] text-muted-foreground">{PERIMETER_HINTS[key]}</p>
+                  <p className="-mt-2 pb-3 text-caption text-muted-foreground">{PERIMETER_HINTS[key]}</p>
                 </div>
               ))}
             </div>
@@ -72,7 +72,7 @@ export function BaselinePicker({
       )}
 
       {measures.test && (
-        <p className="mt-4 rounded-2xl bg-surface px-4 py-3 text-[13.5px] leading-relaxed text-pretty">
+        <p className="mt-4 rounded-2xl bg-surface px-4 py-3 text-footnote leading-relaxed text-pretty">
           Para la fuerza y la resistencia, tu punto de partida es el <span className="font-semibold">test de evolución</span>:
           te lo propongo en Entrenamiento, en «Tu evaluación inicial», el primer día que llegues bien.
         </p>

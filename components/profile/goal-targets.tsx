@@ -26,7 +26,7 @@ export function GoalTargets() {
   return (
     <>
       <SectionTitle>Objetivos medibles</SectionTitle>
-      <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+      <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">
         Un ejercicio, una cifra y una fecha. AXIS mide tu mejor serie y te dice si vas bien.
       </p>
 
@@ -38,10 +38,10 @@ export function GoalTargets() {
           return (
             <li key={target.id} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">
               <span className="flex-1">
-                <span className="block text-[15px] font-semibold">
+                <span className="block text-callout font-semibold">
                   {exercise?.name ?? 'Ejercicio retirado'} · {target.target} {unit}
                 </span>
-                <span className="block text-[12.5px] text-muted-foreground tabular-nums">
+                <span className="block text-caption text-muted-foreground tabular-nums">
                   Antes del {formatShortDate(target.deadline).toLowerCase()} · llevas {progress.current} {unit} ·{' '}
                   <span className={progress.status === 'behind' || progress.status === 'expired' ? 'text-foreground' : 'text-primary'}>
                     {TARGET_STATUS_LABELS[progress.status]}
@@ -60,7 +60,7 @@ export function GoalTargets() {
           )
         })}
         {targets.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-border px-4 py-5 text-center text-[13.5px] text-muted-foreground">
+          <li className="rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
             Todavía no tienes ningún objetivo medible.
           </li>
         )}
@@ -101,7 +101,7 @@ function TargetForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-[14px] font-semibold text-primary"
+        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary"
       >
         <Plus className="h-4 w-4" strokeWidth={2.25} />
         Añadir objetivo
@@ -117,7 +117,7 @@ function TargetForm({
           value={exerciseId}
           onChange={(event) => setExerciseId(event.target.value)}
           aria-label="Ejercicio"
-          className="h-11 max-w-[60%] rounded-2xl border border-border bg-background px-3 text-[15px] font-semibold outline-none"
+          className="h-11 max-w-[60%] rounded-2xl border border-border bg-background px-3 text-callout font-semibold outline-none"
         >
           {TARGET_EXERCISES.map((item) => (
             <option key={item.id} value={item.id}>
@@ -136,7 +136,7 @@ function TargetForm({
         onChange={setTarget}
       />
       <StepperField label="Plazo" value={weeks} unit="sem" min={2} max={52} onChange={setWeeks} />
-      <p className="pb-3 text-[12.5px] text-muted-foreground">
+      <p className="pb-3 text-caption text-muted-foreground">
         Hasta el {formatShortDate(deadline).toLowerCase()}. En una sola serie.
       </p>
       <PrimaryButton onClick={() => void submit()} disabled={!exercise || saving}>

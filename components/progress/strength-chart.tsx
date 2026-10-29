@@ -46,8 +46,8 @@ export function StrengthChart({
   return (
     <figure className="mt-4">
       <figcaption className="flex items-baseline justify-between">
-        <span className="text-[13px] font-medium">{title}</span>
-        <span className="text-[12px] tabular-nums text-muted-foreground">
+        <span className="text-footnote font-medium">{title}</span>
+        <span className="text-caption tabular-nums text-muted-foreground">
           {formatShortDate(shown.dayKey)} · {formatValue(shown.best)} {unit}
         </span>
       </figcaption>
@@ -116,12 +116,12 @@ export function StrengthChart({
       </svg>
 
       {points.length === 1 && (
-        <p className="mt-1 text-[12.5px] text-muted-foreground">Una sola sesión: la curva empieza con la siguiente.</p>
+        <p className="mt-1 text-caption text-muted-foreground">Una sola sesión: la curva empieza con la siguiente.</p>
       )}
 
       <details className="mt-2">
-        <summary className="flex min-h-11 cursor-pointer items-center text-[13px] font-medium text-muted-foreground">Ver los datos</summary>
-        <table className="w-full text-[13px] tabular-nums">
+        <summary className="flex min-h-11 cursor-pointer items-center text-footnote font-medium text-muted-foreground">Ver los datos</summary>
+        <table className="w-full text-footnote tabular-nums">
           <thead>
             <tr className="text-left text-muted-foreground">
               <th className="py-1 font-medium">Sesión</th>

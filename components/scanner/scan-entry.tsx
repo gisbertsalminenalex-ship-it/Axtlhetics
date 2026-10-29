@@ -25,13 +25,13 @@ export function ScanEntry({ onOpen }: { onOpen: () => void }) {
   return (
     <section className="ax-enter mt-3 flex items-center gap-3 rounded-3xl bg-surface p-4 pl-5">
       <div className="flex-1">
-        <p className="text-[15px] font-semibold tracking-[-0.01em]">Escáner corporal</p>
-        <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground text-pretty">{text}</p>
+        <p className="text-callout font-semibold tracking-[-0.01em]">Escáner corporal</p>
+        <p className="mt-0.5 text-footnote leading-snug text-muted-foreground text-pretty">{text}</p>
       </div>
       <button
         type="button"
         onClick={onOpen}
-        className="ax-press min-h-11 shrink-0 rounded-full border border-border bg-background px-4 text-[13.5px] font-semibold"
+        className="ax-press min-h-11 shrink-0 rounded-full border border-border bg-background px-4 text-footnote font-semibold"
       >
         {label}
       </button>

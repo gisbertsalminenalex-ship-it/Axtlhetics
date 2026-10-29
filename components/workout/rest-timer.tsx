@@ -34,25 +34,25 @@ export function RestTimer({
 }) {
   return (
     <section className="ax-enter" aria-label="Descanso">
-      <p className="mt-7 text-[12px] font-semibold tracking-[0.14em] text-primary">DESCANSO</p>
+      <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">DESCANSO</p>
 
       <CountdownRing remainingSeconds={rest.remainingSeconds} totalSeconds={rest.totalSeconds} />
 
-      <p className="mt-6 text-[13px] text-muted-foreground">{nextLabel}</p>
-      <p className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em]">{nextName}</p>
-      {nextDetail && <p className="mt-0.5 text-[14px] text-muted-foreground tabular-nums">{nextDetail}</p>}
+      <p className="mt-6 text-footnote text-muted-foreground">{nextLabel}</p>
+      <p className="mt-0.5 text-body font-semibold tracking-[-0.01em]">{nextName}</p>
+      {nextDetail && <p className="mt-0.5 text-subhead text-muted-foreground tabular-nums">{nextDetail}</p>}
 
       <button
         type="button"
         onClick={onSkip}
-        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground"
+        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
       >
         Saltar descanso
       </button>
       <button
         type="button"
         onClick={onExtend}
-        className="ax-press mt-2 min-h-11 w-full text-[13.5px] font-semibold text-primary tabular-nums"
+        className="ax-press mt-2 min-h-11 w-full text-footnote font-semibold text-primary tabular-nums"
       >
         + {REST_EXTENSION_SECONDS} s
       </button>
