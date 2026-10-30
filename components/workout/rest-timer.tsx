@@ -34,18 +34,18 @@ export function RestTimer({
 }) {
   return (
     <section className="ax-enter" aria-label="Descanso">
-      <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">DESCANSO</p>
+      <p className="mt-7 text-overline font-semibold tracking-[0.16em] text-primary">DESCANSO</p>
 
       <CountdownRing remainingSeconds={rest.remainingSeconds} totalSeconds={rest.totalSeconds} />
 
       <p className="mt-6 text-footnote text-muted-foreground">{nextLabel}</p>
-      <p className="mt-0.5 text-body font-semibold tracking-[-0.01em]">{nextName}</p>
+      <p className="mt-0.5 text-headline font-semibold">{nextName}</p>
       {nextDetail && <p className="mt-0.5 text-subhead text-muted-foreground tabular-nums">{nextDetail}</p>}
 
       <button
         type="button"
         onClick={onSkip}
-        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
+        className="ax-press mt-6 flex h-14 w-full items-center justify-center rounded-full bg-primary text-callout font-semibold text-primary-foreground"
       >
         Saltar descanso
       </button>

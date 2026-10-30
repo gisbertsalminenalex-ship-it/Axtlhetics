@@ -146,7 +146,7 @@ export function EntrenamientoActivo() {
   }
 
   return (
-    <div className="flex min-h-full flex-col px-6 pb-8">
+    <div className="flex min-h-full flex-col px-5 pb-8">
       {/* Top bar */}
       <header className="flex items-center justify-between pt-2 pb-5">
         <button
@@ -163,9 +163,9 @@ export function EntrenamientoActivo() {
           aria-label="Salir del entrenamiento"
           className="ax-press -ml-2 flex h-11 w-11 items-center justify-center"
         >
-          <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
+          <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
-        <h1 className="text-body font-semibold tracking-[-0.01em]">
+        <h1 className="min-w-0 truncate px-2 text-callout font-semibold">
           {activeWorkout.plan.title}
         </h1>
         <button
@@ -180,21 +180,22 @@ export function EntrenamientoActivo() {
       </header>
 
       {/* Progress */}
-      <div className="flex items-center gap-2">
-        {Array.from({ length: totalExercises }).map((_, i) => (
-          <span
-            key={i}
-            className={cn(
-              'h-1.5 flex-1 rounded-full transition-colors',
-              i < doneExercises ? 'bg-primary' : 'bg-border',
-            )}
-          />
-        ))}
-        <span className="ml-2 shrink-0 text-right text-footnote font-semibold tabular-nums">
-          {formatDuration(elapsed)}
-          <span className="block text-overline font-normal text-muted-foreground">
-            Tiempo total
-          </span>
+      {/* Un tramo fino por ejercicio: hechos en azul, el actual a medias (D-075). */}
+      <div className="flex items-center gap-4">
+        <div className="flex flex-1 gap-1">
+          {Array.from({ length: totalExercises }).map((_, i) => (
+            <span
+              key={i}
+              className={cn(
+                'h-1 flex-1 rounded-full transition-colors duration-300',
+                i < doneExercises ? 'bg-primary' : i === doneExercises ? 'bg-primary/35' : 'bg-track',
+              )}
+            />
+          ))}
+        </div>
+        <span className="shrink-0 text-right">
+          <span className="block text-callout font-semibold tabular-nums">{formatDuration(elapsed)}</span>
+          <span className="block text-overline text-muted-foreground">Tiempo total</span>
         </span>
       </div>
 
@@ -220,12 +221,12 @@ export function EntrenamientoActivo() {
       ) : (
         <>
           {/* Current exercise */}
-          <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">
+          <p className="mt-7 text-overline font-semibold tracking-[0.16em] text-primary">
             {phaseLabel(entry)?.toUpperCase() ?? 'EJERCICIO ACTUAL'}
           </p>
           <div key={entry.exerciseId} className="ax-enter mt-3 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-title font-bold tracking-[-0.02em]">{entry.name}</h2>
+              <h2 className="text-title font-bold text-balance">{entry.name}</h2>
               <p
                 key={entry.sets.length}
                 className="ax-fade mt-1 text-subhead text-muted-foreground tabular-nums"
@@ -292,7 +293,7 @@ export function EntrenamientoActivo() {
               <button
                 type="button"
                 onClick={startWork}
-                className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground tabular-nums"
+                className="ax-press mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-semibold text-primary-foreground tabular-nums"
               >
                 <Play className="h-[18px] w-[18px]" strokeWidth={2.25} />
                 Empezar · {entry.reps} s
@@ -309,7 +310,7 @@ export function EntrenamientoActivo() {
             <button
               type="button"
               onClick={completeSet}
-              className="ax-press mt-4 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
+              className="ax-press mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-semibold text-primary-foreground"
             >
               Completar serie
               <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
@@ -325,14 +326,14 @@ export function EntrenamientoActivo() {
       {/* Next exercise */}
       {upcoming && (
         <>
-          <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">
+          <p className="mt-7 text-overline font-semibold tracking-[0.16em] text-primary">
             SIGUIENTE EJERCICIO
           </p>
-          <div className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left">
+          <div className="mt-3 flex w-full items-center gap-3.5 rounded-2xl bg-surface p-3 text-left">
             {hasExerciseFigure(upcoming.exerciseId) ? (
-              <ExerciseFigure exerciseId={upcoming.exerciseId} animate={false} className="h-12 w-12 shrink-0 rounded-xl bg-surface" />
+              <ExerciseFigure exerciseId={upcoming.exerciseId} animate={false} className="h-12 w-12 shrink-0 rounded-xl bg-background" />
             ) : upcoming.imageUrl ? (
-              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface">
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-background">
                 <Image
                   src={upcoming.imageUrl}
                   alt={upcoming.name}
@@ -342,7 +343,7 @@ export function EntrenamientoActivo() {
                 />
               </div>
             ) : (
-              <div className="h-12 w-12 shrink-0 rounded-xl bg-surface" aria-hidden="true" />
+              <div className="h-12 w-12 shrink-0 rounded-xl bg-background" aria-hidden="true" />
             )}
             <span className="flex-1">
               <span className="block text-callout font-semibold">{upcoming.name}</span>
@@ -522,9 +523,9 @@ function WorkPanel({
 }) {
   return (
     <section className="ax-enter" aria-label="Cronómetro">
-      <p className="mt-7 text-caption font-semibold tracking-[0.14em] text-primary">EN MARCHA</p>
+      <p className="mt-7 text-overline font-semibold tracking-[0.16em] text-primary">EN MARCHA</p>
       <CountdownRing remainingSeconds={work.remainingSeconds} totalSeconds={work.totalSeconds} />
-      <p className="mt-6 text-body font-semibold tracking-[-0.01em]">{entry.name}</p>
+      <p className="mt-6 text-headline font-semibold">{entry.name}</p>
       <p className="mt-0.5 text-subhead text-muted-foreground tabular-nums">
         Serie {setNumber} de {entry.targetSets}
         {entry.unilateral ? ' · por lado' : ''}
@@ -532,7 +533,7 @@ function WorkPanel({
       <button
         type="button"
         onClick={onFinish}
-        className="ax-press mt-6 flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
+        className="ax-press mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-semibold text-primary-foreground"
       >
         Terminar ya
         <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
@@ -552,7 +553,7 @@ function WorkPanel({
 /** «¿Cuántas te quedaban?» tras cada serie (D-052, D-055). Opcional. */
 function ReservePicker({ question }: { question: ReserveQuestion }) {
   return (
-    <div className="mt-4 rounded-2xl border border-border bg-surface px-4 py-3.5 text-left">
+    <div className="ax-fade mt-5 rounded-2xl bg-surface p-4 text-left">
       <p className="text-footnote font-semibold">¿Cuántas te quedaban?</p>
       <p className="mt-0.5 text-caption text-muted-foreground">
         {question.name} · buscamos {REPS_IN_RESERVE_LABELS[question.target]} ·{' '}
@@ -566,10 +567,8 @@ function ReservePicker({ question }: { question: ReserveQuestion }) {
             onClick={() => question.onSelect(value)}
             aria-pressed={question.value === value}
             className={cn(
-              'ax-press h-11 flex-1 rounded-full border text-subhead font-semibold transition-colors',
-              question.value === value
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-muted-foreground',
+              'ax-press h-11 flex-1 rounded-full text-subhead font-semibold transition-colors duration-200',
+              question.value === value ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground',
             )}
           >
             {REPS_IN_RESERVE_LABELS[value]}
@@ -604,9 +603,9 @@ function HowTo({ exerciseId }: { exerciseId: string }) {
   const instructions = findExercise(exerciseId)?.instructions
   if (!instructions) return null
   return (
-    <section key={exerciseId} className="ax-fade mt-6 rounded-2xl bg-surface px-4 py-3.5">
-      <h3 className="text-caption font-semibold tracking-[0.14em] text-muted-foreground">CÓMO SE HACE</h3>
-      <p className="mt-1.5 text-subhead leading-relaxed text-pretty">{instructions}</p>
+    <section key={exerciseId} className="ax-fade mt-6 rounded-2xl bg-surface p-4">
+      <h3 className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">CÓMO SE HACE</h3>
+      <p className="mt-2 text-subhead text-pretty">{instructions}</p>
     </section>
   )
 }
@@ -615,7 +614,7 @@ function HowTo({ exerciseId }: { exerciseId: string }) {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div>
-      <p className="text-footnote font-semibold text-muted-foreground tabular-nums">{value}</p>
+      <p className="text-subhead font-semibold tabular-nums">{value}</p>
       <p className="mt-0.5 text-overline leading-tight text-muted-foreground text-pretty">
         {label}
       </p>

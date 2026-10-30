@@ -25,11 +25,11 @@ export function LevelPicker({
 
   return (
     <section className="mt-5">
-      <h3 className="text-caption font-semibold tracking-[0.14em] text-muted-foreground">NIVEL</h3>
+      <h3 className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">NIVEL</h3>
       <div
         role="radiogroup"
         aria-label="Nivel del ejercicio"
-        className="-mx-6 mt-2 flex gap-2 overflow-x-auto px-6 pb-1 [scrollbar-width:none]"
+        className="-mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]"
       >
         {options.map((option) => {
           const selected = option.id === currentId
@@ -41,10 +41,8 @@ export function LevelPicker({
               aria-checked={selected}
               onClick={() => !selected && onChange(option.id)}
               className={cn(
-                'ax-press min-h-11 shrink-0 rounded-full border px-4 text-subhead font-medium whitespace-nowrap transition-colors',
-                selected
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-muted-foreground',
+                'ax-press min-h-11 shrink-0 rounded-full px-4 text-subhead font-medium whitespace-nowrap transition-colors duration-200',
+                selected ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground',
               )}
             >
               {option.name}

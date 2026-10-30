@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { ArrowRight, Check, Pause } from 'lucide-react'
 import { AxisMark } from '@/components/axis-mark'
 import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
+import { EmptyNote } from '@/components/section-header'
 import { closingMessage } from '@/lib/domain/axis/closing'
 import { formatVolume } from '@/lib/domain/history/stats'
 import { sessionAward } from '@/lib/domain/progression/progression'
@@ -31,21 +32,19 @@ export function EntrenamientoCompletado() {
   }
 
   return (
-    <div className="px-6 pb-8">
+    <div className="px-5 pb-10">
       {/* Top bar */}
-      <header className="flex items-center justify-between pt-2 pb-6">
-        <span className="h-11 w-11" aria-hidden="true" />
-        <h1 className="text-body font-semibold tracking-[-0.01em]">
+      <header className="pt-5 pb-8 text-center">
+        <h1 className="text-overline font-semibold tracking-[0.16em] text-muted-foreground uppercase">
           {abandoned ? 'Entrenamiento interrumpido' : 'Entrenamiento completado'}
         </h1>
-        <span className="h-11 w-11" aria-hidden="true" />
       </header>
 
       {/* Cierre. El verde es de éxito: una sesión interrumpida no lo lleva. */}
-      <div className="flex flex-col items-center text-center">
+      <div className="ax-enter flex flex-col items-center text-center">
         <span
           className={cn(
-            'flex h-14 w-14 items-center justify-center rounded-full',
+            'flex h-16 w-16 items-center justify-center rounded-full',
             abandoned ? 'bg-surface' : 'bg-success/12',
           )}
         >
@@ -55,27 +54,25 @@ export function EntrenamientoCompletado() {
             <Check className="h-7 w-7 text-success" strokeWidth={2.5} />
           )}
         </span>
-        <h2 className="mt-4 text-title font-bold tracking-[-0.02em]">
+        <h2 className="mt-5 text-title-lg font-bold">
           {abandoned ? 'Guardado igualmente.' : 'Sesión completada.'}
         </h2>
-        <p className="mt-1 text-subhead text-muted-foreground">
+        <p className="mt-2 text-callout text-muted-foreground">
           {abandoned ? 'Hemos guardado lo que llegaste a hacer.' : 'Has terminado tu sesión.'}
         </p>
       </div>
 
       {/* Summary */}
-      <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-border bg-surface py-4 text-center">
+      <div className="mt-8 grid grid-cols-3 gap-2">
         <SummaryStat index={0} value={formatDuration(lastCompleted.durationSeconds)} label="Tiempo total" />
-        <SummaryStat index={1} value={String(lastCompleted.exercises.filter(isMainExercise).length)} label="Ejercicios" divider />
-        <SummaryStat index={2} value={formatVolume(lastCompleted.totalVolumeKg)} label="Volumen total" divider />
+        <SummaryStat index={1} value={String(lastCompleted.exercises.filter(isMainExercise).length)} label="Ejercicios" />
+        <SummaryStat index={2} value={formatVolume(lastCompleted.totalVolumeKg)} label="Volumen total" />
       </div>
 
       {/* Lo que AXIS concluye de la sesión (D-019), no el motivo con el que la propuso. */}
-      <div className="mt-4 flex items-start gap-2">
-        <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-        <p className="text-footnote leading-relaxed text-muted-foreground text-pretty">
-          {closingMessage(lastCompleted, records)}
-        </p>
+      <div className="mt-3 flex items-start gap-3 rounded-2xl bg-surface p-4">
+        <AxisMark className="mt-[3px] h-3.5 w-3.5 shrink-0 text-primary" />
+        <p className="text-subhead text-foreground/80 text-pretty">{closingMessage(lastCompleted, records)}</p>
       </div>
 
       {/* Los XP de la sesión (D-071): lo ganado y, solo si sube, el nivel. */}
@@ -84,10 +81,10 @@ export function EntrenamientoCompletado() {
       {/* Récords: solo frente a algo registrado antes, sin insignias. */}
       {records.length > 0 && (
         <>
-          <h3 className="mt-7 text-callout font-semibold tracking-[-0.01em]">Récords personales</h3>
-          <ul className="mt-3 space-y-2">
+          <h3 className="mt-10 mb-3 text-body font-semibold">Récords personales</h3>
+          <ul className="divide-y divide-border rounded-2xl border border-border px-4">
             {records.map((record) => (
-              <li key={`${record.exerciseId}-${record.kind}`} className="flex items-baseline justify-between gap-3">
+              <li key={`${record.exerciseId}-${record.kind}`} className="flex items-baseline justify-between gap-3 py-3">
                 <span>
                   <span className="block text-subhead font-semibold">{record.name}</span>
                   {/* La marca cuenta aunque quedara a medias, pero no se confunde con haberlo hecho todo. */}
@@ -123,20 +120,18 @@ export function EntrenamientoCompletado() {
       {/* Resumen de ejercicios */}
       {lastCompleted.exercises.length > 0 ? (
         <>
-          <h3 className="mt-7 text-callout font-semibold tracking-[-0.01em]">
-            Resumen de ejercicios
-          </h3>
-          <ul className="mt-3 space-y-3">
+          <h3 className="mt-10 mb-3 text-body font-semibold">Resumen de ejercicios</h3>
+          <ul className="overflow-hidden rounded-2xl border border-border">
             {lastCompleted.exercises.map((exercise, index) => {
               const catalog = findExercise(exercise.exerciseId)
               const volume = volumeOfExercise(exercise)
               return (
                 <li
                   key={`${exercise.exerciseId}-${index}`}
-                  className="ax-stagger flex items-center gap-3"
+                  className="ax-stagger flex min-h-16 items-center gap-3.5 border-b border-border px-4 py-2.5 last:border-b-0"
                   style={{ '--ax-index': index } as CSSProperties}
                 >
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-surface">
+                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-surface">
                     {hasExerciseFigure(exercise.exerciseId) ? (
                       <ExerciseFigure exerciseId={exercise.exerciseId} animate={false} className="h-full w-full" />
                     ) : catalog?.imageUrl && (
@@ -149,10 +144,8 @@ export function EntrenamientoCompletado() {
                       />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-subhead font-semibold leading-tight">
-                      {index + 1}. {exercise.name}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-callout font-medium">{exercise.name}</p>
                     <p className="text-caption text-muted-foreground tabular-nums">
                       {formatSets(exercise.sets, { isTimed: catalog?.work.isTimed ?? false })}
                     </p>
@@ -169,15 +162,11 @@ export function EntrenamientoCompletado() {
           </ul>
         </>
       ) : (
-        <p className="mt-7 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
-          No llegaste a completar ninguna serie.
-        </p>
+        <EmptyNote className="mt-10">No llegaste a completar ninguna serie.</EmptyNote>
       )}
 
       {/* Esfuerzo (D-019): lo que usa la Carga. Números, no caras: no es cómo te sientes. */}
-      <h3 className="mt-7 text-callout font-semibold tracking-[-0.01em]">
-        ¿Cuánto te ha costado?
-      </h3>
+      <h3 className="mt-10 text-body font-semibold">¿Cuánto te ha costado?</h3>
       <div className="mt-4 flex items-start justify-between">
         {EFFORT_LEVELS.map((level) => {
           const selected = effort === level
@@ -193,10 +182,8 @@ export function EntrenamientoCompletado() {
             >
               <span
                 className={cn(
-                  'flex h-11 w-11 items-center justify-center rounded-full border text-body font-semibold tabular-nums transition-colors',
-                  selected
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border text-muted-foreground',
+                  'flex h-12 w-12 items-center justify-center rounded-full text-body font-semibold tabular-nums transition-colors duration-200',
+                  selected ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground',
                 )}
               >
                 {level}
@@ -219,10 +206,10 @@ export function EntrenamientoCompletado() {
       <button
         type="button"
         onClick={dismissSummary}
-        className="ax-press mt-8 flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
+        className="ax-press group mt-10 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-semibold text-primary-foreground"
       >
         Finalizar
-        <ArrowRight className="h-4 w-4" />
+        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-active:translate-x-0.5" />
       </button>
     </div>
   )
@@ -239,28 +226,32 @@ function SessionXp({ sessionId }: { sessionId: string }) {
   const levelUp = award.levelAfter > award.levelBefore
 
   return (
-    <section className="mt-7">
+    <section className="mt-6">
       {levelUp && (
-        <div className="ax-enter mb-4 rounded-2xl bg-secondary px-4 py-3">
-          <p className="text-caption font-semibold tracking-[0.12em] text-primary">NUEVO NIVEL</p>
-          <p className="mt-0.5 text-headline font-bold tracking-[-0.02em]">
+        <div className="ax-enter mb-4 rounded-2xl bg-secondary p-4">
+          <p className="text-overline font-semibold tracking-[0.16em] text-primary">NUEVO NIVEL</p>
+          <p className="mt-1 text-headline font-bold">
             Nivel {award.levelAfter}
             {award.newRank && <span className="text-muted-foreground"> · {award.newRank}</span>}
           </p>
         </div>
       )}
-      <ul className="space-y-1.5">
+      <ul className="flex flex-wrap gap-2">
         {award.events.map((event, index) => (
-          <li key={`${event.kind}-${index}`} className="flex items-baseline gap-2 text-footnote">
+          <li
+            key={`${event.kind}-${index}`}
+            className="ax-stagger inline-flex h-8 items-center gap-1.5 rounded-full bg-secondary px-3 text-footnote"
+            style={{ '--ax-index': index } as CSSProperties}
+          >
             <span className="font-semibold tabular-nums text-primary">+{event.xp} XP</span>
-            <span className="text-muted-foreground">· {event.label}</span>
+            <span className="text-primary/70">{event.label}</span>
           </li>
         ))}
       </ul>
       {award.facts.length > 0 && (
         <div className="mt-3 flex items-start gap-2">
           <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-          <p className="text-footnote leading-relaxed text-muted-foreground text-pretty">{award.facts.join(' ')}</p>
+          <p className="text-footnote text-muted-foreground text-pretty">{award.facts.join(' ')}</p>
         </div>
       )}
     </section>
@@ -272,24 +263,11 @@ function repsUnit(exerciseId: string): string {
   return findExercise(exerciseId)?.work.isTimed ? 's' : 'reps'
 }
 
-function SummaryStat({
-  value,
-  label,
-  divider,
-  index,
-}: {
-  value: string
-  label: string
-  divider?: boolean
-  index: number
-}) {
+function SummaryStat({ value, label, index }: { value: string; label: string; index: number }) {
   return (
-    <div
-      className={cn('ax-stagger', divider && 'border-l border-border')}
-      style={{ '--ax-index': index } as CSSProperties}
-    >
-      <p className="text-body font-bold tracking-[-0.01em] tabular-nums">{value}</p>
-      <p className="mt-0.5 text-overline text-muted-foreground text-pretty">{label}</p>
+    <div className="ax-stagger rounded-2xl bg-surface px-3 py-4 text-center" style={{ '--ax-index': index } as CSSProperties}>
+      <p className="text-headline font-bold tabular-nums">{value}</p>
+      <p className="mt-0.5 text-caption text-muted-foreground">{label}</p>
     </div>
   )
 }

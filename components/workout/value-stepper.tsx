@@ -32,7 +32,13 @@ export function ValueStepper({
   inputLabel?: string
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface py-4 text-center">
+    // El número entre sus dos botones, en una fila (D-075): se ajusta con el
+    // pulgar sin mover la mano y la cifra queda en el centro de la mirada.
+    <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface px-3 py-4">
+      <StepperButton label={decreaseLabel} onClick={onDecrease}>
+        <Minus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
+      </StepperButton>
+      <div className="min-w-0 flex-1 text-center">
       {onInput ? (
         <input
           type="text"
@@ -41,30 +47,29 @@ export function ValueStepper({
           aria-label={inputLabel}
           value={value}
           onChange={(event) => onInput(event.target.value)}
-          className="mx-auto block w-32 bg-transparent text-center text-title-lg font-bold leading-none tracking-[-0.02em] tabular-nums outline-none focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="mx-auto block w-full bg-transparent text-center text-title-lg font-bold leading-none tabular-nums outline-none focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-primary/40"
         />
       ) : (
-        <p className="text-title-lg font-bold leading-none tracking-[-0.02em] tabular-nums">{value}</p>
+        <p className="text-title-lg font-bold leading-none tabular-nums">{value}</p>
       )}
-      <p className="mt-1.5 text-footnote text-muted-foreground">{unit}</p>
-      <div className="mt-2 flex items-center justify-center gap-2">
-        <button
-          type="button"
-          onClick={onDecrease}
-          aria-label={decreaseLabel}
-          className="ax-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background"
-        >
-          <Minus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
-        </button>
-        <button
-          type="button"
-          onClick={onIncrease}
-          aria-label={increaseLabel}
-          className="ax-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background"
-        >
-          <Plus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
-        </button>
+        <p className="mt-1 text-footnote text-muted-foreground">{unit}</p>
       </div>
+      <StepperButton label={increaseLabel} onClick={onIncrease}>
+        <Plus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
+      </StepperButton>
     </div>
+  )
+}
+
+function StepperButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="ax-press flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-background"
+    >
+      {children}
+    </button>
   )
 }
