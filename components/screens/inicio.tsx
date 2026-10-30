@@ -5,6 +5,7 @@ import { ArrowRight, ChevronRight, Clock, Dumbbell, GlassWater, Heart, Moon, Use
 import { AxisMark } from '@/components/axis-mark'
 import { isMainExercise } from '@/lib/domain/workouts/types'
 import { CircularMetric } from '@/components/circular-metric'
+import { SectionHeader } from '@/components/section-header'
 import {
   BAND_COLOR,
   BAND_SHORT,
@@ -296,31 +297,6 @@ export function InicioScreen({
         <QuickRow icon={Dumbbell} label="Último entrenamiento" detail="En tu historial" onClick={onGoHistorial} />
         <QuickRow icon={Heart} label="Recuperación" detail="Sueño, energía y fatiga" onClick={onGoRecuperacion} />
       </div>
-    </div>
-  )
-}
-
-function SectionHeader({
-  title,
-  action,
-  onAction,
-}: {
-  title: string
-  action?: string
-  onAction?: () => void
-}) {
-  return (
-    <div className="mt-10 mb-3 flex items-center justify-between">
-      <h3 className="text-body font-semibold">{title}</h3>
-      {action && onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="ax-press -my-3 -mr-2 min-h-11 px-2 text-footnote font-medium text-primary"
-        >
-          {action}
-        </button>
-      )}
     </div>
   )
 }

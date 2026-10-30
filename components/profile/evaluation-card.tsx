@@ -24,23 +24,32 @@ export function EvaluationCard({ onOpenPerfil }: { onOpenPerfil: () => void }) {
   const missingProfile = steps.some((step) => (step.key === 'salud' || step.key === 'historia') && !step.done)
 
   return (
-    <section className="ax-enter mt-4 rounded-3xl bg-surface p-5">
+    <section className="ax-enter mb-3 rounded-3xl bg-surface p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-callout font-semibold tracking-[-0.01em]">Tu evaluación inicial</h3>
-        <span className="text-caption tabular-nums text-muted-foreground">
+        <h3 className="text-body font-semibold">Tu evaluación inicial</h3>
+        <span className="text-footnote font-medium tabular-nums text-muted-foreground">
           {done} de {steps.length}
         </span>
       </div>
-      <p className="mt-0.5 text-footnote leading-snug text-muted-foreground text-pretty">
+      {/* Un tramo por paso: se ve cuánto falta sin leer la lista (D-075). */}
+      <div className="mt-3 flex gap-1" aria-hidden="true">
+        {steps.map((step) => (
+          <span
+            key={step.key}
+            className={cn('h-1 flex-1 rounded-full transition-colors duration-300', step.done ? 'bg-primary' : 'bg-track')}
+          />
+        ))}
+      </div>
+      <p className="mt-3 text-footnote text-muted-foreground text-pretty">
         Lo que mide un entrenador antes de empezar. Con ello AXIS ajusta tus sesiones.
       </p>
-      <ul className="mt-3 space-y-2.5">
+      <ul className="mt-4 space-y-3">
         {steps.map((step) => (
           <li key={step.key} className="flex items-start gap-3">
             <span
               className={cn(
                 'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                step.done ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background',
+                step.done ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong bg-background',
               )}
               aria-hidden="true"
             >
@@ -58,7 +67,7 @@ export function EvaluationCard({ onOpenPerfil }: { onOpenPerfil: () => void }) {
         <button
           type="button"
           onClick={onOpenPerfil}
-          className="ax-press mt-4 min-h-11 w-full rounded-full border border-border bg-background px-4 text-footnote font-semibold"
+          className="ax-press mt-5 min-h-11 w-full rounded-full bg-background px-4 text-subhead font-semibold"
         >
           Contestar salud e historia
         </button>

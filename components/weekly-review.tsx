@@ -22,7 +22,7 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
 
   return (
     <section aria-labelledby="weekly-review">
-      <h3 id="weekly-review" className="mt-9 text-callout font-semibold tracking-[-0.01em]">
+      <h3 id="weekly-review" className="mt-10 text-body font-semibold">
         La semana pasada
       </h3>
       <p className="mt-1 text-footnote tabular-nums text-muted-foreground">
@@ -32,7 +32,7 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
 
       {review.improvements.length > 0 && (
         <>
-          <p className="mt-4 text-footnote font-medium text-muted-foreground">Mejoraste</p>
+          <p className="mt-4 text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Mejoraste</p>
           <ul className="mt-1.5 space-y-1">
             {review.improvements.map((item) => (
               <li key={item.exerciseId} className="text-subhead font-medium tabular-nums">
@@ -43,7 +43,7 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
         </>
       )}
 
-      <p className="mt-4 text-footnote font-medium text-muted-foreground">Esta semana</p>
+      <p className="mt-4 text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Esta semana</p>
       <ul className="mt-1.5 space-y-2">
         {review.next.map((line) => (
           <li key={line} className="flex gap-2.5 text-subhead leading-snug text-pretty">

@@ -19,7 +19,7 @@ export function BlockReviewSection() {
   const closing = review.status === 'closing'
   return (
     <section aria-labelledby="block-review">
-      <h3 id="block-review" className="mt-9 text-callout font-semibold tracking-[-0.01em]">
+      <h3 id="block-review" className="mt-10 text-body font-semibold">
         {closing ? 'Cierre del bloque' : 'Tu bloque anterior'}
       </h3>
       <p className="mt-1 text-footnote text-muted-foreground">
@@ -28,7 +28,7 @@ export function BlockReviewSection() {
 
       {review.anchors.length > 0 && (
         <>
-          <p className="mt-4 text-footnote font-medium text-muted-foreground">Tus principales</p>
+          <p className="mt-4 text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Tus principales</p>
           <ul className="mt-1.5 space-y-1">
             {review.anchors.map((item) => (
               <li key={item.exerciseId} className="text-subhead font-medium tabular-nums">
@@ -39,7 +39,7 @@ export function BlockReviewSection() {
         </>
       )}
 
-      <p className="mt-4 text-footnote font-medium text-muted-foreground">Test de evolución</p>
+      <p className="mt-4 text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Test de evolución</p>
       {review.test ? (
         <ul className="mt-1.5 space-y-1">
           {review.test.rows.map((row) => (

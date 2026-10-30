@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type CSSProperties } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { StrengthChart } from '@/components/progress/strength-chart'
 import { BodySection } from '@/components/progress/body-section'
 import { LevelSection } from '@/components/progress/level-section'
@@ -12,6 +13,7 @@ import { EXERCISE_CATALOG, findExercise } from '@/lib/domain/workouts/catalog'
 import { exerciseHistory, oneRepMaxHistory, trainedExercises, weeklySetTotals } from '@/lib/domain/workouts/progress'
 import { TARGET_STATUS_LABELS, targetProgress } from '@/lib/domain/workouts/targets'
 import { useAxtlhetics } from '@/lib/state/store'
+import { EmptyNote } from '@/components/section-header'
 import { cn } from '@/lib/utils'
 
 /**
@@ -35,23 +37,25 @@ export function ProgressSection() {
 
   return (
     <>
-      <h3 className="mt-9 text-callout font-semibold tracking-[-0.01em]">Tu progreso</h3>
+      {/* Un capítulo propio dentro de Entrenamiento: título grande y su entradilla (D-075). */}
+      <div className="mt-14 border-t border-border pt-8">
+        <h2 className="text-title font-bold">Tu progreso</h2>
+        <p className="mt-1.5 text-callout text-muted-foreground">Cómo avanzas hacia lo que buscas.</p>
+      </div>
 
       {/* Tu nivel (D-071) */}
       <LevelSection />
 
       {/* Objetivos medibles (D-035) */}
-      <p className="mt-7 text-footnote font-medium text-muted-foreground">Tus objetivos</p>
+      <p className="mt-9 mb-3 text-subhead font-semibold">Tus objetivos</p>
       {targets.length === 0 ? (
         firstTest ? (
           <TargetRecommendations assessment={firstTest} />
         ) : (
-          <p className="mt-3 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
-            Haz tu primer test de evolución y te propongo objetivos, o añade uno en tu perfil.
-          </p>
+          <EmptyNote>Haz tu primer test de evolución y te propongo objetivos, o añade uno en tu perfil.</EmptyNote>
         )
       ) : (
-        <ul className="mt-3 space-y-5">
+        <ul className="space-y-5">
           {targets.map((target) => {
             const progress = targetProgress(target, sessions, today, assessments.assessments)
             const exercise = findExercise(target.exerciseId)
@@ -87,33 +91,37 @@ export function ProgressSection() {
       )}
 
       {/* Fuerza por ejercicio */}
-      <p className="mt-7 text-footnote font-medium text-muted-foreground">Tu fuerza</p>
+      <p className="mt-9 mb-3 text-subhead font-semibold">Tu fuerza</p>
       {chosen ? (
         <>
-          <select
-            value={chosen.id}
-            onChange={(event) => setExerciseId(event.target.value)}
-            aria-label="Ejercicio"
-            className="mt-3 h-11 w-full rounded-2xl border border-border bg-background px-3 text-callout font-semibold outline-none"
-          >
-            {exercises.map((exercise) => (
-              <option key={exercise.id} value={exercise.id}>
-                {exercise.name}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={chosen.id}
+              onChange={(event) => setExerciseId(event.target.value)}
+              aria-label="Ejercicio"
+              className="h-12 w-full appearance-none rounded-2xl bg-surface px-4 pr-10 text-callout font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              {exercises.map((exercise) => (
+                <option key={exercise.id} value={exercise.id}>
+                  {exercise.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-muted-nontext"
+            />
+          </div>
           <StrengthChart points={exerciseHistory(chosen.id, sessions)} unit={chosen.work.isTimed ? 's' : 'reps'} />
           {/* Con carga, también lo que levantarías a una repetición (D-056): una estimación, nunca un test. */}
           <StrengthChart points={oneRepMaxHistory(chosen.id, sessions)} unit="kg" title="1RM estimado" />
         </>
       ) : (
-        <p className="mt-4 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
-          Completa un entrenamiento y aquí verás cómo mejora cada ejercicio.
-        </p>
+        <EmptyNote>Completa un entrenamiento y aquí verás cómo mejora cada ejercicio.</EmptyNote>
       )}
 
       {/* Series por semana */}
-      <p className="mt-7 text-footnote font-medium text-muted-foreground">Series por semana</p>
+      <p className="mt-9 mb-3 text-subhead font-semibold">Series por semana</p>
       <WeekBars weeks={weeks} />
 
       {/* Peso y medidas (D-060). */}
@@ -127,16 +135,18 @@ function WeekBars({ weeks }: { weeks: ReturnType<typeof weeklySetTotals> }) {
   const max = Math.max(...weeks.map((week) => week.sets))
   const [selected, setSelected] = useState(weeks.length - 1)
   const shown = weeks[selected]
+  // Sin una sola serie, un gráfico vacío no dice nada: basta la frase.
+  if (max === 0) return <EmptyNote>Todavía no hay series registradas.</EmptyNote>
 
   return (
-    <figure className="mt-4">
+    <figure className="rounded-2xl border border-border p-4">
       <figcaption className="flex items-baseline justify-between">
         <span className="text-footnote font-medium">Últimas {weeks.length} semanas</span>
         <span className="text-caption tabular-nums text-muted-foreground">
           Semana del {formatShortDate(shown.weekStart).toLowerCase()} · {shown.sets} series
         </span>
       </figcaption>
-      <div className="mt-2.5 flex h-28 items-end gap-1.5 border-b border-border" role="img" aria-label={`Series por semana: ${weeks.map((week) => week.sets).join(', ')}`}>
+      <div className="mt-4 flex h-28 items-end gap-1.5 border-b border-border" role="img" aria-label={`Series por semana: ${weeks.map((week) => week.sets).join(', ')}`}>
         {weeks.map((week, index) => (
           <button
             key={week.weekStart}
@@ -155,7 +165,6 @@ function WeekBars({ weeks }: { weeks: ReturnType<typeof weeklySetTotals> }) {
           </button>
         ))}
       </div>
-      {max === 0 && <p className="mt-2 text-caption text-muted-foreground">Todavía no hay series registradas.</p>}
     </figure>
   )
 }

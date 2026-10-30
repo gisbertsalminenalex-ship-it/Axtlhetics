@@ -49,7 +49,7 @@ export function BodySection() {
 
   return (
     <>
-      <p className="mt-7 text-footnote font-medium text-muted-foreground">Tu cuerpo</p>
+      <p className="mt-9 mb-1 text-subhead font-semibold">Tu cuerpo</p>
 
       <div className="mt-1 divide-y divide-border">
         <StepperField
@@ -66,7 +66,7 @@ export function BodySection() {
         type="button"
         onClick={() => void saveWeight(weight)}
         disabled={savedToday === weight}
-        className="ax-press mt-2 min-h-11 w-full rounded-full border border-border bg-background px-4 text-footnote font-semibold disabled:text-muted-foreground"
+        className="ax-press mt-2 min-h-11 w-full rounded-full bg-surface px-4 text-subhead font-semibold disabled:text-muted-foreground"
       >
         {savedToday === weight ? 'Peso de hoy guardado' : savedToday === null ? 'Guardar peso' : 'Cambiar el peso de hoy'}
       </button>
@@ -93,7 +93,7 @@ export function BodySection() {
 
       {evolution.length > 0 && (
         <>
-          <p className="mt-6 text-footnote font-medium">Tu evolución</p>
+          <p className="mt-6 text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Tu evolución</p>
           <ul className="mt-2 divide-y divide-border">
             {evolution.map((item) => (
               <EvolutionRow key={item.key} item={item} />
@@ -104,7 +104,7 @@ export function BodySection() {
 
       {/* Medidas con cinta, una vez al mes (D-067). */}
       <div className="mt-6 flex items-baseline justify-between gap-3">
-        <span className="text-footnote font-medium">Medidas</span>
+        <span className="text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Medidas</span>
         <span className="text-caption text-muted-foreground">
           {due ? 'Toca medir' : `Cada ${PERIMETER_INTERVAL_DAYS} días`}
         </span>
@@ -159,7 +159,7 @@ export function BodySection() {
               void savePerimeters(tape)
               setMeasuring(false)
             }}
-            className="ax-press mt-2 h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
+            className="ax-press mt-3 h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground"
           >
             Guardar medidas
           </button>
@@ -175,7 +175,7 @@ export function BodySection() {
         <button
           type="button"
           onClick={() => setMeasuring(true)}
-          className="ax-press mt-2 min-h-11 w-full rounded-full border border-border bg-background px-4 text-footnote font-semibold"
+          className="ax-press mt-2 min-h-11 w-full rounded-full bg-surface px-4 text-subhead font-semibold"
         >
           {Object.keys(latest).length === 0 ? 'Tomar mis medidas' : due ? 'Medir ahora' : 'Medir antes de tiempo'}
         </button>

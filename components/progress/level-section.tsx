@@ -30,24 +30,35 @@ export function LevelSection() {
 
   return (
     <>
-      <p className="mt-4 text-footnote font-medium text-muted-foreground">Tu nivel</p>
-      <div className="mt-2 flex items-baseline justify-between gap-3">
-        <span className="text-headline font-bold tracking-[-0.02em]">
-          Nivel {level} · {rankLabel}
-        </span>
-        <span className="text-caption tabular-nums text-muted-foreground">{totalXp.toLocaleString('es-ES')} XP</span>
+      {/* El nivel, en su tarjeta: el número manda, el resto lo explica (D-075). */}
+      <div className="ax-enter mt-6 rounded-3xl bg-surface p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">TU NIVEL</p>
+            <p className="mt-2 flex items-baseline gap-2.5">
+              <span className="text-display font-bold tabular-nums">{level}</span>
+              <span className="text-headline font-semibold">{rankLabel}</span>
+            </p>
+          </div>
+          <span className="rounded-full bg-background px-3 py-1 text-caption font-semibold tabular-nums">
+            {totalXp.toLocaleString('es-ES')} XP
+          </span>
+        </div>
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-track" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-700"
+            style={{ width: `${Math.round(share * 100)}%` }}
+          />
+        </div>
+        <p className="mt-2 text-caption tabular-nums text-muted-foreground">
+          {intoLevel} de {levelXp} XP para el nivel {level + 1}
+          {nextRank && ` · ${nextRank.label} desde el nivel ${nextRank.fromLevel}`}
+        </p>
       </div>
-      <div className="mt-2 h-2 rounded-full bg-track" aria-hidden="true">
-        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(share * 100)}%` }} />
-      </div>
-      <p className="mt-1.5 text-caption tabular-nums text-muted-foreground">
-        {intoLevel} de {levelXp} XP para el nivel {level + 1}
-        {nextRank && ` · ${nextRank.label} desde el nivel ${nextRank.fromLevel}`}
-      </p>
 
       {levelsReached.length > 0 && (
         <>
-          <p className="mt-5 text-footnote font-medium">Niveles alcanzados</p>
+          <p className="mt-6 text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Niveles alcanzados</p>
           <ul className="mt-2 space-y-1">
             {levelsReached.slice(0, SHOWN).map((item) => (
               <li key={item.level} className="flex justify-between text-footnote tabular-nums text-muted-foreground">
@@ -61,7 +72,7 @@ export function LevelSection() {
 
       {milestones.length > 0 && (
         <>
-          <p className="mt-5 text-footnote font-medium">Hitos</p>
+          <p className="mt-6 text-caption font-semibold tracking-[0.08em] text-muted-foreground uppercase">Hitos</p>
           <ul className="mt-2 space-y-1">
             {milestones.slice(0, SHOWN).map((event) => (
               <li key={`${event.kind}-${event.at}`} className="flex justify-between text-footnote tabular-nums text-muted-foreground">
@@ -73,7 +84,7 @@ export function LevelSection() {
         </>
       )}
 
-      <details className="mt-5">
+      <details className="mt-3">
         <summary className="flex min-h-11 cursor-pointer items-center text-footnote font-medium text-primary">
           Cómo se ganan los XP
         </summary>

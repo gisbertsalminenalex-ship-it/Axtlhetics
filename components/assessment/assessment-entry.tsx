@@ -22,16 +22,16 @@ export function AssessmentEntry({ onOpen }: { onOpen: () => void }) {
   const assessment = briefing.assessment
   const resumable = assessments.active !== null
   const available = assessment.status === 'available'
-  const notice = <StaleTestNotice className="mt-4 px-1" />
+  const notice = <StaleTestNotice className="mb-3 px-1" />
 
   if (resumable || available) {
     return (
       <>
         {notice}
-        <section className="ax-enter mt-4 flex items-center gap-3 rounded-3xl bg-surface p-4 pl-5">
+        <section className="ax-enter mb-3 flex items-center gap-3 rounded-3xl bg-surface p-4 pl-5">
           <div className="flex-1">
-            <p className="text-callout font-semibold tracking-[-0.01em]">Test de evolución</p>
-            <p className="mt-0.5 text-footnote leading-snug text-muted-foreground text-pretty">
+            <p className="text-callout font-semibold">Test de evolución</p>
+            <p className="mt-0.5 text-footnote text-muted-foreground text-pretty">
               {resumable
                 ? 'Lo dejaste a medias hoy. Sigue donde estabas.'
                 : assessment.completedCount === 0
@@ -42,7 +42,7 @@ export function AssessmentEntry({ onOpen }: { onOpen: () => void }) {
           <button
             type="button"
             onClick={onOpen}
-            className="ax-press min-h-11 shrink-0 rounded-full border border-border bg-background px-4 text-footnote font-semibold"
+            className="ax-press min-h-11 shrink-0 rounded-full bg-background px-4 text-footnote font-semibold"
           >
             {resumable ? 'Continuar test' : 'Hacer test'}
           </button>
@@ -56,7 +56,7 @@ export function AssessmentEntry({ onOpen }: { onOpen: () => void }) {
   return (
     <>
       {notice}
-      <p className="mt-4 px-1 text-footnote leading-snug text-muted-foreground text-pretty">
+      <p className="mb-3 px-1 text-footnote text-muted-foreground text-pretty">
         <span className="font-semibold text-foreground">Test de evolución:</span> hoy no. {reason}
       </p>
     </>
