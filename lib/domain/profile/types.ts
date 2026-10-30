@@ -11,6 +11,7 @@ import { weekdayOfKey, type DayKey, type Weekday } from '../shared/dates'
 import { isUserEquipment, type UserEquipment } from '../workouts/equipment'
 import { isHealthScreen, isTrainingBackground, type HealthScreen, type TrainingBackground } from './screening'
 import { isNutritionPlan, type NutritionPlan } from '../nutrition/targets'
+import { isEcosystemSharing, type EcosystemSharing } from '../ecosystem/sharing'
 import {
   isArrayOf,
   isDayKey,
@@ -226,6 +227,11 @@ export type UserProfile = {
   background?: TrainingBackground
   /** El objetivo de alimentación y los ajustes aceptados (D-061). Ausente si no se eligió. */
   nutrition?: NutritionPlan
+  /**
+   * Lo que se comparte con la app AXIS del ecosistema (D-076). Ausente: nada.
+   * El formulario de perfil no lo toca: tiene su propia acción.
+   */
+  ecosystem?: EcosystemSharing
   createdAt: string
   updatedAt: string
 }
@@ -409,6 +415,7 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (value.health !== undefined && !isHealthScreen(value.health)) return false
   if (value.background !== undefined && !isTrainingBackground(value.background)) return false
   if (value.nutrition !== undefined && !isNutritionPlan(value.nutrition)) return false
+  if (value.ecosystem !== undefined && !isEcosystemSharing(value.ecosystem)) return false
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }
 

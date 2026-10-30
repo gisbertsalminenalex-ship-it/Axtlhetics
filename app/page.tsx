@@ -16,6 +16,7 @@ import { RecuperacionScreen } from '@/components/screens/recuperacion'
 import { TestEvolucionScreen } from '@/components/screens/test-evolucion'
 import { EscanerScreen } from '@/components/screens/escaner'
 import { useAxtlhetics } from '@/lib/state/store'
+import { RETURN_TO_PROFILE_KEY } from '@/lib/ecosystem/ecosystem-client'
 
 export default function Page() {
   const store = useAxtlhetics()
@@ -26,6 +27,17 @@ export default function Page() {
   const [testOpen, setTestOpen] = useState(false)
   // El escáner corporal (D-023): otro flujo dentro de Entrenamiento.
   const [scanOpen, setScanOpen] = useState(false)
+
+  // Al volver de entrar con Google para el ecosistema AXIS (D-076), se reabre Perfil, donde se empezó.
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(RETURN_TO_PROFILE_KEY) === null) return
+      window.sessionStorage.removeItem(RETURN_TO_PROFILE_KEY)
+      setPerfilOpen(true)
+    } catch {
+      // Sin sessionStorage se queda en Inicio.
+    }
+  }, [])
 
   const goToRecuperacion = () => setTab('recuperacion')
 

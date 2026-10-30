@@ -2497,6 +2497,28 @@ Lógica, datos, textos de AXIS y funciones. Solo cambia cómo se ve.
 
 ---
 
+## D-076 — Conexión opcional con el ecosistema AXIS
+
+**Fecha:** 2026-10-30 · **Estado:** aprobado por Alex («haz el bloque 3», sobre la propuesta: inicio de sesión opcional, pantalla para elegir qué se comparte y envío de la historia al conectar). Es el bloque 3 de la Fase 1 del ecosistema AXIS; sus decisiones de fondo (D-009 identidad con Google, D-010 privacidad, D-011 snapshots) están en el repositorio de AXIS, `docs/DECISIONS.md`.
+
+**Qué es:** AXIS es también el nombre de una app aparte que une AXTHLETICS, Finax y Mentax y muestra la evolución de conjunto. No es el AXIS entrenador de esta app, que no cambia en nada.
+
+### Qué cambia
+
+- **Perfil → «Ecosistema AXIS»** (`components/profile/ecosystem-sharing.tsx`): entrar con Google, elegir qué métricas se comparten (chips, como el resto de Perfil) y confirmar con «Compartir con AXIS». Después: cambiar la selección, «Dejar de compartir» o «Cerrar sesión». Al volver de Google se reabre Perfil.
+- **Qué sale del dispositivo:** un resumen por semana (contrato `axis.snapshot.v1`, copia en `lib/domain/ecosystem/contract.ts`), solo con las métricas activadas: sesiones hechas, dejadas a medias y cambiadas, minutos, volumen, medias de sueño, energía, estrés, fatiga y Recovery Score con los días registrados, y los objetivos medibles (D-035) de la semana actual. El **peso está desactivado por defecto**. Nunca salen series, ejercicios hechos, notas, conversaciones con AXIS, salud, escaneos, fotos, medidas ni comidas. `null` es «sin datos», nunca 0.
+- **Cuándo:** al confirmar se envía toda la historia; después, al abrir la app y al salir de ella, como mucho cada 5 minutos. Cada envío sustituye el de su semana, así que reenviar es inofensivo. Si falla, se reintenta la próxima vez sin molestar.
+- **Dónde:** el proyecto Supabase compartido del ecosistema (UE, eu-west-3). Cada usuario solo lee y escribe sus filas (RLS). La clave publicable está en el código porque es pública por diseño; la secreta nunca está en la app.
+- **Dejar de compartir** borra en AXIS todo lo recibido de AXTHLETICS y quita el consentimiento.
+- **Datos:** el consentimiento vive en el perfil (`UserProfile.ecosystem`: métricas y desde cuándo), con su propia acción en el store (`setEcosystemSharing`); `saveProfile` lo conserva. Viaja en la copia de seguridad, pero sin sesión de Google no se envía nada. No sube la versión de IndexedDB.
+- **Código:** el cálculo es puro y probado (`lib/domain/ecosystem/snapshot.ts`); la red está fuera del dominio (`lib/ecosystem/`). `@supabase/supabase-js` se carga **solo** si hay una sesión guardada o se vuelve de Google: quien no conecta no la descarga. El service worker no guarda la página de vuelta de Google, que lleva un código de un solo uso.
+
+### Lo que no cambia
+
+AXTHLETICS sigue funcionando sin cuenta y sin conexión. Sin conectar no se hace ninguna petición. El AXIS entrenador, sus decisiones y sus datos no leen nada del ecosistema; el flujo de vuelta (AXIS → apps) queda para la Fase 3 del ecosistema y necesitará su propia decisión.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

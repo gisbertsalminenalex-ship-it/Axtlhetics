@@ -7,6 +7,7 @@ import { DailyReminder } from '@/components/profile/daily-reminder'
 import { TrainingNotifications } from '@/components/profile/training-notifications'
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import { BackupControls } from '@/components/profile/backup-controls'
+import { EcosystemSharing } from '@/components/profile/ecosystem-sharing'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { CareZonesPicker, SexPicker } from '@/components/profile/about-you'
 import { BackgroundPicker, HealthNote, NO_HEALTH_FLAGS } from '@/components/profile/screening'
@@ -376,6 +377,7 @@ export function PerfilScreen({
       {!isOnboarding && <DislikedExercises />}
       {!isOnboarding && <TrainingNotifications />}
       {!isOnboarding && <DailyReminder />}
+      {!isOnboarding && <EcosystemSharing />}
 
       <div className="mt-9">
         <PrimaryButton onClick={() => void handleSave()} disabled={!canSave || saving}>

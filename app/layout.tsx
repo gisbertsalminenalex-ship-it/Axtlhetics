@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { ServiceWorkerRegistrar } from '@/components/service-worker'
 import { AxtlheticsProvider } from '@/lib/state/store'
+import { EcosystemProvider } from '@/lib/ecosystem/use-ecosystem'
 import './globals.css'
 
 const inter = Inter({
@@ -57,7 +58,9 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} bg-neutral-100`}>
       <body className="antialiased font-sans">
-        <AxtlheticsProvider>{children}</AxtlheticsProvider>
+        <AxtlheticsProvider>
+          <EcosystemProvider>{children}</EcosystemProvider>
+        </AxtlheticsProvider>
         <ServiceWorkerRegistrar />
       </body>
     </html>

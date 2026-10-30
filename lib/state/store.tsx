@@ -129,6 +129,7 @@ import {
   type PerimeterKey,
 } from '../domain/body/measurements'
 import { EXERCISE_CATALOG, findExercise } from '../domain/workouts/catalog'
+import type { EcosystemSharing } from '../domain/ecosystem/sharing'
 import { useAssessments, type AssessmentsApi } from './use-assessment'
 import { useScans, type ScansApi } from './use-scans'
 import type { Exercise, RepsInReserve, WorkoutSession } from '../domain/workouts/types'
@@ -247,6 +248,8 @@ type AxtlheticsStore = {
   setNutritionGoal(goal: NutritionGoal): Promise<void>
   /** Acepta el ajuste de calorías que propone AXIS (D-061). */
   applyNutritionAdjustment(deltaKcal: number): Promise<void>
+  /** Guarda qué se comparte con la app AXIS del ecosistema, o `null` para dejar de compartir (D-076). */
+  setEcosystemSharing(sharing: EcosystemSharing | null): Promise<void>
   /** Apunta o quita un ejercicio que no gusta (D-037). */
   setExerciseDisliked(exerciseId: string, disliked: boolean): Promise<void>
   addActivity(draft: ActivityDraft): Promise<void>
@@ -761,6 +764,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         ...(profile?.exerciseLevels ? { exerciseLevels: profile.exerciseLevels } : {}),
         // Ni la alimentación (D-061), que tiene sus propias acciones.
         ...(profile?.nutrition ? { nutrition: profile.nutrition } : {}),
+        // Ni lo que se comparte con la app AXIS (D-076).
+        ...(profile?.ecosystem ? { ecosystem: profile.ecosystem } : {}),
         id: PRIMARY_PROFILE_ID,
         createdAt: profile?.createdAt ?? timestamp,
         updatedAt: timestamp,
@@ -773,7 +778,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         setError('No se pudo guardar tu perfil en este dispositivo.')
       }
     },
-    [profile?.createdAt, profile?.targets, profile?.dislikedExercises, profile?.exerciseLevels, profile?.nutrition],
+    [profile?.createdAt, profile?.targets, profile?.dislikedExercises, profile?.exerciseLevels, profile?.nutrition, profile?.ecosystem],
   )
 
   /**
@@ -812,6 +817,16 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         'No se pudo guardar el ajuste en este dispositivo.',
       ),
     [updateProfile, today],
+  )
+
+  // Ecosistema (D-076): el consentimiento vive en el perfil; quitarlo es dejar de compartir.
+  const setEcosystemSharing = useCallback(
+    (sharing: EcosystemSharing | null) =>
+      updateProfile((current) => {
+        const { ecosystem: _previous, ...rest } = current
+        return sharing ? { ...rest, ecosystem: sharing } : rest
+      }, 'No se pudo guardar lo que compartes con AXIS en este dispositivo.'),
+    [updateProfile],
   )
 
   const saveTargets = useCallback(
@@ -1633,6 +1648,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       removeMeal,
       setNutritionGoal,
       applyNutritionAdjustment,
+      setEcosystemSharing,
       removeTarget,
       addActivity,
       updateActivity,
@@ -1715,6 +1731,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       removeMeal,
       setNutritionGoal,
       applyNutritionAdjustment,
+      setEcosystemSharing,
       removeTarget,
       addActivity,
       updateActivity,

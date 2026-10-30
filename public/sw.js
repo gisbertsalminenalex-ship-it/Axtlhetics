@@ -82,7 +82,8 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return
 
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request))
+    // La vuelta de Google (D-076) trae un código de un solo uso: se pide a la red y no se guarda.
+    event.respondWith(url.searchParams.has('code') ? fetch(request) : networkFirst(request))
     return
   }
 
