@@ -18,7 +18,7 @@ export function FieldLabel({ children }: { children: React.ReactNode }) {
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">{children}</h3>
+    <h3 className="mt-8 text-body font-semibold">{children}</h3>
   )
 }
 
@@ -89,7 +89,7 @@ export function StepButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
-      className="ax-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors disabled:opacity-35"
+      className="ax-press flex h-11 w-11 items-center justify-center rounded-full bg-surface text-foreground transition-colors disabled:opacity-35"
     >
       <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
     </button>
@@ -137,10 +137,10 @@ export function MultiChoiceGroup<T extends string>({
               disabled={blocked}
               aria-pressed={selected}
               className={cn(
-                'ax-press min-h-11 rounded-full border px-4 text-subhead font-medium transition-colors',
+                'ax-press min-h-11 rounded-full px-4 text-subhead font-medium transition-colors',
                 selected
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-muted-foreground',
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-surface text-muted-foreground',
                 blocked && 'opacity-35',
               )}
             >
@@ -178,10 +178,10 @@ export function ChoiceGroup<T extends string>({
               onClick={() => onChange(option.value)}
               aria-pressed={selected}
               className={cn(
-                'ax-press min-h-11 rounded-full border px-4 text-subhead font-medium transition-colors',
+                'ax-press min-h-11 rounded-full px-4 text-subhead font-medium transition-colors',
                 selected
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-muted-foreground',
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-surface text-muted-foreground',
               )}
             >
               {option.label}
@@ -219,10 +219,10 @@ export function WeekdayPicker({
               aria-pressed={selected}
               aria-label={`Día ${index + 1}`}
               className={cn(
-                'ax-press h-11 flex-1 rounded-full border text-subhead font-semibold transition-colors',
+                'ax-press h-11 flex-1 rounded-full text-subhead font-semibold transition-colors',
                 selected
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-muted-foreground',
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-surface text-muted-foreground',
               )}
             >
               {initial}
@@ -253,7 +253,7 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-4 text-callout outline-none placeholder:text-muted-foreground focus-visible:border-primary"
+        className="mt-2 h-12 w-full rounded-2xl border border-transparent bg-surface focus-visible:border-primary px-4 text-callout outline-none placeholder:text-muted-foreground"
       />
     </div>
   )
@@ -276,7 +276,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="ax-press flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-primary text-callout font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+      className="ax-press flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
     >
       {children}
     </button>

@@ -64,10 +64,10 @@ export function TestActive({
   const side = currentSide(assessment)
 
   return (
-    <div className="flex min-h-full flex-col px-6 pb-8">
+    <div className="flex min-h-full flex-col px-5 pb-8">
       <header className="flex items-center justify-between pt-2 pb-3">
         <button type="button" onClick={onExit} aria-label="Salir del test" className="ax-press -ml-2 flex h-11 w-11 items-center justify-center">
-          <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
+          <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
         <span className="text-footnote font-semibold text-muted-foreground tabular-nums">
           {/* En el descanso ninguna prueba está activa: se cuentan las hechas. */}
@@ -135,8 +135,8 @@ function TestBody({
 
   return (
     <section className="ax-enter flex flex-1 flex-col">
-      <p className="mt-8 text-caption font-semibold tracking-[0.14em] text-muted-foreground uppercase">{test.area}</p>
-      <h1 className="mt-1.5 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">{testName(test, assessment)}</h1>
+      <p className="mt-8 text-overline font-semibold tracking-[0.16em] text-muted-foreground uppercase">{test.area}</p>
+      <h1 className="mt-1.5 text-title-lg font-bold">{testName(test, assessment)}</h1>
       <p className="mt-3 text-callout leading-relaxed text-pretty">{test.instruction}</p>
 
       {test.perSide && (
@@ -313,7 +313,7 @@ function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: nu
             setNow(start)
             setStartedAt(start)
           }}
-          className="ax-press mt-8 h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
+          className="ax-press mt-8 h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground"
         >
           Empezar cronómetro
         </button>
@@ -347,7 +347,7 @@ function FinishButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="ax-press mt-5 h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-50"
+      className="ax-press mt-5 h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-50"
     >
       {label}
     </button>

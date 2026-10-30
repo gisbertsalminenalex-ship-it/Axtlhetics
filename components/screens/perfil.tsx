@@ -184,31 +184,30 @@ export function PerfilScreen({
   }
 
   return (
-    <div className="px-6 pb-10">
-      <header className="flex items-center justify-between pt-2 pb-6">
+    <div className="px-5 pb-12">
+      <header className="flex items-center justify-between pt-2 pb-3">
         {isOnboarding ? (
           <span className="text-callout font-bold tracking-[0.18em] text-foreground">
             AXTHLETICS
           </span>
         ) : (
-          <>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Volver"
-              className="-ml-2 flex h-11 w-11 items-center justify-center"
-            >
-              <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
-            </button>
-            <h1 className="text-body font-semibold tracking-[-0.01em]">Tu perfil</h1>
-            <span className="h-11 w-11" aria-hidden="true" />
-          </>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Volver"
+            className="ax-press -ml-2 flex h-11 w-11 items-center justify-center"
+          >
+            <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
+          </button>
         )}
       </header>
 
+      {/* Título grande, como el resto de pantallas (D-075). */}
+      {!isOnboarding && <h1 className="ax-enter text-title-lg font-bold">Tu perfil</h1>}
+
       {isOnboarding && (
         <>
-          <h1 className="text-title-lg font-bold leading-[1.05] tracking-[-0.03em] text-balance">
+          <h1 className="text-title-lg font-bold text-balance">
             Empecemos por ti.
           </h1>
           <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
@@ -324,7 +323,7 @@ export function PerfilScreen({
         {activities.map((activity) => (
           <li
             key={activity.id}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4"
+            className="flex items-center gap-3 rounded-2xl bg-surface p-4"
           >
             <span className="flex-1">
               <span className="block text-callout font-semibold">{activity.name}</span>
@@ -343,7 +342,7 @@ export function PerfilScreen({
                   value={activity.date}
                   onChange={(event) => void updateActivity(activity.id, { date: event.target.value })}
                   aria-label={`Fecha de ${activity.name}`}
-                  className="mt-2 h-11 rounded-2xl border border-border bg-background px-3 text-subhead font-semibold outline-none"
+                  className="mt-2 h-11 rounded-2xl border border-transparent bg-background focus-visible:border-primary px-3 text-subhead font-semibold outline-none"
                 >
                   {dateChoices(today, activity.date).map((day) => (
                     <option key={day} value={day}>
@@ -364,7 +363,7 @@ export function PerfilScreen({
           </li>
         ))}
         {activities.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
+          <li className="rounded-2xl bg-surface px-4 py-5 text-center text-footnote text-muted-foreground">
             Todavía no has añadido ninguna actividad.
           </li>
         )}
@@ -424,7 +423,7 @@ function DangerZone() {
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="ax-press mt-4 min-h-11 w-full rounded-2xl border border-border bg-background text-subhead font-semibold text-error"
+            className="ax-press mt-4 min-h-11 w-full rounded-full bg-surface text-subhead font-semibold text-error"
           >
             Cerrar sesión y borrar mis datos
           </button>
@@ -445,7 +444,7 @@ function DangerZone() {
               type="button"
               onClick={() => setConfirming(false)}
               disabled={clearing}
-              className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40"
+              className="ax-press h-12 flex-1 rounded-full bg-surface text-subhead font-semibold disabled:opacity-40"
             >
               Cancelar
             </button>
@@ -456,7 +455,7 @@ function DangerZone() {
                 void clearAllData()
               }}
               disabled={clearing}
-              className="ax-press h-12 flex-1 rounded-2xl bg-error text-subhead font-semibold text-white disabled:opacity-40"
+              className="ax-press h-12 flex-1 rounded-full bg-error text-subhead font-semibold text-white disabled:opacity-40"
             >
               {clearing ? 'Borrando…' : 'Borrar todo'}
             </button>
@@ -573,7 +572,7 @@ function ActivityForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary"
+        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-subhead font-semibold text-primary"
       >
         <Plus className="h-4 w-4" strokeWidth={2.25} />
         Añadir actividad
@@ -582,7 +581,7 @@ function ActivityForm({
   }
 
   return (
-    <div className="ax-enter mt-3 rounded-2xl border border-border bg-surface p-4">
+    <div className="ax-enter mt-3 rounded-2xl bg-surface p-4">
       <TextField label="Actividad" value={name} placeholder="Baloncesto" onChange={setName} />
 
       <ChoiceGroup
@@ -601,7 +600,7 @@ function ActivityForm({
             value={date}
             onChange={(event) => setDate(event.target.value)}
             aria-label="Qué día"
-            className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold outline-none"
+            className="h-11 rounded-2xl border border-transparent bg-background focus-visible:border-primary px-3 text-callout font-semibold outline-none"
           >
             {dateChoices(today, date).map((day) => (
               <option key={day} value={day}>
@@ -626,7 +625,7 @@ function ActivityForm({
         className={
           loadsLegs
             ? 'min-h-11 rounded-full border border-primary bg-primary px-4 text-subhead font-medium text-primary-foreground'
-            : 'min-h-11 rounded-full border border-border bg-background px-4 text-subhead font-medium text-muted-foreground'
+            : 'min-h-11 rounded-full bg-background px-4 text-subhead font-medium text-muted-foreground'
         }
       >
         Carga {MUSCLE_GROUP_LABELS.piernas.toLowerCase()}
@@ -654,7 +653,7 @@ function ActivityForm({
               value={startHour}
               onChange={(event) => setStartHour(Number(event.target.value))}
               aria-label="Hora de inicio"
-              className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold tabular-nums outline-none"
+              className="h-11 rounded-2xl border border-transparent bg-background focus-visible:border-primary px-3 text-callout font-semibold tabular-nums outline-none"
             >
               {HOUR_OPTIONS.map((hour) => (
                 <option key={hour} value={hour}>
@@ -670,7 +669,7 @@ function ActivityForm({
               value={durationHours}
               onChange={(event) => setDurationHours(Number(event.target.value))}
               aria-label="Duración"
-              className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold tabular-nums outline-none"
+              className="h-11 rounded-2xl border border-transparent bg-background focus-visible:border-primary px-3 text-callout font-semibold tabular-nums outline-none"
             >
               {[1, 2, 3].map((hours) => (
                 <option key={hours} value={hours}>
@@ -687,7 +686,7 @@ function ActivityForm({
           type="button"
           onClick={reset}
           disabled={saving}
-          className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-subhead font-semibold text-muted-foreground disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-full bg-surface text-subhead font-semibold text-muted-foreground disabled:opacity-40"
         >
           Cancelar
         </button>
@@ -695,7 +694,7 @@ function ActivityForm({
           type="button"
           onClick={() => void submit()}
           disabled={!canSave || saving}
-          className="ax-press h-12 flex-1 rounded-2xl bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-full bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-40"
         >
           {saving ? 'Guardando…' : 'Añadir'}
         </button>

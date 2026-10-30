@@ -53,14 +53,14 @@ export function TestIntro({
   const canStart = briefing !== null && unavailable === null
 
   return (
-    <div className="flex min-h-full flex-col px-6 pb-8">
+    <div className="flex min-h-full flex-col px-5 pb-8">
       <header className="flex items-center pt-2 pb-1">
         <button type="button" onClick={onBack} aria-label="Volver" className="ax-press -ml-2 flex h-11 w-11 items-center justify-center">
-          <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
+          <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
       </header>
 
-      <h1 className="mt-3 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">Test de evolución</h1>
+      <h1 className="mt-3 text-title-lg font-bold">Test de evolución</h1>
       <p className="mt-1.5 text-callout text-muted-foreground">4 pruebas · 10–15 min</p>
       <StaleTestNotice className="mt-4" />
       <p className="mt-4 text-callout leading-relaxed text-pretty">
@@ -108,7 +108,7 @@ export function TestIntro({
                 onClick={() => setVariant(id)}
                 className={cn(
                   'ax-press min-h-11 rounded-full px-4 text-footnote font-semibold',
-                  variant === id ? 'bg-primary text-primary-foreground' : 'border border-border bg-background',
+                  variant === id ? 'bg-primary text-primary-foreground' : 'bg-surface',
                 )}
               >
                 {variantLabel(id)}
@@ -139,7 +139,7 @@ export function TestIntro({
             // aviso de error lo explica y se puede volver a intentar.
             if (!(await onStart(variant))) setStarting(false)
           }}
-          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
+          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
         >
           Empezar test
         </button>

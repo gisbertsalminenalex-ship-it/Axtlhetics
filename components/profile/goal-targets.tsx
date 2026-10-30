@@ -36,7 +36,7 @@ export function GoalTargets() {
           const progress = targetProgress(target, sessions, today, assessments.assessments)
           const unit = exercise?.work.isTimed ? 's' : 'reps'
           return (
-            <li key={target.id} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">
+            <li key={target.id} className="flex items-center gap-3 rounded-2xl bg-surface p-4">
               <span className="flex-1">
                 <span className="block text-callout font-semibold">
                   {exercise?.name ?? 'Ejercicio retirado'} · {target.target} {unit}
@@ -60,7 +60,7 @@ export function GoalTargets() {
           )
         })}
         {targets.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
+          <li className="rounded-2xl bg-surface px-4 py-5 text-center text-footnote text-muted-foreground">
             Todavía no tienes ningún objetivo medible.
           </li>
         )}
@@ -101,7 +101,7 @@ function TargetForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary"
+        className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-subhead font-semibold text-primary"
       >
         <Plus className="h-4 w-4" strokeWidth={2.25} />
         Añadir objetivo
@@ -110,14 +110,14 @@ function TargetForm({
   }
 
   return (
-    <div className="ax-enter mt-3 rounded-2xl border border-border bg-surface p-4">
+    <div className="ax-enter mt-3 rounded-2xl bg-surface p-4">
       <div className="flex items-center justify-between gap-3 py-2">
         <FieldLabel>Ejercicio</FieldLabel>
         <select
           value={exerciseId}
           onChange={(event) => setExerciseId(event.target.value)}
           aria-label="Ejercicio"
-          className="h-11 max-w-[60%] rounded-2xl border border-border bg-background px-3 text-callout font-semibold outline-none"
+          className="h-11 max-w-[60%] rounded-2xl border border-transparent bg-background focus-visible:border-primary px-3 text-callout font-semibold outline-none"
         >
           {TARGET_EXERCISES.map((item) => (
             <option key={item.id} value={item.id}>

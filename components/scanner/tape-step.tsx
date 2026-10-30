@@ -80,7 +80,7 @@ export function TapeStep({
       </div>
 
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground">
+        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground">
           Continuar
         </button>
       </div>

@@ -161,10 +161,10 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="flex min-h-full flex-col px-6 pb-8">
+    <div className="flex min-h-full flex-col px-5 pb-8">
       <header className="flex items-center justify-between pt-2 pb-1">
         <button type="button" onClick={back} aria-label="Volver" className="ax-press -ml-2 flex h-11 w-11 items-center justify-center">
-          <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
+          <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
         {step !== 'intro' && step !== 'summary' && (
           <span className="text-footnote font-semibold text-muted-foreground tabular-nums">
@@ -216,7 +216,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 
       {step === 'summary' && (
         <>
-          <h1 className="mt-3 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">Tu escaneo</h1>
+          <h1 className="mt-3 text-title-lg font-bold">Tu escaneo</h1>
           <div className="mt-5">
             <ScanSummaryView
               summary={summary}
@@ -229,7 +229,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
               type="button"
               disabled={saving || Object.keys(measurements).length === 0}
               onClick={() => void save()}
-              className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
+              className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
             >
               {saving ? 'Guardando…' : 'Guardar escaneo'}
             </button>
@@ -246,7 +246,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: string | null }) {
   return (
     <>
-      <h1 className="mt-3 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">Escáner corporal</h1>
+      <h1 className="mt-3 text-title-lg font-bold">Escáner corporal</h1>
       <p className="mt-1.5 text-callout text-muted-foreground">2 preguntas, tu cinta y 5 fotos · 5–10 min</p>
       <p className="mt-4 text-callout leading-relaxed text-pretty">
         Como la primera valoración de un entrenador: miro cómo estás de pie, cómo te mueves y tus proporciones, y sigo
@@ -256,14 +256,20 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
         Las fotos se analizan en tu móvil y no salen de él. Solo se guarda una miniatura de cada pose, también en tu móvil,
         para que compares mes a mes.
       </p>
-      <ul className="mt-5 divide-y divide-border border-y border-border text-subhead">
-        {SCAN_PHOTO_TIPS.map((tip) => (
-          <li key={tip} className="py-2.5 leading-snug">{tip}</li>
+      {/* Los consejos, numerados en un grupo: se leen como pasos, no como letra pequeña (D-075). */}
+      <ol className="mt-6 space-y-3.5 rounded-2xl bg-surface p-4 text-subhead">
+        {SCAN_PHOTO_TIPS.map((tip, index) => (
+          <li key={tip} className="flex gap-3 text-pretty">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-background text-caption font-semibold tabular-nums text-primary">
+              {index + 1}
+            </span>
+            <span>{tip}</span>
+          </li>
         ))}
-      </ul>
+      </ol>
       {lastScanDay && <p className="mt-3 text-footnote text-muted-foreground">Último escaneo: {formatDayInSentence(lastScanDay)}</p>}
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onStart} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground">
+        <button type="button" onClick={onStart} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground">
           Empezar
         </button>
       </div>
@@ -278,7 +284,7 @@ function Question({ title, hint, onNext, children }: { title: string; hint: stri
       <p className="mt-2 text-subhead leading-relaxed text-muted-foreground text-pretty">{hint}</p>
       <div className="mt-6 flex flex-wrap gap-2">{children}</div>
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground">
+        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground">
           Continuar
         </button>
       </div>
@@ -295,7 +301,7 @@ function Chip({ selected, disabled, onClick, children }: { selected: boolean; di
       onClick={onClick}
       className={cn(
         'ax-press min-h-11 rounded-full px-4 text-footnote font-semibold disabled:opacity-40',
-        selected ? 'bg-primary text-primary-foreground' : 'border border-border bg-background',
+        selected ? 'bg-primary text-primary-foreground' : 'bg-surface',
       )}
     >
       {children}
@@ -335,7 +341,7 @@ function PoseStep({
 
       <label
         className={cn(
-          'ax-press mt-6 flex h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl border border-border bg-background text-callout font-semibold',
+          'ax-press mt-6 flex h-[52px] w-full cursor-pointer items-center justify-center rounded-full bg-surface text-callout font-semibold',
           analyzing && 'pointer-events-none opacity-60',
         )}
       >
@@ -389,7 +395,7 @@ function PoseStep({
           type="button"
           onClick={onNext}
           disabled={analyzing}
-          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
+          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
         >
           {valid > 0 ? 'Continuar' : 'Saltar esta pose'}
         </button>

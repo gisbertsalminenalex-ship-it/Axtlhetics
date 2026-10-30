@@ -16,7 +16,7 @@ export function AssessmentResults({ rows, showPrevious = false }: { rows: Summar
       {rows.map((row) => (
         <li key={row.key} className="py-3.5">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-callout font-semibold tracking-[-0.01em]">{row.name}</span>
+            <span className="text-body font-semibold">{row.name}</span>
             <span className="text-headline font-bold tracking-[-0.01em] tabular-nums">{row.value}</span>
           </div>
           <div className="mt-1 flex items-baseline justify-between gap-3 text-footnote text-muted-foreground tabular-nums">

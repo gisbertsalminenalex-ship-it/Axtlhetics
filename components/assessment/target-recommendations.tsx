@@ -39,7 +39,7 @@ export function TargetRecommendations({ assessment }: { assessment: Assessment }
 
   return (
     <section className="mt-7">
-      <h2 className="text-callout font-semibold tracking-[-0.01em]">Objetivos que te propongo</h2>
+      <h2 className="text-body font-semibold">Objetivos que te propongo</h2>
       <p className="mt-2 flex items-start gap-2 text-footnote leading-relaxed text-muted-foreground text-pretty">
         <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
         Con tu primer test ya sé de dónde partes. Te propongo mejorar cada prueba en unas 8 semanas: llegarás a los dos
@@ -62,7 +62,7 @@ export function TargetRecommendations({ assessment }: { assessment: Assessment }
         type="button"
         onClick={() => void add()}
         disabled={saving}
-        className="ax-press mt-4 flex min-h-11 w-full items-center justify-center rounded-2xl border border-border bg-background text-subhead font-semibold text-primary disabled:opacity-40"
+        className="ax-press mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-surface text-subhead font-semibold text-primary disabled:opacity-40"
       >
         {saving ? 'Añadiendo…' : 'Añadir estos objetivos'}
       </button>

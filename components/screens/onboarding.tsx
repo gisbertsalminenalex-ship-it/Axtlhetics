@@ -330,7 +330,7 @@ export function OnboardingScreen() {
     typeof step.id === 'object' ? sports[step.id.sportIndex] : undefined
 
   return (
-    <div className="flex min-h-full flex-col px-6 pb-10">
+    <div className="flex min-h-full flex-col px-5 pb-10">
       <header className="flex items-center justify-between pt-2 pb-8">
         {safeIndex > 0 ? (
           <button
@@ -339,7 +339,7 @@ export function OnboardingScreen() {
             aria-label="Volver a la pregunta anterior"
             className="ax-press -ml-2 flex h-11 w-11 items-center justify-center"
           >
-            <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
+            <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
           </button>
         ) : (
           <span className="text-callout font-bold tracking-[0.18em] text-foreground">
@@ -360,7 +360,7 @@ export function OnboardingScreen() {
       </div>
 
       <div key={step.key} className="ax-enter flex flex-1 flex-col pt-10">
-        <h1 className="text-title-lg font-bold leading-[1.1] tracking-[-0.03em] text-balance">
+        <h1 className="text-title-lg font-bold text-balance">
           {step.question}
         </h1>
         {step.hint && (
@@ -564,7 +564,7 @@ function SportsPicker({
         type="button"
         onClick={onAdd}
         disabled={value.trim().length === 0}
-        className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary disabled:opacity-35"
+        className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-subhead font-semibold text-primary disabled:opacity-35"
       >
         <Plus className="h-4 w-4" strokeWidth={2.25} />
         Añadir deporte
@@ -575,7 +575,7 @@ function SportsPicker({
           {sports.map((sport, index) => (
             <li
               key={sport.name}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3"
+              className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3"
             >
               <span className="flex-1">
                 <span className="block text-callout font-semibold">{sport.name}</span>
@@ -627,10 +627,10 @@ function IntensityPicker({
                 onClick={() => onSelect(option.value)}
                 aria-pressed={selected}
                 className={cn(
-                  'ax-press w-full rounded-2xl border px-4 py-4 text-left transition-colors',
+                  'ax-press w-full rounded-2xl px-4 py-4 text-left transition-colors',
                   selected
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-background',
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-surface',
                 )}
               >
                 <span className="block text-callout font-semibold">{option.label}</span>
@@ -655,10 +655,10 @@ function IntensityPicker({
           onClick={onToggleLegs}
           aria-pressed={sport.loadsLegs}
           className={cn(
-            'ax-press mt-2.5 min-h-11 rounded-full border px-4 text-subhead font-medium transition-colors',
+            'ax-press mt-2.5 min-h-11 rounded-full px-4 text-subhead font-medium transition-colors',
             sport.loadsLegs
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border bg-background text-muted-foreground',
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-surface text-muted-foreground',
           )}
         >
           Sí, carga {MUSCLE_GROUP_LABELS.piernas.toLowerCase()}

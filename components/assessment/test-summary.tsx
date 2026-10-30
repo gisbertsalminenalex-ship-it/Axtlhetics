@@ -30,11 +30,11 @@ export function TestSummary({
   const day = formatDayInSentence(assessment.dayKey)
 
   return (
-    <div className="flex min-h-full flex-col px-6 pb-8">
+    <div className="flex min-h-full flex-col px-5 pb-8">
       <p className="mt-8 text-footnote text-muted-foreground">
         {day.charAt(0).toUpperCase() + day.slice(1)} · Protocolo {ASSESSMENT_PROTOCOL_VERSION}
       </p>
-      <h1 className="mt-1 text-title-lg font-bold leading-[1.1] tracking-[-0.03em]">Test completado</h1>
+      <h1 className="mt-1 text-title-lg font-bold">Test completado</h1>
 
       <div className="mt-4 flex items-start gap-2">
         <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
@@ -54,7 +54,7 @@ export function TestSummary({
         <button
           type="button"
           onClick={onDone}
-          className="ax-press h-[52px] w-full rounded-2xl bg-primary text-callout font-semibold text-primary-foreground"
+          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground"
         >
           Hecho
         </button>

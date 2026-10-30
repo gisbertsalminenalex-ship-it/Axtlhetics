@@ -43,7 +43,7 @@ export function DailyReminder() {
           value={minuteOfDay}
           onChange={(event) => setMinuteOfDay(Number(event.target.value))}
           aria-label="Hora del recordatorio"
-          className="h-11 rounded-2xl border border-border bg-background px-3 text-callout font-semibold tabular-nums outline-none"
+          className="h-11 rounded-2xl border border-transparent bg-surface focus-visible:border-primary px-3 text-callout font-semibold tabular-nums outline-none"
         >
           {TIMES.map((minutes) => (
             <option key={minutes} value={minutes}>
@@ -55,7 +55,7 @@ export function DailyReminder() {
       <button
         type="button"
         onClick={download}
-        className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold text-primary"
+        className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-subhead font-semibold text-primary"
       >
         <CalendarPlus className="h-4 w-4" strokeWidth={2} />
         Añadir al calendario

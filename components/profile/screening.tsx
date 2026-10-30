@@ -154,7 +154,7 @@ export function HealthNote({
             aria-label="Tu salud, con tus palabras"
             placeholder="Por ejemplo: me operaron de la rodilla derecha hace un año y tengo la tensión alta."
             onChange={(event) => setText(event.target.value)}
-            className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-callout leading-relaxed outline-none placeholder:text-muted-foreground focus-visible:border-primary"
+            className="w-full resize-none rounded-2xl border border-transparent bg-surface focus-visible:border-primary px-4 py-3 text-callout leading-relaxed outline-none placeholder:text-muted-foreground"
           />
           <p className="mt-1.5 text-caption leading-relaxed text-muted-foreground text-pretty">
             AXIS lo lee con su modelo de lenguaje para entenderlo. No se guarda fuera de tu dispositivo.
@@ -196,10 +196,10 @@ export function HealthNote({
           onClick={() => onChange({ ...current, cleared: !current.cleared })}
           aria-pressed={current.cleared}
           className={cn(
-            'ax-press mt-3 min-h-11 w-full rounded-full border px-4 text-subhead font-medium transition-colors',
+            'ax-press mt-3 min-h-11 w-full rounded-full px-4 text-subhead font-medium transition-colors',
             current.cleared
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border bg-background text-muted-foreground',
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-surface text-muted-foreground',
           )}
         >
           Mi médico me ha dado el visto bueno

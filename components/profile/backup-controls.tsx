@@ -58,7 +58,7 @@ export function BackupControls() {
         type="button"
         onClick={() => void download()}
         disabled={working}
-        className="ax-press mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40"
+        className="ax-press mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-subhead font-semibold disabled:opacity-40"
       >
         <Download className="h-[18px] w-[18px]" strokeWidth={2} />
         Descargar una copia
@@ -177,7 +177,7 @@ function RestoreFlow({ label = 'Restaurar desde una copia', className }: {
         onClick={() => fileInput.current?.click()}
         disabled={working}
         className={cn(
-          'ax-press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40',
+          'ax-press flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-subhead font-semibold disabled:opacity-40',
           className,
         )}
       >
@@ -236,7 +236,7 @@ function RestoreConfirmation({
   const hasSomethingToLose = current.sessions > 0 || current.assessments > 0 || current.scans > 0 || current.profile
 
   return (
-    <div className="ax-enter mt-4 rounded-2xl border border-border bg-surface p-4">
+    <div className="ax-enter mt-4 rounded-2xl bg-surface p-4">
       <p className="text-subhead font-semibold">Restaurar esta copia</p>
 
       <p className="mt-2 text-footnote leading-relaxed">La copia trae {describe(counts)}.</p>
@@ -269,7 +269,7 @@ function RestoreConfirmation({
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="ax-press h-12 flex-1 rounded-2xl border border-border bg-background text-subhead font-semibold disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-full bg-surface text-subhead font-semibold disabled:opacity-40"
         >
           Cancelar
         </button>
@@ -277,7 +277,7 @@ function RestoreConfirmation({
           type="button"
           onClick={onConfirm}
           disabled={busy}
-          className="ax-press h-12 flex-1 rounded-2xl bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-full bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-40"
         >
           {busy ? 'Restaurando…' : 'Restaurar'}
         </button>
