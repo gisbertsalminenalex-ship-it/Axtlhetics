@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Minus, Plus, X } from 'lucide-react'
+import { AxisMark } from '@/components/axis-mark'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { SexPicker } from '@/components/profile/about-you'
@@ -330,8 +331,8 @@ export function OnboardingScreen() {
     typeof step.id === 'object' ? sports[step.id.sportIndex] : undefined
 
   return (
-    <div className="flex min-h-full flex-col px-5 pb-10">
-      <header className="flex items-center justify-between pt-2 pb-8">
+    <div className="flex flex-1 flex-col px-5">
+      <header className="flex min-h-11 items-center justify-between pt-2 pb-6">
         {safeIndex > 0 ? (
           <button
             type="button"
@@ -342,29 +343,31 @@ export function OnboardingScreen() {
             <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
           </button>
         ) : (
-          <span className="text-callout font-bold tracking-[0.18em] text-foreground">
-            AXTHLETICS
+          <span className="flex h-11 items-center gap-2">
+            <AxisMark className="h-[18px] w-[18px] text-primary" />
+            <span className="text-footnote font-bold tracking-[0.22em] text-foreground">AXTHLETICS</span>
           </span>
         )}
 
-        <span className="text-caption font-medium tabular-nums text-muted-foreground">
+        <span className="text-footnote font-medium tabular-nums text-muted-foreground">
           {safeIndex + 1} de {steps.length}
         </span>
       </header>
 
-      <div className="h-0.5 w-full overflow-hidden rounded-full bg-border" aria-hidden="true">
+      {/* El avance, en una línea que se desliza con la curva de la app (D-075). */}
+      <div className="h-1 w-full overflow-hidden rounded-full bg-track" aria-hidden="true">
         <div
-          className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-          style={{ width: `${((safeIndex + 1) / steps.length) * 100}%` }}
+          className="h-full origin-left rounded-full bg-primary transition-transform duration-[var(--ax-slide)] ease-[var(--ax-spring)]"
+          style={{ transform: `scaleX(${(safeIndex + 1) / steps.length})` }}
         />
       </div>
 
-      <div key={step.key} className="ax-enter flex flex-1 flex-col pt-10">
+      <div key={step.key} className="ax-enter flex flex-col pt-10">
         <h1 className="text-title-lg font-bold text-balance">
           {step.question}
         </h1>
         {step.hint && (
-          <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
+          <p className="mt-3 text-callout text-muted-foreground text-pretty">
             {step.hint}
           </p>
         )}
@@ -372,12 +375,18 @@ export function OnboardingScreen() {
         <div className="mt-8">
           {step.id === 'name' && (
             <>
-              <TextField
-                label="Tu nombre"
-                value={draft.name}
-                placeholder="Alex"
-                onChange={(name) => patch({ name })}
-              />
+              <label className="block">
+                <span className="sr-only">Tu nombre</span>
+                <input
+                  type="text"
+                  value={draft.name}
+                  placeholder="Tu nombre"
+                  autoFocus
+                  autoComplete="given-name"
+                  onChange={(event) => patch({ name: event.target.value })}
+                  className="h-16 w-full rounded-2xl border border-transparent bg-surface px-5 text-headline font-semibold outline-none transition-colors placeholder:font-normal placeholder:text-muted-nontext focus-visible:border-primary/40"
+                />
+              </label>
               {/*
                 Quien llega aquí con una copia no viene a empezar de cero: viene
                 de un teléfono nuevo o de un almacenamiento desalojado. Es el
@@ -388,14 +397,7 @@ export function OnboardingScreen() {
           )}
 
           {step.id === 'age' && (
-            <StepperField
-              label="Edad"
-              value={draft.age}
-              unit="años"
-              min={10}
-              max={99}
-              onChange={(age) => patch({ age })}
-            />
+            <BigStepper label="Edad" value={draft.age} unit="años" min={10} max={99} onChange={(age) => patch({ age })} />
           )}
 
           {step.id === 'goals' && (
@@ -441,10 +443,10 @@ export function OnboardingScreen() {
           )}
 
           {step.id === 'duration' && (
-            <StepperField
+            <BigStepper
               label="Duración habitual"
               value={draft.typicalSessionMinutes}
-              unit="min"
+              unit="minutos"
               step={5}
               min={20}
               max={120}
@@ -460,7 +462,7 @@ export function OnboardingScreen() {
           )}
 
           {step.id === 'body' && (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border rounded-2xl bg-surface px-4 [&_button]:bg-background">
               <StepperField
                 label="Altura"
                 value={draft.heightCm}
@@ -532,7 +534,8 @@ export function OnboardingScreen() {
         </div>
       </div>
 
-      <div className="mt-10">
+      {/* Abajo y fijo: la pregunta cambia, el botón no se mueve de sitio. */}
+      <div className="sticky bottom-0 -mx-5 mt-auto bg-background/90 px-5 pt-6 pb-6 backdrop-blur-sm">
         <PrimaryButton onClick={() => void goNext()} disabled={!step.canContinue || saving}>
           {isLast ? 'Empezar' : 'Continuar'}
           <ArrowRight className="h-4 w-4" />
@@ -667,6 +670,62 @@ function IntensityPicker({
           Si lo marcas, AXIS evitará encadenar una sesión de piernas exigente el mismo día.
         </p>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Una sola cifra por pregunta: el número en grande, en el centro, y sus dos
+ * botones a los lados (D-075). Para la edad y la duración, donde es lo único
+ * que hay en pantalla.
+ */
+function BigStepper({
+  label,
+  value,
+  unit,
+  step = 1,
+  min,
+  max,
+  onChange,
+}: {
+  label: string
+  value: number
+  unit: string
+  step?: number
+  min: number
+  max: number
+  onChange: (next: number) => void
+}) {
+  const clampTo = (next: number) => Math.min(Math.max(next, min), max)
+  const button =
+    'ax-press flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-background text-foreground transition-opacity disabled:opacity-35'
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-3xl bg-surface/60 px-4 py-8" role="group" aria-label={label}>
+      <button
+        type="button"
+        onClick={() => onChange(clampTo(value - step))}
+        disabled={value <= min}
+        aria-label={`Reducir ${label.toLowerCase()}`}
+        className={button}
+      >
+        <Minus className="h-5 w-5" strokeWidth={2} />
+      </button>
+      <div className="min-w-0 text-center">
+        <p className="text-hero font-bold tabular-nums">
+          {value}
+        </p>
+        <p className="mt-1 text-callout text-muted-foreground">{unit}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(clampTo(value + step))}
+        disabled={value >= max}
+        aria-label={`Aumentar ${label.toLowerCase()}`}
+        className={button}
+      >
+        <Plus className="h-5 w-5" strokeWidth={2} />
+      </button>
     </div>
   )
 }

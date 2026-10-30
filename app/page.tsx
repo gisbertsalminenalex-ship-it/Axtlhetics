@@ -68,7 +68,8 @@ export default function Page() {
           {store.status === 'loading' && <AppLoading />}
 
           {store.status === 'onboarding' && (
-            <div className="ax-enter">
+            // Toda la altura: «Continuar» queda abajo, al alcance del pulgar.
+            <div className="ax-enter flex min-h-full flex-col">
               <OnboardingScreen />
             </div>
           )}
