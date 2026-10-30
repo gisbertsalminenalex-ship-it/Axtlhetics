@@ -21,8 +21,8 @@ export function AssessmentHistoryList({ onOpen }: { onOpen: (id: string) => void
 
   return (
     <>
-      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">Tests de evolución</h3>
-      <ul className="mt-2 divide-y divide-border">
+      <h3 className="mt-10 mb-3 text-body font-semibold">Tests de evolución</h3>
+      <ul className="divide-y divide-border rounded-2xl border border-border px-4">
         {entries.map((entry) =>
           entry.status === 'completed' ? (
             <li key={entry.id}>
@@ -32,7 +32,7 @@ export function AssessmentHistoryList({ onOpen }: { onOpen: (id: string) => void
                 className="ax-press flex min-h-14 w-full items-center justify-between gap-3 py-2 text-left"
               >
                 <EntryText entry={entry} />
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-nontext" />
               </button>
             </li>
           ) : (
@@ -77,7 +77,7 @@ export function AssessmentDetail({ id, onBack }: { id: string; onBack: () => voi
   const summary = entry?.summary ?? null
 
   return (
-    <div className="ax-enter px-6 pb-10">
+    <div className="ax-enter px-5 pb-12">
       <header className="flex items-center pt-2 pb-1">
         <button
           type="button"
@@ -85,10 +85,10 @@ export function AssessmentDetail({ id, onBack }: { id: string; onBack: () => voi
           aria-label="Volver al historial"
           className="ax-press -ml-2 flex h-11 w-11 items-center justify-center"
         >
-          <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
+          <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
       </header>
-      <h1 className="mt-2 text-title font-bold tracking-[-0.02em]">Test de evolución</h1>
+      <h1 className="mt-3 text-title-lg font-bold">Test de evolución</h1>
       {entry && (
         <p className="mt-1.5 text-subhead text-muted-foreground">
           {capitalize(formatDayInSentence(entry.dayKey))} · Protocolo {ASSESSMENT_PROTOCOL_VERSION}

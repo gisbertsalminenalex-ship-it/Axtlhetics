@@ -8,6 +8,7 @@ import { formatDuration, formatShortDate } from '@/lib/domain/shared/dates'
 import { safeDivide } from '@/lib/domain/shared/ids'
 import { AssessmentDetail, AssessmentHistoryList } from '@/components/assessment/assessment-history'
 import { ScanDetail, ScanHistoryList } from '@/components/scanner/scan-history'
+import { EmptyNote, SectionHeader } from '@/components/section-header'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -33,15 +34,26 @@ export function HistorialScreen() {
   if (openTestId) return <AssessmentDetail id={openTestId} onBack={() => setOpenTestId(null)} />
   if (openScanId) return <ScanDetail id={openScanId} onBack={() => setOpenScanId(null)} />
 
+  const rangeIndex = RANGES.indexOf(range)
+
   return (
-    <div className="px-6 pb-10">
+    <div className="px-5 pb-12">
       {/* Header */}
-      <header className="flex items-center justify-between pt-2 pb-5">
-        <h1 className="text-title font-bold tracking-[-0.02em]">Historial</h1>
+      <header className="ax-enter pt-6">
+        <h1 className="text-title-lg font-bold">Historial</h1>
       </header>
 
-      {/* Segmented control */}
-      <div className="flex rounded-2xl bg-track p-1">
+      {/*
+        Segmented control. El pulgar es una sola pieza que se desliza entre
+        opciones con la curva de la barra inferior (D-075); su sombra es la única
+        aprobada (P-008, D-016).
+      */}
+      <div className="relative mt-6 flex rounded-full bg-surface p-1">
+        <span
+          aria-hidden="true"
+          className="absolute top-1 bottom-1 left-1 rounded-full bg-background shadow-[var(--elevation-control)] transition-transform duration-[var(--ax-slide)] ease-[var(--ax-spring)]"
+          style={{ width: `calc((100% - 8px) / ${RANGES.length})`, transform: `translateX(${rangeIndex * 100}%)` }}
+        />
         {RANGES.map((option) => (
           <button
             key={option}
@@ -49,10 +61,8 @@ export function HistorialScreen() {
             onClick={() => setRange(option)}
             aria-pressed={range === option}
             className={cn(
-              'ax-press min-h-11 flex-1 rounded-xl text-subhead font-medium transition-colors',
-              range === option
-                ? 'bg-background text-foreground shadow-[0_1px_2px_rgba(10,10,11,0.08)]'
-                : 'text-muted-foreground',
+              'ax-press relative min-h-10 flex-1 rounded-full text-subhead font-medium transition-colors duration-200',
+              range === option ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
             {HISTORY_RANGE_LABELS[option]}
@@ -60,87 +70,62 @@ export function HistorialScreen() {
         ))}
       </div>
 
-      {/* Rendimiento */}
-      <p className="mt-7 text-footnote font-medium text-muted-foreground">Rendimiento</p>
-      {stats.performance.available && stats.performance.percent !== null ? (
-        <>
-          <p className="mt-1 text-title-lg font-bold leading-none tracking-[-0.02em] tabular-nums text-primary">
-            {stats.performance.percent > 0 ? '+' : ''}
-            {stats.performance.percent}%
-          </p>
-          <p className="mt-1.5 text-footnote text-muted-foreground">
-            {stats.performance.comparisonLabel}
-          </p>
-        </>
-      ) : (
-        <>
-          <p className="mt-1 text-title-lg font-bold leading-none tracking-[-0.02em] text-muted-foreground">
-            —
-          </p>
-          <p className="mt-1.5 text-footnote text-muted-foreground">
-            Sin datos suficientes para comparar
-          </p>
-        </>
-      )}
+      {/* Rendimiento y volumen, en un solo módulo */}
+      <section key={range} className="ax-fade mt-4 rounded-3xl bg-surface p-5">
+        <p className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">RENDIMIENTO</p>
+        {stats.performance.available && stats.performance.percent !== null ? (
+          <>
+            <p className="mt-2 text-display font-bold tabular-nums text-primary">
+              {stats.performance.percent > 0 ? '+' : ''}
+              {stats.performance.percent}%
+            </p>
+            <p className="mt-1 text-footnote text-muted-foreground">{stats.performance.comparisonLabel}</p>
+          </>
+        ) : (
+          <>
+            <p className="mt-2 text-display font-bold text-muted-nontext">—</p>
+            <p className="mt-1 text-footnote text-muted-foreground">Sin datos suficientes para comparar</p>
+          </>
+        )}
 
-      <VolumeChart points={stats.points} periodLabel={stats.periodLabel} />
+        <VolumeChart points={stats.points} periodLabel={stats.periodLabel} />
+      </section>
 
-      {/* Resumen del periodo */}
-      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">
-        {SUMMARY_TITLES[range]}
-      </h3>
-      <ul className="mt-2 divide-y divide-border">
-        <SummaryRow
-          index={0}
-          icon={Dumbbell}
-          label="Entrenamientos"
-          value={String(stats.sessionCount)}
-        />
-        <SummaryRow
-          index={1}
-          icon={Clock}
-          label="Tiempo total"
-          value={formatTotalTime(stats.totalSeconds)}
-        />
-        <SummaryRow
-          index={2}
-          icon={BarChart3}
-          label="Volumen total"
-          value={formatVolume(stats.totalVolumeKg)}
-        />
+      {/* Resumen del periodo: tres cifras, una al lado de otra. */}
+      <SectionHeader title={SUMMARY_TITLES[range]} />
+      <ul className="grid grid-cols-3 gap-2">
+        <SummaryTile index={0} icon={Dumbbell} label="Entrenamientos" value={String(stats.sessionCount)} />
+        <SummaryTile index={1} icon={Clock} label="Tiempo total" value={formatTotalTime(stats.totalSeconds)} />
+        <SummaryTile index={2} icon={BarChart3} label="Volumen total" value={formatVolume(stats.totalVolumeKg)} />
       </ul>
 
       {/* Últimos entrenamientos */}
-      <h3 className="mt-8 text-callout font-semibold tracking-[-0.01em]">
-        Últimos entrenamientos
-      </h3>
+      <SectionHeader title="Últimos entrenamientos" />
       {recent.length > 0 ? (
-        <ul className="mt-3 space-y-2.5">
+        <ul className="overflow-hidden rounded-2xl border border-border">
           {recent.map((session, index) => (
             <li
               key={session.id}
-              className="ax-stagger"
+              className="ax-stagger flex min-h-16 items-center gap-3.5 border-b border-border px-4 py-3 last:border-b-0"
               style={{ '--ax-index': index } as CSSProperties}
             >
-              <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left">
-                <span className="flex-1">
-                  <span className="block text-callout font-semibold">{session.title}</span>
-                  <span className="block text-caption text-muted-foreground tabular-nums">
-                    {formatShortDate(session.dayKey)} ·{' '}
-                    {formatDuration(session.durationSeconds)}
-                  </span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface">
+                <Dumbbell className="h-[18px] w-[18px] text-foreground" strokeWidth={1.75} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-callout font-semibold">{session.title}</span>
+                <span className="block text-footnote tabular-nums text-muted-foreground">
+                  {formatShortDate(session.dayKey)} · {formatDuration(session.durationSeconds)}
                 </span>
-                <span className="text-footnote font-medium tabular-nums text-muted-foreground">
-                  {formatVolume(session.totalVolumeKg)}
-                </span>
-              </div>
+              </span>
+              <span className="shrink-0 text-footnote font-medium tabular-nums text-muted-foreground">
+                {formatVolume(session.totalVolumeKg)}
+              </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-3 rounded-2xl border border-dashed border-border px-4 py-6 text-center text-footnote text-muted-foreground">
-          Cuando completes tu primer entrenamiento aparecerá aquí.
-        </p>
+        <EmptyNote>Cuando completes tu primer entrenamiento aparecerá aquí.</EmptyNote>
       )}
 
       {/* Tests de evolución (D-021): una sección más del historial. */}
@@ -151,7 +136,7 @@ export function HistorialScreen() {
   )
 }
 
-function SummaryRow({
+function SummaryTile({
   icon: Icon,
   label,
   value,
@@ -164,12 +149,12 @@ function SummaryRow({
 }) {
   return (
     <li
-      className="ax-stagger flex items-center gap-3 py-3.5"
+      className="ax-stagger flex flex-col rounded-2xl border border-border p-3.5"
       style={{ '--ax-index': index } as CSSProperties}
     >
-      <Icon className="h-[19px] w-[19px] text-primary" strokeWidth={1.75} />
-      <span className="flex-1 text-callout font-medium">{label}</span>
-      <span className="text-callout font-semibold tabular-nums">{value}</span>
+      <Icon className="h-[18px] w-[18px] text-primary" strokeWidth={1.75} />
+      <span className="mt-4 text-headline font-semibold tabular-nums">{value}</span>
+      <span className="mt-0.5 text-caption text-muted-foreground">{label}</span>
     </li>
   )
 }
@@ -216,7 +201,7 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
   const currentIndex = points.reduce((last, point, index) => (point.future ? last : index), -1)
 
   return (
-    <figure className="mt-5">
+    <figure className="mt-6">
       <figcaption className="flex items-baseline justify-between">
         <span className="text-footnote font-medium">{periodLabel}</span>
         {hasData && (
@@ -228,7 +213,7 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
 
       <div
         className={cn(
-          'relative mt-2.5 flex h-32 items-end border-b border-border',
+          'relative mt-3 flex h-32 items-end border-b border-border-strong/60',
           // Separación entre barras: menor cuando hay muchas (el mes tiene ~30).
           points.length > 12 ? 'gap-[3px]' : 'gap-1.5',
         )}
@@ -244,11 +229,11 @@ function VolumeChart({ points, periodLabel }: { points: ChartPoint[]; periodLabe
           una barra: el día 11 cae justo a la derecha de la guía del 10.
         */}
         {points.map((point, index) =>
-          labelled.has(index) ? (
+          hasData && labelled.has(index) ? (
             <span
               key={`guide-${index}`}
               aria-hidden="true"
-              className="absolute top-0 bottom-0 w-px bg-border/40"
+              className="absolute top-0 bottom-0 w-px bg-border"
               style={{ left: `${((index + 0.5) / points.length) * 100}%` }}
             />
           ) : null,

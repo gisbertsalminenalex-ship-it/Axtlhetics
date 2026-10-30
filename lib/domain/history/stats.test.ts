@@ -183,6 +183,9 @@ test('cada rango dice qué periodo está mirando', () => {
   assert.equal(computeHistoryStats([], 'mes', '2026-09-09').periodLabel, 'Septiembre de 2026')
   assert.equal(computeHistoryStats([], 'anio', '2026-09-09').periodLabel, '2026')
   assert.equal(computeHistoryStats([], 'semana', '2026-09-09').periodLabel, '7–13 de septiembre de 2026')
+  // A caballo entre dos meses, y entre dos años.
+  assert.equal(computeHistoryStats([], 'semana', '2026-10-30').periodLabel, '26 de octubre – 1 de noviembre de 2026')
+  assert.equal(computeHistoryStats([], 'semana', '2026-12-30').periodLabel, '28 de diciembre de 2026 – 3 de enero de 2027')
 })
 
 // ---------------------------------------------------------------------------

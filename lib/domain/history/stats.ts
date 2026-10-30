@@ -111,7 +111,15 @@ export function periodLabel(range: HistoryRange, reference: DayKey): string {
   if (range === 'anio') return formatYearName(reference)
   const start = periodStart('semana', reference)
   const end = periodEnd('semana', reference)
-  return `${fromDayKey(start).getDate()}–${fromDayKey(end).getDate()} de ${formatMonthName(end).toLowerCase()}`
+  const from = fromDayKey(start)
+  const to = fromDayKey(end)
+  if (from.getMonth() === to.getMonth()) {
+    return `${from.getDate()}–${to.getDate()} de ${formatMonthName(end).toLowerCase()}`
+  }
+  // Una semana a caballo entre dos meses nombra los dos, y los dos años si cambia.
+  const startMonth = formatMonthName(start).toLowerCase()
+  const head = from.getFullYear() === to.getFullYear() ? startMonth.replace(/ de \d+$/, '') : startMonth
+  return `${from.getDate()} de ${head} – ${to.getDate()} de ${formatMonthName(end).toLowerCase()}`
 }
 
 function sessionsInRange(
