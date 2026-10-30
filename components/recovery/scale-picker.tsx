@@ -27,10 +27,8 @@ export function ScalePicker({
             aria-pressed={value === level}
             aria-label={labels[level]}
             className={cn(
-              'h-11 flex-1 rounded-full border text-subhead font-semibold transition-colors',
-              value === level
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-muted-foreground',
+              'ax-press h-11 flex-1 rounded-full text-subhead font-semibold tabular-nums transition-colors duration-200',
+              value === level ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground',
             )}
           >
             {level}

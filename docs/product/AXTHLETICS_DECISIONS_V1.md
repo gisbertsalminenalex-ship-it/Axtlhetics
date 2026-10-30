@@ -2485,6 +2485,7 @@ El motor decide igual; las cifras, el veredicto y la propuesta siguen siendo del
 - **Movimiento:** curva `--ax-spring` para lo que cambia de sitio. La barra inferior tiene un indicador que se desliza entre tabs.
 - **Inicio:** fecha y saludo editorial, tarjeta de AXIS con duración y ejercicios en pills, estado de hoy en un solo módulo que lleva a Recuperación, semana con el número de cada día, y accesos como lista agrupada.
 - **Entrenamiento:** título grande; la tarjeta de hoy en superficie gris con el título de la sesión en grande, duración y ejercicios en pills y el motivo de AXIS separado por una línea fina; los ejercicios por fases, con el calentamiento y la vuelta a la calma plegados y los principales numerados; la semana como calendario, igual que en Inicio; las series por músculo en una línea por grupo; y «Tu progreso» como capítulo propio, con el nivel en tarjeta. Los huecos sin datos son una superficie lisa, sin borde discontinuo. Encabezado de sección compartido (`components/section-header.tsx`).
+- **Recuperación:** título grande con la fecha; la puntuación en una superficie lisa con un anillo mayor y su banda como titular; los factores clave como lista agrupada, cada uno con su icono en un recuadro, «Registrar» en pill y un chevron que muestra que la fila se abre; la hidratación en su propio módulo con la cuenta arriba; la escala de 1 a 5 y los botones de alimentación sin bordes; y las calorías del día en grande en la tarjeta de objetivos.
 
 ### Lo que no cambia
 

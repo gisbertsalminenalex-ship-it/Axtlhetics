@@ -61,8 +61,8 @@ export function FoodLog({
 
   return (
     <div className="mt-5">
-      <p className="text-footnote font-medium text-muted-foreground">Lo que llevas hoy</p>
-      <div className="mt-2.5 space-y-3">
+      <p className="text-subhead font-semibold">Lo que llevas hoy</p>
+      <div className="mt-3 space-y-4 rounded-2xl border border-border p-4">
         <MacroBar label="Calorías" unit="kcal" value={intake.kcal} range={targets ? [targets.kcal, targets.kcal] : null} />
         <MacroBar label="Proteína" unit="g" value={intake.proteinG} range={targets?.proteinGrams ?? null} />
         <MacroBar label="Carbohidratos" unit="g" value={intake.carbsG} range={targets?.carbsGrams ?? null} />
@@ -93,7 +93,7 @@ export function FoodLog({
       )}
 
       {draft ? (
-        <div className="mt-3 rounded-3xl border border-border px-4 pb-4">
+        <div className="ax-fade mt-3 rounded-3xl bg-surface px-4 pb-4">
           <ChoiceGroup label="¿Qué comida?" options={SLOT_OPTIONS} value={draft.slot} onChange={(slot) => setDraft({ ...draft, slot })} />
           <div className="grid grid-cols-2 gap-3">
             <AmountField
@@ -114,7 +114,7 @@ export function FoodLog({
             <button
               type="button"
               onClick={() => setDraft(null)}
-              className="ax-press min-h-11 flex-1 rounded-full border border-border px-4 text-subhead font-medium text-muted-foreground"
+              className="ax-press min-h-11 flex-1 rounded-full bg-background px-4 text-subhead font-medium text-muted-foreground"
             >
               Cancelar
             </button>
@@ -132,7 +132,7 @@ export function FoodLog({
         <button
           type="button"
           onClick={() => setDraft(EMPTY_DRAFT)}
-          className="ax-press mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border px-4 text-subhead font-medium"
+          className="ax-press mt-3 flex min-h-12 w-full items-center justify-center gap-1.5 rounded-full bg-surface px-4 text-subhead font-semibold"
         >
           <Plus className="h-4 w-4" />
           Añadir comida
@@ -192,7 +192,7 @@ function AmountField({
   return (
     <label className="block">
       <span className="text-footnote font-medium text-muted-foreground">{label}</span>
-      <span className="mt-1.5 flex h-12 items-center rounded-2xl border border-border bg-background px-4 focus-within:border-primary">
+      <span className="mt-1.5 flex h-12 items-center rounded-2xl border border-transparent bg-background px-4 transition-colors focus-within:border-primary">
         <input
           type="text"
           inputMode="decimal"
