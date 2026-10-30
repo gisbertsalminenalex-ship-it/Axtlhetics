@@ -578,6 +578,15 @@ test('el mensaje de apertura parte de la sesión real y pide el motivo', () => {
   assert.match(opening, new RegExp(String(briefing.proposal!.session!.estimatedMinutes)))
 })
 
+test('sin sesión, el mensaje de apertura usa el titular tal cual, sin «hoy» repetido ni dos puntos', () => {
+  const base = briefingWith({}, [session()])
+  const briefing = { ...base, proposal: { ...base.proposal!, session: null, headline: 'Hoy toca descansar.' } }
+  const opening = changeOpeningMessage(briefing)
+
+  assert.ok(opening.startsWith('Hoy toca descansar. '))
+  assert.doesNotMatch(opening, /\.\./)
+})
+
 test('en modo cambio, un mensaje suelto se lee como petición de cambio', () => {
   const briefing = briefingWith({}, [session()])
   const answer = negotiate('hoy no quiero hacer piernas', briefing)

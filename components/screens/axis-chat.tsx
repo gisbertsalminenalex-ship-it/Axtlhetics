@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
-import { ArrowLeft, ArrowUp, Check } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowUpRight, Check } from 'lucide-react'
 import { AxisMark } from '@/components/axis-mark'
+import { EmptyNote } from '@/components/section-header'
 import type { AxisActionProposal } from '@/lib/domain/axis/actions'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
@@ -51,21 +52,21 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="flex min-h-full flex-col px-6 pb-6">
+    <div className="flex flex-1 flex-col px-5">
       {/* Header */}
-      <header className="flex items-center justify-between pt-2 pb-5">
+      <header className="flex items-center justify-between pt-2 pb-4">
         <button
           type="button"
           onClick={onClose}
           aria-label="Volver"
           className="ax-press -ml-2 flex h-11 w-11 items-center justify-center"
         >
-          <ArrowLeft className="h-6 w-6 text-foreground" strokeWidth={2} />
+          <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
         <div className="flex flex-1 flex-col items-center">
           <div className="flex items-center gap-2">
             <AxisMark className="h-4 w-4 text-primary" />
-            <h1 className="text-body font-semibold tracking-[-0.01em]">AXIS</h1>
+            <h1 className="text-callout font-semibold tracking-[0.08em]">AXIS</h1>
           </div>
           <p className="text-overline text-muted-foreground">
             Tu guía de entrenamiento y recuperación
@@ -77,36 +78,40 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
       {/* Conversación vacía: quién es AXIS y qué se le puede preguntar */}
       {isEmpty && (
         <div className="ax-enter flex flex-1 flex-col justify-center py-6">
-          <h2 className="text-title font-bold leading-[1.1] tracking-[-0.02em] text-balance">
-            Pregúntame por tu día.
-          </h2>
-          <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
+          {/* La marca de AXIS sobre su superficie, la misma tinta de su tarjeta en Inicio (D-075). */}
+          <span className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-ink">
+            <span aria-hidden="true" className="absolute -top-6 -right-6 h-14 w-14 rounded-full bg-primary/40 blur-xl" />
+            <AxisMark className="relative h-6 w-6 text-white" />
+          </span>
+          <h2 className="mt-6 text-title-lg font-bold text-balance">Pregúntame por tu día.</h2>
+          <p className="mt-3 text-callout text-muted-foreground text-pretty">
             Respondo con tus datos: tu recuperación, tu historial, tu calendario y la
             sesión que te he propuesto. Si no tengo un dato, te lo digo.
           </p>
 
           {/* Lo que AXIS quería decirte (D-038): el punto de partida de la conversación. */}
           {axisNote && (
-            <p className="mt-5 flex items-start gap-2 text-subhead leading-relaxed text-foreground text-pretty">
-              <AxisMark className="mt-1 h-3.5 w-3.5 shrink-0 text-primary" />
+            <p className="mt-5 flex items-start gap-3 rounded-2xl bg-surface p-4 text-subhead text-foreground/80 text-pretty">
+              <AxisMark className="mt-[3px] h-3.5 w-3.5 shrink-0 text-primary" />
               <span>{axisNote.text}</span>
             </p>
           )}
 
           {axisSuggestions.length > 0 && (
-            <ul className="mt-7 space-y-2.5">
+            <ul className="mt-7 overflow-hidden rounded-2xl border border-border">
               {axisSuggestions.map((suggestion, index) => (
                 <li
                   key={suggestion.question}
-                  className="ax-stagger"
+                  className="ax-stagger border-b border-border last:border-b-0"
                   style={{ '--ax-index': index } as CSSProperties}
                 >
                   <button
                     type="button"
                     onClick={() => void send(suggestion.question)}
-                    className="ax-press flex min-h-11 w-full items-center rounded-2xl border border-border bg-surface px-4 py-3 text-left text-subhead font-medium"
+                    className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left text-callout font-medium transition-colors duration-150 active:bg-surface"
                   >
-                    {suggestion.label}
+                    <span className="flex-1">{suggestion.label}</span>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-nontext" />
                   </button>
                 </li>
               ))}
@@ -114,9 +119,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
           )}
 
           {!briefing && (
-            <p className="mt-7 rounded-2xl border border-dashed border-border px-4 py-5 text-center text-footnote text-muted-foreground">
-              Todavía estoy cargando tus datos.
-            </p>
+            <EmptyNote className="mt-7">Todavía estoy cargando tus datos.</EmptyNote>
           )}
         </div>
       )}
@@ -132,10 +135,10 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
               <div className="max-w-[85%]">
                 <div
                   className={cn(
-                    'rounded-2xl px-4 py-3 text-subhead leading-relaxed text-pretty',
+                    'rounded-3xl px-4 py-3 text-callout text-pretty',
                     message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-surface text-foreground',
+                      ? 'rounded-br-lg bg-primary text-primary-foreground'
+                      : 'rounded-bl-lg bg-surface text-foreground',
                   )}
                 >
                   {message.text}
@@ -154,7 +157,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
                   key={question}
                   type="button"
                   onClick={() => void send(question)}
-                  className="ax-press min-h-11 rounded-full border border-border bg-background px-4 text-left text-footnote font-medium"
+                  className="ax-press min-h-10 rounded-full border border-secondary bg-background px-4 text-left text-footnote font-medium text-primary"
                 >
                   {question}
                 </button>
@@ -165,7 +168,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
           {thinking && <ThinkingBubble />}
 
           {axisError && (
-            <div className="ax-enter rounded-2xl border border-border bg-surface px-4 py-3">
+            <div className="ax-enter rounded-2xl bg-surface p-4">
               <p className="text-subhead font-medium">AXIS no ha podido responder.</p>
               <p className="mt-1 text-footnote text-muted-foreground">{axisError}</p>
             </div>
@@ -184,25 +187,30 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
         </p>
       )}
 
-      {/* Input */}
-      <form onSubmit={onSubmit} className="flex items-end gap-2 pt-2">
-        <input
-          type="text"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="Pregúntale algo a AXIS…"
-          aria-label="Escribe tu pregunta"
-          enterKeyHint="send"
-          className="h-12 flex-1 rounded-2xl border border-border bg-background px-4 text-callout outline-none placeholder:text-muted-foreground focus-visible:border-primary"
-        />
-        <button
-          type="submit"
-          disabled={thinking || draft.trim().length === 0}
-          aria-label="Enviar"
-          className="ax-press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-opacity disabled:opacity-35"
-        >
-          <ArrowUp className="h-5 w-5" strokeWidth={2.25} />
-        </button>
+      {/*
+        Input. Pegado abajo aunque la conversación sea corta o larga; el campo y
+        el botón de enviar van dentro de la misma pastilla.
+      */}
+      <form onSubmit={onSubmit} className="sticky bottom-0 -mx-5 bg-background px-5 pt-2 pb-5">
+        <div className="flex items-center gap-2 rounded-full border border-transparent bg-surface py-1.5 pr-1.5 pl-5 transition-colors focus-within:border-primary/40">
+          <input
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Pregúntale algo a AXIS…"
+            aria-label="Escribe tu pregunta"
+            enterKeyHint="send"
+            className="h-11 min-w-0 flex-1 bg-transparent text-callout outline-none placeholder:text-muted-foreground"
+          />
+          <button
+            type="submit"
+            disabled={thinking || draft.trim().length === 0}
+            aria-label="Enviar"
+            className="ax-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity duration-200 disabled:opacity-30"
+          >
+            <ArrowUp className="h-5 w-5" strokeWidth={2.25} />
+          </button>
+        </div>
       </form>
     </div>
   )
@@ -231,7 +239,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
     const undoable = canUndoAxisAction(action.id)
     return (
       <div className="ax-enter mt-2">
-        <p className="flex min-h-11 items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 text-subhead font-semibold text-success">
+        <p className="flex min-h-11 items-center gap-2 rounded-full bg-success/10 px-4 text-subhead font-semibold text-success">
           <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
           Cambio aplicado
         </p>
@@ -292,7 +300,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
             await confirmAxisAction(action)
             setWorking(false)
           }}
-          className="ax-press flex h-12 flex-1 items-center justify-center rounded-2xl bg-primary text-subhead font-semibold text-primary-foreground disabled:opacity-50"
+          className="ax-press flex h-12 flex-1 items-center justify-center rounded-full bg-primary px-4 text-subhead font-semibold text-primary-foreground disabled:opacity-50"
         >
           {working ? 'Aplicando…' : action.label}
         </button>
@@ -300,7 +308,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
           type="button"
           onClick={() => cancelAxisAction(action)}
           disabled={working}
-          className="ax-press h-12 rounded-2xl border border-border bg-background px-4 text-subhead font-medium text-muted-foreground disabled:opacity-50"
+          className="ax-press h-12 rounded-full bg-surface px-5 text-subhead font-medium text-muted-foreground disabled:opacity-50"
         >
           Cancelar
         </button>
@@ -317,7 +325,7 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
 function ThinkingBubble() {
   return (
     <div className="ax-enter flex justify-start">
-      <div className="flex items-center gap-1.5 rounded-2xl bg-surface px-4 py-4" aria-label="AXIS está pensando">
+      <div className="flex items-center gap-1.5 rounded-3xl rounded-bl-lg bg-surface px-5 py-4" aria-label="AXIS está pensando">
         {[0, 1, 2].map((index) => (
           <span
             key={index}

@@ -74,7 +74,8 @@ export default function Page() {
           )}
 
           {store.status === 'ready' && axisOpen && (
-            <div className="ax-enter">
+            // Ocupa toda la altura, para que el campo de escribir quede abajo aunque haya un solo mensaje.
+            <div className="ax-enter flex min-h-full flex-col">
               <AxisChatScreen
                 onClose={() => {
                   store.closeAxisChat()

@@ -1051,7 +1051,9 @@ export function changeOpeningMessage(briefing: AxisBriefing): string {
   const session = proposal.session
   const what = session
     ? `Hoy te he propuesto ${session.title.toLowerCase()}, unos ${session.estimatedMinutes} min.`
-    : `Hoy te he propuesto ${proposal.headline.toLowerCase()}.`
+    : // El titular ya es una frase entera («Hoy toca descansar.»): metido dentro de
+      // otra repetía el «hoy» y dejaba dos puntos al final.
+      proposal.headline
 
   return `${what} ${proposal.reason} ¿Qué te gustaría cambiar? Si hay algo que no sé, cuéntamelo y lo tengo en cuenta.`
 }
