@@ -32,14 +32,14 @@ export function AxisMark({
 }
 
 /**
- * Ficha de marca (D-077): la «A» en blanco sobre un recuadro cobalto, con la
- * flecha en la lima de AXIS. Es la cabecera de la app, como el icono de Finax o
+ * Ficha de marca (D-077): la «A» con su flecha, en blanco, sobre un recuadro
+ * cobalto. Es la cabecera de la app, como el icono de Finax o
  * el de Mentax junto a su nombre.
  */
 export function BrandTile({ className }: { className?: string }) {
   return (
     <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary', className)} aria-hidden="true">
-      <AxisMark className="h-5 w-5" color="var(--primary-foreground)" accent="var(--axis)" />
+      <AxisMark className="h-5 w-5" color="var(--primary-foreground)" />
     </span>
   )
 }

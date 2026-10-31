@@ -221,10 +221,10 @@ Axtlhetics should feel like a **calm, confident personal coach**, not a generic 
 
 ### Core visual tokens
 
-Since D-077 the app belongs to the **AXIS visual family** with Finax and Mentax (same font, white cards with a soft shadow on a tinted canvas, same bottom nav; only the colour changes). AXTHLETICS is cobalt; its AXIS is lime.
+Since D-077 the app belongs to the **AXIS visual family** with Finax and Mentax (same font, white cards with a soft shadow on a tinted canvas, same bottom nav; only the colour changes). AXTHLETICS is cobalt; its AXIS is dark ink.
 
 - Primary (cobalt): `#1F4FE0`; soft cobalt `#E7EDFC` (`secondary`)
-- AXIS lime: `#C6F135` (`axis`, only as a fill — never text on white), `axis-soft` `#F3FADF`, `axis-ink` `#3F5A00`
+- AXIS ink: `#141A26` (`axis`, the badge tile; symbol in `axis-foreground` white), `axis-soft` `#EEF0F4`, `axis-ink` `#141A26`
 - Canvas: `#F3F5F9` (`background`); card `#FFFFFF` (`surface`, with `shadow-card`; protagonist `shadow-card-lg`); inside a card use `fill` `#F1F3F8`
 - Text: `#141A26` (`foreground`, also `ink`), secondary `#5B6372`
 - Border: `#E6E9F0` hairline; `border-strong` `#D3D9E3` only for tappable control outlines
@@ -408,8 +408,8 @@ Input scales, normalization and the "enough data" policy are closed by D-009. Th
 
 ### AXIS visual identity
 
-- Brand mark (D-029): an **«A» with a rising arrow**, traced from Alex's logo into `docs/design/AXTHLETICS_LOGO.svg` (`components/axis-mark.tsx`, `AxisMark`). In the header it is the `BrandTile` (D-077): white A and lime arrow on a cobalt tile, followed by «axthletics» in lowercase. The app icons (`public/icon-*.png`) still use the D-029 colours.
-- AXIS symbol (D-077): the ecosystem's «Three Elements» (`components/axis-symbol.tsx`). Wherever AXIS speaks it appears as `AxisBadge` (ink symbol on a lime tile); AXIS strips and notes use `axis-soft` with «AXIS ·» in `axis-ink`. The former dark `bg-ink` AXIS card is gone.
+- Brand mark (D-029): an **«A» with a rising arrow**, traced from Alex's logo into `docs/design/AXTHLETICS_LOGO.svg` (`components/axis-mark.tsx`, `AxisMark`). In the header it is the `BrandTile` (D-077): the white mark on a cobalt tile, followed by «axthletics» in lowercase. The app icons (`public/icon-*.png`) still use the D-029 colours.
+- AXIS symbol (D-077): the ecosystem's «Three Elements» (`components/axis-symbol.tsx`). Wherever AXIS speaks it appears as `AxisBadge` (white symbol on a dark ink tile); AXIS strips and notes use `axis-soft` with «AXIS ·» in `axis-ink`. The former dark `bg-ink` AXIS card is gone.
 - AXIS should guide decisions through concise, authoritative copy and a clear reason.
 - AXIS should feel integrated into Axtlhetics, not like a separate chatbot product.
 - Do not use decorative orbits, orbital rings, floating chatbot mascots, giant assistant avatars or oversized robot/chat imagery.

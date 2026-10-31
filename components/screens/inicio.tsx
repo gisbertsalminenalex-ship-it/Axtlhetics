@@ -125,7 +125,7 @@ export function InicioScreen({
 
       {/*
         La recomendación de AXIS, protagonista (D-077): tarjeta blanca de la
-        familia AXIS. La sesión manda; el porqué de AXIS va en su franja lima.
+        familia AXIS. La sesión manda; el porqué de AXIS va en su franja.
       */}
       {proposal && (
         <section
@@ -193,7 +193,7 @@ export function InicioScreen({
         <button
           type="button"
           onClick={onOpenAxis}
-          className="ax-enter ax-press mt-3 flex min-h-11 w-full items-start gap-3 rounded-2xl border border-axis/40 bg-axis-soft px-3.5 py-3 text-left"
+          className="ax-enter ax-press mt-3 flex min-h-11 w-full items-start gap-3 rounded-2xl border border-border bg-axis-soft px-3.5 py-3 text-left"
           style={{ animationDelay: '120ms' }}
         >
           <AxisBadge size="sm" />

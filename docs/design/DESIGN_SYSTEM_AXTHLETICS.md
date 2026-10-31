@@ -151,19 +151,20 @@ Evitar:
 
 ## 6. Paleta
 
-Cerrada por **D-077**: familia visual AXIS, la misma estructura que Finax y Mentax. Cada app tiene su color y su AXIS tiene otro: Finax verde con AXIS violeta, Mentax violeta con AXIS turquesa, **AXTHLETICS cobalto con AXIS lima**.
+Cerrada por **D-077**: familia visual AXIS, la misma estructura que Finax y Mentax. Cada app tiene su color y su AXIS tiene otro: Finax verde con AXIS violeta, Mentax violeta con AXIS turquesa, **AXTHLETICS cobalto con AXIS en tinta oscura** (la lima inicial se sustituyó el mismo día).
 
 | Token | Valor | Uso |
 |---|---|---|
 | `--primary` | `#1F4FE0` | cobalto: acción principal, estado activo, progreso relevante |
 | `--secondary` | `#E7EDFC` | cobalto suave: chips activos, pill de la barra inferior, recuadros de icono |
-| `--axis` | `#C6F135` | lima: el recuadro del símbolo de AXIS. **Nunca texto sobre blanco** |
-| `--axis-soft` | `#F3FADF` | franjas y notas de AXIS |
-| `--axis-ink` | `#3F5A00` | texto «AXIS ·» sobre la lima suave |
+| `--axis` | `#141A26` | tinta: el recuadro del símbolo de AXIS |
+| `--axis-foreground` | `#FFFFFF` | el símbolo sobre ese recuadro |
+| `--axis-soft` | `#EEF0F4` | franjas y notas de AXIS (las notas sobre el canvas llevan borde fino) |
+| `--axis-ink` | `#141A26` | texto «AXIS ·» en sus franjas |
 | `--background` | `#F3F5F9` | canvas tintado |
 | `--surface` | `#FFFFFF` | tarjeta, con `shadow-card` |
 | `--fill` | `#F1F3F8` | relleno DENTRO de una tarjeta: chips, campos, pistas |
-| `--foreground` | `#141A26` | texto principal (y `--ink`, texto sobre la lima) |
+| `--foreground` | `#141A26` | texto principal (y `--ink`) |
 | `--muted-foreground` | `#5B6372` | texto secundario |
 | `--border` | `#E6E9F0` | divisores y contorno fino de tarjetas |
 | `--border-strong` | `#D3D9E3` | contorno de controles que deben leerse como tocables |
@@ -172,7 +173,7 @@ Cerrada por **D-077**: familia visual AXIS, la misma estructura que Finax y Ment
 
 `#1F4FE0` es el **único azul primario aprobado**. No reintroducir `#0A61F8` ni `#4F7CFF`.
 
-El cobalto marca la acción; la lima marca a AXIS. Ninguno de los dos se reparte por toda la interfaz.
+El cobalto marca la acción; la tinta marca a AXIS. Ninguno de los dos se reparte por toda la interfaz.
 
 ### Recuadros de categoría (D-077)
 
@@ -401,9 +402,9 @@ Debe guiar decisiones, no pedir al usuario que interprete un dashboard.
 Actualizado por **D-077**:
 
 - **símbolo de AXIS:** los «Three Elements» del ecosistema AXIS (`AxisSymbol`, `components/axis-symbol.tsx`), el mismo de la app AXIS y de la sección AXIS de cada app;
-- **su firma es el recuadro lima** (`AxisBadge`): el símbolo en tinta sobre `--axis`. Va allí donde habla AXIS: el porqué de la recomendación, las notas, el chat, los resúmenes;
-- las franjas y notas de AXIS van en `--axis-soft` con «AXIS ·» en `--axis-ink`; la lima nunca es texto sobre blanco;
-- **marca de la app** (D-029): la «A» con la flecha que sube (`AxisMark`). En la cabecera, como ficha (`BrandTile`): la «A» en blanco sobre cobalto y la flecha en lima, seguida de «axthletics» en minúscula;
+- **su firma es el recuadro de tinta** (`AxisBadge`): el símbolo en blanco sobre `--axis`. Va allí donde habla AXIS: el porqué de la recomendación, las notas, el chat, los resúmenes;
+- las franjas y notas de AXIS van en `--axis-soft` con «AXIS ·» en `--axis-ink`;
+- **marca de la app** (D-029): la «A» con la flecha que sube (`AxisMark`). En la cabecera, como ficha (`BrandTile`): la «A» con su flecha, en blanco, sobre cobalto, seguida de «axthletics» en minúscula;
 - presencia reconocible pero nunca dominante;
 - copy corto, claro y con autoridad tranquila.
 

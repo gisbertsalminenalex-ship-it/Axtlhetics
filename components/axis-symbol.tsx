@@ -22,15 +22,14 @@ export function AxisSymbol({ className }: { className?: string }) {
 }
 
 /**
- * El símbolo sobre su recuadro lima: la firma de AXIS en tarjetas, notas y chat.
- * La lima no se lee como texto sobre blanco, así que AXIS se reconoce por este
- * recuadro, con el símbolo en tinta encima.
+ * El símbolo sobre su recuadro de tinta: la firma de AXIS en tarjetas, notas y
+ * chat (D-077). AXIS se reconoce por este recuadro, con el símbolo en blanco.
  */
 export function AxisBadge({ size = 'md', className }: { size?: 'sm' | 'md' | 'lg'; className?: string }) {
   const box = { sm: 'h-6 w-6 rounded-lg', md: 'h-7 w-7 rounded-[9px]', lg: 'h-14 w-14 rounded-2xl' }[size]
   const icon = { sm: 'h-3.5 w-3.5', md: 'h-4 w-4', lg: 'h-7 w-7' }[size]
   return (
-    <span className={cn('flex shrink-0 items-center justify-center bg-axis text-ink', box, className)} aria-hidden="true">
+    <span className={cn('flex shrink-0 items-center justify-center bg-axis text-axis-foreground', box, className)} aria-hidden="true">
       <AxisSymbol className={icon} />
     </span>
   )

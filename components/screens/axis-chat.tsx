@@ -78,7 +78,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
       {/* Conversación vacía: quién es AXIS y qué se le puede preguntar */}
       {isEmpty && (
         <div className="ax-enter flex flex-1 flex-col justify-center py-6">
-          {/* El símbolo de AXIS sobre su lima (D-077), la misma firma que en Inicio. */}
+          {/* El símbolo de AXIS sobre su recuadro de tinta (D-077), la misma firma que en Inicio. */}
           <AxisBadge size="lg" />
           <h2 className="mt-6 text-title-lg font-extrabold text-balance">Pregúntame por tu día.</h2>
           <p className="mt-3 text-callout text-muted-foreground text-pretty">
@@ -88,7 +88,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
 
           {/* Lo que AXIS quería decirte (D-038): el punto de partida de la conversación. */}
           {axisNote && (
-            <p className="mt-5 flex items-start gap-3 rounded-2xl border border-axis/40 bg-axis-soft p-4 text-subhead text-foreground/85 text-pretty">
+            <p className="mt-5 flex items-start gap-3 rounded-2xl border border-border bg-axis-soft p-4 text-subhead text-foreground/85 text-pretty">
               <AxisBadge size="sm" />
               <span>{axisNote.text}</span>
             </p>

@@ -2537,6 +2537,10 @@ AXTHLETICS sigue funcionando sin cuenta y sin conexión. Sin conectar no se hace
 - **Marca:** cabecera con ficha cobalto (`BrandTile`: la «A» en blanco y la flecha en lima) y «axthletics» en minúscula, como «finax» y «Mentax».
 - **Pantallas:** antetítulo en mayúsculas y cobalto (la fecha en Inicio y Recuperación), título de pestaña a 28 px, «Hola, Alex» con el estado del día debajo; listas y módulos como tarjetas blancas; selector del Historial con pulgar cobalto suave; barra inferior blanca con la pill cobalto suave.
 
+### Enmienda (2026-10-31): AXIS en tinta oscura
+
+Alex pidió cambiar la lima y eligió entre cuatro opciones maquetadas (magenta, coral, dorado y tinta oscura) la **tinta oscura**. AXIS pasa a `--axis` `#141A26` con el símbolo en blanco (`--axis-foreground`), franjas en `#EEF0F4` y «AXIS ·» en tinta; las notas sobre el canvas llevan borde fino. La ficha de marca queda toda en blanco sobre cobalto. Lo demás de D-077 no cambia.
+
 ### Lo que no cambia
 
 Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo cambia cómo se ve. Los iconos de la app (`public/icon-*.png`) siguen siendo los de D-029 hasta que se rehagan con la ficha nueva.

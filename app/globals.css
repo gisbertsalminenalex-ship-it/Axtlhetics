@@ -19,6 +19,7 @@
   /* Brand + status */
   --color-axis: var(--axis);
   --color-axis-soft: var(--axis-soft);
+  --color-axis-foreground: var(--axis-foreground);
   --color-axis-ink: var(--axis-ink);
   --color-fill: var(--fill);
   --color-cat-sleep: var(--cat-sleep);
@@ -138,11 +139,13 @@
   /* Cobalto suave: chips activos, la barra inferior, recuadros de icono. */
   --secondary: #e7edfc;
   --secondary-foreground: #1f4fe0;
-  /* Lima: el color propio de AXIS en esta app (D-077). Nunca como texto sobre
-     blanco (no se lee): es relleno o fondo, con `--axis-ink` encima. */
-  --axis: #c6f135;
-  --axis-soft: #f3fadf;
-  --axis-ink: #3f5a00;
+  /* Tinta: el color propio de AXIS en esta app (D-077, enmienda del
+     2026-10-31: sustituye a la lima). Recuadro oscuro con el símbolo en blanco;
+     sus franjas y notas, en un gris frío con «AXIS ·» en tinta. */
+  --axis: #141a26;
+  --axis-foreground: #ffffff;
+  --axis-soft: #eef0f4;
+  --axis-ink: #141a26;
   /* Recuadros de icono por categoría (D-077, `components/category-tone.ts`).
      Categoría, no estado: ninguno es verde, naranja ni rojo. */
   --cat-sleep: #eef0ff;
@@ -153,7 +156,7 @@
   --cat-stress-ink: #b4316f;
   --cat-water: #e3f4fb;
   --cat-water-ink: #0e7490;
-  /* Tinta: texto sobre la lima y superficies muy oscuras. */
+  /* Tinta: el texto principal y superficies muy oscuras. */
   --ink: #141a26;
 
   /**
