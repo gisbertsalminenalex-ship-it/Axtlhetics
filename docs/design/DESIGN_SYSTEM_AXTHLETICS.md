@@ -158,7 +158,7 @@ Cerrada por **D-077**: familia visual AXIS, la misma estructura que Finax y Ment
 | `--primary` | `#1F4FE0` | cobalto: acción principal, estado activo, progreso relevante |
 | `--secondary` | `#E7EDFC` | cobalto suave: chips activos, pill de la barra inferior, recuadros de icono |
 | `--axis` | `#141A26` | tinta: el recuadro del símbolo de AXIS |
-| `--axis-foreground` | `#FFFFFF` | el símbolo sobre ese recuadro |
+| `--axis-foreground` | `#FFFFFF` | sin uso desde la enmienda 2 de D-077: el símbolo va a todo color |
 | `--axis-soft` | `#EEF0F4` | franjas y notas de AXIS (las notas sobre el canvas llevan borde fino) |
 | `--axis-ink` | `#141A26` | texto «AXIS ·» en sus franjas |
 | `--background` | `#F3F5F9` | canvas tintado |
@@ -402,7 +402,7 @@ Debe guiar decisiones, no pedir al usuario que interprete un dashboard.
 Actualizado por **D-077**:
 
 - **símbolo de AXIS:** los «Three Elements» del ecosistema AXIS (`AxisSymbol`, `components/axis-symbol.tsx`), el mismo de la app AXIS y de la sección AXIS de cada app;
-- **su firma es el recuadro de tinta** (`AxisBadge`): el símbolo en blanco sobre `--axis`. Va allí donde habla AXIS: el porqué de la recomendación, las notas, el chat, los resúmenes;
+- **su firma es el recuadro de tinta** (`AxisBadge`): el símbolo a todo color sobre `--axis`, como el icono de la app AXIS (enmienda 2 de D-077). Va allí donde habla AXIS: el porqué de la recomendación, las notas, el chat, los resúmenes;
 - las franjas y notas de AXIS van en `--axis-soft` con «AXIS ·» en `--axis-ink`;
 - **marca de la app** (D-029): la «A» con la flecha que sube (`AxisMark`). En la cabecera, como ficha (`BrandTile`): la «A» con su flecha, en blanco, sobre cobalto, seguida de «axthletics» en minúscula;
 - presencia reconocible pero nunca dominante;

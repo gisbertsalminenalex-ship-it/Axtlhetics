@@ -2541,6 +2541,10 @@ AXTHLETICS sigue funcionando sin cuenta y sin conexión. Sin conectar no se hace
 
 Alex pidió cambiar la lima y eligió entre cuatro opciones maquetadas (magenta, coral, dorado y tinta oscura) la **tinta oscura**. AXIS pasa a `--axis` `#141A26` con el símbolo en blanco (`--axis-foreground`), franjas en `#EEF0F4` y «AXIS ·» en tinta; las notas sobre el canvas llevan borde fino. La ficha de marca queda toda en blanco sobre cobalto. Lo demás de D-077 no cambia.
 
+### Enmienda 2 (2026-10-31): el símbolo de AXIS a todo color
+
+Alex pidió que AXTHLETICS use el logo de AXIS igual que Finax y Mentax («hazlo en axthletics también»), donde el símbolo «Three Elements» va a todo color. El recuadro de tinta `--axis` se queda, porque es la firma de AXIS en esta app; lo que cambia es el símbolo de dentro: deja de ir en blanco y pasa a sus degradados azul, turquesa y violeta, como el icono de la app AXIS (símbolo de color sobre fondo oscuro). Va un poco más grande dentro del recuadro (16/18/36 px en `sm`/`md`/`lg`). `--axis-foreground` ya no lo usa ningún componente. Las piezas y los degradados son copia del componente del repositorio de AXIS. La marca de la app (la «A» con la flecha) no cambia.
+
 ### Lo que no cambia
 
 Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo cambia cómo se ve. Los iconos de la app (`public/icon-*.png`) siguen siendo los de D-029 hasta que se rehagan con la ficha nueva.
