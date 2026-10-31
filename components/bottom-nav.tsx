@@ -22,7 +22,7 @@ export function BottomNav({
   const activeIndex = TABS.findIndex((t) => t.id === active)
 
   return (
-    <nav className="border-t border-border bg-background/85 backdrop-blur-xl">
+    <nav className="border-t border-border bg-surface/95 backdrop-blur-xl">
       <div className="relative flex items-stretch px-2 pt-2 pb-[max(env(safe-area-inset-bottom),20px)]">
         {/*
           Indicador del tab activo (D-075). Una sola pieza que se desliza de un
@@ -38,7 +38,7 @@ export function BottomNav({
             transition: 'transform var(--ax-slide) var(--ax-spring)',
           }}
         >
-          <span className="h-full w-14 rounded-full bg-secondary/70" />
+          <span className="h-full w-14 rounded-full bg-secondary" />
         </span>
 
         {TABS.map(({ id, label, icon: Icon }) => {
@@ -63,8 +63,8 @@ export function BottomNav({
               </span>
               <span
                 className={cn(
-                  'text-overline font-medium transition-colors duration-200',
-                  isActive ? 'text-primary' : 'text-muted-foreground',
+                  'text-overline transition-colors duration-200',
+                  isActive ? 'font-bold text-primary' : 'font-semibold text-muted-foreground',
                 )}
               >
                 {label}

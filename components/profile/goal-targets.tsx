@@ -36,7 +36,7 @@ export function GoalTargets() {
           const progress = targetProgress(target, sessions, today, assessments.assessments)
           const unit = exercise?.work.isTimed ? 's' : 'reps'
           return (
-            <li key={target.id} className="flex items-center gap-3 rounded-2xl bg-surface p-4">
+            <li key={target.id} className="flex items-center gap-3 rounded-2xl bg-surface shadow-card p-4">
               <span className="flex-1">
                 <span className="block text-callout font-semibold">
                   {exercise?.name ?? 'Ejercicio retirado'} · {target.target} {unit}
@@ -60,7 +60,7 @@ export function GoalTargets() {
           )
         })}
         {targets.length === 0 && (
-          <li className="rounded-2xl bg-surface px-4 py-5 text-center text-footnote text-muted-foreground">
+          <li className="rounded-2xl bg-surface shadow-card px-4 py-5 text-center text-footnote text-muted-foreground">
             Todavía no tienes ningún objetivo medible.
           </li>
         )}
@@ -110,7 +110,7 @@ function TargetForm({
   }
 
   return (
-    <div className="ax-enter mt-3 rounded-2xl bg-surface p-4">
+    <div className="ax-enter mt-3 rounded-2xl bg-surface shadow-card p-4">
       <div className="flex items-center justify-between gap-3 py-2">
         <FieldLabel>Ejercicio</FieldLabel>
         <select

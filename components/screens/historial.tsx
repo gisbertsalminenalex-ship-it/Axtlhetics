@@ -40,7 +40,8 @@ export function HistorialScreen() {
     <div className="px-5 pb-12">
       {/* Header */}
       <header className="ax-enter pt-6">
-        <h1 className="text-title-lg font-bold">Historial</h1>
+        <p className="text-caption font-bold tracking-[0.08em] text-primary uppercase">Tu evolución</p>
+        <h1 className="mt-1.5 text-title-lg font-extrabold">Historial</h1>
       </header>
 
       {/*
@@ -48,10 +49,10 @@ export function HistorialScreen() {
         opciones con la curva de la barra inferior (D-075); su sombra es la única
         aprobada (P-008, D-016).
       */}
-      <div className="relative mt-6 flex rounded-full bg-surface p-1">
+      <div className="relative mt-6 flex rounded-full border border-border bg-surface p-1 shadow-card">
         <span
           aria-hidden="true"
-          className="absolute top-1 bottom-1 left-1 rounded-full bg-background shadow-[var(--elevation-control)] transition-transform duration-[var(--ax-slide)] ease-[var(--ax-spring)]"
+          className="absolute top-1 bottom-1 left-1 rounded-full bg-secondary transition-transform duration-[var(--ax-slide)] ease-[var(--ax-spring)]"
           style={{ width: `calc((100% - 8px) / ${RANGES.length})`, transform: `translateX(${rangeIndex * 100}%)` }}
         />
         {RANGES.map((option) => (
@@ -62,7 +63,7 @@ export function HistorialScreen() {
             aria-pressed={range === option}
             className={cn(
               'ax-press relative min-h-10 flex-1 rounded-full text-subhead font-medium transition-colors duration-200',
-              range === option ? 'text-foreground' : 'text-muted-foreground',
+              range === option ? 'font-bold text-primary' : 'text-muted-foreground',
             )}
           >
             {HISTORY_RANGE_LABELS[option]}
@@ -71,7 +72,7 @@ export function HistorialScreen() {
       </div>
 
       {/* Rendimiento y volumen, en un solo módulo */}
-      <section key={range} className="ax-fade mt-4 rounded-3xl bg-surface p-5">
+      <section key={range} className="ax-fade mt-4 rounded-3xl bg-surface shadow-card-lg p-5">
         <p className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">RENDIMIENTO</p>
         {stats.performance.available && stats.performance.percent !== null ? (
           <>
@@ -102,14 +103,14 @@ export function HistorialScreen() {
       {/* Últimos entrenamientos */}
       <SectionHeader title="Últimos entrenamientos" />
       {recent.length > 0 ? (
-        <ul className="overflow-hidden rounded-2xl border border-border">
+        <ul className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
           {recent.map((session, index) => (
             <li
               key={session.id}
               className="ax-stagger flex min-h-16 items-center gap-3.5 border-b border-border px-4 py-3 last:border-b-0"
               style={{ '--ax-index': index } as CSSProperties}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fill">
                 <Dumbbell className="h-[18px] w-[18px] text-foreground" strokeWidth={1.75} />
               </span>
               <span className="min-w-0 flex-1">
@@ -149,7 +150,7 @@ function SummaryTile({
 }) {
   return (
     <li
-      className="ax-stagger flex flex-col rounded-2xl border border-border p-3.5"
+      className="ax-stagger flex flex-col rounded-2xl border border-border bg-surface p-3.5 shadow-card"
       style={{ '--ax-index': index } as CSSProperties}
     >
       <Icon className="h-[18px] w-[18px] text-primary" strokeWidth={1.75} />

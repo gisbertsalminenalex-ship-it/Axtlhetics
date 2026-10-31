@@ -139,7 +139,7 @@ function WeekBars({ weeks }: { weeks: ReturnType<typeof weeklySetTotals> }) {
   if (max === 0) return <EmptyNote>Todavía no hay series registradas.</EmptyNote>
 
   return (
-    <figure className="rounded-2xl border border-border p-4">
+    <figure className="rounded-2xl border border-border bg-surface p-4 shadow-card">
       <figcaption className="flex items-baseline justify-between">
         <span className="text-footnote font-medium">Últimas {weeks.length} semanas</span>
         <span className="text-caption tabular-nums text-muted-foreground">

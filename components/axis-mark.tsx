@@ -11,9 +11,12 @@ import { cn } from '@/lib/utils'
 export function AxisMark({
   className,
   color = 'currentColor',
+  accent,
 }: {
   className?: string
   color?: string
+  /** Color de la flecha, si se quiere distinto del de la «A» (la ficha de marca, D-077). */
+  accent?: string
 }) {
   return (
     <svg
@@ -23,7 +26,20 @@ export function AxisMark({
       aria-hidden="true"
     >
       <path fill={color} d="M412 0L415 3L454.3 79.7L586 327L586 330L532 398L530 398L413 175L410 172L215 537L177.5 549.5L145.2 564.2L114.8 582.8L80 612ZM410 304L485 445L443.5 474.5L423.7 485.7L404.4 494.4L380.2 503.2L355.8 509.8L295 521L410 306ZM659 471L661 472L705.7 558.3L833 807L830 808L739 808L738 807L597 537L597 534L633.8 498.8ZM125 741L228 741L228 743L193 808L93 808L90 807Z" />
-      <path fill={color} d="M830.2 136.7L835 136L804 382L777.5 351.5L744 309L742 309L686.5 387.5L652.5 430.5L621.8 465.8L586.8 501.8L559.4 525.4L529.2 548.2L498.5 567.5L471.7 581.7L447.5 592.5L412.2 605.2L371.8 615.8L268.2 634.2L233.8 643.8L209.2 654.2L194.8 661.8L176.6 674.6L160.8 688.8L147.5 704.5L130.5 730.5L90 808L3 808L0 807L47.3 713.3L67.8 677.8L83.6 655.6L104.2 632.2L129.8 610.8L165.3 589.3L207.8 571.8L243.2 562.2L352.8 542.8L389.2 533.2L413.5 524.5L444.8 509.8L476.2 490.2L511.2 462.2L533.2 441.2L562.2 409.2L585.5 380.5L609.2 349.2L668 264L667 261L584 215Z" />
+      <path fill={accent ?? color} d="M830.2 136.7L835 136L804 382L777.5 351.5L744 309L742 309L686.5 387.5L652.5 430.5L621.8 465.8L586.8 501.8L559.4 525.4L529.2 548.2L498.5 567.5L471.7 581.7L447.5 592.5L412.2 605.2L371.8 615.8L268.2 634.2L233.8 643.8L209.2 654.2L194.8 661.8L176.6 674.6L160.8 688.8L147.5 704.5L130.5 730.5L90 808L3 808L0 807L47.3 713.3L67.8 677.8L83.6 655.6L104.2 632.2L129.8 610.8L165.3 589.3L207.8 571.8L243.2 562.2L352.8 542.8L389.2 533.2L413.5 524.5L444.8 509.8L476.2 490.2L511.2 462.2L533.2 441.2L562.2 409.2L585.5 380.5L609.2 349.2L668 264L667 261L584 215Z" />
     </svg>
+  )
+}
+
+/**
+ * Ficha de marca (D-077): la «A» en blanco sobre un recuadro cobalto, con la
+ * flecha en la lima de AXIS. Es la cabecera de la app, como el icono de Finax o
+ * el de Mentax junto a su nombre.
+ */
+export function BrandTile({ className }: { className?: string }) {
+  return (
+    <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary', className)} aria-hidden="true">
+      <AxisMark className="h-5 w-5" color="var(--primary-foreground)" accent="var(--axis)" />
+    </span>
   )
 }

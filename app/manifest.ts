@@ -27,8 +27,8 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     orientation: 'portrait',
     // El lienzo de la app, para que la pantalla de arranque no dé un fogonazo.
-    background_color: '#ffffff',
-    theme_color: '#ffffff',
+    background_color: '#f3f5f9',
+    theme_color: '#f3f5f9',
     categories: ['health', 'fitness', 'lifestyle'],
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

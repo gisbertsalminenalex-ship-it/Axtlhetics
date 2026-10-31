@@ -24,7 +24,7 @@ export function EvaluationCard({ onOpenPerfil }: { onOpenPerfil: () => void }) {
   const missingProfile = steps.some((step) => (step.key === 'salud' || step.key === 'historia') && !step.done)
 
   return (
-    <section className="ax-enter mb-3 rounded-3xl bg-surface p-5">
+    <section className="ax-enter mb-3 rounded-3xl bg-surface shadow-card-lg p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-body font-semibold">Tu evaluación inicial</h3>
         <span className="text-footnote font-medium tabular-nums text-muted-foreground">

@@ -108,7 +108,7 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
       </header>
-      <h1 className="mt-3 text-title-lg font-bold">Escáner corporal</h1>
+      <h1 className="mt-3 text-title-lg font-extrabold">Escáner corporal</h1>
       {scan && <p className="mt-1.5 text-subhead text-muted-foreground">{capital(formatDayInSentence(scan.dayKey))}</p>}
 
       {scan && summary ? (
@@ -118,7 +118,7 @@ export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
               {SCAN_POSE_GUIDE.filter((g) => scan.thumbnails?.[g.pose]).map((g) => (
                 <li key={g.pose}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={scan.thumbnails![g.pose]} alt={g.name} className="w-full rounded-xl bg-surface" />
+                  <img src={scan.thumbnails![g.pose]} alt={g.name} className="w-full rounded-xl bg-fill" />
                 </li>
               ))}
             </ul>

@@ -5,6 +5,7 @@ import { Activity, ChevronDown, Droplet, Dumbbell, Moon, Zap } from 'lucide-reac
 import { CircularMetric } from '@/components/circular-metric'
 import { StepButton } from '@/components/profile/controls'
 import { ScalePicker } from '@/components/recovery/scale-picker'
+import { CATEGORY_TILE, type CategoryTone } from '@/components/category-tone'
 import { BAND_COLOR, BAND_HEADLINE, BAND_TONE } from '@/components/recovery-band'
 import { SectionHeader } from '@/components/section-header'
 import { useCountUp } from '@/components/use-count-up'
@@ -33,6 +34,13 @@ const SCALE_LABELS: Record<ScaleFactorKey, Record<Scale5, string>> = {
   energy: ENERGY_LABELS,
   muscleFatigue: FATIGUE_LABELS,
   stress: STRESS_LABELS,
+}
+
+/** Recuadro de categoría de cada factor (D-077): categoría, nunca estado. */
+const SCALE_TONES: Record<ScaleFactorKey, CategoryTone> = {
+  energy: 'energy',
+  muscleFatigue: 'brand',
+  stress: 'stress',
 }
 
 const SCALE_ICONS: Record<ScaleFactorKey, typeof Zap> = {
@@ -65,13 +73,13 @@ export function RecuperacionScreen() {
     <div className="px-5 pb-12">
       {/* Header */}
       <header className="ax-enter pt-6">
-        <h1 className="text-title-lg font-bold">Recuperación</h1>
-        <p className="mt-1.5 text-callout text-muted-foreground">{dateLabel}</p>
+        <p className="text-caption font-bold tracking-[0.08em] text-primary uppercase">{dateLabel}</p>
+        <h1 className="mt-1.5 text-title-lg font-extrabold">Recuperación</h1>
       </header>
 
       {/* Score — protagonist. Superficie lisa y un anillo grande: el número manda (D-075). */}
       <section
-        className="ax-enter mt-7 flex flex-col items-center rounded-3xl bg-surface px-6 pt-7 pb-8 text-center"
+        className="ax-enter mt-7 flex flex-col items-center rounded-3xl bg-surface shadow-card-lg px-6 pt-7 pb-8 text-center"
         style={{ animationDelay: '60ms' }}
       >
         <p className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">TU RECUPERACIÓN</p>
@@ -110,11 +118,12 @@ export function RecuperacionScreen() {
 
       {/* Factores clave: una lista agrupada; cada fila se abre en su sitio. */}
       <SectionHeader title="Factores clave" />
-      <ul className="overflow-hidden rounded-2xl border border-border">
+      <ul className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
         {/* Sueño */}
         <li className="ax-stagger border-b border-border" style={{ '--ax-index': 0 } as CSSProperties}>
           <FactorRow
             icon={Moon}
+            tone="sleep"
             label={RECOVERY_FACTOR_LABELS.sleep}
             value={recoveryInputs.sleepHours === null ? null : formatSleepHours(recoveryInputs.sleepHours)}
             status={recoveryInputs.sleepHours === null ? null : `Referencia ${sleepReference.label}`}
@@ -163,6 +172,7 @@ export function RecuperacionScreen() {
             >
               <FactorRow
                 icon={Icon}
+                tone={SCALE_TONES[key]}
                 label={RECOVERY_FACTOR_LABELS[key]}
                 value={level === null ? null : SCALE_LABELS[key][level]}
                 status={null}
@@ -184,15 +194,15 @@ export function RecuperacionScreen() {
 
       {/* Hidratación: su propio módulo, con la cuenta arriba y los vasos a lo ancho. */}
       <section
-        className="ax-stagger mt-3 rounded-2xl bg-surface px-4 pt-4 pb-2"
+        className="ax-stagger mt-3 rounded-2xl border border-border bg-surface shadow-card px-4 pt-4 pb-2"
         style={{ '--ax-index': SCALE_ORDER.length + 1 } as CSSProperties}
         aria-labelledby="hydration"
       >
         <div className="flex items-center gap-3.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background">
-            <Droplet className="h-[18px] w-[18px] text-primary" strokeWidth={1.75} />
+          <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', CATEGORY_TILE.water)}>
+            <Droplet className="h-[18px] w-[18px]" strokeWidth={2} />
           </span>
-          <span id="hydration" className="flex-1 text-callout font-medium">
+          <span id="hydration" className="flex-1 text-callout font-semibold">
             {RECOVERY_FACTOR_LABELS.hydration}
           </span>
           <span className="text-subhead tabular-nums text-muted-foreground">
@@ -237,11 +247,13 @@ function FactorRow({
   icon: Icon,
   label,
   value,
+  tone,
   status,
   expanded,
   onToggle,
 }: {
   icon: typeof Moon
+  tone: CategoryTone
   label: string
   value: string | null
   status: string | null
@@ -253,12 +265,12 @@ function FactorRow({
       type="button"
       onClick={onToggle}
       aria-expanded={expanded}
-      className="flex min-h-16 w-full items-center gap-3.5 px-4 py-3 text-left transition-colors duration-150 active:bg-surface"
+      className="flex min-h-16 w-full items-center gap-3.5 px-4 py-3 text-left transition-colors duration-150 active:bg-fill"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface">
-        <Icon className="h-[18px] w-[18px] text-primary" strokeWidth={1.75} />
+      <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', CATEGORY_TILE[tone])}>
+        <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
       </span>
-      <span className="flex-1 text-callout font-medium">{label}</span>
+      <span className="flex-1 text-callout font-semibold">{label}</span>
       {value === null ? (
         <span className="rounded-full bg-secondary px-3 py-1.5 text-caption font-semibold text-primary">Registrar</span>
       ) : (

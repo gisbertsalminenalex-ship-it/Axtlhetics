@@ -62,7 +62,7 @@ export function FoodLog({
   return (
     <div className="mt-5">
       <p className="text-subhead font-semibold">Lo que llevas hoy</p>
-      <div className="mt-3 space-y-4 rounded-2xl border border-border p-4">
+      <div className="mt-3 space-y-4 rounded-2xl border border-border bg-surface shadow-card p-4">
         <MacroBar label="Calorías" unit="kcal" value={intake.kcal} range={targets ? [targets.kcal, targets.kcal] : null} />
         <MacroBar label="Proteína" unit="g" value={intake.proteinG} range={targets?.proteinGrams ?? null} />
         <MacroBar label="Carbohidratos" unit="g" value={intake.carbsG} range={targets?.carbsGrams ?? null} />
@@ -93,7 +93,7 @@ export function FoodLog({
       )}
 
       {draft ? (
-        <div className="ax-fade mt-3 rounded-3xl bg-surface px-4 pb-4">
+        <div className="ax-fade mt-3 rounded-3xl bg-surface shadow-card-lg px-4 pb-4">
           <ChoiceGroup label="¿Qué comida?" options={SLOT_OPTIONS} value={draft.slot} onChange={(slot) => setDraft({ ...draft, slot })} />
           <div className="grid grid-cols-2 gap-3">
             <AmountField

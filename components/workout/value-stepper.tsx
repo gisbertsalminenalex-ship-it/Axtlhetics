@@ -34,7 +34,7 @@ export function ValueStepper({
   return (
     // El número entre sus dos botones, en una fila (D-075): se ajusta con el
     // pulgar sin mover la mano y la cifra queda en el centro de la mirada.
-    <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface px-3 py-4">
+    <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface shadow-card px-3 py-4">
       <StepperButton label={decreaseLabel} onClick={onDecrease}>
         <Minus className="h-[18px] w-[18px] text-foreground" strokeWidth={2} />
       </StepperButton>
@@ -47,10 +47,10 @@ export function ValueStepper({
           aria-label={inputLabel}
           value={value}
           onChange={(event) => onInput(event.target.value)}
-          className="mx-auto block w-full bg-transparent text-center text-title-lg font-bold leading-none tabular-nums outline-none focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="mx-auto block w-full bg-transparent text-center text-title-lg font-extrabold leading-none tabular-nums outline-none focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-primary/40"
         />
       ) : (
-        <p className="text-title-lg font-bold leading-none tabular-nums">{value}</p>
+        <p className="text-title-lg font-extrabold leading-none tabular-nums">{value}</p>
       )}
         <p className="mt-1 text-footnote text-muted-foreground">{unit}</p>
       </div>

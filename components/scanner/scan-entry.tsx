@@ -23,7 +23,7 @@ export function ScanEntry({ onOpen }: { onOpen: () => void }) {
   const label = due.kind === 'first' ? 'Hacer escaneo' : due.kind === 'due' ? 'Repetir' : 'Hacer otro'
 
   return (
-    <section className="ax-enter mb-3 flex items-center gap-3 rounded-3xl bg-surface p-4 pl-5">
+    <section className="ax-enter mb-3 flex items-center gap-3 rounded-3xl bg-surface shadow-card-lg p-4 pl-5">
       <div className="flex-1">
         <p className="text-callout font-semibold">Escáner corporal</p>
         <p className="mt-0.5 text-footnote text-muted-foreground text-pretty">{text}</p>

@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react'
 import Image from 'next/image'
 import { ArrowRight, Check, Pause } from 'lucide-react'
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
 import { EmptyNote } from '@/components/section-header'
 import { closingMessage } from '@/lib/domain/axis/closing'
@@ -54,7 +54,7 @@ export function EntrenamientoCompletado() {
             <Check className="h-7 w-7 text-success" strokeWidth={2.5} />
           )}
         </span>
-        <h2 className="mt-5 text-title-lg font-bold">
+        <h2 className="mt-5 text-title-lg font-extrabold">
           {abandoned ? 'Guardado igualmente.' : 'Sesión completada.'}
         </h2>
         <p className="mt-2 text-callout text-muted-foreground">
@@ -70,8 +70,8 @@ export function EntrenamientoCompletado() {
       </div>
 
       {/* Lo que AXIS concluye de la sesión (D-019), no el motivo con el que la propuso. */}
-      <div className="mt-3 flex items-start gap-3 rounded-2xl bg-surface p-4">
-        <AxisMark className="mt-[3px] h-3.5 w-3.5 shrink-0 text-primary" />
+      <div className="mt-3 flex items-start gap-3 rounded-2xl bg-surface shadow-card p-4">
+        <AxisBadge size="sm" />
         <p className="text-subhead text-foreground/80 text-pretty">{closingMessage(lastCompleted, records)}</p>
       </div>
 
@@ -121,7 +121,7 @@ export function EntrenamientoCompletado() {
       {lastCompleted.exercises.length > 0 ? (
         <>
           <h3 className="mt-10 mb-3 text-body font-semibold">Resumen de ejercicios</h3>
-          <ul className="overflow-hidden rounded-2xl border border-border">
+          <ul className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
             {lastCompleted.exercises.map((exercise, index) => {
               const catalog = findExercise(exercise.exerciseId)
               const volume = volumeOfExercise(exercise)
@@ -131,7 +131,7 @@ export function EntrenamientoCompletado() {
                   className="ax-stagger flex min-h-16 items-center gap-3.5 border-b border-border px-4 py-2.5 last:border-b-0"
                   style={{ '--ax-index': index } as CSSProperties}
                 >
-                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-surface">
+                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-fill">
                     {hasExerciseFigure(exercise.exerciseId) ? (
                       <ExerciseFigure exerciseId={exercise.exerciseId} animate={false} className="h-full w-full" />
                     ) : catalog?.imageUrl && (
@@ -250,7 +250,7 @@ function SessionXp({ sessionId }: { sessionId: string }) {
       </ul>
       {award.facts.length > 0 && (
         <div className="mt-3 flex items-start gap-2">
-          <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <AxisBadge size="sm" />
           <p className="text-footnote text-muted-foreground text-pretty">{award.facts.join(' ')}</p>
         </div>
       )}
@@ -265,7 +265,7 @@ function repsUnit(exerciseId: string): string {
 
 function SummaryStat({ value, label, index }: { value: string; label: string; index: number }) {
   return (
-    <div className="ax-stagger rounded-2xl bg-surface px-3 py-4 text-center" style={{ '--ax-index': index } as CSSProperties}>
+    <div className="ax-stagger rounded-2xl bg-surface shadow-card px-3 py-4 text-center" style={{ '--ax-index': index } as CSSProperties}>
       <p className="text-headline font-bold tabular-nums">{value}</p>
       <p className="mt-0.5 text-caption text-muted-foreground">{label}</p>
     </div>

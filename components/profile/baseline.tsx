@@ -72,7 +72,7 @@ export function BaselinePicker({
       )}
 
       {measures.test && (
-        <p className="mt-4 rounded-2xl bg-surface px-4 py-3 text-footnote leading-relaxed text-pretty">
+        <p className="mt-4 rounded-2xl bg-surface shadow-card px-4 py-3 text-footnote leading-relaxed text-pretty">
           Para la fuerza y la resistencia, tu punto de partida es el <span className="font-semibold">test de evolución</span>:
           te lo propongo en Entrenamiento, en «Tu evaluación inicial», el primer día que llegues bien.
         </p>

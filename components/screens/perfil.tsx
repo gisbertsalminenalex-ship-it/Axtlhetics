@@ -204,11 +204,11 @@ export function PerfilScreen({
       </header>
 
       {/* Título grande, como el resto de pantallas (D-075). */}
-      {!isOnboarding && <h1 className="ax-enter text-title-lg font-bold">Tu perfil</h1>}
+      {!isOnboarding && <h1 className="ax-enter text-title-lg font-extrabold">Tu perfil</h1>}
 
       {isOnboarding && (
         <>
-          <h1 className="text-title-lg font-bold text-balance">
+          <h1 className="text-title-lg font-extrabold text-balance">
             Empecemos por ti.
           </h1>
           <p className="mt-3 text-callout leading-relaxed text-muted-foreground text-pretty">
@@ -324,7 +324,7 @@ export function PerfilScreen({
         {activities.map((activity) => (
           <li
             key={activity.id}
-            className="flex items-center gap-3 rounded-2xl bg-surface p-4"
+            className="flex items-center gap-3 rounded-2xl bg-surface shadow-card p-4"
           >
             <span className="flex-1">
               <span className="block text-callout font-semibold">{activity.name}</span>
@@ -364,7 +364,7 @@ export function PerfilScreen({
           </li>
         ))}
         {activities.length === 0 && (
-          <li className="rounded-2xl bg-surface px-4 py-5 text-center text-footnote text-muted-foreground">
+          <li className="rounded-2xl bg-surface shadow-card px-4 py-5 text-center text-footnote text-muted-foreground">
             Todavía no has añadido ninguna actividad.
           </li>
         )}
@@ -583,7 +583,7 @@ function ActivityForm({
   }
 
   return (
-    <div className="ax-enter mt-3 rounded-2xl bg-surface p-4">
+    <div className="ax-enter mt-3 rounded-2xl bg-surface shadow-card p-4">
       <TextField label="Actividad" value={name} placeholder="Baloncesto" onChange={setName} />
 
       <ChoiceGroup
@@ -688,7 +688,7 @@ function ActivityForm({
           type="button"
           onClick={reset}
           disabled={saving}
-          className="ax-press h-12 flex-1 rounded-full bg-surface text-subhead font-semibold text-muted-foreground disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-full bg-fill text-subhead font-semibold text-muted-foreground disabled:opacity-40"
         >
           Cancelar
         </button>

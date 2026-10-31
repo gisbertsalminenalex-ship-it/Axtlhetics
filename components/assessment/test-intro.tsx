@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { StaleTestNotice } from '@/components/assessment/stale-test-notice'
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 import { fixedPushUpVariant } from '@/lib/domain/assessment/assessment'
 import {
   ASSESSMENT_PROTOCOL,
@@ -60,7 +60,7 @@ export function TestIntro({
         </button>
       </header>
 
-      <h1 className="mt-3 text-title-lg font-bold">Test de evolución</h1>
+      <h1 className="mt-3 text-title-lg font-extrabold">Test de evolución</h1>
       <p className="mt-1.5 text-callout text-muted-foreground">4 pruebas · 10–15 min</p>
       <StaleTestNotice className="mt-4" />
       <p className="mt-4 text-callout leading-relaxed text-pretty">
@@ -90,9 +90,9 @@ export function TestIntro({
       )}
 
       {fixed === null && (
-        <section className="mt-5 rounded-3xl bg-surface p-5">
-          <p className="flex items-center gap-1.5 text-overline font-semibold tracking-[0.12em] text-primary">
-            <AxisMark className="h-3 w-3" /> AXIS
+        <section className="mt-5 rounded-3xl bg-surface shadow-card-lg p-5">
+          <p className="flex items-center gap-2 text-overline font-bold tracking-[0.12em] text-axis-ink">
+            <AxisBadge size="sm" /> AXIS
           </p>
           <p className="mt-2 text-subhead leading-relaxed text-pretty">
             Para tu primer test recomendamos {findExercise(recommended)?.name.toLowerCase()}. Si prefieres, puedes
@@ -108,7 +108,7 @@ export function TestIntro({
                 onClick={() => setVariant(id)}
                 className={cn(
                   'ax-press min-h-11 rounded-full px-4 text-footnote font-semibold',
-                  variant === id ? 'bg-primary text-primary-foreground' : 'bg-surface',
+                  variant === id ? 'bg-primary text-primary-foreground' : 'bg-fill',
                 )}
               >
                 {variantLabel(id)}
@@ -139,7 +139,7 @@ export function TestIntro({
             // aviso de error lo explica y se puede volver a intentar.
             if (!(await onStart(variant))) setStarting(false)
           }}
-          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
+          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action disabled:opacity-60"
         >
           Empezar test
         </button>

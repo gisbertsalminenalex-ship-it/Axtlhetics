@@ -2519,6 +2519,30 @@ AXTHLETICS sigue funcionando sin cuenta y sin conexión. Sin conectar no se hace
 
 ---
 
+## D-077 — Familia visual AXIS: cobalto para la app, lima para AXIS
+
+**Fecha:** 2026-10-31 · **Estado:** aprobado por Alex («me gusta, impleméntalo en la app») sobre la maqueta de Inicio, Recuperación y el sistema de color. Rama `familia-visual`. Pedido por Alex: la estética no le convencía y quería acercarla a Finax y Mentax.
+
+**El problema:** gris sobre blanco con Inter y el azul estándar de sistema: correcto pero genérico, sin marca; superficies (`#F4F4F6`) casi iguales al canvas (`#FCFCFC`) y sin sombras, así que todo quedaba plano; tamaños muy grandes (44/34 px) que vaciaban la pantalla; la tarjeta negra de AXIS como una isla oscura en una app clara.
+
+**Decisiones de Alex:** familia **estricta** con Finax y Mentax (misma fuente, tarjetas blancas con sombra suave sobre canvas tintado, misma barra inferior; solo cambia el color); AXIS con **color propio**, distinto del de la app, como en Finax (violeta) y Mentax (turquesa); **sin modo oscuro**; las figuras y fotos de ejercicios **no cambian**.
+
+### Qué cambia
+
+- **Color:** cobalto `#1F4FE0` como marca (sustituye a `#0A61F8`), con cobalto suave `#E7EDFC`. **Lima `#C6F135`** como color de AXIS, con lima suave `#F3FADF` y texto oliva `#3F5A00`; la lima nunca va como texto sobre blanco. Canvas `#F3F5F9`, tarjeta `#FFFFFF`, relleno dentro de tarjeta `#F1F3F8` (`--fill`), tinta `#141A26`. Verde, naranja y rojo siguen siendo solo estados (D-008).
+- **Recuadros de categoría** (`components/category-tone.ts`): sueño índigo, energía ámbar, estrés rosa, hidratación cian, fatiga cobalto. Son categoría, no estado.
+- **Fuente:** Plus Jakarta Sans, la de Finax. La escala de D-075 se mantiene con los grandes rebajados: headline 19, title 24, title-lg 28, display 36, hero 60.
+- **Elevación:** se revoca «sin sombras por defecto» (§10). Tarjetas blancas con `shadow-card` (protagonista: `shadow-card-lg`) y botón principal con `shadow-action`. Ninguna sombra suelta.
+- **AXIS:** el símbolo «Three Elements» del ecosistema (`components/axis-symbol.tsx`, decisión del ecosistema de 2026-10-30) sobre su recuadro lima (`AxisBadge`) allí donde habla AXIS: el porqué de la recomendación, las notas, el chat, el test, el escaneo y los resúmenes. La tarjeta negra (`bg-ink`) desaparece: la recomendación de Inicio es una tarjeta blanca con el porqué de AXIS en una franja lima.
+- **Marca:** cabecera con ficha cobalto (`BrandTile`: la «A» en blanco y la flecha en lima) y «axthletics» en minúscula, como «finax» y «Mentax».
+- **Pantallas:** antetítulo en mayúsculas y cobalto (la fecha en Inicio y Recuperación), título de pestaña a 28 px, «Hola, Alex» con el estado del día debajo; listas y módulos como tarjetas blancas; selector del Historial con pulgar cobalto suave; barra inferior blanca con la pill cobalto suave.
+
+### Lo que no cambia
+
+Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo cambia cómo se ve. Los iconos de la app (`public/icon-*.png`) siguen siendo los de D-029 hasta que se rehagan con la ficha nueva.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -23,7 +23,7 @@ export function WeeklyActivity({
   className?: string
 }) {
   return (
-    <div className={cn('flex items-center justify-between', className)}>
+    <div className={cn('flex items-center justify-between rounded-2xl border border-border bg-surface px-3 py-3 shadow-card', className)}>
       {WEEKDAY_INITIALS.map((initial, i) => {
         const isDone = completedDays[i] ?? false
         const isToday = i === today
@@ -47,7 +47,7 @@ export function WeeklyActivity({
             </span>
             <span
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full text-subhead tabular-nums transition-colors duration-200',
+                'flex h-9 w-9 items-center justify-center rounded-full text-subhead tabular-nums transition-colors duration-200',
                 isToday && !isDone && 'bg-primary font-semibold text-primary-foreground',
                 isDone && 'bg-secondary text-primary',
                 !isDone && !isToday && (isPast ? 'text-muted-nontext' : 'text-foreground'),

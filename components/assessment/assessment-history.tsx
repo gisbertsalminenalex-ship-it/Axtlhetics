@@ -88,7 +88,7 @@ export function AssessmentDetail({ id, onBack }: { id: string; onBack: () => voi
           <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
         </button>
       </header>
-      <h1 className="mt-3 text-title-lg font-bold">Test de evolución</h1>
+      <h1 className="mt-3 text-title-lg font-extrabold">Test de evolución</h1>
       {entry && (
         <p className="mt-1.5 text-subhead text-muted-foreground">
           {capitalize(formatDayInSentence(entry.dayKey))} · Protocolo {ASSESSMENT_PROTOCOL_VERSION}

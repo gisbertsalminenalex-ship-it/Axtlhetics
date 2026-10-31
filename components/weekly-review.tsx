@@ -1,6 +1,6 @@
 'use client'
 
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 import { describeImprovement, type WeeklyReview } from '@/lib/domain/axis/weekly-review'
 import { formatKg } from '@/lib/domain/workouts/history'
 
@@ -47,7 +47,7 @@ export function WeeklyReviewSection({ review }: { review: WeeklyReview | null })
       <ul className="mt-1.5 space-y-2">
         {review.next.map((line) => (
           <li key={line} className="flex gap-2.5 text-subhead leading-snug text-pretty">
-            <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+            <AxisBadge size="sm" />
             <span>{line}</span>
           </li>
         ))}

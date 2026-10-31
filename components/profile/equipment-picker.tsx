@@ -88,7 +88,7 @@ export function EquipmentPicker({
             {value.weights.map((weight, index) => (
               <li
                 key={`${weight.kind}-${weight.kg}`}
-                className="flex items-center gap-3 rounded-2xl bg-surface pl-4"
+                className="flex items-center gap-3 rounded-2xl bg-surface shadow-card pl-4"
               >
                 <span className="flex-1 text-callout font-medium">{describeWeight(weight)}</span>
                 <button
@@ -109,7 +109,7 @@ export function EquipmentPicker({
         )}
       </div>
 
-      <div className="rounded-2xl border border-border p-4">
+      <div className="rounded-2xl border border-border bg-surface shadow-card p-4">
         <ChoiceGroup label="Añadir una pesa" options={KIND_OPTIONS} value={kind} onChange={setKind} />
         <ChoiceGroup label="Cuántas" options={COUNT_OPTIONS} value={count} onChange={setCount} />
         <label className="block py-3">
@@ -123,14 +123,14 @@ export function EquipmentPicker({
             onKeyDown={(event) => {
               if (event.key === 'Enter') addWeight()
             }}
-            className="mt-2 h-12 w-full rounded-2xl border border-transparent bg-surface focus-visible:border-primary px-4 text-callout tabular-nums outline-none placeholder:text-muted-foreground"
+            className="mt-2 h-12 w-full rounded-2xl border border-transparent bg-fill focus-visible:border-primary px-4 text-callout tabular-nums outline-none placeholder:text-muted-foreground"
           />
         </label>
         <button
           type="button"
           onClick={addWeight}
           disabled={kg === null}
-          className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-surface text-subhead font-semibold text-primary disabled:opacity-35"
+          className="ax-press mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-fill text-subhead font-semibold text-primary disabled:opacity-35"
         >
           <Plus className="h-4 w-4" strokeWidth={2.25} />
           Añadir {kind === 'mancuerna' ? (count === 'par' ? 'mancuernas' : 'mancuerna') : count === 'par' ? 'kettlebells' : 'kettlebell'}

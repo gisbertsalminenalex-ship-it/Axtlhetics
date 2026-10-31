@@ -329,7 +329,7 @@ export function EntrenamientoActivo() {
           <p className="mt-7 text-overline font-semibold tracking-[0.16em] text-primary">
             SIGUIENTE EJERCICIO
           </p>
-          <div className="mt-3 flex w-full items-center gap-3.5 rounded-2xl bg-surface p-3 text-left">
+          <div className="mt-3 flex w-full items-center gap-3.5 rounded-2xl bg-surface shadow-card p-3 text-left">
             {hasExerciseFigure(upcoming.exerciseId) ? (
               <ExerciseFigure exerciseId={upcoming.exerciseId} animate={false} className="h-12 w-12 shrink-0 rounded-xl bg-background" />
             ) : upcoming.imageUrl ? (
@@ -553,7 +553,7 @@ function WorkPanel({
 /** «¿Cuántas te quedaban?» tras cada serie (D-052, D-055). Opcional. */
 function ReservePicker({ question }: { question: ReserveQuestion }) {
   return (
-    <div className="ax-fade mt-5 rounded-2xl bg-surface p-4 text-left">
+    <div className="ax-fade mt-5 rounded-2xl bg-surface shadow-card p-4 text-left">
       <p className="text-footnote font-semibold">¿Cuántas te quedaban?</p>
       <p className="mt-0.5 text-caption text-muted-foreground">
         {question.name} · buscamos {REPS_IN_RESERVE_LABELS[question.target]} ·{' '}
@@ -603,7 +603,7 @@ function HowTo({ exerciseId }: { exerciseId: string }) {
   const instructions = findExercise(exerciseId)?.instructions
   if (!instructions) return null
   return (
-    <section key={exerciseId} className="ax-fade mt-6 rounded-2xl bg-surface p-4">
+    <section key={exerciseId} className="ax-fade mt-6 rounded-2xl bg-surface shadow-card p-4">
       <h3 className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">CÓMO SE HACE</h3>
       <p className="mt-2 text-subhead text-pretty">{instructions}</p>
     </section>

@@ -63,7 +63,7 @@ export function NutritionSection() {
       />
 
       {targets && (
-        <div className="mt-1 rounded-3xl bg-surface p-5">
+        <div className="mt-1 rounded-3xl bg-surface shadow-card-lg p-5">
           <p className="text-title font-bold tabular-nums">
             {targets.kcal.toLocaleString('es-ES')} <span className="text-footnote font-medium text-muted-foreground">kcal al día</span>
           </p>
@@ -79,7 +79,7 @@ export function NutritionSection() {
       )}
 
       {adjustment && (
-        <div className="mt-3 rounded-3xl border border-border p-5">
+        <div className="mt-3 rounded-3xl border border-border bg-surface shadow-card p-5">
           <p className="text-subhead leading-relaxed text-pretty">{adjustment.reason}</p>
           {adjustment.kind === 'adjust' && (
             <button

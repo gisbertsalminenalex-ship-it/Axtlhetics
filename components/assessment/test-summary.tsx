@@ -1,7 +1,7 @@
 'use client'
 
 import { AssessmentResults } from '@/components/assessment/assessment-results'
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 import { TargetRecommendations } from '@/components/assessment/target-recommendations'
 import { isFirstCompletedTest } from '@/lib/domain/assessment/targets'
 import { ASSESSMENT_PROTOCOL_VERSION } from '@/lib/domain/assessment/protocol'
@@ -34,10 +34,10 @@ export function TestSummary({
       <p className="mt-8 text-footnote text-muted-foreground">
         {day.charAt(0).toUpperCase() + day.slice(1)} · Protocolo {ASSESSMENT_PROTOCOL_VERSION}
       </p>
-      <h1 className="mt-1 text-title-lg font-bold">Test completado</h1>
+      <h1 className="mt-1 text-title-lg font-extrabold">Test completado</h1>
 
       <div className="mt-4 flex items-start gap-2">
-        <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <AxisBadge size="sm" />
         <p className="text-subhead leading-relaxed text-muted-foreground text-pretty">
           {assessmentClosingMessage(summary.comparisons)}
         </p>
@@ -54,7 +54,7 @@ export function TestSummary({
         <button
           type="button"
           onClick={onDone}
-          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground"
+          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action"
         >
           Hecho
         </button>

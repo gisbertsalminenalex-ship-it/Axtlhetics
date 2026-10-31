@@ -185,7 +185,7 @@ export function HealthNote({
       )}
 
       {choice === 'escribir' && current.flags.length > 0 && (
-        <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-footnote leading-relaxed text-pretty">
+        <p className="mt-3 rounded-2xl bg-surface shadow-card px-4 py-3 text-footnote leading-relaxed text-pretty">
           Consulta con tu médico antes de empezar a entrenar o de subir la intensidad. AXIS no diagnostica nada; hasta
           que te dé el visto bueno, no te propondrá días fuertes.
         </p>

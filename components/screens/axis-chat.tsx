@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { ArrowLeft, ArrowUp, ArrowUpRight, Check } from 'lucide-react'
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 import { EmptyNote } from '@/components/section-header'
 import type { AxisActionProposal } from '@/lib/domain/axis/actions'
 import { useAxtlhetics } from '@/lib/state/store'
@@ -65,8 +65,8 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
         </button>
         <div className="flex flex-1 flex-col items-center">
           <div className="flex items-center gap-2">
-            <AxisMark className="h-4 w-4 text-primary" />
-            <h1 className="text-callout font-semibold tracking-[0.08em]">AXIS</h1>
+            <AxisBadge size="sm" />
+            <h1 className="text-callout font-extrabold tracking-[0.08em]">AXIS</h1>
           </div>
           <p className="text-overline text-muted-foreground">
             Tu guía de entrenamiento y recuperación
@@ -78,12 +78,9 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
       {/* Conversación vacía: quién es AXIS y qué se le puede preguntar */}
       {isEmpty && (
         <div className="ax-enter flex flex-1 flex-col justify-center py-6">
-          {/* La marca de AXIS sobre su superficie, la misma tinta de su tarjeta en Inicio (D-075). */}
-          <span className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-ink">
-            <span aria-hidden="true" className="absolute -top-6 -right-6 h-14 w-14 rounded-full bg-primary/40 blur-xl" />
-            <AxisMark className="relative h-6 w-6 text-white" />
-          </span>
-          <h2 className="mt-6 text-title-lg font-bold text-balance">Pregúntame por tu día.</h2>
+          {/* El símbolo de AXIS sobre su lima (D-077), la misma firma que en Inicio. */}
+          <AxisBadge size="lg" />
+          <h2 className="mt-6 text-title-lg font-extrabold text-balance">Pregúntame por tu día.</h2>
           <p className="mt-3 text-callout text-muted-foreground text-pretty">
             Respondo con tus datos: tu recuperación, tu historial, tu calendario y la
             sesión que te he propuesto. Si no tengo un dato, te lo digo.
@@ -91,14 +88,14 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
 
           {/* Lo que AXIS quería decirte (D-038): el punto de partida de la conversación. */}
           {axisNote && (
-            <p className="mt-5 flex items-start gap-3 rounded-2xl bg-surface p-4 text-subhead text-foreground/80 text-pretty">
-              <AxisMark className="mt-[3px] h-3.5 w-3.5 shrink-0 text-primary" />
+            <p className="mt-5 flex items-start gap-3 rounded-2xl border border-axis/40 bg-axis-soft p-4 text-subhead text-foreground/85 text-pretty">
+              <AxisBadge size="sm" />
               <span>{axisNote.text}</span>
             </p>
           )}
 
           {axisSuggestions.length > 0 && (
-            <ul className="mt-7 overflow-hidden rounded-2xl border border-border">
+            <ul className="mt-7 overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
               {axisSuggestions.map((suggestion, index) => (
                 <li
                   key={suggestion.question}
@@ -108,7 +105,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
                   <button
                     type="button"
                     onClick={() => void send(suggestion.question)}
-                    className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left text-callout font-medium transition-colors duration-150 active:bg-surface"
+                    className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left text-callout font-medium transition-colors duration-150 active:bg-fill"
                   >
                     <span className="flex-1">{suggestion.label}</span>
                     <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-nontext" />
@@ -168,7 +165,7 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
           {thinking && <ThinkingBubble />}
 
           {axisError && (
-            <div className="ax-enter rounded-2xl bg-surface p-4">
+            <div className="ax-enter rounded-2xl bg-surface shadow-card p-4">
               <p className="text-subhead font-medium">AXIS no ha podido responder.</p>
               <p className="mt-1 text-footnote text-muted-foreground">{axisError}</p>
             </div>

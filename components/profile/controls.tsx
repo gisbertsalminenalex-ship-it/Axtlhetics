@@ -89,7 +89,7 @@ export function StepButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
-      className="ax-press flex h-11 w-11 items-center justify-center rounded-full bg-surface text-foreground transition-colors disabled:opacity-35"
+      className="ax-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors disabled:opacity-35"
     >
       <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
     </button>
@@ -276,7 +276,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="ax-press flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+      className="ax-press flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action transition-opacity disabled:opacity-40"
     >
       {children}
     </button>

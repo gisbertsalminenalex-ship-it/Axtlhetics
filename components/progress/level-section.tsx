@@ -31,7 +31,7 @@ export function LevelSection() {
   return (
     <>
       {/* El nivel, en su tarjeta: el número manda, el resto lo explica (D-075). */}
-      <div className="ax-enter mt-6 rounded-3xl bg-surface p-5">
+      <div className="ax-enter mt-6 rounded-3xl bg-surface shadow-card-lg p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-overline font-semibold tracking-[0.16em] text-muted-foreground">TU NIVEL</p>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 import { recommendTargets } from '@/lib/domain/assessment/targets'
 import type { Assessment } from '@/lib/domain/assessment/types'
 import { formatShortDate } from '@/lib/domain/shared/dates'
@@ -41,7 +41,7 @@ export function TargetRecommendations({ assessment }: { assessment: Assessment }
     <section className="mt-7">
       <h2 className="text-body font-semibold">Objetivos que te propongo</h2>
       <p className="mt-2 flex items-start gap-2 text-footnote leading-relaxed text-muted-foreground text-pretty">
-        <AxisMark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <AxisBadge size="sm" />
         Con tu primer test ya sé de dónde partes. Te propongo mejorar cada prueba en unas 8 semanas: llegarás a los dos
         tests siguientes con algo concreto que mirar.
       </p>

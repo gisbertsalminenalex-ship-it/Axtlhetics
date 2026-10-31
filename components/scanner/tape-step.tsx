@@ -44,7 +44,7 @@ export function TapeStep({
       </p>
 
       {known.length > 0 && (
-        <p className="mt-4 rounded-2xl bg-surface px-4 py-3 text-footnote leading-relaxed text-pretty">
+        <p className="mt-4 rounded-2xl bg-surface shadow-card px-4 py-3 text-footnote leading-relaxed text-pretty">
           Uso tu última medida: {known.map((key) => `${PERIMETER_LABELS[key].toLowerCase()} ${cm(previous!.latest[key]!)}`).join(', ')}.
         </p>
       )}
@@ -80,7 +80,7 @@ export function TapeStep({
       </div>
 
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground">
+        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action">
           Continuar
         </button>
       </div>

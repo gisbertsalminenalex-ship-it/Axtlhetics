@@ -159,7 +159,7 @@ export function BodySection() {
               void savePerimeters(tape)
               setMeasuring(false)
             }}
-            className="ax-press mt-3 h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground"
+            className="ax-press mt-3 h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action"
           >
             Guardar medidas
           </button>

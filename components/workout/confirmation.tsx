@@ -36,7 +36,7 @@ export function Confirmation({
       de `page.tsx` no impone altura, así que un `min-h-full` aquí no resolvería.
     */
     <div className="ax-enter px-5 pt-12 pb-8">
-      <h1 className="text-title-lg font-bold text-balance">
+      <h1 className="text-title-lg font-extrabold text-balance">
         {title}
       </h1>
       <p className="mt-3 text-callout text-muted-foreground text-pretty">
@@ -47,7 +47,7 @@ export function Confirmation({
         <button
           type="button"
           onClick={onStay}
-          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground"
+          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action"
         >
           {stayLabel}
         </button>

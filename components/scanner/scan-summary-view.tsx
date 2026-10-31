@@ -5,7 +5,7 @@ import type { ScanComparison } from '@/lib/domain/scanner/compare'
 import type { ScanDiagnosis } from '@/lib/domain/scanner/diagnosis'
 import { buildText, SCAN_ZONE_LABELS, type ScanSummary } from '@/lib/domain/scanner/summary'
 import { findExercise } from '@/lib/domain/workouts/catalog'
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 
 /**
  * El resumen de un escaneo (D-023): índice, un párrafo por categoría, puntos
@@ -29,7 +29,7 @@ export function ScanSummaryView({
     <section>
       <div className="flex items-center gap-4">
         <CircularMetric value={summary.index ?? 0} size={96} stroke={6} tone={summary.index === null ? 'neutral' : 'primary'}>
-          <span className="text-title-lg font-bold leading-none tracking-[-0.03em] tabular-nums">{summary.index ?? '—'}</span>
+          <span className="text-title-lg font-extrabold leading-none tracking-[-0.03em] tabular-nums">{summary.index ?? '—'}</span>
           <span className="text-overline text-muted-foreground">/100</span>
         </CircularMetric>
         <p className="flex-1 text-footnote leading-snug text-muted-foreground text-pretty">
@@ -44,7 +44,7 @@ export function ScanSummaryView({
 
       {/* Lo que la foto no ve: la cinta y la fuerza del último mes (D-069). */}
       {summary.progress.length > 0 && (
-        <section className="mt-6 rounded-3xl bg-surface p-5">
+        <section className="mt-6 rounded-3xl bg-surface shadow-card-lg p-5">
           <h3 className="text-callout font-semibold">Este mes: cinta y fuerza</h3>
           <ul className="mt-2 space-y-1.5 text-subhead leading-relaxed">
             {summary.progress.map((line) => (
@@ -123,7 +123,7 @@ export function ScanSummaryView({
           <ul className="mt-2 space-y-2.5 text-subhead leading-relaxed">
             {plan.map((line) => (
               <li key={line} className="flex items-start gap-2">
-                <AxisMark className="mt-1 h-3.5 w-3.5 shrink-0 text-primary" />
+                <AxisBadge size="sm" />
                 <span>{line}</span>
               </li>
             ))}
@@ -199,7 +199,7 @@ function ComparisonBlock({ comparison }: { comparison: ScanComparison }) {
   const moved = comparison.changes.filter((change) => change.trend !== 'same')
   const still = comparison.changes.filter((change) => change.trend === 'same')
   return (
-    <section className="mt-6 rounded-3xl bg-surface p-5">
+    <section className="mt-6 rounded-3xl bg-surface shadow-card-lg p-5">
       <h3 className="text-callout font-semibold">Desde tu escaneo anterior</h3>
       <p className="mt-1.5 text-subhead leading-relaxed text-pretty">{comparison.headline}</p>
       {moved.length > 0 && (

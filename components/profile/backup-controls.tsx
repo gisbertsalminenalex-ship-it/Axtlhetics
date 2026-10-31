@@ -236,7 +236,7 @@ function RestoreConfirmation({
   const hasSomethingToLose = current.sessions > 0 || current.assessments > 0 || current.scans > 0 || current.profile
 
   return (
-    <div className="ax-enter mt-4 rounded-2xl bg-surface p-4">
+    <div className="ax-enter mt-4 rounded-2xl bg-surface shadow-card p-4">
       <p className="text-subhead font-semibold">Restaurar esta copia</p>
 
       <p className="mt-2 text-footnote leading-relaxed">La copia trae {describe(counts)}.</p>
@@ -269,7 +269,7 @@ function RestoreConfirmation({
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="ax-press h-12 flex-1 rounded-full bg-surface text-subhead font-semibold disabled:opacity-40"
+          className="ax-press h-12 flex-1 rounded-full bg-fill text-subhead font-semibold disabled:opacity-40"
         >
           Cancelar
         </button>

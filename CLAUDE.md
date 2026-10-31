@@ -221,16 +221,17 @@ Axtlhetics should feel like a **calm, confident personal coach**, not a generic 
 
 ### Core visual tokens
 
-- Primary blue: `#0A61F8`
-- Soft secondary blue: `#DCE8FF`
-- Primary text: `#111111`
-- Secondary text: `#6B6B6B`
-- Surface: `#F4F4F6` (grouped, borderless)
-- Border: `#E8E8EA` hairline; `border-strong` `#D6D6D6` only for tappable control outlines
-- Progress track: `#ECECEF`
-- Muted non-text: `#9A9A9A`
-- Ink (AXIS card on Inicio): `#0C111B`
-- Font: Inter with the optical-size axis; type scale of 11 named sizes (D-075): `text-overline` 11, `caption` 12, `footnote` 13, `subhead` 14, `callout` 15, `body` 16, `headline` 20, `title` 28, `title-lg` 34, `display` 44, `hero` 72. Never write `text-[Npx]`; `cn` (`lib/utils.ts`) knows these names so tailwind-merge does not drop them
+Since D-077 the app belongs to the **AXIS visual family** with Finax and Mentax (same font, white cards with a soft shadow on a tinted canvas, same bottom nav; only the colour changes). AXTHLETICS is cobalt; its AXIS is lime.
+
+- Primary (cobalt): `#1F4FE0`; soft cobalt `#E7EDFC` (`secondary`)
+- AXIS lime: `#C6F135` (`axis`, only as a fill — never text on white), `axis-soft` `#F3FADF`, `axis-ink` `#3F5A00`
+- Canvas: `#F3F5F9` (`background`); card `#FFFFFF` (`surface`, with `shadow-card`; protagonist `shadow-card-lg`); inside a card use `fill` `#F1F3F8`
+- Text: `#141A26` (`foreground`, also `ink`), secondary `#5B6372`
+- Border: `#E6E9F0` hairline; `border-strong` `#D3D9E3` only for tappable control outlines
+- Progress track: `#ECEFF4`; muted non-text `#9AA1AE`
+- Category tiles (`components/category-tone.ts`): sleep, energy, stress, water, brand — category, never state
+- Shadows: `shadow-card`, `shadow-card-lg`, `shadow-action` (primary button), `--elevation-control`. No other shadow
+- Font: Plus Jakarta Sans; type scale of 11 named sizes (D-075, large sizes lowered in D-077): `text-overline` 11, `caption` 12, `footnote` 13, `subhead` 14, `callout` 15, `body` 16, `headline` 19, `title` 24, `title-lg` 28, `display` 36, `hero` 60. Never write `text-[Npx]`; `cn` (`lib/utils.ts`) knows these names so tailwind-merge does not drop them
 - Base spacing unit: 4 px
 - Surface radius (large): 28 px — the protagonist surface of a screen
 - Surface radius: 20 px — surfaces, grouped lists and fields
@@ -239,7 +240,7 @@ Axtlhetics should feel like a **calm, confident personal coach**, not a generic 
 - Minimum touch target: 44 × 44 px
 - Motion: generally 200–300 ms
 
-The primary blue `#0A61F8` replaces the former `#4F7CFF`. Do not reintroduce `#4F7CFF`.
+Cobalt `#1F4FE0` (D-077) replaces `#0A61F8`, which replaced `#4F7CFF`. Do not reintroduce either.
 
 ### Neutrals and radii (D-005)
 
@@ -258,7 +259,7 @@ The background should read as a **very light, slightly softened neutral canvas**
 - Use the primary blue deliberately, not as decoration everywhere.
 - Blue communicates action, active state, important progress or AXIS emphasis.
 - Keep most of the interface neutral and calm.
-- Avoid generic SaaS/dashboard patterns, excessive gradients, excessive shadows, glassmorphism, decorative metrics and visual noise.
+- Avoid generic SaaS/dashboard patterns, gradients, shadows beyond the D-077 tokens, glassmorphism, decorative metrics and visual noise.
 - Preserve generous whitespace.
 - The interface should feel complete without feeling crowded.
 
@@ -407,9 +408,8 @@ Input scales, normalization and the "enough data" policy are closed by D-009. Th
 
 ### AXIS visual identity
 
-- Brand mark (D-029): an **«A» with a rising arrow**, traced from Alex's logo into `docs/design/AXTHLETICS_LOGO.svg` (source PNG next to it). It replaces the former abstract X. In the app it is one colour, the surrounding text's (`components/axis-mark.tsx`); in full colour — A `#111111`, arrow `#0A61F8`, on `#F8F8F8` — only in the app icons (`public/icon-*.png`, `apple-icon.png`).
-- In the main app header, use the small mark immediately before the word **AXIS**.
-- Inside AXIS cards/blocks, the symbol becomes secondary and more discreet.
+- Brand mark (D-029): an **«A» with a rising arrow**, traced from Alex's logo into `docs/design/AXTHLETICS_LOGO.svg` (`components/axis-mark.tsx`, `AxisMark`). In the header it is the `BrandTile` (D-077): white A and lime arrow on a cobalt tile, followed by «axthletics» in lowercase. The app icons (`public/icon-*.png`) still use the D-029 colours.
+- AXIS symbol (D-077): the ecosystem's «Three Elements» (`components/axis-symbol.tsx`). Wherever AXIS speaks it appears as `AxisBadge` (ink symbol on a lime tile); AXIS strips and notes use `axis-soft` with «AXIS ·» in `axis-ink`. The former dark `bg-ink` AXIS card is gone.
 - AXIS should guide decisions through concise, authoritative copy and a clear reason.
 - AXIS should feel integrated into Axtlhetics, not like a separate chatbot product.
 - Do not use decorative orbits, orbital rings, floating chatbot mascots, giant assistant avatars or oversized robot/chat imagery.

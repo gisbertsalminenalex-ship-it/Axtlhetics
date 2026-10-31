@@ -8,7 +8,7 @@ import { ScanEntry } from '@/components/scanner/scan-entry'
 import { EvaluationCard } from '@/components/profile/evaluation-card'
 import { WeeklyReviewSection } from '@/components/weekly-review'
 import { BlockReviewSection } from '@/components/block-review'
-import { AxisMark } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
 import { EmptyNote, SectionHeader } from '@/components/section-header'
 import { WeekPlan } from '@/components/week-plan'
 import { WeeklyVolume } from '@/components/weekly-volume'
@@ -70,20 +70,20 @@ export function EntrenamientoScreen({
     <div className="px-5 pb-12">
       {/* Header */}
       <header className="ax-enter pt-6">
-        <h1 className="text-title-lg font-bold">Entrenamiento</h1>
-        <p className="mt-1.5 text-callout text-muted-foreground">Tu próximo paso empieza aquí.</p>
+        <p className="text-caption font-bold tracking-[0.08em] text-primary uppercase">Tu próximo paso</p>
+        <h1 className="mt-1.5 text-title-lg font-extrabold">Entrenamiento</h1>
       </header>
 
       {/* HOY */}
       <section
         key={proposal?.id}
-        className="ax-enter mt-7 rounded-3xl bg-surface p-6"
+        className="ax-enter mt-6 rounded-3xl border border-border bg-surface p-5 shadow-card-lg"
         style={{ animationDelay: '60ms' }}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-overline font-semibold tracking-[0.16em] text-primary">HOY</span>
+              <span className="text-overline font-bold tracking-[0.12em] text-muted-foreground">HOY</span>
               {/* D-048: el día fuerte se marca, y se puede cambiar a la versión normal. */}
               {hard && (
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-overline font-semibold text-primary">
@@ -91,7 +91,7 @@ export function EntrenamientoScreen({
                 </span>
               )}
             </div>
-            <h2 className="mt-2 text-title font-bold text-balance">
+            <h2 className="mt-1.5 text-title font-extrabold text-balance">
               {session ? session.title : 'Hoy toca recuperar'}
             </h2>
             {/* D-022: el entrenamiento de hoy se movió a mañana. Solo contexto. */}
@@ -117,9 +117,10 @@ export function EntrenamientoScreen({
           </div>
         )}
 
-        <div className="mt-5 flex items-start gap-2.5 border-t border-border pt-4">
-          <AxisMark className="mt-[3px] h-3.5 w-3.5 shrink-0 text-primary" />
-          <p className="text-subhead text-muted-foreground text-pretty">
+        <div className="mt-4 flex items-start gap-3 rounded-2xl bg-axis-soft px-3.5 py-3">
+          <AxisBadge />
+          <p className="text-subhead text-foreground/85 text-pretty">
+            <span className="font-bold text-axis-ink">AXIS · </span>
             {proposal?.reason ?? 'Registra tu recuperación para que AXIS pueda recomendarte algo.'}
           </p>
         </div>
@@ -127,7 +128,7 @@ export function EntrenamientoScreen({
         <button
           type="button"
           onClick={trains ? onStart : onGoRecuperacion}
-          className="ax-press group mt-5 flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-semibold text-primary-foreground"
+          className="ax-press group mt-5 flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action"
         >
           {trains ? 'Empezar entrenamiento' : 'Ver recuperación'}
           <ArrowRight className="h-4 w-4 transition-transform duration-200 group-active:translate-x-0.5" />
@@ -167,14 +168,14 @@ export function EntrenamientoScreen({
           <div className="space-y-2">
             {warmup.length > 0 && <PhaseGroup label={EXERCISE_PHASE_LABELS.calentamiento} exercises={warmup} />}
             {main.length > 0 && (
-              <ol className="overflow-hidden rounded-2xl border border-border" aria-label="Entrenamiento">
+              <ol className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card" aria-label="Entrenamiento">
                 {main.map((exercise, index) => (
                   <li
                     key={`${exercise.exerciseId}-${index}`}
                     className="ax-stagger flex min-h-16 items-center gap-3.5 border-b border-border px-4 py-3 last:border-b-0"
                     style={{ '--ax-index': index } as CSSProperties}
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface text-caption font-semibold tabular-nums text-muted-foreground">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-fill text-caption font-semibold tabular-nums text-muted-foreground">
                       {index + 1}
                     </span>
                     <span className="min-w-0 flex-1 text-callout font-medium">{exercise.name}</span>

@@ -1,16 +1,14 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import { ServiceWorkerRegistrar } from '@/components/service-worker'
 import { AxtlheticsProvider } from '@/lib/state/store'
 import { EcosystemProvider } from '@/lib/ecosystem/use-ecosystem'
 import './globals.css'
 
-const inter = Inter({
+// Plus Jakarta Sans (D-077): la fuente de la familia AXIS, la misma que Finax.
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
-  // Tamaño óptico (D-075): los titulares usan el corte Display de Inter, más
-  // cerrado y fino; el texto pequeño, el de lectura. Lo elige el navegador.
-  axes: ['opsz'],
+  variable: '--font-jakarta',
 })
 
 export const metadata: Metadata = {
@@ -44,7 +42,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: 'light',
-  themeColor: '#ffffff',
+  themeColor: '#f3f5f9',
   initialScale: 1,
   width: 'device-width',
   viewportFit: 'cover',
@@ -56,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} bg-neutral-100`}>
+    <html lang="es" className={`${jakarta.variable} bg-neutral-100`}>
       <body className="antialiased font-sans">
         <AxtlheticsProvider>
           <EcosystemProvider>{children}</EcosystemProvider>

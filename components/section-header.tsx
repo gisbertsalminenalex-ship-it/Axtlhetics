@@ -20,13 +20,13 @@ export function SectionHeader({
   className?: string
 }) {
   return (
-    <div className={cn('mt-10 mb-3 flex items-baseline justify-between gap-3', className)}>
-      <h3 className="text-body font-semibold">{title}</h3>
+    <div className={cn('mt-8 mb-3 flex items-baseline justify-between gap-3', className)}>
+      <h3 className="text-headline font-extrabold tracking-[-0.02em]">{title}</h3>
       {action && onAction ? (
         <button
           type="button"
           onClick={onAction}
-          className="ax-press -my-3 -mr-2 min-h-11 px-2 text-footnote font-medium text-primary"
+          className="ax-press -my-3 -mr-2 min-h-11 px-2 text-subhead font-bold text-primary"
         >
           {action}
         </button>
@@ -45,7 +45,7 @@ export function EmptyNote({ children, className }: { children: React.ReactNode; 
   return (
     <p
       className={cn(
-        'rounded-2xl bg-surface px-5 py-5 text-center text-footnote text-muted-foreground text-pretty',
+        'rounded-2xl border border-border bg-surface px-5 py-5 text-center text-footnote text-muted-foreground text-pretty',
         className,
       )}
     >

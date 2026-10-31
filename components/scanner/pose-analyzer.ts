@@ -81,7 +81,7 @@ function thumbnailOf(source: HTMLCanvasElement, landmarks: ScanLandmark[] | null
   const ctx = canvas.getContext('2d')!
   ctx.drawImage(source, 0, 0, width, height)
   if (landmarks) {
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#0A61F8'
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#1F4FE0'
     ctx.lineWidth = 2
     for (const [a, b] of BONES) {
       ctx.beginPath()

@@ -13,7 +13,7 @@ export function WeeklyVolume({ volumes, className }: { volumes: readonly GroupVo
   return (
     // Una línea por grupo (D-075): nombre, barra y cifra en la misma fila, para
     // que siete grupos no ocupen media pantalla.
-    <ul className={cn('rounded-2xl border border-border px-4 py-1.5', className)}>
+    <ul className={cn('rounded-2xl border border-border bg-surface px-4 py-1.5 shadow-card', className)}>
       {volumes.map((volume) => {
         const done = Math.min(fulfilmentOf(volume), 1)
         return (

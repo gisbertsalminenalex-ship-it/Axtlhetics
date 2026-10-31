@@ -63,7 +63,7 @@ export function WeekPlan({ days, className }: { days: readonly WeekDayView[]; cl
       </div>
 
       {selected && (
-        <div key={selected.dayKey} className="ax-fade mt-3 rounded-2xl bg-surface px-4 py-4">
+        <div key={selected.dayKey} className="ax-fade mt-3 rounded-2xl bg-surface shadow-card px-4 py-4">
           <p className="text-caption font-medium text-muted-foreground">
             {WEEKDAY_LABELS[weekdayOfKey(selected.dayKey)]} · {statusLabel(selected)}
           </p>

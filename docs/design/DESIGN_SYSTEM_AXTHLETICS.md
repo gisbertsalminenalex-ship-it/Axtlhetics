@@ -151,23 +151,32 @@ Evitar:
 
 ## 6. Paleta
 
+Cerrada por **D-077**: familia visual AXIS, la misma estructura que Finax y Mentax. Cada app tiene su color y su AXIS tiene otro: Finax verde con AXIS violeta, Mentax violeta con AXIS turquesa, **AXTHLETICS cobalto con AXIS lima**.
+
 | Token | Valor | Uso |
 |---|---|---|
-| `--color-primary` | `#0A61F8` | acción principal, estado activo, progreso relevante y AXIS |
-| `--color-background` | `#FCFCFC` | canvas general (D-016) |
-| `--color-surface` | `#F4F4F6` | superficies agrupadas, sin borde (D-075) |
-| `--color-text-primary` | `#111111` | texto principal |
-| `--color-text-secondary` | `#6B6B6B` | texto secundario |
-| `--color-border` | `#E8E8EA` | divisores y contorno fino de tarjetas (D-075) |
-| `--color-border-strong` | `#D6D6D6` | contorno de controles que deben leerse como tocables (D-075) |
-| `--color-track` | `#ECECEF` | pistas de anillos y progreso |
-| `--color-ink` | `#0C111B` | superficie de la recomendación de AXIS en Inicio |
-| `--color-muted-nontext` | `#9A9A9A` | iconos inactivos y anotaciones internas |
-| `--color-secondary` | `#DCE8FF` | superficies/acento azul muy suave cuando sea necesario |
+| `--primary` | `#1F4FE0` | cobalto: acción principal, estado activo, progreso relevante |
+| `--secondary` | `#E7EDFC` | cobalto suave: chips activos, pill de la barra inferior, recuadros de icono |
+| `--axis` | `#C6F135` | lima: el recuadro del símbolo de AXIS. **Nunca texto sobre blanco** |
+| `--axis-soft` | `#F3FADF` | franjas y notas de AXIS |
+| `--axis-ink` | `#3F5A00` | texto «AXIS ·» sobre la lima suave |
+| `--background` | `#F3F5F9` | canvas tintado |
+| `--surface` | `#FFFFFF` | tarjeta, con `shadow-card` |
+| `--fill` | `#F1F3F8` | relleno DENTRO de una tarjeta: chips, campos, pistas |
+| `--foreground` | `#141A26` | texto principal (y `--ink`, texto sobre la lima) |
+| `--muted-foreground` | `#5B6372` | texto secundario |
+| `--border` | `#E6E9F0` | divisores y contorno fino de tarjetas |
+| `--border-strong` | `#D3D9E3` | contorno de controles que deben leerse como tocables |
+| `--track` | `#ECEFF4` | pistas de anillos y progreso |
+| `--muted-nontext` | `#9AA1AE` | iconos inactivos y anotaciones internas |
 
-`#0A61F8` es el **único azul primario aprobado**. No reintroducir `#4F7CFF`.
+`#1F4FE0` es el **único azul primario aprobado**. No reintroducir `#0A61F8` ni `#4F7CFF`.
 
-El azul debe sentirse claro, suave y premium. No debe convertirse en un color eléctrico/agresivo repetido por toda la interfaz.
+El cobalto marca la acción; la lima marca a AXIS. Ninguno de los dos se reparte por toda la interfaz.
+
+### Recuadros de categoría (D-077)
+
+Los iconos de factores y accesos van en un recuadro con el color de su categoría (`components/category-tone.ts`): sueño `#EEF0FF`/`#4B55C8`, energía `#FFF4DB`/`#9A5B00`, estrés `#FCEBF3`/`#B4316F`, hidratación `#E3F4FB`/`#0E7490`, fatiga y entrenamiento cobalto suave. Dicen qué es, nunca si está bien o mal: por eso ninguno es verde, naranja ni rojo.
 
 ### Colores semánticos
 
@@ -193,31 +202,29 @@ La **Carga** usa una semántica distinta a propósito, porque en ella «más» n
 
 ## 7. Tipografía
 
-Fuente oficial: **Inter**.
+Fuente oficial: **Plus Jakarta Sans** (D-077), la de Finax: la familia AXIS comparte voz tipográfica.
 
-Escala cerrada por **D-075**. Son once tamaños con nombre, cada uno con su interlineado y su tracking (`app/globals.css`). Ningún componente escribe un tamaño en píxeles (`text-[13.5px]`): antes convivían 26 tamaños y la jerarquía se perdía.
+Escala cerrada por **D-075**, con los tamaños grandes rebajados en **D-077** porque Plus Jakarta Sans es más ancha que Inter. Once tamaños con nombre, cada uno con su interlineado y su tracking (`app/globals.css`). Ningún componente escribe un tamaño en píxeles.
 
 | Token | Tamaño | Uso |
 |---|---:|---|
-| `text-hero` | 72 px | una cifra que es la pantalla (cronómetro) |
-| `text-display` | 44 px | titular editorial de Inicio, cifra protagonista |
-| `text-title-lg` | 34 px | cifras grandes de resumen |
-| `text-title` | 28 px | título de pantalla |
-| `text-headline` | 20 px | titular de tarjeta, título de sección destacada |
-| `text-body` | 16 px | título de sección, texto de lectura |
+| `text-hero` | 60 px | una cifra que es la pantalla (cronómetro) |
+| `text-display` | 36 px | cifra protagonista |
+| `text-title-lg` | 28 px | título de pestaña, saludo de Inicio |
+| `text-title` | 24 px | titular de la tarjeta protagonista |
+| `text-headline` | 19 px | título de sección, nombre de la marca |
+| `text-body` | 16 px | texto de lectura |
 | `text-callout` | 15 px | filas de lista, botones |
 | `text-subhead` | 14 px | texto de apoyo dentro de tarjetas |
 | `text-footnote` | 13 px | texto secundario |
-| `text-caption` | 12 px | etiquetas de métrica, metadatos |
+| `text-caption` | 12 px | antetítulos, etiquetas de métrica, metadatos |
 | `text-overline` | 11 px | rótulos en mayúsculas, barra de navegación |
 
-Inter se carga con su eje de **tamaño óptico**: los titulares usan el corte Display, más cerrado. Las cifras que se comparan llevan `tabular-nums`.
+Pesos: `extrabold` en títulos de pantalla, titulares de tarjeta y secciones; `bold` en botones, antetítulos y cifras; `semibold` en filas y etiquetas; el resto, regular. Las cifras que se comparan llevan `tabular-nums`.
 
-Pesos: `bold` solo en titulares de pantalla y en el display; `semibold` en títulos de sección, cifras y botones; `medium` en etiquetas; el resto, regular.
+El **antetítulo** (fecha o contexto de la pantalla) va en `text-caption`, `bold`, mayúsculas y cobalto, encima del título.
 
 No introducir una segunda familia tipográfica.
-
-La tipografía debe hacer gran parte del trabajo de jerarquía. Evitar usar negrita, cajas y color simultáneamente para todo.
 
 ---
 
@@ -260,11 +267,16 @@ D-005 mencionaba 8 px para controles. **La interfaz aprobada no usa 8 px en ning
 
 ## 10. Elevación
 
-**Sin sombras por defecto.**
+Revocado «sin sombras por defecto» por **D-077**. La familia AXIS separa con **tarjetas blancas sobre el canvas tintado**, y la tarjeta lleva una sombra suave:
 
-La separación se consigue mediante superficies, bordes y espacio en blanco.
+| Token | Uso |
+|---|---|
+| `shadow-card` | tarjetas, listas agrupadas, módulos |
+| `shadow-card-lg` | la tarjeta protagonista de la pantalla |
+| `shadow-action` | el botón principal cobalto |
+| `--elevation-control` | el pulgar de un control que se superpone a su carril |
 
-Una elevación extremadamente sutil puede utilizarse únicamente cuando una interacción concreta necesita comunicar profundidad. No utilizar sombras como decoración.
+Ninguna sombra suelta: si aparece otra, se añade aquí primero. Dentro de una tarjeta blanca no hay tarjetas con sombra: lo que va dentro usa `--fill` (chips, campos) o un borde fino.
 
 ---
 
@@ -386,10 +398,12 @@ Debe guiar decisiones, no pedir al usuario que interprete un dashboard.
 
 ### Identidad visual
 
-- marca de AXTHLETICS (D-029): una **«A» con una flecha que sube**, `docs/design/AXTHLETICS_LOGO.svg`. Sustituye a la X abstracta;
-- dentro de la app va en un solo color, el del texto (`AxisMark`); a color —«A» `#111111`, flecha `#0A61F8`, sobre `#F8F8F8`— solo en el icono de la app;
-- en el header principal, símbolo pequeño antes de `AXIS`;
-- dentro de una AXIS Card, símbolo secundario y discreto;
+Actualizado por **D-077**:
+
+- **símbolo de AXIS:** los «Three Elements» del ecosistema AXIS (`AxisSymbol`, `components/axis-symbol.tsx`), el mismo de la app AXIS y de la sección AXIS de cada app;
+- **su firma es el recuadro lima** (`AxisBadge`): el símbolo en tinta sobre `--axis`. Va allí donde habla AXIS: el porqué de la recomendación, las notas, el chat, los resúmenes;
+- las franjas y notas de AXIS van en `--axis-soft` con «AXIS ·» en `--axis-ink`; la lima nunca es texto sobre blanco;
+- **marca de la app** (D-029): la «A» con la flecha que sube (`AxisMark`). En la cabecera, como ficha (`BrandTile`): la «A» en blanco sobre cobalto y la flecha en lima, seguida de «axthletics» en minúscula;
 - presencia reconocible pero nunca dominante;
 - copy corto, claro y con autoridad tranquila.
 
@@ -689,7 +703,7 @@ Claude Code no debe introducir una nueva pantalla, tab, métrica o componente im
 
 ```css
 :root {
-  --color-primary: #0A61F8;
+  --color-primary: #1F4FE0; /* D-077 */
   --color-background: /* PENDIENTE: blanco o blanco muy suavemente grisáceo */;
   --color-surface: #F7F7F7;
   --color-text-primary: #111111;
@@ -705,7 +719,7 @@ Claude Code no debe introducir una nueva pantalla, tab, métrica o componente im
   --color-warning: #f2a516;
   --color-error: #d93b3b;
 
-  --font-family: "Inter", sans-serif;
+  --font-family: "Plus Jakarta Sans", sans-serif; /* D-077 */
 
   --space-unit: 4px;
 

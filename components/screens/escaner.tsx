@@ -216,7 +216,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 
       {step === 'summary' && (
         <>
-          <h1 className="mt-3 text-title-lg font-bold">Tu escaneo</h1>
+          <h1 className="mt-3 text-title-lg font-extrabold">Tu escaneo</h1>
           <div className="mt-5">
             <ScanSummaryView
               summary={summary}
@@ -229,7 +229,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
               type="button"
               disabled={saving || Object.keys(measurements).length === 0}
               onClick={() => void save()}
-              className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
+              className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action disabled:opacity-60"
             >
               {saving ? 'Guardando…' : 'Guardar escaneo'}
             </button>
@@ -246,7 +246,7 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
 function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: string | null }) {
   return (
     <>
-      <h1 className="mt-3 text-title-lg font-bold">Escáner corporal</h1>
+      <h1 className="mt-3 text-title-lg font-extrabold">Escáner corporal</h1>
       <p className="mt-1.5 text-callout text-muted-foreground">2 preguntas, tu cinta y 5 fotos · 5–10 min</p>
       <p className="mt-4 text-callout leading-relaxed text-pretty">
         Como la primera valoración de un entrenador: miro cómo estás de pie, cómo te mueves y tus proporciones, y sigo
@@ -257,7 +257,7 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
         para que compares mes a mes.
       </p>
       {/* Los consejos, numerados en un grupo: se leen como pasos, no como letra pequeña (D-075). */}
-      <ol className="mt-6 space-y-3.5 rounded-2xl bg-surface p-4 text-subhead">
+      <ol className="mt-6 space-y-3.5 rounded-2xl bg-surface shadow-card p-4 text-subhead">
         {SCAN_PHOTO_TIPS.map((tip, index) => (
           <li key={tip} className="flex gap-3 text-pretty">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-background text-caption font-semibold tabular-nums text-primary">
@@ -269,7 +269,7 @@ function Intro({ onStart, lastScanDay }: { onStart: () => void; lastScanDay: str
       </ol>
       {lastScanDay && <p className="mt-3 text-footnote text-muted-foreground">Último escaneo: {formatDayInSentence(lastScanDay)}</p>}
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onStart} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground">
+        <button type="button" onClick={onStart} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action">
           Empezar
         </button>
       </div>
@@ -284,7 +284,7 @@ function Question({ title, hint, onNext, children }: { title: string; hint: stri
       <p className="mt-2 text-subhead leading-relaxed text-muted-foreground text-pretty">{hint}</p>
       <div className="mt-6 flex flex-wrap gap-2">{children}</div>
       <div className="mt-auto pt-8">
-        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground">
+        <button type="button" onClick={onNext} className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action">
           Continuar
         </button>
       </div>
@@ -375,7 +375,7 @@ function PoseStep({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={photo.result.thumbnail} alt={photo.result.ok ? 'Foto con los puntos detectados' : `Foto no válida: ${PHOTO_PROBLEM[photo.result.reason].toLowerCase()}`} className="w-full rounded-xl" />
               ) : (
-                <div className="aspect-[3/4] w-full rounded-xl bg-surface" />
+                <div className="aspect-[3/4] w-full rounded-xl bg-fill" />
               )}
               {!photo.result.ok && <p className="mt-1 text-overline leading-snug text-error">{PHOTO_PROBLEM[photo.result.reason]}</p>}
               <button
@@ -395,7 +395,7 @@ function PoseStep({
           type="button"
           onClick={onNext}
           disabled={analyzing}
-          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-60"
+          className="ax-press h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action disabled:opacity-60"
         >
           {valid > 0 ? 'Continuar' : 'Saltar esta pose'}
         </button>

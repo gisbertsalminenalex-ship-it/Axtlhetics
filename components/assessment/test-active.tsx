@@ -136,7 +136,7 @@ function TestBody({
   return (
     <section className="ax-enter flex flex-1 flex-col">
       <p className="mt-8 text-overline font-semibold tracking-[0.16em] text-muted-foreground uppercase">{test.area}</p>
-      <h1 className="mt-1.5 text-title-lg font-bold">{testName(test, assessment)}</h1>
+      <h1 className="mt-1.5 text-title-lg font-extrabold">{testName(test, assessment)}</h1>
       <p className="mt-3 text-callout leading-relaxed text-pretty">{test.instruction}</p>
 
       {test.perSide && (
@@ -313,7 +313,7 @@ function Stopwatch({ saving, onFinish }: { saving: boolean; onFinish: (value: nu
             setNow(start)
             setStartedAt(start)
           }}
-          className="ax-press mt-8 h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground"
+          className="ax-press mt-8 h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action"
         >
           Empezar cronómetro
         </button>
@@ -347,7 +347,7 @@ function FinishButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="ax-press mt-5 h-[52px] w-full rounded-full bg-primary text-callout font-semibold text-primary-foreground disabled:opacity-50"
+      className="ax-press mt-5 h-[52px] w-full rounded-full bg-primary text-callout font-bold text-primary-foreground shadow-action disabled:opacity-50"
     >
       {label}
     </button>

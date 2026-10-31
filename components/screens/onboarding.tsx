@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Minus, Plus, X } from 'lucide-react'
-import { AxisMark } from '@/components/axis-mark'
+import { BrandTile } from '@/components/axis-mark'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { SexPicker } from '@/components/profile/about-you'
@@ -343,9 +343,9 @@ export function OnboardingScreen() {
             <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
           </button>
         ) : (
-          <span className="flex h-11 items-center gap-2">
-            <AxisMark className="h-[18px] w-[18px] text-primary" />
-            <span className="text-footnote font-bold tracking-[0.22em] text-foreground">AXTHLETICS</span>
+          <span className="flex h-11 items-center gap-2.5">
+            <BrandTile />
+            <span className="text-headline font-extrabold tracking-[-0.03em] text-foreground">axthletics</span>
           </span>
         )}
 
@@ -363,7 +363,7 @@ export function OnboardingScreen() {
       </div>
 
       <div key={step.key} className="ax-enter flex flex-col pt-10">
-        <h1 className="text-title-lg font-bold text-balance">
+        <h1 className="text-title-lg font-extrabold text-balance">
           {step.question}
         </h1>
         {step.hint && (
@@ -462,7 +462,7 @@ export function OnboardingScreen() {
           )}
 
           {step.id === 'body' && (
-            <div className="divide-y divide-border rounded-2xl bg-surface px-4 [&_button]:bg-background">
+            <div className="divide-y divide-border rounded-2xl bg-surface shadow-card px-4 [&_button]:bg-background">
               <StepperField
                 label="Altura"
                 value={draft.heightCm}
@@ -578,7 +578,7 @@ function SportsPicker({
           {sports.map((sport, index) => (
             <li
               key={sport.name}
-              className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3"
+              className="flex items-center gap-3 rounded-2xl bg-surface shadow-card px-4 py-3"
             >
               <span className="flex-1">
                 <span className="block text-callout font-semibold">{sport.name}</span>

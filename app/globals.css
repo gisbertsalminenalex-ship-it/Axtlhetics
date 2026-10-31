@@ -3,7 +3,8 @@
 @import 'shadcn/tailwind.css';
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* Plus Jakarta Sans, la fuente de la familia AXIS (D-077), la misma que Finax. */
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -17,6 +18,17 @@
 
   /* Brand + status */
   --color-axis: var(--axis);
+  --color-axis-soft: var(--axis-soft);
+  --color-axis-ink: var(--axis-ink);
+  --color-fill: var(--fill);
+  --color-cat-sleep: var(--cat-sleep);
+  --color-cat-sleep-ink: var(--cat-sleep-ink);
+  --color-cat-energy: var(--cat-energy);
+  --color-cat-energy-ink: var(--cat-energy-ink);
+  --color-cat-stress: var(--cat-stress);
+  --color-cat-stress-ink: var(--cat-stress-ink);
+  --color-cat-water: var(--cat-water);
+  --color-cat-water-ink: var(--cat-water-ink);
   --color-ink: var(--ink);
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -35,14 +47,21 @@
   --radius-3xl: calc(var(--radius) + 18px);
 
   --color-border-strong: var(--border-strong);
+
+  /* Elevación de la familia AXIS (D-077): tarjeta blanca sobre el canvas tintado.
+     Dos pesos y la sombra de la acción principal; ninguna sombra suelta. */
+  --shadow-card: 0 1px 2px rgb(20 26 38 / 0.04), 0 6px 18px rgb(20 26 38 / 0.05);
+  --shadow-card-lg: 0 1px 2px rgb(20 26 38 / 0.04), 0 10px 28px rgb(20 26 38 / 0.07);
+  --shadow-action: 0 8px 18px rgb(31 79 224 / 0.22);
 }
 
 /* ---------------------------------------------------------------------------
-   Escala tipográfica (D-075)
+   Escala tipográfica (D-075; tamaños grandes rebajados en D-077, porque
+   Plus Jakarta Sans es más ancha que Inter)
 
    Once tamaños y ninguno más. Antes convivían 26 (13, 13,5, 14, 14,5…), tan
    parecidos que no creaban jerarquía y sí ruido. Cada tamaño trae su interlineado
-   y su tracking: Inter necesita cerrar el espaciado conforme crece, y abrirlo
+   y su tracking: la fuente necesita cerrar el espaciado conforme crece, y abrirlo
    un poco en los tamaños pequeños.
    --------------------------------------------------------------------------- */
 @theme {
@@ -64,19 +83,19 @@
   --text-body: 16px;
   --text-body--line-height: 1.5;
   --text-body--letter-spacing: -0.011em;
-  --text-headline: 20px;
+  --text-headline: 19px;
   --text-headline--line-height: 1.3;
   --text-headline--letter-spacing: -0.017em;
-  --text-title: 28px;
+  --text-title: 24px;
   --text-title--line-height: 1.15;
   --text-title--letter-spacing: -0.024em;
-  --text-title-lg: 34px;
+  --text-title-lg: 28px;
   --text-title-lg--line-height: 1.1;
   --text-title-lg--letter-spacing: -0.028em;
-  --text-display: 44px;
+  --text-display: 36px;
   --text-display--line-height: 1.02;
   --text-display--letter-spacing: -0.036em;
-  --text-hero: 72px;
+  --text-hero: 60px;
   --text-hero--line-height: 1;
   --text-hero--letter-spacing: -0.045em;
 }
@@ -93,46 +112,56 @@
      #f7f8fa) que no coincidía con ninguno.
      ------------------------------------------------------------------- */
 
-  /* Canvas general (P-011, cerrado por D-016): blanco muy suavemente grisáceo.
-     No llega a #FAFAFA a propósito: ahí se confundiría con `--surface` y las
-     agrupaciones dejarían de leerse sobre el fondo. */
-  --background: #fcfcfc;
-  --foreground: #111111;
-  --muted-foreground: #6b6b6b;
-  /* Bordes en dos pesos (D-075). El divisor y el contorno de una tarjeta son
-     líneas finas que apenas se ven: separan sin dibujar un boceto. El borde
-     fuerte queda para controles que hay que reconocer como tocables. */
-  --border: #e8e8ea;
-  --border-strong: #d6d6d6;
-  /* Superficie agrupada: un gris frío, sin borde, sobre el canvas. */
-  --surface: #f4f4f6;
-  /* Pistas de anillos, carriles y huecos por llenar. Más claro que el borde:
-     una pista no es un límite, es el fondo de un recorrido. */
-  --track: #ececef;
-  /* Iconos inactivos y anotaciones internas. Es gris de NO-texto: el texto
-     secundario tiene el suyo y son distintos a propósito. */
-  --muted-nontext: #9a9a9a;
+  /* Familia AXIS (D-077): la misma estructura que Finax y Mentax. Canvas
+     tintado con un punto de azul, tarjetas blancas encima y el relleno
+     `--fill` para lo que vive DENTRO de una tarjeta (chips, campos, pistas). */
+  --background: #f3f5f9;
+  --foreground: #141a26;
+  --muted-foreground: #5b6372;
+  /* Bordes en dos pesos. El divisor y el contorno de una tarjeta son líneas
+     finas; el fuerte queda para controles que hay que reconocer como tocables. */
+  --border: #e6e9f0;
+  --border-strong: #d3d9e3;
+  /* Tarjeta: blanca, con `shadow-card`, sobre el canvas. */
+  --surface: #ffffff;
+  /* Relleno dentro de una tarjeta blanca. Mismo tono que el canvas: un chip o
+     un campo dentro de la tarjeta se lee como un hueco, no como otra tarjeta. */
+  --fill: #f1f3f8;
+  /* Pistas de anillos, carriles y huecos por llenar. */
+  --track: #eceff4;
+  /* Iconos inactivos y anotaciones internas. Gris de NO-texto. */
+  --muted-nontext: #9aa1ae;
 
-  --primary: #0a61f8;
+  /* Cobalto: la marca de AXTHLETICS (D-077, sustituye a #0A61F8). */
+  --primary: #1f4fe0;
   --primary-foreground: #ffffff;
-  /* Acento azul muy suave, para superficies que deban teñirse sin gritar. */
-  --secondary: #dce8ff;
-  --axis: #0a61f8;
-  /* Casi negro con un punto de azul: la superficie de AXIS. */
-  --ink: #0c111b;
+  /* Cobalto suave: chips activos, la barra inferior, recuadros de icono. */
+  --secondary: #e7edfc;
+  --secondary-foreground: #1f4fe0;
+  /* Lima: el color propio de AXIS en esta app (D-077). Nunca como texto sobre
+     blanco (no se lee): es relleno o fondo, con `--axis-ink` encima. */
+  --axis: #c6f135;
+  --axis-soft: #f3fadf;
+  --axis-ink: #3f5a00;
+  /* Recuadros de icono por categoría (D-077, `components/category-tone.ts`).
+     Categoría, no estado: ninguno es verde, naranja ni rojo. */
+  --cat-sleep: #eef0ff;
+  --cat-sleep-ink: #4b55c8;
+  --cat-energy: #fff4db;
+  --cat-energy-ink: #9a5b00;
+  --cat-stress: #fcebf3;
+  --cat-stress-ink: #b4316f;
+  --cat-water: #e3f4fb;
+  --cat-water-ink: #0e7490;
+  /* Tinta: texto sobre la lima y superficies muy oscuras. */
+  --ink: #141a26;
 
   /**
-   * Elevación (Design System §10, P-008 cerrado por D-016).
-   *
-   * «Sin sombras por defecto». Este token es la **única** excepción aprobada:
-   * el pulgar del selector del Historial, que se mueve y se superpone a su
-   * carril, y ahí la profundidad comunica algo. La separación de todo lo demás
-   * se consigue con superficies, bordes y espacio en blanco.
-   *
-   * Existe como token y no como valor suelto para que la excepción se pueda
-   * contar: si aparece una segunda sombra en el código, se ve.
+   * Elevación. Desde D-077 las tarjetas llevan sombra suave (`shadow-card`,
+   * definida en el tema). Este token queda para el pulgar del selector del
+   * Historial, que se superpone a su carril.
    */
-  --elevation-control: 0 1px 2px rgb(17 17 17 / 0.08);
+  --elevation-control: 0 1px 3px rgb(20 26 38 / 0.12);
 
   /* Colores semánticos (D-005 / P-007). 0-49 rojo, 50-74 naranja, 75-100 verde. */
   --success: #1ba672;
